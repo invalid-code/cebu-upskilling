@@ -1,0 +1,83 @@
+:root {
+  --bg: #e8f0ee;
+  --surface: #f5faf8;
+  --surface2: #dce8e3;
+  --ink: #1a2e27;
+  --muted: #5c7a6e;
+  --line: #c4d6cd;
+  --teal: #1a6b5a;
+  --teal2: #2d9e83;
+  --teal-soft: #c6e6df;
+  --coral: #d4775c;
+  --coral-soft: #f0d8cf;
+  --sand: #e6dcc0;
+  --good: #2d8b5a;
+  --shadow: 0 16px 42px rgba(30, 50, 40, 0.09);
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --radius: 10px;
+  --radius-lg: 18px;
+  --radius-xl: 22px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.5 'DM Sans', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 {
+  font-family: 'Space Grotesk', sans-serif;
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+  margin: 0;
+}
+
+button, input, select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: 0;
+  background: transparent;
+}
+
+a {
+  color: var(--teal);
+  font-weight: 700;
+  font-size: 12px;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+input:focus-visible,
+select:focus-visible,
+button:focus-visible {
+  outline: 3px solid var(--coral);
+  outline-offset: 2px;
+}
+
+@keyframes enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+.view-enter {
+  animation: enter 0.35s var(--ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
