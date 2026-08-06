@@ -84,12 +84,14 @@ const styles = {
 };
 
 export default function RegisterPage() {
-  const [form, setForm] = useState({
-    firstName: '',
-    lastName: '',
-    emailAddress: '',
-    password: '',
-  });
+   const [form, setForm] = useState({
+     firstName: '',
+     lastName: '',
+     emailAddress: '',
+     password: '',
+     targetRole: '',
+     educationLevel: '',
+   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
@@ -150,16 +152,48 @@ export default function RegisterPage() {
             onChange={update('emailAddress')}
             required
           />
-          <input
-            style={styles.field}
-            type="password"
-            placeholder="Password"
-            value={form.password}
-            onChange={update('password')}
-            required
-            minLength={6}
-          />
-          <Button
+           <input
+             style={styles.field}
+             type="password"
+             placeholder="Password"
+             value={form.password}
+             onChange={update('password')}
+             required
+             minLength={6}
+           />
+           <select
+             style={styles.field}
+             aria-label="Target role"
+             value={form.targetRole}
+             onChange={update('targetRole')}
+           >
+             <option value="">Target role (optional)</option>
+             <option value="Frontend Developer">Frontend Developer</option>
+             <option value="Backend Developer">Backend Developer</option>
+             <option value="Full Stack Developer">Full Stack Developer</option>
+             <option value="Data Analyst">Data Analyst</option>
+             <option value="Data Scientist">Data Scientist</option>
+             <option value="UI/UX Designer">UI/UX Designer</option>
+             <option value="DevOps Engineer">DevOps Engineer</option>
+             <option value="Quality Assurance">Quality Assurance</option>
+             <option value="Project Manager">Project Manager</option>
+             <option value="Other">Other</option>
+           </select>
+           <select
+             style={styles.field}
+             aria-label="Education level"
+             value={form.educationLevel}
+             onChange={update('educationLevel')}
+           >
+             <option value="">Education level (optional)</option>
+             <option value="High School">High School</option>
+             <option value="Vocational">Vocational</option>
+             <option value="Bachelor's Degree">Bachelor's Degree</option>
+             <option value="Master's Degree">Master's Degree</option>
+             <option value="Doctorate">Doctorate</option>
+             <option value="Other">Other</option>
+           </select>
+           <Button
             variant="primary"
             style={{ width: '100%', marginTop: 4 }}
             disabled={loading}

@@ -17,6 +17,8 @@ public class Course : AuditableEntity
     [MaxLength(2000)]
     public string? Description { get; set; }
 
+    public int? Price { get; set; }
+
     public Genre Genre { get; set; } = null!;
     public ICollection<Lesson> Lessons { get; set; } = new List<Lesson>();
     public ICollection<LearnerStudyCourse> LearnerStudyCourses { get; set; } = new List<LearnerStudyCourse>();

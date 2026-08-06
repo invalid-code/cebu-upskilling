@@ -3,6 +3,21 @@ import Panel from '../components/ui/Panel';
 import Tag from '../components/ui/Tag';
 import EmptyState from '../components/shared/EmptyState';
 import { useToast } from '../context/ToastContext';
+import { useAuth } from '../context/AuthContext';
+import { useState } from 'react';
+
+const targetRoles = [
+  'Frontend Developer',
+  'Backend Developer',
+  'Full Stack Developer',
+  'Data Analyst',
+  'Data Scientist',
+  'UI/UX Designer',
+  'DevOps Engineer',
+  'Quality Assurance',
+  'Project Manager',
+  'Other',
+];
 
 const styles = {
   heading: {
@@ -52,10 +67,84 @@ const styles = {
     gap: 7,
     flexWrap: 'wrap',
   },
+  radioGroup: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 8,
+  },
+  radioOption: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    padding: '8px 12px',
+    borderRadius: 10,
+    border: '1px solid var(--line)',
+    background: 'transparent',
+    cursor: 'pointer',
+    fontSize: 13,
+    color: 'var(--ink)',
+    transition: 'background 0.15s, border-color 0.15s',
+  },
+  radioOptionSelected: {
+    background: 'var(--teal-soft)',
+    borderColor: 'var(--teal)',
+  },
+  radioInput: {
+    accentColor: 'var(--teal)',
+    width: 16,
+    height: 16,
+    flexShrink: 0,
+  },
+  saveRow: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    marginTop: 16,
+  },
+  roleTag: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '5px 10px',
+    borderRadius: 999,
+    background: 'var(--teal-soft)',
+    color: 'var(--teal)',
+    fontSize: 12,
+    fontWeight: 700,
+  },
 };
 
 export default function SkillsPage() {
   const { showToast } = useToast();
+  const { user } = useAuth();
+  const [selectedRole, setSelectedRole] = useState(user?.targetRole || '');
+  const [saving, setSaving] = useState(false);
+  const hasRole = user?.targetRole != null && user.targetRole !== '';
+
+  const handleSelect = (role) => {
+    setSelectedRole(role);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch('http://localhost:5179/api/auth/profile', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({ targetRole: selectedRole }),
+      });
+      if (!res.ok) throw new Error('Failed to save');
+      const updatedUser = await res.json();
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      showToast('Target role saved');
+    } catch {
+      showToast('Failed to save target role');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="view-enter">
@@ -75,10 +164,42 @@ export default function SkillsPage() {
       <div style={styles.grid}>
         <Panel style={styles.col5}>
           <div style={styles.eyebrow}>Target role</div>
-          <EmptyState
-            title="No target role set"
-            description="Choose a role to see skill gaps and recommendations."
-          />
+          {hasRole ? (
+            <div style={styles.roleTag}>{user.targetRole}</div>
+          ) : (
+            <>
+              <div style={styles.radioGroup}>
+                {targetRoles.map((role) => (
+                  <label
+                    key={role}
+                    style={{
+                      ...styles.radioOption,
+                      ...(selectedRole === role ? styles.radioOptionSelected : {}),
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="targetRole"
+                      value={role}
+                      checked={selectedRole === role}
+                      onChange={() => handleSelect(role)}
+                      style={styles.radioInput}
+                    />
+                    {role}
+                  </label>
+                ))}
+              </div>
+              <div style={styles.saveRow}>
+                <Button
+                  variant="primary"
+                  disabled={!selectedRole || saving}
+                  onClick={handleSave}
+                >
+                  {saving ? 'Saving...' : 'Save'}
+                </Button>
+              </div>
+            </>
+          )}
         </Panel>
 
         <Panel style={styles.col7}>

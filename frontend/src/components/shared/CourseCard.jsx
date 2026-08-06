@@ -79,7 +79,7 @@ export default function CourseCard({ course, tagVariant = 'default', tagLabel })
       {course.description && <p style={styles.desc}>{course.description}</p>}
       <div className="meta" style={styles.meta}>
         <span style={styles.metaText}>{course.duration || 'TBD'}</span>
-        <span style={styles.metaText}>{course.technicalLevel ? `Level ${course.technicalLevel}` : 'All levels'}</span>
+        <span style={styles.metaText}>{course.isFree ? 'Free' : `₱${course.price?.toLocaleString()}`}</span>
         <Button
           variant="ghost"
           style={{ marginLeft: 'auto', padding: '5px 8px', minHeight: 28 }}

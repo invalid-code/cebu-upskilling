@@ -1,5 +1,6 @@
 using CebuUpskilling.Backend.DTOs;
 using CebuUpskilling.Backend.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CebuUpskilling.Backend.Controllers;
@@ -48,6 +49,25 @@ public class AuthController : ControllerBase
         {
             _logger.LogWarning("Login failed for {Email}: invalid credentials", request.EmailAddress);
             return Unauthorized(new { error = "Invalid credentials" });
+        }
+    }
+
+    [Authorize]
+    [HttpPatch("profile")]
+    public async Task<ActionResult<AuthResponse>> UpdateProfile(UpdateProfileRequest request)
+    {
+        var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+        _logger.LogInformation("PATCH /api/auth/profile called for UserId: {UserId}", userId);
+        try
+        {
+            var result = await _authService.UpdateProfileAsync(userId, request);
+            _logger.LogInformation("Profile updated for UserId: {UserId}", userId);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning("Profile update failed for UserId: {UserId}: {Error}", userId, ex.Message);
+            return BadRequest(new { error = ex.Message });
         }
     }
 }

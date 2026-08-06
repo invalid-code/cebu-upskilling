@@ -70,7 +70,7 @@ export default function CoursesPage() {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [provider, setProvider] = useState('');
-  const [level, setLevel] = useState('');
+  const [price, setPrice] = useState('');
 
   useEffect(() => {
     api.get('/courses')
@@ -79,7 +79,8 @@ export default function CoursesPage() {
           courseId: c.courseId,
           name: c.name,
           provider: c.genre?.name || 'Provider',
-          technicalLevel: c.technicalLevel,
+          price: c.price,
+          isFree: c.price == null || c.price === 0,
           duration: c.technicalLevel ? `${c.technicalLevel} hours` : undefined,
           description: c.description,
         })));
@@ -94,9 +95,8 @@ export default function CoursesPage() {
     if (search && !course.name.toLowerCase().includes(search.toLowerCase()) &&
         !course.description?.toLowerCase().includes(search.toLowerCase())) return false;
     if (provider && course.provider !== provider) return false;
-    if (level === 'beginner' && course.technicalLevel > 10) return false;
-    if (level === 'intermediate' && (course.technicalLevel <= 10 || course.technicalLevel > 20)) return false;
-    if (level === 'advanced' && course.technicalLevel <= 20) return false;
+    if (price === 'free' && !course.isFree) return false;
+    if (price === 'paid' && course.isFree) return false;
     return true;
   });
 
@@ -126,11 +126,10 @@ export default function CoursesPage() {
             <option key={p} value={p}>{p}</option>
           ))}
         </select>
-        <select className="field" style={styles.field} value={level} onChange={(e) => setLevel(e.target.value)}>
-          <option value="">Any level</option>
-          <option value="beginner">Beginner (≤10 hrs)</option>
-          <option value="intermediate">Intermediate (11–20 hrs)</option>
-          <option value="advanced">Advanced (&gt;20 hrs)</option>
+        <select className="field" style={styles.field} value={price} onChange={(e) => setPrice(e.target.value)}>
+          <option value="">Any price</option>
+          <option value="free">Free</option>
+          <option value="paid">Paid</option>
         </select>
       </div>
 
@@ -142,8 +141,8 @@ export default function CoursesPage() {
             <CourseCard
               key={course.courseId}
               course={course}
-              tagVariant="default"
-              tagLabel="Skill builder"
+              tagVariant={course.isFree ? 'coral' : 'default'}
+              tagLabel={course.isFree ? 'Best next step' : 'Skill builder'}
             />
           ))}
         </div>

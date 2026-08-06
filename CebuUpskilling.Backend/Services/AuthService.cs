@@ -56,6 +56,7 @@ public interface IAuthService
 {
     Task<AuthResponse> RegisterAsync(RegisterRequest request);
     Task<AuthResponse> LoginAsync(LoginRequest request);
+    Task<AuthResponse> UpdateProfileAsync(int userId, UpdateProfileRequest request);
 }
 
 public class AuthService : IAuthService
@@ -89,7 +90,9 @@ public class AuthService : IAuthService
             Birthday = request.Birthday,
             EmailAddress = request.EmailAddress,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
-            Role = request.Role
+            Role = request.Role,
+            TargetRole = request.TargetRole,
+            EducationLevel = request.EducationLevel,
         };
 
         _context.Users.Add(user);
@@ -106,7 +109,7 @@ public class AuthService : IAuthService
 
         var token = _tokenService.GenerateToken(user);
 
-        return new AuthResponse(user.UserId, user.FirstName, user.LastName, user.EmailAddress, user.Role, token);
+        return new AuthResponse(user.UserId, user.FirstName, user.LastName, user.EmailAddress, user.Role, user.TargetRole, user.EducationLevel, token);
     }
 
     public async Task<AuthResponse> LoginAsync(LoginRequest request)
@@ -130,6 +133,31 @@ public class AuthService : IAuthService
 
         var token = _tokenService.GenerateToken(user);
 
-        return new AuthResponse(user.UserId, user.FirstName, user.LastName, user.EmailAddress, user.Role, token);
+        return new AuthResponse(user.UserId, user.FirstName, user.LastName, user.EmailAddress, user.Role, user.TargetRole, user.EducationLevel, token);
+    }
+
+    public async Task<AuthResponse> UpdateProfileAsync(int userId, UpdateProfileRequest request)
+    {
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null)
+        {
+            throw new InvalidOperationException("User not found");
+        }
+
+        if (request.TargetRole != null)
+        {
+            user.TargetRole = request.TargetRole;
+        }
+
+        if (request.EducationLevel != null)
+        {
+            user.EducationLevel = request.EducationLevel;
+        }
+
+        await _context.SaveChangesAsync();
+        _logger.LogInformation("Profile updated for user {UserId}", userId);
+
+        var token = _tokenService.GenerateToken(user);
+        return new AuthResponse(user.UserId, user.FirstName, user.LastName, user.EmailAddress, user.Role, user.TargetRole, user.EducationLevel, token);
     }
 }

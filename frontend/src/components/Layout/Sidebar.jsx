@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import {
   LayoutDashboard, Orbit, BriefcaseBusiness, BookOpenCheck,
-  ClipboardList, ScanFace, BadgeCheck, CircleHelp,
+  ClipboardList, ScanFace, BadgeCheck, CircleHelp, LogOut,
 } from 'lucide-react';
 
 const pathwayNav = [
@@ -108,12 +108,23 @@ const styles = {
     fontWeight: 700,
     fontSize: 12,
   },
-  userRole: {
-    display: 'block',
-    color: 'rgba(200, 225, 218, 0.80)',
-    fontSize: 11,
-  },
-};
+   userRole: {
+     display: 'block',
+     color: 'rgba(200, 225, 218, 0.80)',
+     fontSize: 11,
+   },
+   logoutBtn: {
+     background: 'transparent',
+     border: 0,
+     color: 'rgba(200, 225, 218, 0.60)',
+     cursor: 'pointer',
+     padding: 4,
+     borderRadius: 8,
+     display: 'grid',
+     placeItems: 'center',
+     marginLeft: 'auto',
+   },
+ };
 
 function NavItem({ to, icon: Icon, label }) {
   return (
@@ -162,15 +173,22 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      <div style={styles.account}>
-        <div style={styles.avatar}>{initials}</div>
-        <div>
-          <strong style={styles.userName}>
-            {user?.firstName || 'User'}
-          </strong>
-          <small style={styles.userRole}>Learner</small>
-        </div>
-      </div>
+       <div style={styles.account}>
+         <div style={styles.avatar}>{initials}</div>
+         <div>
+           <strong style={styles.userName}>
+             {user?.firstName || 'User'}
+           </strong>
+           <small style={styles.userRole}>Learner</small>
+         </div>
+         <button
+           style={styles.logoutBtn}
+           onClick={() => logout()}
+           aria-label="Sign out"
+         >
+           <LogOut size={16} />
+         </button>
+       </div>
     </aside>
   );
 }

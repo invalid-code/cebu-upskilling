@@ -7,7 +7,14 @@ public record RegisterRequest(
     DateTime? Birthday,
     string EmailAddress,
     string Password,
-    string Role = "Learner"
+    string Role = "Learner",
+    string? TargetRole = null,
+    string? EducationLevel = null
+);
+
+public record UpdateProfileRequest(
+    string? TargetRole = null,
+    string? EducationLevel = null
 );
 
 public record LoginRequest(
@@ -21,5 +28,7 @@ public record AuthResponse(
     string LastName,
     string EmailAddress,
     string Role,
+    string? TargetRole,
+    string? EducationLevel,
     string Token
 );
