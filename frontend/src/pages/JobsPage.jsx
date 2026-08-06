@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Button from '../components/ui/Button';
 import Tabs from '../components/ui/Tabs';
 import JobCard from '../components/shared/JobCard';
+import { api } from '../api/client';
 import { useToast } from '../context/ToastContext';
 import { BellPlus } from 'lucide-react';
 
@@ -28,7 +29,7 @@ const styles = {
   subtitle: {
     color: 'var(--muted)',
     margin: '8px 0 0',
-    maxWidth: 62,
+    maxWidth: 450,
   },
   toolbar: {
     display: 'flex',
@@ -50,6 +51,21 @@ const styles = {
     gridTemplateColumns: 'repeat(3, 1fr)',
     gap: 14,
   },
+  loading: {
+    textAlign: 'center',
+    padding: 45,
+    color: 'var(--muted)',
+    fontSize: 13,
+  },
+  empty: {
+    padding: 45,
+    textAlign: 'center',
+    border: '1px dashed var(--line)',
+    borderRadius: 15,
+    background: 'var(--surface)',
+    color: 'var(--muted)',
+    fontSize: 13,
+  },
 };
 
 const tabOptions = [
@@ -58,53 +74,70 @@ const tabOptions = [
   { key: 'sme', label: 'Side Hustles & Local SME' },
 ];
 
-const mockJobs = [
-  {
-    id: 1,
-    kind: 'corporate',
-    kindLabel: 'Corporate & Full-Time',
-    title: 'Frontend Developer (React)',
-    company: 'Serbisyo Digital',
-    location: 'Cebu / Remote',
-    salary: '₱45,000–₱60,000 / month',
-    match: '96% Highly Qualified',
-    skills: ['React', 'TypeScript'],
-  },
-  {
-    id: 2,
-    kind: 'sme',
-    kindLabel: 'Side Hustle & Local SME',
-    title: 'Landing Page Builder',
-    company: 'Mango Apps',
-    location: 'Remote / Cebu',
-    salary: '₱12,000–₱18,000 / project',
-    match: '82% Qualified',
-    skills: ['HTML/CSS', 'Figma'],
-  },
-  {
-    id: 3,
-    kind: 'sme',
-    kindLabel: 'Side Hustle & Local SME',
-    title: 'Junior Web Assistant',
-    company: 'Banilad Retail Co.',
-    location: 'Cebu City',
-    salary: '₱18,000–₱22,000 / month',
-    match: '67% Qualified',
-    skills: ['WordPress', 'Communication'],
-  },
-];
+function parsePost(post) {
+  const description = post.description || '';
+  const lines = description.split('\n').map((line) => line.trim());
+  const job = {
+    id: post.postId,
+    title: post.title,
+    company: post.company?.name || 'Unknown',
+    location: '',
+    salary: '',
+    match: '',
+    skills: [],
+  };
+
+  for (const line of lines) {
+    if (!line) continue;
+    const salaryMatch = line.match(/^(salary|rate):\s*(.*)$/i);
+    if (salaryMatch) {
+      job.salary = salaryMatch[2];
+      continue;
+    }
+    const matchMatch = line.match(/^match:\s*(.*)$/i);
+    if (matchMatch) {
+      job.match = matchMatch[2];
+      continue;
+    }
+    const skillsMatch = line.match(/^skills:\s*(.*)$/i);
+    if (skillsMatch) {
+      job.skills = skillsMatch[1].split(',').map((skill) => skill.trim()).filter(Boolean);
+      continue;
+    }
+    if (!job.location) job.location = line;
+  }
+
+  const isSme = /rate:|\/ project/i.test(description);
+  job.kind = isSme ? 'sme' : 'corporate';
+  job.kindLabel = isSme ? 'Side Hustle & Local SME' : 'Corporate & Full-Time';
+  job.schedule = isSme ? 'Side-hustle' : 'Full-time';
+  return job;
+}
 
 export default function JobsPage() {
+  const [jobs, setJobs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [search, setSearch] = useState('');
   const [schedule, setSchedule] = useState('');
   const [location, setLocation] = useState('');
   const { showToast } = useToast();
 
-  const filteredJobs = mockJobs.filter((job) => {
+  useEffect(() => {
+    api.get('/posts')
+      .then((data) => setJobs((data || []).map(parsePost)))
+      .catch((err) => setError(err.message || 'Could not load jobs'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filteredJobs = jobs.filter((job) => {
     if (activeTab !== 'all' && job.kind !== activeTab) return false;
     if (search && !job.title.toLowerCase().includes(search.toLowerCase()) &&
-        !job.company.toLowerCase().includes(search.toLowerCase())) return false;
+        !job.company.toLowerCase().includes(search.toLowerCase()) &&
+        !job.skills.some((s) => s.toLowerCase().includes(search.toLowerCase()))) return false;
+    if (schedule && job.schedule !== schedule) return false;
+    if (location && job.location && !job.location.toLowerCase().includes(location.toLowerCase())) return false;
     return true;
   });
 
@@ -147,15 +180,19 @@ export default function JobsPage() {
         </select>
       </div>
 
-      <div style={styles.grid}>
-        {filteredJobs.map((job) => (
-          <JobCard key={job.id} job={job} />
-        ))}
-      </div>
+      {loading ? (
+        <div style={styles.loading}>Loading jobs...</div>
+      ) : (
+        <div style={styles.grid}>
+          {filteredJobs.map((job) => (
+            <JobCard key={job.id} job={job} />
+          ))}
+        </div>
+      )}
 
-      {filteredJobs.length === 0 && (
-        <div style={{ padding: 45, textAlign: 'center', border: '1px dashed var(--line)', borderRadius: 15, background: 'var(--surface)' }}>
-          <p style={{ color: 'var(--muted)', fontSize: 13 }}>No jobs match your search.</p>
+      {!loading && filteredJobs.length === 0 && (
+        <div style={styles.empty}>
+          {error ? `Couldn't load jobs. Check back later.` : 'No jobs match your search.'}
         </div>
       )}
     </div>

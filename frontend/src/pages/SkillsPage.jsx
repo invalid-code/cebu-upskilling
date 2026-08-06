@@ -1,7 +1,7 @@
 import Button from '../components/ui/Button';
 import Panel from '../components/ui/Panel';
 import Tag from '../components/ui/Tag';
-import SkillGapItem from '../components/shared/SkillGapItem';
+import EmptyState from '../components/shared/EmptyState';
 import { useToast } from '../context/ToastContext';
 
 const styles = {
@@ -27,7 +27,7 @@ const styles = {
   subtitle: {
     color: 'var(--muted)',
     margin: '8px 0 0',
-    maxWidth: 62,
+    maxWidth: 450,
   },
   grid: {
     display: 'grid',
@@ -52,22 +52,7 @@ const styles = {
     gap: 7,
     flexWrap: 'wrap',
   },
-  notice: {
-    padding: '12px 14px',
-    borderRadius: 10,
-    background: 'var(--coral-soft)',
-    color: 'rgb(100, 75, 50)',
-    fontSize: 12,
-    marginTop: 15,
-  },
 };
-
-const assessedSkills = [
-  { name: 'React', subtitle: 'Required 4 · Current 4 Advanced', percent: 100, gapLabel: '4 / 5', verified: true },
-  { name: 'JavaScript', subtitle: 'Required 4 · Current 3 Intermediate', percent: 75, gapLabel: '3 / 5', verified: false },
-  { name: 'TypeScript', subtitle: 'Required 3 · Current 1 No Knowledge', percent: 20, gapLabel: '1 / 5', verified: false },
-  { name: 'Communication', subtitle: 'Required 3 · Current 4 Advanced', percent: 100, gapLabel: '4 / 5', verified: true },
-];
 
 export default function SkillsPage() {
   const { showToast } = useToast();
@@ -90,11 +75,10 @@ export default function SkillsPage() {
       <div style={styles.grid}>
         <Panel style={styles.col5}>
           <div style={styles.eyebrow}>Target role</div>
-          <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 24 }}>Frontend Developer</h2>
-          <p style={{ color: 'var(--muted)' }}>Cebu City · Remote friendly</p>
-          <div style={styles.notice}>
-            Your profile is <strong>68% complete</strong>. Add TypeScript evidence to improve job matching.
-          </div>
+          <EmptyState
+            title="No target role set"
+            description="Choose a role to see skill gaps and recommendations."
+          />
         </Panel>
 
         <Panel style={styles.col7}>
@@ -116,9 +100,10 @@ export default function SkillsPage() {
             <h3 style={styles.sectionH3}>Assessed skills</h3>
             <span style={{ color: 'var(--muted)', fontSize: 12 }}>Verified skills have a check</span>
           </div>
-          {assessedSkills.map((skill) => (
-            <SkillGapItem key={skill.name} {...skill} />
-          ))}
+          <EmptyState
+            title="No assessed skills yet"
+            description="Take an assessment to verify your skills."
+          />
         </Panel>
       </div>
     </div>

@@ -1,7 +1,5 @@
 import Panel from '../components/ui/Panel';
-import Tag from '../components/ui/Tag';
-import Button from '../components/ui/Button';
-import { useToast } from '../context/ToastContext';
+import EmptyState from '../components/shared/EmptyState';
 
 const styles = {
   heading: {
@@ -26,24 +24,11 @@ const styles = {
   subtitle: {
     color: 'var(--muted)',
     margin: '8px 0 0',
-    maxWidth: 62,
-  },
-  grid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(3, 1fr)',
-    gap: 16,
+    maxWidth: 450,
   },
 };
 
-const credentials = [
-  { name: 'React Fundamentals', status: 'verified', date: 'Proctored assessment · Jun 28, 2026' },
-  { name: 'Professional Communication', status: 'verified', date: 'Proctored assessment · Jun 10, 2026' },
-  { name: 'JavaScript Fundamentals', status: 'in-progress', date: 'Assessment available now' },
-];
-
 export default function CredentialsPage() {
-  const { showToast } = useToast();
-
   return (
     <div className="view-enter">
       <div style={styles.heading}>
@@ -56,24 +41,12 @@ export default function CredentialsPage() {
         </div>
       </div>
 
-      <div style={styles.grid}>
-        {credentials.map((cred) => (
-          <Panel key={cred.name}>
-            <Tag variant={cred.status === 'verified' ? 'good' : 'coral'}>
-              {cred.status === 'verified' ? 'Verified' : 'In progress'}
-            </Tag>
-            <h3 style={{ fontFamily: "'Space Grotesk', sans-serif", marginTop: 13 }}>{cred.name}</h3>
-            <p style={{ color: 'var(--muted)', fontSize: 12 }}>{cred.date}</p>
-            {cred.status === 'verified' ? (
-              <Button variant="ghost" style={{ marginTop: 15 }}>View credential</Button>
-            ) : (
-              <Button variant="primary" style={{ marginTop: 15 }} onClick={() => showToast('Assessment flow opened')}>
-                Take assessment
-              </Button>
-            )}
-          </Panel>
-        ))}
-      </div>
+      <Panel>
+        <EmptyState
+          title="No credentials yet"
+          description="Skills you verify through proctored assessments will be stored here as portable credentials."
+        />
+      </Panel>
     </div>
   );
 }

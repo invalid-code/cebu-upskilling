@@ -1,7 +1,10 @@
+using System.Security.Claims;
+using CebuUpskilling.Backend.Data;
 using CebuUpskilling.Backend.Entities;
 using CebuUpskilling.Backend.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace CebuUpskilling.Backend.Controllers;
 
@@ -160,3 +163,87 @@ public class LearnersController : BaseEntityController<Learner>
 
     protected override int GetId(Learner entity) => entity.LearnerId;
 }
+
+[ApiController]
+[Route("api/[controller]")]
+[Authorize]
+public class EnrollmentsController : ControllerBase
+{
+    private readonly ApplicationDbContext _context;
+    private readonly ILogger<EnrollmentsController> _logger;
+
+    public EnrollmentsController(ApplicationDbContext context, ILogger<EnrollmentsController> logger)
+    {
+        _context = context;
+        _logger = logger;
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> GetMyEnrollments()
+    {
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+
+        var learner = await _context.Learners.FirstOrDefaultAsync(l => l.UserId == userId);
+        if (learner == null)
+            return BadRequest(new { error = "No learner profile found" });
+
+        var enrollments = await _context.LearnerStudyCourses
+            .Where(lsc => lsc.LearnerId == learner.LearnerId)
+            .Select(lsc => new
+            {
+                lsc.CourseId,
+                CourseName = lsc.Course.Name,
+                lsc.Started,
+                lsc.LastTotalProgressPercent,
+            })
+            .ToListAsync();
+
+        return Ok(enrollments);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> Enroll([FromBody] EnrollRequest request)
+    {
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        _logger.LogInformation("User {UserId} attempting to enroll in course {CourseId}", userId, request.CourseId);
+
+        var learner = await _context.Learners.FirstOrDefaultAsync(l => l.UserId == userId);
+        if (learner == null)
+        {
+            _logger.LogWarning("No learner profile found for user {UserId}", userId);
+            return BadRequest(new { error = "No learner profile found" });
+        }
+
+        var course = await _context.Courses.FindAsync(request.CourseId);
+        if (course == null)
+        {
+            _logger.LogWarning("Course {CourseId} not found", request.CourseId);
+            return NotFound(new { error = "Course not found" });
+        }
+
+        var existing = await _context.LearnerStudyCourses
+            .FirstOrDefaultAsync(lsc => lsc.LearnerId == learner.LearnerId && lsc.CourseId == request.CourseId);
+
+        if (existing != null)
+        {
+            _logger.LogInformation("User {UserId} already enrolled in course {CourseId}", userId, request.CourseId);
+            return Ok(new { message = "Already enrolled" });
+        }
+
+        var enrollment = new LearnerStudyCourse
+        {
+            LearnerId = learner.LearnerId,
+            CourseId = request.CourseId,
+            Started = DateTime.UtcNow,
+            LastTotalProgressPercent = 0,
+        };
+
+        _context.LearnerStudyCourses.Add(enrollment);
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation("User {UserId} enrolled in course {CourseId}", userId, request.CourseId);
+        return StatusCode(201, new { enrollment.CourseId, enrollment.Started });
+    }
+}
+
+public record EnrollRequest(int CourseId);

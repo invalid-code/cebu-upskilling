@@ -1,6 +1,10 @@
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import App from './App';
+
+vi.mock('./api/client', () => ({
+  api: { get: vi.fn().mockResolvedValue([]), post: vi.fn() },
+}));
 
 describe('App routing', () => {
   it('redirects unauthenticated users to the login page', () => {
@@ -8,13 +12,13 @@ describe('App routing', () => {
     expect(screen.getByRole('heading', { name: 'Welcome back' })).toBeInTheDocument();
   });
 
-  it('renders the protected dashboard for authenticated users', () => {
+  it('renders the protected dashboard for authenticated users', async () => {
     localStorage.setItem(
       'user',
       JSON.stringify({ firstName: 'Jose', role: 'learner' }),
     );
     localStorage.setItem('token', 'abc');
     render(<App />);
-    expect(screen.getByText('Your next move is clear.')).toBeInTheDocument();
+    expect(await screen.findByText('Your next move is clear.')).toBeInTheDocument();
   });
 });

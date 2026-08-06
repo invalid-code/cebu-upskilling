@@ -1,6 +1,7 @@
 import Tag from '../ui/Tag';
 import Button from '../ui/Button';
 import { useToast } from '../../context/ToastContext';
+import { useApplications } from '../../context/ApplicationsContext';
 
 const styles = {
   card: {
@@ -45,8 +46,13 @@ const styles = {
 
 export default function JobCard({ job }) {
   const { showToast } = useToast();
+  const { applyToJob, isApplied } = useApplications();
+
+  const applied = isApplied(job.id);
 
   const handleApply = () => {
+    if (applied) return;
+    applyToJob(job);
     showToast('Application saved to your tracker');
   };
 
@@ -68,11 +74,11 @@ export default function JobCard({ job }) {
           <span key={skill} style={styles.metaText}>{skill}</span>
         ))}
         <Button
-          variant="secondary"
+          variant={applied ? 'primary' : 'secondary'}
           style={{ marginLeft: 'auto', padding: '5px 8px', minHeight: 28 }}
           onClick={handleApply}
         >
-          Apply
+          {applied ? 'Applied' : 'Apply'}
         </Button>
       </div>
     </article>

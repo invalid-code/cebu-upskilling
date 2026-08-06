@@ -15,20 +15,18 @@ describe('SkillsPage', () => {
   it('renders the skill profile', () => {
     renderSkills();
     expect(screen.getByRole('heading', { name: 'Skill profile' })).toBeInTheDocument();
-    expect(screen.getByText('Frontend Developer')).toBeInTheDocument();
+    expect(screen.getByText('No target role set')).toBeInTheDocument();
   });
 
-  it('renders all assessed skills and their levels', () => {
+  it('shows the proficiency scale legend', () => {
     renderSkills();
-    expect(screen.getByText('React')).toBeInTheDocument();
-    expect(screen.getByText('JavaScript')).toBeInTheDocument();
-    expect(screen.getByText('TypeScript')).toBeInTheDocument();
-    expect(screen.getByText('Communication')).toBeInTheDocument();
+    expect(screen.getByText('1 · No Knowledge')).toBeInTheDocument();
+    expect(screen.getByText('5 · Expert')).toBeInTheDocument();
   });
 
-  it('marks verified skills with a Verified tag', () => {
+  it('shows an empty state when no skills are assessed', () => {
     renderSkills();
-    expect(screen.getAllByText('Verified')).toHaveLength(2);
+    expect(screen.getByText('No assessed skills yet')).toBeInTheDocument();
   });
 
   it('shows a toast when Assess a skill is clicked', () => {

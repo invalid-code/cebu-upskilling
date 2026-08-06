@@ -25,7 +25,7 @@ const styles = {
   subtitle: {
     color: 'var(--muted)',
     margin: '8px 0 0',
-    maxWidth: 62,
+    maxWidth: 450,
   },
   toolbar: {
     display: 'flex',
@@ -53,47 +53,50 @@ const styles = {
     color: 'var(--muted)',
     fontSize: 13,
   },
+  empty: {
+    padding: 45,
+    textAlign: 'center',
+    border: '1px dashed var(--line)',
+    borderRadius: 15,
+    background: 'var(--surface)',
+    color: 'var(--muted)',
+    fontSize: 13,
+  },
 };
-
-const fallbackCourses = [
-  { name: 'Modern JavaScript for Frontend Work', provider: 'CodeChum Learning', mode: 'Online', duration: '18 hours', price: 'Free', description: 'Closes your largest current gap for Frontend Developer.' },
-  { name: 'TypeScript from Zero to Confident', provider: 'DevCon Cebu Academy', mode: 'Hybrid', duration: '12 hours', price: '₱1,200', description: 'Start at Beginner and build toward Intermediate.' },
-  { name: 'Frontend Portfolio Sprint', provider: 'Serbisyo Digital', mode: 'Online', duration: '6 hours', price: 'Free', description: 'Ship one portfolio project with a Cebu mentor.' },
-  { name: 'React Testing Fundamentals', provider: 'TESDA Partner Lab', mode: 'In-person', duration: '20 hours', price: '₱2,500', description: 'Practice unit, component, and end-to-end testing.' },
-];
 
 export default function CoursesPage() {
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [search, setSearch] = useState('');
-  const [mode, setMode] = useState('');
-  const [price, setPrice] = useState('');
+  const [provider, setProvider] = useState('');
+  const [level, setLevel] = useState('');
 
   useEffect(() => {
     api.get('/courses')
       .then((data) => {
-        if (data && data.length > 0) {
-          setCourses(data.map((c) => ({
-            name: c.name,
-            provider: c.genre?.name || 'Provider',
-            mode: 'Online',
-            duration: `${c.technicalLevel || 10} hours`,
-            price: 'Free',
-            description: c.description,
-          })));
-        } else {
-          setCourses(fallbackCourses);
-        }
+        setCourses((data || []).map((c) => ({
+          courseId: c.courseId,
+          name: c.name,
+          provider: c.genre?.name || 'Provider',
+          technicalLevel: c.technicalLevel,
+          duration: c.technicalLevel ? `${c.technicalLevel} hours` : undefined,
+          description: c.description,
+        })));
       })
-      .catch(() => setCourses(fallbackCourses))
+      .catch((err) => setError(err.message || 'Could not load courses'))
       .finally(() => setLoading(false));
   }, []);
 
+  const providers = [...new Set(courses.map((c) => c.provider))];
+
   const filteredCourses = courses.filter((course) => {
-    if (search && !course.name.toLowerCase().includes(search.toLowerCase())) return false;
-    if (mode && course.mode !== mode) return false;
-    if (price === 'free' && course.price !== 'Free') return false;
-    if (price === 'paid' && course.price === 'Free') return false;
+    if (search && !course.name.toLowerCase().includes(search.toLowerCase()) &&
+        !course.description?.toLowerCase().includes(search.toLowerCase())) return false;
+    if (provider && course.provider !== provider) return false;
+    if (level === 'beginner' && course.technicalLevel > 10) return false;
+    if (level === 'intermediate' && (course.technicalLevel <= 10 || course.technicalLevel > 20)) return false;
+    if (level === 'advanced' && course.technicalLevel <= 20) return false;
     return true;
   });
 
@@ -117,16 +120,17 @@ export default function CoursesPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <select className="field" style={styles.field} value={mode} onChange={(e) => setMode(e.target.value)}>
-          <option value="">All delivery modes</option>
-          <option>Online</option>
-          <option>Hybrid</option>
-          <option>In-person</option>
+        <select className="field" style={styles.field} value={provider} onChange={(e) => setProvider(e.target.value)}>
+          <option value="">All providers</option>
+          {providers.map((p) => (
+            <option key={p} value={p}>{p}</option>
+          ))}
         </select>
-        <select className="field" style={styles.field} value={price} onChange={(e) => setPrice(e.target.value)}>
-          <option value="">Any price</option>
-          <option value="free">Free</option>
-          <option value="paid">Paid</option>
+        <select className="field" style={styles.field} value={level} onChange={(e) => setLevel(e.target.value)}>
+          <option value="">Any level</option>
+          <option value="beginner">Beginner (≤10 hrs)</option>
+          <option value="intermediate">Intermediate (11–20 hrs)</option>
+          <option value="advanced">Advanced (&gt;20 hrs)</option>
         </select>
       </div>
 
@@ -136,18 +140,20 @@ export default function CoursesPage() {
         <div style={styles.grid}>
           {filteredCourses.map((course) => (
             <CourseCard
-              key={course.name}
+              key={course.courseId}
               course={course}
-              tagVariant={course.price === 'Free' ? 'coral' : 'default'}
-              tagLabel={course.price === 'Free' ? 'Best next step' : 'Skill builder'}
+              tagVariant="default"
+              tagLabel="Skill builder"
             />
           ))}
         </div>
       )}
 
       {!loading && filteredCourses.length === 0 && (
-        <div style={{ padding: 45, textAlign: 'center', border: '1px dashed var(--line)', borderRadius: 15, background: 'var(--surface)' }}>
-          <p style={{ color: 'var(--muted)', fontSize: 13 }}>No courses match your search.</p>
+        <div style={styles.empty}>
+          {error
+            ? `Couldn't load courses. Check back later.`
+            : (courses.length > 0 ? 'No courses match your search.' : 'No courses available yet.')}
         </div>
       )}
     </div>

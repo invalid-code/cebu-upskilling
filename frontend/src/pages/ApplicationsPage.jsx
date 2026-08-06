@@ -1,6 +1,6 @@
 import Panel from '../components/ui/Panel';
-import StatusBadge from '../components/ui/StatusBadge';
-import Button from '../components/ui/Button';
+import EmptyState from '../components/shared/EmptyState';
+import { useApplications } from '../context/ApplicationsContext';
 
 const styles = {
   heading: {
@@ -25,33 +25,73 @@ const styles = {
   subtitle: {
     color: 'var(--muted)',
     margin: '8px 0 0',
-    maxWidth: 62,
+    maxWidth: 450,
   },
-  row: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 96px 86px',
-    gap: 14,
+  list: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 12,
+  },
+  item: {
+    display: 'flex',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    borderBottom: '1px solid var(--line)',
-    padding: '14px 0',
+    padding: 16,
+    border: '1px solid var(--line)',
+    borderRadius: 12,
+    background: 'var(--surface)',
+  },
+  info: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 4,
   },
   title: {
-    fontSize: 14,
-    marginBottom: 4,
+    fontSize: 15,
+    fontWeight: 600,
+    margin: 0,
   },
-  subtitle2: {
-    fontSize: 11,
+  company: {
+    fontSize: 12,
     color: 'var(--muted)',
+    margin: 0,
+  },
+  meta: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+  },
+  badge: {
+    fontSize: 11,
+    fontWeight: 600,
+    color: 'var(--teal)',
+    background: 'rgba(20, 184, 166, 0.1)',
+    padding: '4px 10px',
+    borderRadius: 20,
+  },
+  salary: {
+    fontFamily: "'Space Grotesk', sans-serif",
+    fontWeight: 700,
+    fontSize: 13,
+  },
+  skills: {
+    display: 'flex',
+    gap: 6,
+    flexWrap: 'wrap',
+    marginTop: 4,
+  },
+  skill: {
+    fontSize: 10,
+    color: 'var(--muted)',
+    background: 'rgba(0,0,0,0.04)',
+    padding: '2px 8px',
+    borderRadius: 8,
   },
 };
 
-const applications = [
-  { title: 'Frontend Developer (React)', company: 'Serbisyo Digital', date: 'Applied Jul 15', status: 'interview' },
-  { title: 'Landing Page Builder', company: 'Mango Apps', date: 'Applied Jul 12', status: 'review' },
-  { title: 'Junior Web Assistant', company: 'Banilad Retail Co.', date: 'Saved Jul 10', status: 'default' },
-];
-
 export default function ApplicationsPage() {
+  const { applications } = useApplications();
+
   return (
     <div className="view-enter">
       <div style={styles.heading}>
@@ -65,18 +105,32 @@ export default function ApplicationsPage() {
       </div>
 
       <Panel>
-        {applications.map((app) => (
-          <div key={app.title} style={styles.row}>
-            <div>
-              <h4 style={styles.title}>{app.title}</h4>
-              <small style={styles.subtitle2}>{app.company} · {app.date}</small>
-            </div>
-            <StatusBadge status={app.status} />
-            <Button variant="ghost" style={{ padding: '5px 8px', minHeight: 28 }}>
-              Open
-            </Button>
+        {applications.length === 0 ? (
+          <EmptyState
+            title="No applications yet"
+            description="Jobs you apply to will show up here with their status."
+          />
+        ) : (
+          <div style={styles.list}>
+            {applications.map((job) => (
+              <div key={job.id} style={styles.item}>
+                <div style={styles.info}>
+                  <h4 style={styles.title}>{job.title}</h4>
+                  <p style={styles.company}>{job.company} · {job.location}</p>
+                  <div style={styles.skills}>
+                    {job.skills?.map((skill) => (
+                      <span key={skill} style={styles.skill}>{skill}</span>
+                    ))}
+                  </div>
+                </div>
+                <div style={styles.meta}>
+                  <span style={styles.salary}>{job.salary}</span>
+                  <span style={styles.badge}>Applied</span>
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
+        )}
       </Panel>
     </div>
   );

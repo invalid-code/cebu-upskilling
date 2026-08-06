@@ -1,9 +1,10 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { EnrollmentsProvider } from './context/EnrollmentsContext';
+import { ApplicationsProvider } from './context/ApplicationsContext';
 import { ToastProvider } from './context/ToastContext';
 import Sidebar from './components/Layout/Sidebar';
 import Topbar from './components/Layout/Topbar';
-import MobileNav from './components/Layout/MobileNav';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import OverviewPage from './pages/OverviewPage';
@@ -45,7 +46,6 @@ function ProtectedRoute() {
           <Outlet />
         </div>
       </main>
-      <MobileNav />
     </div>
   );
 }
@@ -60,8 +60,10 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <ToastProvider>
-          <Routes>
+        <EnrollmentsProvider>
+          <ApplicationsProvider>
+            <ToastProvider>
+            <Routes>
             <Route element={<PublicRoute />}>
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
@@ -78,7 +80,9 @@ export default function App() {
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
-        </ToastProvider>
+          </ToastProvider>
+          </ApplicationsProvider>
+        </EnrollmentsProvider>
       </AuthProvider>
     </BrowserRouter>
   );

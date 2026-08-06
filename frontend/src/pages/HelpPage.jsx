@@ -26,7 +26,7 @@ const styles = {
   subtitle: {
     color: 'var(--muted)',
     margin: '8px 0 0',
-    maxWidth: 62,
+    maxWidth: 450,
   },
   grid: {
     display: 'grid',

@@ -1,6 +1,9 @@
+import { useState } from 'react';
 import Tag from '../ui/Tag';
 import Button from '../ui/Button';
 import { useToast } from '../../context/ToastContext';
+import { useEnrollments } from '../../context/EnrollmentsContext';
+import { api } from '../../api/client';
 
 const styles = {
   card: {
@@ -44,9 +47,26 @@ const styles = {
 
 export default function CourseCard({ course, tagVariant = 'default', tagLabel }) {
   const { showToast } = useToast();
+  const { isEnrolled, refreshEnrollments } = useEnrollments();
+  const [enrolling, setEnrolling] = useState(false);
 
-  const handleEnroll = () => {
-    showToast('Course added to your pathway');
+  const enrolled = isEnrolled(course.courseId);
+
+  const handleEnroll = async () => {
+    if (!course.courseId) {
+      showToast('Course not available for enrollment');
+      return;
+    }
+    setEnrolling(true);
+    try {
+      await api.post('/enrollments', { courseId: course.courseId });
+      refreshEnrollments();
+      showToast('Course added to your pathway');
+    } catch (err) {
+      showToast(err.message || 'Enrollment failed');
+    } finally {
+      setEnrolling(false);
+    }
   };
 
   return (
@@ -59,13 +79,14 @@ export default function CourseCard({ course, tagVariant = 'default', tagLabel })
       {course.description && <p style={styles.desc}>{course.description}</p>}
       <div className="meta" style={styles.meta}>
         <span style={styles.metaText}>{course.duration || 'TBD'}</span>
-        <span style={styles.metaText}>{course.price || 'Free'}</span>
+        <span style={styles.metaText}>{course.technicalLevel ? `Level ${course.technicalLevel}` : 'All levels'}</span>
         <Button
           variant="ghost"
           style={{ marginLeft: 'auto', padding: '5px 8px', minHeight: 28 }}
           onClick={handleEnroll}
+          disabled={enrolling || enrolled}
         >
-          Enroll
+          {enrolling ? 'Enrolling...' : enrolled ? 'Enrolled' : 'Enroll'}
         </Button>
       </div>
     </article>

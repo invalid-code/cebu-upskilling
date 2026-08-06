@@ -1,0 +1,46 @@
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { api } from '../api/client';
+import { useAuth } from './AuthContext';
+
+const EnrollmentsContext = createContext(null);
+
+export function EnrollmentsProvider({ children }) {
+  const { user } = useAuth();
+  const [enrollments, setEnrollments] = useState([]);
+
+  const fetchEnrollments = useCallback(async () => {
+    if (!user) {
+      setEnrollments([]);
+      return;
+    }
+    try {
+      const data = await api.get('/enrollments');
+      setEnrollments(data || []);
+    } catch {
+      setEnrollments([]);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    fetchEnrollments();
+  }, [fetchEnrollments]);
+
+  const isEnrolled = useCallback(
+    (courseId) => enrollments.some((e) => e.courseId === courseId),
+    [enrollments],
+  );
+
+  const refreshEnrollments = useCallback(() => fetchEnrollments(), [fetchEnrollments]);
+
+  return (
+    <EnrollmentsContext.Provider value={{ enrollments, isEnrolled, refreshEnrollments }}>
+      {children}
+    </EnrollmentsContext.Provider>
+  );
+}
+
+export function useEnrollments() {
+  const ctx = useContext(EnrollmentsContext);
+  if (!ctx) throw new Error('useEnrollments must be used within EnrollmentsProvider');
+  return ctx;
+}
