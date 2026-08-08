@@ -8,13 +8,11 @@ public record RegisterRequest(
     string EmailAddress,
     string Password,
     string Role = "Learner",
-    string? TargetRole = null,
-    string? EducationLevel = null
+    string? TargetRole = null
 );
 
 public record UpdateProfileRequest(
-    string? TargetRole = null,
-    string? EducationLevel = null
+    string? TargetRole = null
 );
 
 public record LoginRequest(
@@ -29,6 +27,5 @@ public record AuthResponse(
     string EmailAddress,
     string Role,
     string? TargetRole,
-    string? EducationLevel,
     string Token
 );

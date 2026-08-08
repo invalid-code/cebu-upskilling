@@ -13,4 +13,6 @@ public class Learner
 
     public AppUser User { get; set; } = null!;
     public ICollection<LearnerStudyCourse> LearnerStudyCourses { get; set; } = new List<LearnerStudyCourse>();
+    public ICollection<LearnerSkill> LearnerSkills { get; set; } = new List<LearnerSkill>();
+    public ICollection<LearnerAssessment> LearnerAssessments { get; set; } = new List<LearnerAssessment>();
 }

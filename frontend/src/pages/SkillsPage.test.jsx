@@ -53,7 +53,7 @@ describe('SkillsPage', () => {
 
   it('shows an empty state when no skills are assessed', () => {
     renderSkills();
-    expect(screen.getByText('No assessed skills yet')).toBeInTheDocument();
+    expect(screen.getByText('Set a target role to see required skills')).toBeInTheDocument();
   });
 
   it('shows a toast when Assess a skill is clicked', () => {

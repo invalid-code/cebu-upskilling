@@ -90,7 +90,6 @@ export default function RegisterPage() {
      emailAddress: '',
      password: '',
      targetRole: '',
-     educationLevel: '',
    });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -177,20 +176,6 @@ export default function RegisterPage() {
              <option value="DevOps Engineer">DevOps Engineer</option>
              <option value="Quality Assurance">Quality Assurance</option>
              <option value="Project Manager">Project Manager</option>
-             <option value="Other">Other</option>
-           </select>
-           <select
-             style={styles.field}
-             aria-label="Education level"
-             value={form.educationLevel}
-             onChange={update('educationLevel')}
-           >
-             <option value="">Education level (optional)</option>
-             <option value="High School">High School</option>
-             <option value="Vocational">Vocational</option>
-             <option value="Bachelor's Degree">Bachelor's Degree</option>
-             <option value="Master's Degree">Master's Degree</option>
-             <option value="Doctorate">Doctorate</option>
              <option value="Other">Other</option>
            </select>
            <Button

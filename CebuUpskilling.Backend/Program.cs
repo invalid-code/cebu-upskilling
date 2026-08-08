@@ -36,6 +36,8 @@ builder.Services.AddScoped<IEntityService<Exercise>, ExerciseService>();
 builder.Services.AddScoped<IEntityService<Company>, CompanyService>();
 builder.Services.AddScoped<IEntityService<Post>, PostService>();
 builder.Services.AddScoped<IEntityService<Learner>, LearnerService>();
+builder.Services.AddScoped<ISkillGapService, SkillGapService>();
+builder.Services.AddScoped<IAssessmentService, AssessmentService>();
 
 var jwtKey = builder.Configuration["Jwt:Key"]!;
 builder.Services.AddAuthentication(options =>

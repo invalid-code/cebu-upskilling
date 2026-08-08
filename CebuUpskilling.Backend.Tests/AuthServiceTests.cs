@@ -66,6 +66,25 @@ public class AuthServiceTests
     }
 
     [Fact]
+    public async Task RegisterAsync_WithTargetRole_CreatesLearnerSkills()
+    {
+        var context = TestDbContextFactory.Create();
+        var service = CreateService(context);
+
+        var request = NewRegisterRequest() with { TargetRole = "Frontend Developer" };
+        var result = await service.RegisterAsync(request);
+
+        var learner = await context.Learners.SingleAsync(l => l.UserId == result.UserId);
+        var learnerSkills = await context.LearnerSkills.Where(ls => ls.LearnerId == learner.LearnerId).ToListAsync();
+        Assert.NotEmpty(learnerSkills);
+        Assert.All(learnerSkills, ls =>
+        {
+            Assert.Equal(0, ls.CurrentLevel);
+            Assert.False(ls.Verified);
+        });
+    }
+
+    [Fact]
     public async Task RegisterAsync_DuplicateEmail_Throws()
     {
         var context = TestDbContextFactory.Create();

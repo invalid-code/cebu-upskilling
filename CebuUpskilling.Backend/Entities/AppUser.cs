@@ -30,9 +30,6 @@ public class AppUser : AuditableEntity
     [MaxLength(100)]
     public string? TargetRole { get; set; }
 
-    [MaxLength(100)]
-    public string? EducationLevel { get; set; }
-
     public Learner? Learner { get; set; }
     public Recruiter? Recruiter { get; set; }
 }

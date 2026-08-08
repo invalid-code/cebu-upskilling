@@ -2,9 +2,11 @@ import Button from '../components/ui/Button';
 import Panel from '../components/ui/Panel';
 import Tag from '../components/ui/Tag';
 import EmptyState from '../components/shared/EmptyState';
+import SkillGapItem from '../components/shared/SkillGapItem';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
-import { useState } from 'react';
+import { api } from '../api/client';
+import { useState, useEffect } from 'react';
 
 const targetRoles = [
   'Frontend Developer',
@@ -118,7 +120,20 @@ export default function SkillsPage() {
   const { user } = useAuth();
   const [selectedRole, setSelectedRole] = useState(user?.targetRole || '');
   const [saving, setSaving] = useState(false);
+  const [skillGaps, setSkillGaps] = useState([]);
+  const [skillGapsLoading, setSkillGapsLoading] = useState(true);
   const hasRole = user?.targetRole != null && user.targetRole !== '';
+
+  useEffect(() => {
+    if (!hasRole) {
+      setSkillGapsLoading(false);
+      return;
+    }
+    api.get('/skillgaps')
+      .then((data) => setSkillGaps(data || []))
+      .catch(() => setSkillGaps([]))
+      .finally(() => setSkillGapsLoading(false));
+  }, [hasRole]);
 
   const handleSelect = (role) => {
     setSelectedRole(role);
@@ -221,10 +236,29 @@ export default function SkillsPage() {
             <h3 style={styles.sectionH3}>Assessed skills</h3>
             <span style={{ color: 'var(--muted)', fontSize: 12 }}>Verified skills have a check</span>
           </div>
-          <EmptyState
-            title="No assessed skills yet"
-            description="Take an assessment to verify your skills."
-          />
+          {skillGapsLoading ? (
+            <div style={{ textAlign: 'center', padding: 45, color: 'var(--muted)', fontSize: 13 }}>
+              Loading skills...
+            </div>
+          ) : skillGaps.length === 0 ? (
+            <EmptyState
+              title={hasRole ? 'No assessed skills yet' : 'Set a target role to see required skills'}
+              description={hasRole
+                ? 'Take an assessment to verify your skills.'
+                : 'Choose a target role to compare your skills against.'}
+            />
+          ) : (
+            skillGaps.map((gap) => (
+              <SkillGapItem
+                key={gap.skillId}
+                name={gap.skillName}
+                subtitle={`Required ${gap.requiredLevel} · Current ${gap.currentLevel}`}
+                percent={gap.requiredLevel > 0 ? Math.round((gap.currentLevel / gap.requiredLevel) * 100) : 0}
+                gapLabel={gap.gap === 0 ? 'Ready' : `Gap ${gap.gap}`}
+                verified={gap.verified}
+              />
+            ))
+          )}
         </Panel>
       </div>
     </div>

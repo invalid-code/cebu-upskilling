@@ -92,7 +92,6 @@ public class AuthService : IAuthService
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
             Role = request.Role,
             TargetRole = request.TargetRole,
-            EducationLevel = request.EducationLevel,
         };
 
         _context.Users.Add(user);
@@ -105,11 +104,34 @@ public class AuthService : IAuthService
             _context.Learners.Add(learner);
             await _context.SaveChangesAsync();
             _logger.LogInformation("Learner profile created for user {UserId}", user.UserId);
+
+            if (!string.IsNullOrWhiteSpace(request.TargetRole))
+            {
+                var roleSkills = await _context.RoleSkills
+                    .Where(rs => rs.TargetRole == request.TargetRole)
+                    .ToListAsync();
+
+                if (roleSkills.Count > 0)
+                {
+                    var learnerSkills = roleSkills.Select(rs => new LearnerSkill
+                    {
+                        LearnerId = learner.LearnerId,
+                        SkillId = rs.SkillId,
+                        CurrentLevel = 0,
+                        Verified = false,
+                    }).ToList();
+
+                    _context.LearnerSkills.AddRange(learnerSkills);
+                    await _context.SaveChangesAsync();
+                    _logger.LogInformation("Created {Count} learner skills for user {UserId} (role: {Role})",
+                        learnerSkills.Count, user.UserId, request.TargetRole);
+                }
+            }
         }
 
         var token = _tokenService.GenerateToken(user);
 
-        return new AuthResponse(user.UserId, user.FirstName, user.LastName, user.EmailAddress, user.Role, user.TargetRole, user.EducationLevel, token);
+        return new AuthResponse(user.UserId, user.FirstName, user.LastName, user.EmailAddress, user.Role, user.TargetRole, token);
     }
 
     public async Task<AuthResponse> LoginAsync(LoginRequest request)
@@ -133,7 +155,7 @@ public class AuthService : IAuthService
 
         var token = _tokenService.GenerateToken(user);
 
-        return new AuthResponse(user.UserId, user.FirstName, user.LastName, user.EmailAddress, user.Role, user.TargetRole, user.EducationLevel, token);
+        return new AuthResponse(user.UserId, user.FirstName, user.LastName, user.EmailAddress, user.Role, user.TargetRole, token);  
     }
 
     public async Task<AuthResponse> UpdateProfileAsync(int userId, UpdateProfileRequest request)
@@ -149,15 +171,10 @@ public class AuthService : IAuthService
             user.TargetRole = request.TargetRole;
         }
 
-        if (request.EducationLevel != null)
-        {
-            user.EducationLevel = request.EducationLevel;
-        }
-
         await _context.SaveChangesAsync();
         _logger.LogInformation("Profile updated for user {UserId}", userId);
 
         var token = _tokenService.GenerateToken(user);
-        return new AuthResponse(user.UserId, user.FirstName, user.LastName, user.EmailAddress, user.Role, user.TargetRole, user.EducationLevel, token);
+        return new AuthResponse(user.UserId, user.FirstName, user.LastName, user.EmailAddress, user.Role, user.TargetRole, token);
     }
 }

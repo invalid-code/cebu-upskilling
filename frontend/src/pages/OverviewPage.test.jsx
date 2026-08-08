@@ -39,6 +39,12 @@ const mockCourses = [
   },
 ];
 
+const mockSkillGaps = [
+  { skillId: 1, skillName: 'JavaScript', category: 'Language', requiredLevel: 4, currentLevel: 0, gap: 4, verified: false },
+  { skillId: 2, skillName: 'TypeScript', category: 'Language', requiredLevel: 3, currentLevel: 0, gap: 3, verified: false },
+  { skillId: 3, skillName: 'React', category: 'Framework', requiredLevel: 4, currentLevel: 0, gap: 4, verified: false },
+];
+
 function renderOverview() {
   return render(
     <MemoryRouter>
@@ -62,6 +68,7 @@ describe('OverviewPage', () => {
     api.get.mockImplementation((path) => {
       if (path === '/courses') return Promise.resolve(mockCourses);
       if (path === '/enrollments') return Promise.resolve([]);
+      if (path === '/skillgaps') return Promise.resolve([]);
       return Promise.resolve([]);
     });
   });
@@ -75,12 +82,37 @@ describe('OverviewPage', () => {
     api.get.mockImplementation((path) => {
       if (path === '/courses') return Promise.resolve([]);
       if (path === '/enrollments') return Promise.resolve([]);
+      if (path === '/skillgaps') return Promise.resolve([]);
       return Promise.resolve([]);
     });
     renderOverview();
-    expect(await screen.findByText('No skill gaps loaded')).toBeInTheDocument();
+    expect(await screen.findByText('Set a target role to see your gaps')).toBeInTheDocument();
     expect(screen.getByText('No score yet')).toBeInTheDocument();
-    expect(screen.getByText('Your pathway will appear here')).toBeInTheDocument();
+    expect(screen.getByText('Pathway rail')).toBeInTheDocument();
+    expect(screen.getByText('1 of 5 steps')).toBeInTheDocument();
+  });
+
+  it('displays the target role in the pathway rail when the user has one', async () => {
+    localStorage.setItem('user', JSON.stringify({ firstName: 'Test', role: 'Learner', targetRole: 'Frontend Developer' }));
+    renderOverview();
+    expect(await screen.findByText('Frontend Developer · Cebu / Remote')).toBeInTheDocument();
+    expect(screen.getByText('2 of 5 steps')).toBeInTheDocument();
+    expect(screen.queryByText('Your pathway will appear here')).not.toBeInTheDocument();
+  });
+
+  it('displays skill gaps when the user has a target role', async () => {
+    localStorage.setItem('user', JSON.stringify({ firstName: 'Test', role: 'Learner', targetRole: 'Frontend Developer' }));
+    api.get.mockImplementation((path) => {
+      if (path === '/courses') return Promise.resolve(mockCourses);
+      if (path === '/enrollments') return Promise.resolve([]);
+      if (path === '/skillgaps') return Promise.resolve(mockSkillGaps);
+      return Promise.resolve([]);
+    });
+    renderOverview();
+    expect(await screen.findByText('JavaScript')).toBeInTheDocument();
+    expect(screen.getByText('TypeScript')).toBeInTheDocument();
+    expect(screen.getByText('React')).toBeInTheDocument();
+    expect(screen.getAllByText(/Gap/)).toHaveLength(3);
   });
 
   it('renders recommended courses fetched from the backend', async () => {

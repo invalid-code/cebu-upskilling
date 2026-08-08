@@ -3,6 +3,7 @@ using System;
 using CebuUpskilling.Backend.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CebuUpskilling.Backend.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260807105853_AddSkillGapEntities")]
+    partial class AddSkillGapEntities
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -38,6 +41,10 @@ namespace CebuUpskilling.Backend.Migrations
 
                     b.Property<string>("CreatedBy")
                         .HasColumnType("text");
+
+                    b.Property<string>("EducationLevel")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.Property<string>("EmailAddress")
                         .IsRequired()
@@ -331,38 +338,6 @@ namespace CebuUpskilling.Backend.Migrations
                         .IsUnique();
 
                     b.ToTable("Learners");
-                });
-
-            modelBuilder.Entity("CebuUpskilling.Backend.Entities.LearnerAssessment", b =>
-                {
-                    b.Property<int>("LearnerAssessmentId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("LearnerAssessmentId"));
-
-                    b.Property<DateTime>("CompletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("LearnerId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("ScoredLevel")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("SkillId")
-                        .HasColumnType("integer");
-
-                    b.Property<bool>("Verified")
-                        .HasColumnType("boolean");
-
-                    b.HasKey("LearnerAssessmentId");
-
-                    b.HasIndex("LearnerId");
-
-                    b.HasIndex("SkillId");
-
-                    b.ToTable("LearnerAssessments");
                 });
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.LearnerSkill", b =>
@@ -1076,25 +1051,6 @@ namespace CebuUpskilling.Backend.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("CebuUpskilling.Backend.Entities.LearnerAssessment", b =>
-                {
-                    b.HasOne("CebuUpskilling.Backend.Entities.Learner", "Learner")
-                        .WithMany("LearnerAssessments")
-                        .HasForeignKey("LearnerId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("CebuUpskilling.Backend.Entities.Skill", "Skill")
-                        .WithMany()
-                        .HasForeignKey("SkillId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Learner");
-
-                    b.Navigation("Skill");
-                });
-
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.LearnerSkill", b =>
                 {
                     b.HasOne("CebuUpskilling.Backend.Entities.Learner", "Learner")
@@ -1283,8 +1239,6 @@ namespace CebuUpskilling.Backend.Migrations
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.Learner", b =>
                 {
-                    b.Navigation("LearnerAssessments");
-
                     b.Navigation("LearnerSkills");
 
                     b.Navigation("LearnerStudyCourses");
