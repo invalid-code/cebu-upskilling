@@ -107,7 +107,8 @@ function parsePost(post) {
     if (!job.location) job.location = line;
   }
 
-  const isSme = /rate:|\/ project/i.test(description);
+  const isRange = / - |–|—| to /i.test(job.salary);
+  const isSme = /rate:|\/ project/i.test(description) || (!isRange && !!job.salary);
   job.kind = isSme ? 'sme' : 'corporate';
   job.kindLabel = isSme ? 'Side Hustle & Local SME' : 'Corporate & Full-Time';
   job.schedule = isSme ? 'Side-hustle' : 'Full-time';

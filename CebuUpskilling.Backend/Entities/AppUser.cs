@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace CebuUpskilling.Backend.Entities;
 
@@ -22,6 +23,7 @@ public class AppUser : AuditableEntity
     public string EmailAddress { get; set; } = string.Empty;
 
     [Required, MaxLength(500)]
+    [JsonIgnore]
     public string PasswordHash { get; set; } = string.Empty;
 
     [MaxLength(50)]

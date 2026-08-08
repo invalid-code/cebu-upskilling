@@ -36,6 +36,7 @@ builder.Services.AddScoped<IEntityService<Exercise>, ExerciseService>();
 builder.Services.AddScoped<IEntityService<Company>, CompanyService>();
 builder.Services.AddScoped<IEntityService<Post>, PostService>();
 builder.Services.AddScoped<IEntityService<Learner>, LearnerService>();
+builder.Services.AddScoped<LearnerService>();
 builder.Services.AddScoped<ISkillGapService, SkillGapService>();
 builder.Services.AddScoped<IAssessmentService, AssessmentService>();
 
@@ -60,7 +61,10 @@ builder.Services.AddAuthentication(options =>
 });
 
 builder.Services.AddAuthorization();
-builder.Services.AddControllers().AddJsonOptions(options =>
+builder.Services.AddControllers(options =>
+{
+    options.SuppressImplicitRequiredAttributeForNonNullableReferenceTypes = true;
+}).AddJsonOptions(options =>
 {
     options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
 });
@@ -85,3 +89,5 @@ app.Lifetime.ApplicationStopping.Register(() =>
     app.Services.GetRequiredService<ILogger<Program>>().LogInformation("Application is shutting down"));
 
 app.Run();
+
+public partial class Program { }

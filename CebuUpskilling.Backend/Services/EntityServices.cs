@@ -314,6 +314,12 @@ public class LearnerService : BaseEntityService<Learner>
         return await _context.Learners.Include(l => l.User).FirstOrDefaultAsync(l => l.LearnerId == id);
     }
 
+    public async Task<Learner?> GetByUserIdAsync(int userId)
+    {
+        _logger.LogDebug("Fetching Learner for user {UserId}", userId);
+        return await _context.Learners.Include(l => l.User).FirstOrDefaultAsync(l => l.UserId == userId);
+    }
+
     protected override async Task SaveUpdates(Learner existing, Learner entity)
     {
         existing.IsPremium = entity.IsPremium;

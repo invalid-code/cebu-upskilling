@@ -1,12 +1,14 @@
 namespace CebuUpskilling.Backend.DTOs;
 
+using System.ComponentModel.DataAnnotations;
+
 public record RegisterRequest(
-    string FirstName,
-    string LastName,
+    [Required] string FirstName,
+    [Required] string LastName,
     string? MiddleName,
     DateTime? Birthday,
-    string EmailAddress,
-    string Password,
+    [Required] string EmailAddress,
+    [Required, MinLength(6)] string Password,
     string Role = "Learner",
     string? TargetRole = null
 );

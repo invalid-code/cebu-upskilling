@@ -1,9 +1,11 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import { ToastProvider } from '../../context/ToastContext';
+import { ApplicationsProvider } from '../../context/ApplicationsContext';
 import JobCard from './JobCard';
 
 const job = {
+  id: 1,
   title: 'Frontend Developer',
   company: 'Acme',
   location: 'Cebu City',
@@ -14,13 +16,19 @@ const job = {
   skills: ['React', 'TypeScript'],
 };
 
-describe('JobCard', () => {
-  it('renders job details', () => {
-    render(
+function renderJobCard() {
+  return render(
+    <ApplicationsProvider>
       <ToastProvider>
         <JobCard job={job} />
-      </ToastProvider>,
-    );
+      </ToastProvider>
+    </ApplicationsProvider>,
+  );
+}
+
+describe('JobCard', () => {
+  it('renders job details', () => {
+    renderJobCard();
     expect(screen.getByText('Frontend Developer')).toBeInTheDocument();
     expect(screen.getByText('Acme · Cebu City')).toBeInTheDocument();
     expect(screen.getByText('₱45,000')).toBeInTheDocument();
@@ -31,11 +39,7 @@ describe('JobCard', () => {
   });
 
   it('shows a toast when Apply is clicked', () => {
-    render(
-      <ToastProvider>
-        <JobCard job={job} />
-      </ToastProvider>,
-    );
+    renderJobCard();
     fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
     expect(screen.getByText('Application saved to your tracker')).toBeInTheDocument();
   });

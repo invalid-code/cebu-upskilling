@@ -108,13 +108,19 @@ export default function AssessmentsPage() {
   const [recommended, setRecommended] = useState(null);
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
+    let failed = false;
     Promise.all([
-      api.get('/assessments/recommended').catch(() => null),
+      api.get('/assessments/recommended').catch(() => {
+        failed = true;
+        return null;
+      }),
       api.get('/assessments/results').catch(() => []),
     ])
       .then(([rec, res]) => {
+        setError(failed);
         setRecommended(rec);
         setResults(res || []);
       })
@@ -147,8 +153,8 @@ export default function AssessmentsPage() {
                 30 questions · 45 minutes · Proctored · Builds toward {recommended.targetLevelLabel}
               </p>
               <div style={styles.recBanner}>
-                Your current level is {recommended.currentLevel} {recommended.currentLevelLabel}.
-                A verified result can move this skill into your job applications.
+                <div>Your current level is {recommended.currentLevel} {recommended.currentLevelLabel}.</div>
+                <div>A verified result can move this skill into your job applications.</div>
               </div>
               <Button variant="primary">
                 Start assessment <ArrowUpRight size={14} />
@@ -156,8 +162,8 @@ export default function AssessmentsPage() {
             </div>
           ) : (
             <EmptyState
-              title={targetRole ? 'All skills matched' : 'No recommended assessment'}
-              description={targetRole
+              title={targetRole && !error ? 'All skills matched' : 'No recommended assessment'}
+              description={targetRole && !error
                 ? 'You have no remaining skill gaps for your target role.'
                 : 'Set a target role to see which assessment to take next.'}
             />

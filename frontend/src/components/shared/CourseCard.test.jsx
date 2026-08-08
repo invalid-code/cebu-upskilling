@@ -20,7 +20,8 @@ const course = {
   provider: 'CodeChum Learning',
   mode: 'Online',
   duration: '18 hours',
-  price: 'Free',
+  price: 0,
+  isFree: true,
   description: 'Learn the essentials',
 };
 
