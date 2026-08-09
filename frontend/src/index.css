@@ -71,6 +71,11 @@ button:focus-visible {
   to { opacity: 1; transform: none; }
 }
 
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 .view-enter {
   animation: enter 0.35s var(--ease);
 }

@@ -90,6 +90,8 @@ export default function RegisterPage() {
      emailAddress: '',
      password: '',
      targetRole: '',
+     address: '',
+     birthday: '',
    });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -160,6 +162,19 @@ export default function RegisterPage() {
              required
              minLength={6}
            />
+          <input
+            style={styles.field}
+            type="date"
+            aria-label="Birthday"
+            value={form.birthday}
+            onChange={update('birthday')}
+          />
+          <input
+            style={styles.field}
+            placeholder="Address (optional)"
+            value={form.address}
+            onChange={update('address')}
+          />
            <select
              style={styles.field}
              aria-label="Target role"

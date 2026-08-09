@@ -19,6 +19,7 @@ const mockCourses = [
     courseId: 1,
     name: 'Modern JavaScript for Frontend Work',
     genre: { name: 'CodeChum Learning' },
+    mode: 'Online',
     technicalLevel: 18,
     description: 'Closes your largest current gap.',
     price: 0,
@@ -27,6 +28,7 @@ const mockCourses = [
     courseId: 2,
     name: 'TypeScript from Zero to Confident',
     genre: { name: 'DevCon Cebu Academy' },
+    mode: 'Hybrid',
     technicalLevel: 12,
     description: 'Build toward Intermediate.',
     price: 2500,
@@ -35,6 +37,7 @@ const mockCourses = [
     courseId: 3,
     name: 'Frontend Portfolio Sprint',
     genre: { name: 'Serbisyo Digital' },
+    mode: 'In-person',
     technicalLevel: 6,
     description: 'Ship one portfolio project.',
     price: 5000,
@@ -84,15 +87,15 @@ describe('CoursesPage', () => {
     expect(screen.getByText('Frontend Portfolio Sprint')).toBeInTheDocument();
   });
 
-  it('populates provider filter with unique providers', async () => {
+  it('renders the delivery mode filter with Online, Hybrid, and In-person options', async () => {
     renderCourses();
     await screen.findByText('Modern JavaScript for Frontend Work');
 
-    const providerSelect = screen.getAllByRole('combobox')[0];
-    expect(providerSelect).toHaveValue('');
-    expect(screen.getByRole('option', { name: 'CodeChum Learning' })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: 'DevCon Cebu Academy' })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: 'Serbisyo Digital' })).toBeInTheDocument();
+    const modeSelect = screen.getAllByRole('combobox')[0];
+    expect(modeSelect).toHaveValue('');
+    expect(screen.getByRole('option', { name: 'Online' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Hybrid' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'In-person' })).toBeInTheDocument();
   });
 
   it('filters courses by search term', async () => {
@@ -107,12 +110,12 @@ describe('CoursesPage', () => {
     expect(screen.queryByText('Frontend Portfolio Sprint')).not.toBeInTheDocument();
   });
 
-  it('filters courses by provider', async () => {
+  it('filters courses by delivery mode', async () => {
     renderCourses();
     await screen.findByText('Modern JavaScript for Frontend Work');
 
     fireEvent.change(screen.getAllByRole('combobox')[0], {
-      target: { value: 'DevCon Cebu Academy' },
+      target: { value: 'Hybrid' },
     });
 
     expect(screen.getByText('TypeScript from Zero to Confident')).toBeInTheDocument();

@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { ToastProvider } from '../context/ToastContext';
 import { AuthProvider } from '../context/AuthContext';
 import SkillsPage from './SkillsPage';
+import { api } from '../api/client';
 
 vi.mock('../api/client', () => ({
   api: {
@@ -60,5 +61,19 @@ describe('SkillsPage', () => {
     renderSkills();
     fireEvent.click(screen.getByRole('button', { name: 'Assess a skill' }));
     expect(screen.getByText('Assessment flow opened')).toBeInTheDocument();
+  });
+
+  it('displays the learner address in the target role card', () => {
+    localStorage.setItem('user', JSON.stringify({
+      firstName: 'Test',
+      role: 'Learner',
+      targetRole: 'Frontend Developer',
+      address: '123 Main St',
+    }));
+    localStorage.setItem('token', 'abc');
+    api.get.mockResolvedValue([]);
+    renderSkills();
+    expect(screen.getByText('Frontend Developer')).toBeInTheDocument();
+    expect(screen.getByText('123 Main St · On-site')).toBeInTheDocument();
   });
 });

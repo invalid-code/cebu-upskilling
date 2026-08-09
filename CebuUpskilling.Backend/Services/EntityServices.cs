@@ -168,6 +168,8 @@ public class CourseService : BaseEntityService<Course>
         existing.Description = entity.Description;
         existing.GenreId = entity.GenreId;
         existing.TechnicalLevel = entity.TechnicalLevel;
+        existing.Price = entity.Price;
+        existing.Mode = entity.Mode;
     }
 }
 

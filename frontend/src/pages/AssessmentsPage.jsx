@@ -3,9 +3,10 @@ import Panel from '../components/ui/Panel';
 import Tag from '../components/ui/Tag';
 import Button from '../components/ui/Button';
 import EmptyState from '../components/shared/EmptyState';
+import Modal from '../components/ui/Modal';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api/client';
-import { ArrowUpRight } from 'lucide-react';
+import { ArrowUpRight, Camera, Mic, Maximize, Check, AlertCircle, Loader2 } from 'lucide-react';
 
 const styles = {
   heading: {
@@ -95,6 +96,118 @@ const styles = {
     color: 'var(--muted)',
     fontSize: 13,
   },
+  modalDesc: {
+    fontSize: 13,
+    color: 'var(--muted)',
+    lineHeight: 1.55,
+    marginBottom: 18,
+  },
+  permItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    background: 'var(--coral-soft)',
+    borderRadius: 12,
+    padding: '14px 16px',
+    marginBottom: 10,
+  },
+  permIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    background: 'var(--surface)',
+    display: 'grid',
+    placeItems: 'center',
+    flexShrink: 0,
+    color: 'var(--ink)',
+  },
+  permTitle: {
+    fontSize: 13,
+    fontWeight: 700,
+    color: 'var(--ink)',
+  },
+  permDesc: {
+    fontSize: 12,
+    color: 'var(--muted)',
+    marginTop: 1,
+  },
+  checking: {
+    textAlign: 'center',
+    padding: '32px 0',
+  },
+  checkingSpinner: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 48,
+    height: 48,
+    borderRadius: '50%',
+    background: 'var(--coral-soft)',
+    color: 'var(--coral)',
+    marginBottom: 14,
+    animation: 'spin 1s linear infinite',
+  },
+  checkingText: {
+    fontSize: 14,
+    fontWeight: 600,
+    color: 'var(--ink)',
+  },
+  checkingSubtext: {
+    fontSize: 12,
+    color: 'var(--muted)',
+    marginTop: 4,
+  },
+  success: {
+    textAlign: 'center',
+    padding: '24px 0',
+  },
+  successIcon: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 56,
+    height: 56,
+    borderRadius: '50%',
+    background: 'var(--teal-soft)',
+    color: 'var(--teal)',
+    marginBottom: 14,
+  },
+  successTitle: {
+    fontSize: 16,
+    fontWeight: 700,
+    color: 'var(--ink)',
+    marginBottom: 4,
+  },
+  successDesc: {
+    fontSize: 13,
+    color: 'var(--muted)',
+  },
+  error: {
+    textAlign: 'center',
+    padding: '24px 0',
+  },
+  errorIcon: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 56,
+    height: 56,
+    borderRadius: '50%',
+    background: 'var(--coral-soft)',
+    color: 'var(--coral)',
+    marginBottom: 14,
+  },
+  errorTitle: {
+    fontSize: 16,
+    fontWeight: 700,
+    color: 'var(--ink)',
+    marginBottom: 4,
+  },
+  errorDesc: {
+    fontSize: 13,
+    color: 'var(--muted)',
+    lineHeight: 1.5,
+  },
 };
 
 function formatDate(iso) {
@@ -109,6 +222,8 @@ export default function AssessmentsPage() {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [deviceCheck, setDeviceCheck] = useState('idle');
 
   useEffect(() => {
     let failed = false;
@@ -128,6 +243,17 @@ export default function AssessmentsPage() {
   }, []);
 
   const targetRole = user?.targetRole?.trim();
+
+  async function handleDeviceCheck() {
+    setDeviceCheck('checking');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      stream.getTracks().forEach(t => t.stop());
+      setDeviceCheck('success');
+    } catch {
+      setDeviceCheck('error');
+    }
+  }
 
   return (
     <div className="view-enter">
@@ -156,7 +282,7 @@ export default function AssessmentsPage() {
                 <div>Your current level is {recommended.currentLevel} {recommended.currentLevelLabel}.</div>
                 <div>A verified result can move this skill into your job applications.</div>
               </div>
-              <Button variant="primary">
+              <Button variant="primary" onClick={() => { setDeviceCheck('idle'); setModalOpen(true); }}>
                 Start assessment <ArrowUpRight size={14} />
               </Button>
             </div>
@@ -195,6 +321,102 @@ export default function AssessmentsPage() {
           )}
         </Panel>
       </div>
+
+      <Modal
+        open={modalOpen}
+        onClose={() => { setDeviceCheck('idle'); setModalOpen(false); }}
+        eyebrow="Before the timer starts"
+        title={recommended?.skillName || 'Assessment'}
+        footer={
+          deviceCheck === 'idle' ? (
+            <>
+              <Button variant="ghost" onClick={() => { setDeviceCheck('idle'); setModalOpen(false); }}>
+                Not now
+              </Button>
+              <Button variant="primary" onClick={handleDeviceCheck}>
+                Continue to device check
+              </Button>
+            </>
+          ) : deviceCheck === 'checking' ? (
+            <Button variant="ghost" disabled>
+              Checking...
+            </Button>
+          ) : deviceCheck === 'success' ? (
+            <>
+              <Button variant="ghost" onClick={() => { setDeviceCheck('idle'); setModalOpen(false); }}>
+                Close
+              </Button>
+              <Button variant="primary" onClick={() => setModalOpen(false)}>
+                Start assessment
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="ghost" onClick={() => { setDeviceCheck('idle'); setModalOpen(false); }}>
+                Cancel
+              </Button>
+              <Button variant="primary" onClick={handleDeviceCheck}>
+                Try again
+              </Button>
+            </>
+          )
+        }
+      >
+        {deviceCheck === 'idle' && (
+          <>
+            <p style={styles.modalDesc}>
+              This assessment uses a few permissions to verify the session. We only use them for this attempt.
+            </p>
+            <div style={styles.permItem}>
+              <div style={styles.permIcon}><Camera size={18} /></div>
+              <div>
+                <div style={styles.permTitle}>Camera</div>
+                <div style={styles.permDesc}>Confirms the person taking the assessment.</div>
+              </div>
+            </div>
+            <div style={styles.permItem}>
+              <div style={styles.permIcon}><Mic size={18} /></div>
+              <div>
+                <div style={styles.permTitle}>Microphone</div>
+                <div style={styles.permDesc}>Checks that your test environment is active.</div>
+              </div>
+            </div>
+            <div style={styles.permItem}>
+              <div style={styles.permIcon}><Maximize size={18} /></div>
+              <div>
+                <div style={styles.permTitle}>Fullscreen and focus</div>
+                <div style={styles.permDesc}>Tracks fullscreen exits and tab switches for review.</div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {deviceCheck === 'checking' && (
+          <div style={styles.checking}>
+            <div style={styles.checkingSpinner}><Loader2 size={24} /></div>
+            <div style={styles.checkingText}>Checking devices...</div>
+            <div style={styles.checkingSubtext}>Please allow camera and microphone access when prompted.</div>
+          </div>
+        )}
+
+        {deviceCheck === 'success' && (
+          <div style={styles.success}>
+            <div style={styles.successIcon}><Check size={28} /></div>
+            <div style={styles.successTitle}>Devices ready</div>
+            <div style={styles.successDesc}>Camera and microphone are working. You're ready to begin.</div>
+          </div>
+        )}
+
+        {deviceCheck === 'error' && (
+          <div style={styles.error}>
+            <div style={styles.errorIcon}><AlertCircle size={28} /></div>
+            <div style={styles.errorTitle}>Device access needed</div>
+            <div style={styles.errorDesc}>
+              Camera or microphone permission was denied. Please enable them in your browser settings and try again.
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

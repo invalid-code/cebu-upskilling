@@ -2,6 +2,7 @@ import Button from '../components/ui/Button';
 import Panel from '../components/ui/Panel';
 import Tag from '../components/ui/Tag';
 import EmptyState from '../components/shared/EmptyState';
+import TargetRoleCard from '../components/shared/TargetRoleCard';
 import SkillGapItem from '../components/shared/SkillGapItem';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
@@ -117,12 +118,23 @@ const styles = {
 
 export default function SkillsPage() {
   const { showToast } = useToast();
-  const { user } = useAuth();
+  const { user, setUser } = useAuth();
   const [selectedRole, setSelectedRole] = useState(user?.targetRole || '');
   const [saving, setSaving] = useState(false);
   const [skillGaps, setSkillGaps] = useState([]);
   const [skillGapsLoading, setSkillGapsLoading] = useState(true);
+  const [address, setAddress] = useState(user?.address || '');
+  const [remoteFriendly, setRemoteFriendly] = useState(user?.remoteFriendly ?? true);
   const hasRole = user?.targetRole != null && user.targetRole !== '';
+
+  const getProfileStats = () => {
+    if (skillGaps.length === 0) return { completeness: null, topGap: null };
+    const totalRequired = skillGaps.reduce((s, g) => s + g.requiredLevel, 0);
+    const totalCurrent = skillGaps.reduce((s, g) => s + g.currentLevel, 0);
+    const completeness = totalRequired > 0 ? Math.round((totalCurrent / totalRequired) * 100) : 0;
+    const topGap = skillGaps.find((g) => g.gap > 0);
+    return { completeness, topGap: topGap?.skillName || null };
+  };
 
   useEffect(() => {
     if (!hasRole) {
@@ -148,11 +160,12 @@ export default function SkillsPage() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${localStorage.getItem('token')}`,
         },
-        body: JSON.stringify({ targetRole: selectedRole }),
+        body: JSON.stringify({ targetRole: selectedRole, address, remoteFriendly }),
       });
       if (!res.ok) throw new Error('Failed to save');
       const updatedUser = await res.json();
       localStorage.setItem('user', JSON.stringify(updatedUser));
+      setUser(updatedUser);
       showToast('Target role saved');
     } catch {
       showToast('Failed to save target role');
@@ -178,11 +191,17 @@ export default function SkillsPage() {
 
       <div style={styles.grid}>
         <Panel style={styles.col5}>
-          <div style={styles.eyebrow}>Target role</div>
           {hasRole ? (
-            <div style={styles.roleTag}>{user.targetRole}</div>
+            <TargetRoleCard
+              targetRole={user.targetRole}
+              address={user.address}
+              remoteFriendly={user.remoteFriendly}
+              profileCompleteness={getProfileStats().completeness}
+              topGap={getProfileStats().topGap}
+            />
           ) : (
             <>
+              <div style={styles.eyebrow}>Target role</div>
               <div style={styles.radioGroup}>
                 {targetRoles.map((role) => (
                   <label
@@ -203,6 +222,32 @@ export default function SkillsPage() {
                     {role}
                   </label>
                 ))}
+              </div>
+              <div style={{ marginTop: 12 }}>
+                <label style={{ fontSize: 12, color: 'var(--muted)', display: 'block', marginBottom: 4 }}>Address</label>
+                <input
+                  type="text"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="e.g. 123 Main St"
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    border: '1px solid var(--line)',
+                    fontSize: 13,
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+              <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <input
+                  type="checkbox"
+                  checked={remoteFriendly}
+                  onChange={(e) => setRemoteFriendly(e.target.checked)}
+                  style={{ accentColor: 'var(--teal)', width: 16, height: 16 }}
+                />
+                <span style={{ fontSize: 13 }}>Remote friendly</span>
               </div>
               <div style={styles.saveRow}>
                 <Button

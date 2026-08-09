@@ -69,7 +69,7 @@ export default function CoursesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
-  const [provider, setProvider] = useState('');
+  const [mode, setMode] = useState('');
   const [price, setPrice] = useState('');
 
   useEffect(() => {
@@ -79,6 +79,7 @@ export default function CoursesPage() {
           courseId: c.courseId,
           name: c.name,
           provider: c.genre?.name || 'Provider',
+          mode: c.mode || 'Online',
           price: c.price,
           isFree: c.price == null || c.price === 0,
           duration: c.technicalLevel ? `${c.technicalLevel} hours` : undefined,
@@ -89,12 +90,10 @@ export default function CoursesPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const providers = [...new Set(courses.map((c) => c.provider))];
-
   const filteredCourses = courses.filter((course) => {
     if (search && !course.name.toLowerCase().includes(search.toLowerCase()) &&
         !course.description?.toLowerCase().includes(search.toLowerCase())) return false;
-    if (provider && course.provider !== provider) return false;
+    if (mode && course.mode !== mode) return false;
     if (price === 'free' && !course.isFree) return false;
     if (price === 'paid' && course.isFree) return false;
     return true;
@@ -120,11 +119,11 @@ export default function CoursesPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <select className="field" style={styles.field} value={provider} onChange={(e) => setProvider(e.target.value)}>
-          <option value="">All providers</option>
-          {providers.map((p) => (
-            <option key={p} value={p}>{p}</option>
-          ))}
+        <select className="field" style={styles.field} value={mode} onChange={(e) => setMode(e.target.value)}>
+          <option value="">All delivery modes</option>
+          <option value="Online">Online</option>
+          <option value="Hybrid">Hybrid</option>
+          <option value="In-person">In-person</option>
         </select>
         <select className="field" style={styles.field} value={price} onChange={(e) => setPrice(e.target.value)}>
           <option value="">Any price</option>

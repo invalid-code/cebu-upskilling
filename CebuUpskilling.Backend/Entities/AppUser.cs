@@ -32,6 +32,11 @@ public class AppUser : AuditableEntity
     [MaxLength(100)]
     public string? TargetRole { get; set; }
 
+    [MaxLength(255)]
+    public string? Address { get; set; }
+
+    public bool RemoteFriendly { get; set; } = true;
+
     public Learner? Learner { get; set; }
     public Recruiter? Recruiter { get; set; }
 }

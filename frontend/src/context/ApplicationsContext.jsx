@@ -20,8 +20,14 @@ export function ApplicationsProvider({ children }) {
   const applyToJob = useCallback((job) => {
     setApplications((prev) => {
       if (prev.some((a) => a.id === job.id)) return prev;
-      return [...prev, { ...job, appliedAt: new Date().toISOString() }];
+      return [...prev, { ...job, appliedAt: new Date().toISOString(), status: 'applied' }];
     });
+  }, []);
+
+  const updateStatus = useCallback((jobId, status) => {
+    setApplications((prev) =>
+      prev.map((app) => (app.id === jobId ? { ...app, status } : app))
+    );
   }, []);
 
   const isApplied = useCallback(
@@ -30,7 +36,7 @@ export function ApplicationsProvider({ children }) {
   );
 
   return (
-    <ApplicationsContext.Provider value={{ applications, applyToJob, isApplied }}>
+    <ApplicationsContext.Provider value={{ applications, applyToJob, isApplied, updateStatus }}>
       {children}
     </ApplicationsContext.Provider>
   );

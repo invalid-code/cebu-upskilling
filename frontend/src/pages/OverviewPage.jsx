@@ -4,11 +4,12 @@ import Button from '../components/ui/Button';
 import Panel from '../components/ui/Panel';
 import Tag from '../components/ui/Tag';
 import EmptyState from '../components/shared/EmptyState';
+import StatCard from '../components/shared/StatCard';
 import CourseCard from '../components/shared/CourseCard';
 import SkillGapItem from '../components/shared/SkillGapItem';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api/client';
-import { ArrowUpRight, Check } from 'lucide-react';
+import { ArrowUpRight, Check, Clock, BookOpen, Send } from 'lucide-react';
 
 const styles = {
   heading: {
@@ -33,7 +34,6 @@ const styles = {
   subtitle: {
     color: 'var(--muted)',
     margin: '8px 0 0',
-    maxWidth: 450,
   },
   grid: {
     display: 'grid',
@@ -222,6 +222,9 @@ export default function OverviewPage() {
   const [loading, setLoading] = useState(true);
   const [skillGaps, setSkillGaps] = useState([]);
   const [skillGapsLoading, setSkillGapsLoading] = useState(true);
+  const [recommendedAssessment, setRecommendedAssessment] = useState(null);
+  const [weeklyStats, setWeeklyStats] = useState({ learningTimeHours: 0, coursesActive: 0, jobsWorthApplying: 0 });
+  const [weeklyStatsLoading, setWeeklyStatsLoading] = useState(true);
 
   const targetRole = user?.targetRole?.trim();
 
@@ -232,6 +235,7 @@ export default function OverviewPage() {
           courseId: c.courseId,
           name: c.name,
           provider: c.genre?.name || 'Provider',
+          mode: c.mode || 'Online',
           duration: c.technicalLevel ? `${c.technicalLevel} hours` : undefined,
           description: c.description,
         })));
@@ -251,6 +255,20 @@ export default function OverviewPage() {
       .finally(() => setSkillGapsLoading(false));
   }, [targetRole]);
 
+  useEffect(() => {
+    if (!targetRole) return;
+    api.get('/assessments/recommended')
+      .then((data) => setRecommendedAssessment(data))
+      .catch(() => setRecommendedAssessment(null));
+  }, [targetRole]);
+
+  useEffect(() => {
+    api.get('/stats/week')
+      .then((data) => setWeeklyStats(data))
+      .catch(() => setWeeklyStats({ learningTimeHours: 0, coursesActive: 0, jobsWorthApplying: 0 }))
+      .finally(() => setWeeklyStatsLoading(false));
+  }, []);
+
   const recommended = courses.slice(0, 3);
   const today = new Date().toLocaleDateString('en-US', {
     weekday: 'long',
@@ -265,7 +283,7 @@ export default function OverviewPage() {
           <div style={styles.eyebrow}>{today} · Cebu City</div>
           <h1 style={styles.h1}>Your next move is clear.</h1>
           <p style={styles.subtitle}>
-            Your match score and pathway will shape your next step.
+            You're building toward <strong>{targetRole || 'your target role'}</strong>. Keep closing the two gaps that matter most.
           </p>
         </div>
         <Button variant="primary" onClick={() => navigate('/skills')}>
@@ -276,12 +294,20 @@ export default function OverviewPage() {
       <div style={styles.grid}>
         <div style={styles.col8}>
           <div style={styles.hero}>
-            <h2 style={styles.heroH2}>Build your profile to unlock your match score.</h2>
+            <h2 style={styles.heroH2}>
+              You're {skillGaps.length > 0 ? (() => {
+                const totalRequired = skillGaps.reduce((s, g) => s + g.requiredLevel, 0);
+                const totalCurrent = skillGaps.reduce((s, g) => s + g.currentLevel, 0);
+                return totalRequired > 0 ? Math.round((totalCurrent / totalRequired) * 100) : 0;
+              })() : 0}% of the way to your target role.
+            </h2>
             <p style={styles.heroP}>
-              Take a skill assessment or add your skills to see how close you are to your target role.
+              {recommendedAssessment
+                ? `Complete the ${recommendedAssessment.skillName} assessment next. It is the fastest route to a stronger match.`
+                : 'Take a skill assessment to see how close you are to your target role.'}
             </p>
             <Button variant="primary" onClick={() => navigate('/assessments')}>
-              Start a skill assessment <ArrowUpRight size={14} />
+              Continue pathway <ArrowUpRight size={14} />
             </Button>
           </div>
 
@@ -426,10 +452,27 @@ export default function OverviewPage() {
             <div style={{ ...styles.sectionTitle, margin: '0 0 12px' }}>
               <h3 style={styles.sectionH3}>This week</h3>
             </div>
-            <EmptyState
-              title="No activity yet"
-              description="Your learning time and applications will show up here."
-            />
+            {weeklyStatsLoading ? (
+              <div style={styles.loading}>Loading stats...</div>
+            ) : (
+              <>
+                <StatCard
+                  value={`${weeklyStats.learningTimeHours}h`}
+                  label="learning time"
+                  icon={Clock}
+                />
+                <StatCard
+                  value={weeklyStats.coursesActive}
+                  label="courses active"
+                  icon={BookOpen}
+                />
+                <StatCard
+                  value={weeklyStats.jobsWorthApplying}
+                  label="jobs worth applying"
+                  icon={Send}
+                />
+              </>
+            )}
           </Panel>
 
           <Panel style={{ marginTop: 16 }}>

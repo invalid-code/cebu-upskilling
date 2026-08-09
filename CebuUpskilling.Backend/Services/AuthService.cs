@@ -98,6 +98,7 @@ public class AuthService : IAuthService
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
             Role = request.Role,
             TargetRole = request.TargetRole,
+            Address = request.Address,
         };
 
         _context.Users.Add(user);
@@ -137,7 +138,7 @@ public class AuthService : IAuthService
 
         var token = _tokenService.GenerateToken(user);
 
-        return new AuthResponse(user.UserId, user.FirstName, user.LastName, user.EmailAddress, user.Role, user.TargetRole, token);
+        return new AuthResponse(user.UserId, user.FirstName, user.LastName, user.EmailAddress, user.Role, user.TargetRole, user.Address, user.RemoteFriendly, token);
     }
 
     public async Task<AuthResponse> LoginAsync(LoginRequest request)
@@ -161,7 +162,7 @@ public class AuthService : IAuthService
 
         var token = _tokenService.GenerateToken(user);
 
-        return new AuthResponse(user.UserId, user.FirstName, user.LastName, user.EmailAddress, user.Role, user.TargetRole, token);  
+        return new AuthResponse(user.UserId, user.FirstName, user.LastName, user.EmailAddress, user.Role, user.TargetRole, user.Address, user.RemoteFriendly, token);  
     }
 
     public async Task<AuthResponse> UpdateProfileAsync(int userId, UpdateProfileRequest request)
@@ -177,10 +178,20 @@ public class AuthService : IAuthService
             user.TargetRole = request.TargetRole;
         }
 
+        if (request.Address != null)
+        {
+            user.Address = request.Address;
+        }
+
+        if (request.RemoteFriendly.HasValue)
+        {
+            user.RemoteFriendly = request.RemoteFriendly.Value;
+        }
+
         await _context.SaveChangesAsync();
         _logger.LogInformation("Profile updated for user {UserId}", userId);
 
         var token = _tokenService.GenerateToken(user);
-        return new AuthResponse(user.UserId, user.FirstName, user.LastName, user.EmailAddress, user.Role, user.TargetRole, token);
+        return new AuthResponse(user.UserId, user.FirstName, user.LastName, user.EmailAddress, user.Role, user.TargetRole, user.Address, user.RemoteFriendly, token);
     }
 }

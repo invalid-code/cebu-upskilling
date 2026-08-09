@@ -1,6 +1,35 @@
 import Panel from '../components/ui/Panel';
+import Button from '../components/ui/Button';
 import EmptyState from '../components/shared/EmptyState';
 import { useApplications } from '../context/ApplicationsContext';
+
+const statusConfig = {
+  applied: {
+    label: 'Applied',
+    background: 'rgba(20, 184, 166, 0.1)',
+    color: 'var(--teal)',
+  },
+  interview: {
+    label: 'Interview',
+    background: 'var(--coral-soft)',
+    color: 'var(--coral)',
+  },
+  review: {
+    label: 'Under review',
+    background: 'rgba(234, 179, 8, 0.15)',
+    color: '#b45309',
+  },
+  saved: {
+    label: 'Saved',
+    background: 'var(--teal-soft)',
+    color: 'var(--teal)',
+  },
+  rejected: {
+    label: 'Rejected',
+    background: 'rgba(239, 68, 68, 0.1)',
+    color: '#dc2626',
+  },
+};
 
 const styles = {
   heading: {
@@ -30,16 +59,16 @@ const styles = {
   list: {
     display: 'flex',
     flexDirection: 'column',
-    gap: 12,
   },
   item: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    border: '1px solid var(--line)',
-    borderRadius: 12,
-    background: 'var(--surface)',
+    padding: '18px 0',
+    borderBottom: '1px solid var(--line)',
+  },
+  itemLast: {
+    borderBottom: 'none',
   },
   info: {
     display: 'flex',
@@ -48,46 +77,49 @@ const styles = {
   },
   title: {
     fontSize: 15,
-    fontWeight: 600,
+    fontWeight: 700,
     margin: 0,
+    color: 'var(--text, #1a2e28)',
   },
-  company: {
+  meta: {
     fontSize: 12,
     color: 'var(--muted)',
     margin: 0,
   },
-  meta: {
+  actions: {
     display: 'flex',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
   },
-  badge: {
-    fontSize: 11,
-    fontWeight: 600,
+  badge: (status) => {
+    const config = statusConfig[status] || statusConfig.applied;
+    return {
+      fontSize: 11,
+      fontWeight: 600,
+      color: config.color,
+      background: config.background,
+      padding: '5px 12px',
+      borderRadius: 20,
+      whiteSpace: 'nowrap',
+    };
+  },
+  openButton: {
+    padding: '6px 16px',
+    minHeight: 32,
+    fontSize: 12,
+    background: 'transparent',
     color: 'var(--teal)',
-    background: 'rgba(20, 184, 166, 0.1)',
-    padding: '4px 10px',
-    borderRadius: 20,
-  },
-  salary: {
-    fontFamily: "'Space Grotesk', sans-serif",
-    fontWeight: 700,
-    fontSize: 13,
-  },
-  skills: {
-    display: 'flex',
-    gap: 6,
-    flexWrap: 'wrap',
-    marginTop: 4,
-  },
-  skill: {
-    fontSize: 10,
-    color: 'var(--muted)',
-    background: 'rgba(0,0,0,0.04)',
-    padding: '2px 8px',
+    border: '1px solid var(--teal)',
     borderRadius: 8,
   },
 };
+
+function formatDate(isoString) {
+  if (!isoString) return '';
+  const date = new Date(isoString);
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${months[date.getMonth()]} ${date.getDate()}`;
+}
 
 export default function ApplicationsPage() {
   const { applications } = useApplications();
@@ -112,23 +144,30 @@ export default function ApplicationsPage() {
           />
         ) : (
           <div style={styles.list}>
-            {applications.map((job) => (
-              <div key={job.id} style={styles.item}>
-                <div style={styles.info}>
-                  <h4 style={styles.title}>{job.title}</h4>
-                  <p style={styles.company}>{job.company} · {job.location}</p>
-                  <div style={styles.skills}>
-                    {job.skills?.map((skill) => (
-                      <span key={skill} style={styles.skill}>{skill}</span>
-                    ))}
+            {applications.map((job, index) => {
+              const isLast = index === applications.length - 1;
+              const status = job.status || 'applied';
+              const statusLabel = statusConfig[status]?.label || 'Applied';
+              const dateLabel = job.savedAt ? `Saved ${formatDate(job.savedAt)}` : `Applied ${formatDate(job.appliedAt)}`;
+
+              return (
+                <div
+                  key={job.id}
+                  style={isLast ? { ...styles.item, ...styles.itemLast } : styles.item}
+                >
+                  <div style={styles.info}>
+                    <h4 style={styles.title}>{job.title}</h4>
+                    <p style={styles.meta}>{job.company} · {dateLabel}</p>
+                  </div>
+                  <div style={styles.actions}>
+                    <span style={styles.badge(status)}>{statusLabel}</span>
+                    <Button variant="ghost" style={styles.openButton}>
+                      Open
+                    </Button>
                   </div>
                 </div>
-                <div style={styles.meta}>
-                  <span style={styles.salary}>{job.salary}</span>
-                  <span style={styles.badge}>Applied</span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </Panel>

@@ -69,13 +69,14 @@ describe('OverviewPage', () => {
       if (path === '/courses') return Promise.resolve(mockCourses);
       if (path === '/enrollments') return Promise.resolve([]);
       if (path === '/skillgaps') return Promise.resolve([]);
+      if (path === '/assessments/recommended') return Promise.resolve(null);
       return Promise.resolve([]);
     });
   });
 
   it('renders the dashboard heading', async () => {
     renderOverview();
-    expect(await screen.findByRole('heading', { name: 'Your next move is clear.' })).toBeInTheDocument();
+    expect(await screen.findByText(/of the way to your target role/)).toBeInTheDocument();
   });
 
   it('shows empty states when there is no backend data', async () => {
@@ -83,6 +84,7 @@ describe('OverviewPage', () => {
       if (path === '/courses') return Promise.resolve([]);
       if (path === '/enrollments') return Promise.resolve([]);
       if (path === '/skillgaps') return Promise.resolve([]);
+      if (path === '/assessments/recommended') return Promise.resolve(null);
       return Promise.resolve([]);
     });
     renderOverview();
@@ -106,6 +108,7 @@ describe('OverviewPage', () => {
       if (path === '/courses') return Promise.resolve(mockCourses);
       if (path === '/enrollments') return Promise.resolve([]);
       if (path === '/skillgaps') return Promise.resolve(mockSkillGaps);
+      if (path === '/assessments/recommended') return Promise.resolve({ skillName: 'JavaScript' });
       return Promise.resolve([]);
     });
     renderOverview();

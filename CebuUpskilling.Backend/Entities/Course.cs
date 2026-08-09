@@ -19,6 +19,9 @@ public class Course : AuditableEntity
 
     public int? Price { get; set; }
 
+    [Required, MaxLength(50)]
+    public string Mode { get; set; } = "Online";
+
     public Genre Genre { get; set; } = null!;
     public ICollection<Lesson> Lessons { get; set; } = new List<Lesson>();
     public ICollection<LearnerStudyCourse> LearnerStudyCourses { get; set; } = new List<LearnerStudyCourse>();

@@ -10,11 +10,14 @@ public record RegisterRequest(
     [Required] string EmailAddress,
     [Required, MinLength(6)] string Password,
     string Role = "Learner",
-    string? TargetRole = null
+    string? TargetRole = null,
+    string? Address = null
 );
 
 public record UpdateProfileRequest(
-    string? TargetRole = null
+    string? TargetRole = null,
+    string? Address = null,
+    bool? RemoteFriendly = null
 );
 
 public record LoginRequest(
@@ -29,5 +32,7 @@ public record AuthResponse(
     string EmailAddress,
     string Role,
     string? TargetRole,
+    string? Address,
+    bool RemoteFriendly,
     string Token
 );
