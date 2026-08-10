@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../components/ui/Button';
 import Panel from '../components/ui/Panel';
-import Tag from '../components/ui/Tag';
+
 import EmptyState from '../components/shared/EmptyState';
 import StatCard from '../components/shared/StatCard';
 import CourseCard from '../components/shared/CourseCard';
@@ -229,7 +229,8 @@ export default function OverviewPage() {
   const targetRole = user?.targetRole?.trim();
 
   useEffect(() => {
-    api.get('/courses')
+    const controller = new AbortController();
+    api.get('/courses', { signal: controller.signal })
       .then((data) => {
         setCourses((data || []).map((c) => ({
           courseId: c.courseId,
@@ -242,6 +243,7 @@ export default function OverviewPage() {
       })
       .catch(() => setCourses([]))
       .finally(() => setLoading(false));
+    return () => controller.abort();
   }, []);
 
   useEffect(() => {
@@ -249,24 +251,30 @@ export default function OverviewPage() {
       setSkillGapsLoading(false);
       return;
     }
-    api.get('/skillgaps')
+    const controller = new AbortController();
+    api.get('/skillgaps', { signal: controller.signal })
       .then((data) => setSkillGaps(data || []))
       .catch(() => setSkillGaps([]))
       .finally(() => setSkillGapsLoading(false));
+    return () => controller.abort();
   }, [targetRole]);
 
   useEffect(() => {
     if (!targetRole) return;
-    api.get('/assessments/recommended')
+    const controller = new AbortController();
+    api.get('/assessments/recommended', { signal: controller.signal })
       .then((data) => setRecommendedAssessment(data))
       .catch(() => setRecommendedAssessment(null));
+    return () => controller.abort();
   }, [targetRole]);
 
   useEffect(() => {
-    api.get('/stats/week')
+    const controller = new AbortController();
+    api.get('/stats/week', { signal: controller.signal })
       .then((data) => setWeeklyStats(data))
       .catch(() => setWeeklyStats({ learningTimeHours: 0, coursesActive: 0, jobsWorthApplying: 0 }))
       .finally(() => setWeeklyStatsLoading(false));
+    return () => controller.abort();
   }, []);
 
   const recommended = courses.slice(0, 3);

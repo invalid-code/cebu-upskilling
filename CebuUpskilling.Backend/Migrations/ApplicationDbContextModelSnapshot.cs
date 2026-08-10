@@ -93,6 +93,929 @@ namespace CebuUpskilling.Backend.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("CebuUpskilling.Backend.Entities.AssessmentQuestion", b =>
+                {
+                    b.Property<int>("AssessmentQuestionId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("AssessmentQuestionId"));
+
+                    b.Property<int>("CorrectOption")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("OptionA")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("OptionB")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("OptionC")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("OptionD")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("SkillId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("AssessmentQuestionId");
+
+                    b.HasIndex("SkillId");
+
+                    b.ToTable("AssessmentQuestions");
+
+                    b.HasData(
+                        new
+                        {
+                            AssessmentQuestionId = 1,
+                            CorrectOption = 1,
+                            OptionA = "Array.prototype.forEach",
+                            OptionB = "Array.prototype.map",
+                            OptionC = "Array.prototype.filter",
+                            OptionD = "Array.prototype.reduce",
+                            SkillId = 1,
+                            Text = "Which method creates a new array with the results of calling a function on every element?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 2,
+                            CorrectOption = 2,
+                            OptionA = "Value only",
+                            OptionB = "Type only",
+                            OptionC = "Value and type",
+                            OptionD = "Reference equality",
+                            SkillId = 1,
+                            Text = "What does the '===' operator check in JavaScript?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 3,
+                            CorrectOption = 1,
+                            OptionA = "var",
+                            OptionB = "let",
+                            OptionC = "function",
+                            OptionD = "global",
+                            SkillId = 1,
+                            Text = "Which keyword creates a block-scoped variable?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 4,
+                            CorrectOption = 2,
+                            OptionA = "\"null\"",
+                            OptionB = "\"undefined\"",
+                            OptionC = "\"object\"",
+                            OptionD = "\"boolean\"",
+                            SkillId = 1,
+                            Text = "What is the output of typeof null?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 5,
+                            CorrectOption = 1,
+                            OptionA = "Array.prototype.unshift()",
+                            OptionB = "Array.prototype.push()",
+                            OptionC = "Array.prototype.pop()",
+                            OptionD = "Array.prototype.shift()",
+                            SkillId = 1,
+                            Text = "Which method adds an element to the end of an array?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 6,
+                            CorrectOption = 1,
+                            OptionA = "A function that has no return value",
+                            OptionB = "A function that accesses variables from its outer scope",
+                            OptionC = "A function that takes no arguments",
+                            OptionD = "A function that calls itself",
+                            SkillId = 1,
+                            Text = "What is a closure in JavaScript?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 7,
+                            CorrectOption = 2,
+                            OptionA = "onmouseover",
+                            OptionB = "onchange",
+                            OptionC = "onclick",
+                            OptionD = "onsubmit",
+                            SkillId = 1,
+                            Text = "Which event fires when an HTML element is clicked?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 8,
+                            CorrectOption = 0,
+                            OptionA = "JavaScript Object Notation",
+                            OptionB = "Java Source Object Network",
+                            OptionC = "JavaScript Online Notation",
+                            OptionD = "Java Syntax Object Notation",
+                            SkillId = 1,
+                            Text = "What does JSON stand for?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 9,
+                            CorrectOption = 1,
+                            OptionA = "JSON.stringify()",
+                            OptionB = "JSON.parse()",
+                            OptionC = "JSON.convert()",
+                            OptionD = "JSON.toObject()",
+                            SkillId = 1,
+                            Text = "Which method converts a JSON string into a JavaScript object?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 10,
+                            CorrectOption = 1,
+                            OptionA = "4",
+                            OptionB = "\"22\"",
+                            OptionC = "NaN",
+                            OptionD = "TypeError",
+                            SkillId = 1,
+                            Text = "What is the result of 2 + '2' in JavaScript?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 11,
+                            CorrectOption = 1,
+                            OptionA = "A compiled language",
+                            OptionB = "A superset of JavaScript",
+                            OptionC = "A database query language",
+                            OptionD = "A CSS preprocessor",
+                            SkillId = 2,
+                            Text = "What is TypeScript?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 12,
+                            CorrectOption = 2,
+                            OptionA = "var",
+                            OptionB = "let",
+                            OptionC = "const",
+                            OptionD = "static",
+                            SkillId = 2,
+                            Text = "Which keyword declares a variable that cannot be reassigned?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 13,
+                            CorrectOption = 1,
+                            OptionA = "A type for numeric values",
+                            OptionB = "A type that disables type checking",
+                            OptionC = "A type for string values",
+                            OptionD = "A type for boolean values",
+                            SkillId = 2,
+                            Text = "What is the 'any' type in TypeScript?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 14,
+                            CorrectOption = 1,
+                            OptionA = "class Interface {}",
+                            OptionB = "interface IFace {}",
+                            OptionC = "type IFace = {}",
+                            OptionD = "struct IFace {}",
+                            SkillId = 2,
+                            Text = "How do you define an interface in TypeScript?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 15,
+                            CorrectOption = 1,
+                            OptionA = "A type that combines multiple classes",
+                            OptionB = "A type that allows multiple possible types",
+                            OptionC = "A type for array elements",
+                            OptionD = "A type for function parameters",
+                            SkillId = 2,
+                            Text = "What is a union type?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 16,
+                            CorrectOption = 1,
+                            OptionA = "A CSS class",
+                            OptionB = "A reusable piece of UI",
+                            OptionC = "A database table",
+                            OptionD = "An HTML element",
+                            SkillId = 3,
+                            Text = "What is a React component?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 17,
+                            CorrectOption = 1,
+                            OptionA = "useState",
+                            OptionB = "useEffect",
+                            OptionC = "useContext",
+                            OptionD = "useReducer",
+                            SkillId = 3,
+                            Text = "Which hook is used for side effects?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 18,
+                            CorrectOption = 1,
+                            OptionA = "A new programming language",
+                            OptionB = "JavaScript XML syntax extension",
+                            OptionC = "A CSS framework",
+                            OptionD = "A testing library",
+                            SkillId = 3,
+                            Text = "What is JSX?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 19,
+                            CorrectOption = 1,
+                            OptionA = "Using state",
+                            OptionB = "Using props",
+                            OptionC = "Using context only",
+                            OptionD = "Using refs",
+                            SkillId = 3,
+                            Text = "How do you pass data from parent to child?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 20,
+                            CorrectOption = 0,
+                            OptionA = "A copy of the real DOM kept in memory",
+                            OptionB = "A browser API",
+                            OptionC = "A CSS technique",
+                            OptionD = "A JavaScript library",
+                            SkillId = 3,
+                            Text = "What is the virtual DOM?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 21,
+                            CorrectOption = 0,
+                            OptionA = "Cascading Style Sheets",
+                            OptionB = "Computer Style Sheets",
+                            OptionC = "Creative Style System",
+                            OptionD = "Colorful Style Sheets",
+                            SkillId = 4,
+                            Text = "What does CSS stand for?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 22,
+                            CorrectOption = 2,
+                            OptionA = "font-color",
+                            OptionB = "text-color",
+                            OptionC = "color",
+                            OptionD = "foreground",
+                            SkillId = 4,
+                            Text = "Which property changes text color?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 23,
+                            CorrectOption = 1,
+                            OptionA = "A 3D modeling technique",
+                            OptionB = "Content, padding, border, margin layout model",
+                            OptionC = "A JavaScript concept",
+                            OptionD = "A CSS grid system",
+                            SkillId = 4,
+                            Text = "What is the box model?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 24,
+                            CorrectOption = 1,
+                            OptionA = "none",
+                            OptionB = "hidden",
+                            OptionC = "invisible",
+                            OptionD = "block",
+                            SkillId = 4,
+                            Text = "Which display value makes an element hidden but retains space?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 25,
+                            CorrectOption = 1,
+                            OptionA = "A JavaScript library",
+                            OptionB = "A CSS layout method for one-dimensional layouts",
+                            OptionC = "A HTML element",
+                            OptionD = "A CSS reset",
+                            SkillId = 4,
+                            Text = "What is Flexbox?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 26,
+                            CorrectOption = 0,
+                            OptionA = "Hyper Text Markup Language",
+                            OptionB = "High Tech Modern Language",
+                            OptionC = "Hyper Transfer Markup Language",
+                            OptionD = "Home Tool Markup Language",
+                            SkillId = 5,
+                            Text = "What does HTML stand for?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 27,
+                            CorrectOption = 1,
+                            OptionA = "<link>",
+                            OptionB = "<a>",
+                            OptionC = "<href>",
+                            OptionD = "<url>",
+                            SkillId = 5,
+                            Text = "Which tag creates a hyperlink?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 28,
+                            CorrectOption = 2,
+                            OptionA = "<image src='img.jpg'>",
+                            OptionB = "<img href='img.jpg'>",
+                            OptionC = "<img src='img.jpg'>",
+                            OptionD = "<picture src='img.jpg'>",
+                            SkillId = 5,
+                            Text = "What is the correct way to add an image?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 29,
+                            CorrectOption = 1,
+                            OptionA = "title",
+                            OptionB = "alt",
+                            OptionC = "description",
+                            OptionD = "text",
+                            SkillId = 5,
+                            Text = "Which attribute provides alternative text for images?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 30,
+                            CorrectOption = 2,
+                            OptionA = "<div>",
+                            OptionB = "<span>",
+                            OptionC = "<article>",
+                            OptionD = "<b>",
+                            SkillId = 5,
+                            Text = "What is a semantic HTML element?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 31,
+                            CorrectOption = 1,
+                            OptionA = "A frontend framework",
+                            OptionB = "A JavaScript runtime built on Chrome's V8",
+                            OptionC = "A database",
+                            OptionD = "A CSS preprocessor",
+                            SkillId = 6,
+                            Text = "What is Node.js?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 32,
+                            CorrectOption = 1,
+                            OptionA = "node init",
+                            OptionB = "npm init",
+                            OptionC = "npx create",
+                            OptionD = "npm start",
+                            SkillId = 6,
+                            Text = "Which command initializes a new Node.js project?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 33,
+                            CorrectOption = 0,
+                            OptionA = "Node Package Manager",
+                            OptionB = "New Project Manager",
+                            OptionC = "Node Process Manager",
+                            OptionD = "Network Protocol Manager",
+                            SkillId = 6,
+                            Text = "What is npm?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 34,
+                            CorrectOption = 0,
+                            OptionA = "fs",
+                            OptionB = "file",
+                            OptionC = "files",
+                            OptionD = "io",
+                            SkillId = 6,
+                            Text = "Which module is used to work with files?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 35,
+                            CorrectOption = 1,
+                            OptionA = "A database",
+                            OptionB = "A web application framework for Node.js",
+                            OptionC = "A testing library",
+                            OptionD = "A CSS framework",
+                            SkillId = 6,
+                            Text = "What is Express.js?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 36,
+                            CorrectOption = 1,
+                            OptionA = "A compiled language",
+                            OptionB = "An interpreted high-level programming language",
+                            OptionC = "A markup language",
+                            OptionD = "A database",
+                            SkillId = 7,
+                            Text = "What is Python?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 37,
+                            CorrectOption = 1,
+                            OptionA = "function func() {}",
+                            OptionB = "def func():",
+                            OptionC = "func function() {}",
+                            OptionD = "define func() {}",
+                            SkillId = 7,
+                            Text = "How do you define a function in Python?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 38,
+                            CorrectOption = 1,
+                            OptionA = "An immutable sequence",
+                            OptionB = "A mutable ordered collection",
+                            OptionC = "A key-value pair",
+                            OptionD = "A single value",
+                            SkillId = 7,
+                            Text = "What is a list in Python?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 39,
+                            CorrectOption = 1,
+                            OptionA = "loop",
+                            OptionB = "for",
+                            OptionC = "iterate",
+                            OptionD = "repeat",
+                            SkillId = 7,
+                            Text = "Which keyword is used for loops?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 40,
+                            CorrectOption = 1,
+                            OptionA = "A Python version",
+                            OptionB = "Python's style guide",
+                            OptionC = "A testing framework",
+                            OptionD = "A package manager",
+                            SkillId = 7,
+                            Text = "What is PEP 8?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 41,
+                            CorrectOption = 0,
+                            OptionA = "Structured Query Language",
+                            OptionB = "Simple Query Logic",
+                            OptionC = "Standard Question Language",
+                            OptionD = "System Query Lookup",
+                            SkillId = 8,
+                            Text = "What does SQL stand for?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 42,
+                            CorrectOption = 2,
+                            OptionA = "GET",
+                            OptionB = "RETRIEVE",
+                            OptionC = "SELECT",
+                            OptionD = "FETCH",
+                            SkillId = 8,
+                            Text = "Which command retrieves data?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 43,
+                            CorrectOption = 1,
+                            OptionA = "A foreign reference",
+                            OptionB = "A unique identifier for each row",
+                            OptionC = "A column index",
+                            OptionD = "A table name",
+                            SkillId = 8,
+                            Text = "What is a primary key?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 44,
+                            CorrectOption = 1,
+                            OptionA = "FILTER",
+                            OptionB = "WHERE",
+                            OptionC = "HAVING",
+                            OptionD = "LIMIT",
+                            SkillId = 8,
+                            Text = "Which clause filters results?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 45,
+                            CorrectOption = 1,
+                            OptionA = "Deleting rows",
+                            OptionB = "Combining rows from two or more tables",
+                            OptionC = "Creating tables",
+                            OptionD = "Updating records",
+                            SkillId = 8,
+                            Text = "What is a JOIN used for?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 46,
+                            CorrectOption = 1,
+                            OptionA = "A programming language",
+                            OptionB = "A distributed version control system",
+                            OptionC = "A database",
+                            OptionD = "An operating system",
+                            SkillId = 9,
+                            Text = "What is Git?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 47,
+                            CorrectOption = 0,
+                            OptionA = "git add",
+                            OptionB = "git stage",
+                            OptionC = "git commit",
+                            OptionD = "git push",
+                            SkillId = 9,
+                            Text = "Which command stages changes?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 48,
+                            CorrectOption = 1,
+                            OptionA = "Creates a branch",
+                            OptionB = "Creates a copy of a repository",
+                            OptionC = "Deletes a file",
+                            OptionD = "Merges branches",
+                            SkillId = 9,
+                            Text = "What does 'git clone' do?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 49,
+                            CorrectOption = 0,
+                            OptionA = "git log",
+                            OptionB = "git history",
+                            OptionC = "git show",
+                            OptionD = "git list",
+                            SkillId = 9,
+                            Text = "Which command shows commit history?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 50,
+                            CorrectOption = 1,
+                            OptionA = "A file type",
+                            OptionB = "An independent line of development",
+                            OptionC = "A merge conflict",
+                            OptionD = "A remote repository",
+                            SkillId = 9,
+                            Text = "What is a branch?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 51,
+                            CorrectOption = 0,
+                            OptionA = "Representational State Transfer",
+                            OptionB = "Remote Execution Standard Transfer",
+                            OptionC = "Resource Entity State Technology",
+                            OptionD = "Real-time Event System Transfer",
+                            SkillId = 10,
+                            Text = "What does REST stand for?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 52,
+                            CorrectOption = 1,
+                            OptionA = "GET",
+                            OptionB = "POST",
+                            OptionC = "PUT",
+                            OptionD = "DELETE",
+                            SkillId = 10,
+                            Text = "Which HTTP method is used to create a resource?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 53,
+                            CorrectOption = 2,
+                            OptionA = "Not Found",
+                            OptionB = "Created",
+                            OptionC = "OK",
+                            OptionD = "Bad Request",
+                            SkillId = 10,
+                            Text = "What is a status code 200?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 54,
+                            CorrectOption = 1,
+                            OptionA = "A database table",
+                            OptionB = "A specific URL where an API can be accessed",
+                            OptionC = "A JavaScript function",
+                            OptionD = "A CSS selector",
+                            SkillId = 10,
+                            Text = "What is a REST API endpoint?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 55,
+                            CorrectOption = 2,
+                            OptionA = "XML only",
+                            OptionB = "CSV only",
+                            OptionC = "JSON",
+                            OptionD = "HTML only",
+                            SkillId = 10,
+                            Text = "Which format is commonly used for API responses?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 56,
+                            CorrectOption = 1,
+                            OptionA = "A backend framework",
+                            OptionB = "A progressive JavaScript framework",
+                            OptionC = "A database",
+                            OptionD = "A CSS library",
+                            SkillId = 11,
+                            Text = "What is Vue.js?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 57,
+                            CorrectOption = 1,
+                            OptionA = "A CSS class",
+                            OptionB = "An encapsulated reusable UI piece",
+                            OptionC = "A database model",
+                            OptionD = "An HTML template only",
+                            SkillId = 11,
+                            Text = "What is a Vue component?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 58,
+                            CorrectOption = 0,
+                            OptionA = "v-bind",
+                            OptionB = "v-model",
+                            OptionC = "v-show",
+                            OptionD = "v-for",
+                            SkillId = 11,
+                            Text = "Which directive binds data to the DOM?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 59,
+                            CorrectOption = 1,
+                            OptionA = "A CSS technique",
+                            OptionB = "A way to organize component logic using functions",
+                            OptionC = "A routing system",
+                            OptionD = "A state management only",
+                            SkillId = 11,
+                            Text = "What is the Composition API?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 60,
+                            CorrectOption = 1,
+                            OptionA = "var x = 0",
+                            OptionB = "ref(0)",
+                            OptionC = "reactive(0)",
+                            OptionD = "state(0)",
+                            SkillId = 11,
+                            Text = "How do you create a reactive variable?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 61,
+                            CorrectOption = 1,
+                            OptionA = "A JavaScript library",
+                            OptionB = "A platform for building mobile and desktop apps",
+                            OptionC = "A CSS framework",
+                            OptionD = "A database",
+                            SkillId = 12,
+                            Text = "What is Angular?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 62,
+                            CorrectOption = 1,
+                            OptionA = "A CSS file",
+                            OptionB = "A class with a template that controls a view",
+                            OptionC = "A database table",
+                            OptionD = "An HTML attribute",
+                            SkillId = 12,
+                            Text = "What is a component in Angular?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 63,
+                            CorrectOption = 0,
+                            OptionA = "@Component",
+                            OptionB = "@View",
+                            OptionC = "@Template",
+                            OptionD = "@Module",
+                            SkillId = 12,
+                            Text = "Which decorator marks a class as a component?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 64,
+                            CorrectOption = 1,
+                            OptionA = "A CSS preprocessor",
+                            OptionB = "A superset of JavaScript used by Angular",
+                            OptionC = "A testing framework",
+                            OptionD = "A database",
+                            SkillId = 12,
+                            Text = "What is TypeScript in Angular?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 65,
+                            CorrectOption = 1,
+                            OptionA = "Connecting to a database",
+                            OptionB = "Automatic synchronization between component and view",
+                            OptionC = "Importing modules",
+                            OptionD = "Creating HTML elements",
+                            SkillId = 12,
+                            Text = "What is data binding?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 66,
+                            CorrectOption = 1,
+                            OptionA = "A programming language",
+                            OptionB = "A containerization platform",
+                            OptionC = "A database",
+                            OptionD = "An IDE",
+                            SkillId = 13,
+                            Text = "What is Docker?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 67,
+                            CorrectOption = 1,
+                            OptionA = "A running container",
+                            OptionB = "A read-only template for creating containers",
+                            OptionC = "A Dockerfile",
+                            OptionD = "A virtual machine",
+                            SkillId = 13,
+                            Text = "What is a Docker image?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 68,
+                            CorrectOption = 0,
+                            OptionA = "docker build",
+                            OptionB = "docker create",
+                            OptionC = "docker run",
+                            OptionD = "docker start",
+                            SkillId = 13,
+                            Text = "Which command builds a Docker image?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 69,
+                            CorrectOption = 1,
+                            OptionA = "A configuration file for Docker Desktop",
+                            OptionB = "A text file with instructions to build an image",
+                            OptionC = "A container log",
+                            OptionD = "A network config",
+                            SkillId = 13,
+                            Text = "What is a Dockerfile?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 70,
+                            CorrectOption = 1,
+                            OptionA = "Creating single containers",
+                            OptionB = "Managing multiple containers at scale",
+                            OptionC = "Building Docker images",
+                            OptionD = "Writing Dockerfiles",
+                            SkillId = 13,
+                            Text = "What is container orchestration?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 71,
+                            CorrectOption = 1,
+                            OptionA = "A programming language",
+                            OptionB = "A cloud computing platform",
+                            OptionC = "A database",
+                            OptionD = "An operating system",
+                            SkillId = 14,
+                            Text = "What is AWS?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 72,
+                            CorrectOption = 1,
+                            OptionA = "A database",
+                            OptionB = "A virtual server in the cloud",
+                            OptionC = "A storage bucket",
+                            OptionD = "A network load balancer",
+                            SkillId = 14,
+                            Text = "What is an EC2 instance?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 73,
+                            CorrectOption = 1,
+                            OptionA = "Computing",
+                            OptionB = "Object storage",
+                            OptionC = "Database management",
+                            OptionD = "Email hosting",
+                            SkillId = 14,
+                            Text = "What is S3 used for?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 74,
+                            CorrectOption = 0,
+                            OptionA = "A virtual private cloud - isolated network",
+                            OptionB = "A very private computer",
+                            OptionC = "A video processing center",
+                            OptionD = "A visual programming code",
+                            SkillId = 14,
+                            Text = "What is a VPC?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 75,
+                            CorrectOption = 0,
+                            OptionA = "Identity and Access Management",
+                            OptionB = "Internet Application Manager",
+                            OptionC = "Integrated AWS Monitor",
+                            OptionD = "Internal API Middleware",
+                            SkillId = 14,
+                            Text = "What is IAM?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 76,
+                            CorrectOption = 1,
+                            OptionA = "A code editor",
+                            OptionB = "A collaborative interface design tool",
+                            OptionC = "A database",
+                            OptionD = "A testing framework",
+                            SkillId = 15,
+                            Text = "What is Figma?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 77,
+                            CorrectOption = 1,
+                            OptionA = "A code snippet",
+                            OptionB = "A reusable design element",
+                            OptionC = "A file type",
+                            OptionD = "An export format",
+                            SkillId = 15,
+                            Text = "What is a component in Figma?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 78,
+                            CorrectOption = 1,
+                            OptionA = "Manual positioning",
+                            OptionB = "A feature that creates responsive layouts automatically",
+                            OptionC = "A CSS property",
+                            OptionD = "A grid system",
+                            SkillId = 15,
+                            Text = "What is auto layout?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 79,
+                            CorrectOption = 1,
+                            OptionA = "Different files",
+                            OptionB = "Different versions of a component",
+                            OptionC = "Color schemes",
+                            OptionD = "Font styles",
+                            SkillId = 15,
+                            Text = "What are variants in Figma?"
+                        },
+                        new
+                        {
+                            AssessmentQuestionId = 80,
+                            CorrectOption = 1,
+                            OptionA = "A code editor",
+                            OptionB = "A mode for developers to inspect designs and get code",
+                            OptionC = "A testing tool",
+                            OptionD = "A deployment feature",
+                            SkillId = 15,
+                            Text = "What is Dev Mode in Figma?"
+                        });
+                });
+
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.Company", b =>
                 {
                     b.Property<int>("CompanyId")
@@ -1031,6 +1954,17 @@ namespace CebuUpskilling.Backend.Migrations
                     b.HasIndex("DisciplineId");
 
                     b.ToTable("SubDisciplines");
+                });
+
+            modelBuilder.Entity("CebuUpskilling.Backend.Entities.AssessmentQuestion", b =>
+                {
+                    b.HasOne("CebuUpskilling.Backend.Entities.Skill", "Skill")
+                        .WithMany()
+                        .HasForeignKey("SkillId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Skill");
                 });
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.Course", b =>

@@ -1,7 +1,6 @@
-using CebuUpskilling.Backend.Data;
 using CebuUpskilling.Backend.DTOs;
 using CebuUpskilling.Backend.Entities;
-using Microsoft.EntityFrameworkCore;
+using CebuUpskilling.Backend.Repositories;
 
 namespace CebuUpskilling.Backend.Services;
 
@@ -12,36 +11,41 @@ public interface ISkillGapService
 
 public class SkillGapService : ISkillGapService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IAppUserRepository _users;
+    private readonly IRoleSkillRepository _roleSkills;
+    private readonly ILearnerRepository _learners;
+    private readonly ILearnerSkillRepository _learnerSkills;
     private readonly ILogger<SkillGapService> _logger;
 
-    public SkillGapService(ApplicationDbContext context, ILogger<SkillGapService> logger)
+    public SkillGapService(
+        IAppUserRepository users,
+        IRoleSkillRepository roleSkills,
+        ILearnerRepository learners,
+        ILearnerSkillRepository learnerSkills,
+        ILogger<SkillGapService> logger)
     {
-        _context = context;
+        _users = users;
+        _roleSkills = roleSkills;
+        _learners = learners;
+        _learnerSkills = learnerSkills;
         _logger = logger;
     }
 
     public async Task<List<SkillGapResponse>> GetSkillGapsAsync(int userId)
     {
-        var user = await _context.Users.FindAsync(userId);
+        var user = await _users.GetByIdAsync(userId);
         if (user?.TargetRole == null)
         {
             _logger.LogInformation("User {UserId} has no target role set", userId);
             return new List<SkillGapResponse>();
         }
 
-        var roleSkills = await _context.RoleSkills
-            .Include(rs => rs.Skill)
-            .Where(rs => rs.TargetRole == user.TargetRole)
-            .ToListAsync();
+        var roleSkills = await _roleSkills.GetByTargetRoleWithSkillAsync(user.TargetRole);
 
-        var learner = await _context.Learners.FirstOrDefaultAsync(l => l.UserId == userId);
+        var learner = await _learners.GetByUserIdAsync(userId);
 
         var learnerSkills = learner != null
-            ? await _context.LearnerSkills
-                .Include(ls => ls.Skill)
-                .Where(ls => ls.LearnerId == learner.LearnerId)
-                .ToListAsync()
+            ? await _learnerSkills.GetByLearnerIdWithSkillAsync(learner.LearnerId)
             : new List<LearnerSkill>();
 
         var learnerSkillMap = learnerSkills.ToDictionary(ls => ls.SkillId);

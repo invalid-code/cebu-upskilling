@@ -1,4 +1,5 @@
 using CebuUpskilling.Backend.Entities;
+using CebuUpskilling.Backend.Repositories;
 using CebuUpskilling.Backend.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -8,7 +9,7 @@ namespace CebuUpskilling.Backend.Tests;
 public class EntityServiceTests
 {
     private static DisciplineService CreateService(Data.ApplicationDbContext context) => new(
-        context,
+        new DisciplineRepository(context),
         NullLogger<DisciplineService>.Instance
     );
 

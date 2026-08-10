@@ -1,4 +1,5 @@
 using CebuUpskilling.Backend.DTOs;
+using CebuUpskilling.Backend.Repositories;
 using CebuUpskilling.Backend.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -18,7 +19,10 @@ public class AuthServiceTests
         .Build();
 
     private static AuthService CreateService(Data.ApplicationDbContext context) => new(
-        context,
+        new AppUserRepository(context),
+        new LearnerRepository(context),
+        new RoleSkillRepository(context),
+        new LearnerSkillRepository(context),
         new JwtTokenService(CreateConfig(), NullLogger<JwtTokenService>.Instance),
         NullLogger<AuthService>.Instance
     );

@@ -1,3 +1,4 @@
+/* eslint-disable react/only-export-components */
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { api } from '../api/client';
 import { useAuth } from './AuthContext';
@@ -8,13 +9,13 @@ export function EnrollmentsProvider({ children }) {
   const { user } = useAuth();
   const [enrollments, setEnrollments] = useState([]);
 
-  const fetchEnrollments = useCallback(async () => {
+  const fetchEnrollments = useCallback(async (signal) => {
     if (!user) {
       setEnrollments([]);
       return;
     }
     try {
-      const data = await api.get('/enrollments');
+      const data = await api.get('/enrollments', { signal });
       setEnrollments(data || []);
     } catch {
       setEnrollments([]);
@@ -22,7 +23,9 @@ export function EnrollmentsProvider({ children }) {
   }, [user]);
 
   useEffect(() => {
-    fetchEnrollments();
+    const controller = new AbortController();
+    fetchEnrollments(controller.signal);
+    return () => controller.abort();
   }, [fetchEnrollments]);
 
   const isEnrolled = useCallback(

@@ -3,26 +3,16 @@ import Panel from '../components/ui/Panel';
 import Tag from '../components/ui/Tag';
 import Button from '../components/ui/Button';
 import EmptyState from '../components/shared/EmptyState';
+import AssessmentCard from '../components/shared/AssessmentCard';
 import Modal from '../components/ui/Modal';
+import AssessmentModal from '../components/ui/AssessmentModal';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api/client';
-import { ArrowUpRight, Camera, Mic, Maximize, Check, AlertCircle, Loader2 } from 'lucide-react';
+import { TrendingUp, Shield, Target, Camera, Mic, Maximize, Check, AlertCircle, Loader2 } from 'lucide-react';
 
 const styles = {
   heading: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'end',
-    gap: 22,
     marginBottom: 28,
-  },
-  eyebrow: {
-    fontSize: 11,
-    textTransform: 'uppercase',
-    letterSpacing: '0.12em',
-    fontWeight: 700,
-    color: 'var(--coral)',
-    marginBottom: 12,
   },
   h1: {
     fontFamily: "'Space Grotesk', sans-serif",
@@ -31,48 +21,86 @@ const styles = {
   subtitle: {
     color: 'var(--muted)',
     margin: '8px 0 0',
-    maxWidth: 450,
-  },
-  grid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(12, 1fr)',
-    gap: 16,
-  },
-  col7: { gridColumn: 'span 7' },
-  col5: { gridColumn: 'span 5' },
-  recBadge: {
-    display: 'inline-block',
-    background: 'var(--coral-soft)',
-    color: 'var(--coral)',
-    fontSize: 11,
-    fontWeight: 700,
-    padding: '4px 10px',
-    borderRadius: 999,
-    marginBottom: 14,
-  },
-  recTitle: {
-    fontFamily: "'Space Grotesk', sans-serif",
-    fontSize: 22,
-    fontWeight: 700,
-    marginBottom: 8,
-  },
-  recMeta: {
-    fontSize: 13,
-    color: 'var(--muted)',
-    marginBottom: 16,
-  },
-  recBanner: {
-    background: 'var(--coral-soft)',
-    borderRadius: 10,
-    padding: '12px 14px',
-    fontSize: 13,
-    color: 'var(--ink)',
-    marginBottom: 20,
+    maxWidth: 500,
     lineHeight: 1.5,
   },
-  resultsH3: {
+  statsRow: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, 1fr)',
+    gap: 16,
+    marginBottom: 32,
+  },
+  statCard: {
+    background: 'var(--surface)',
+    borderRadius: 'var(--radius-lg)',
+    border: '1px solid var(--line)',
+    padding: '20px 24px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 16,
+  },
+  statIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    display: 'grid',
+    placeItems: 'center',
+    flexShrink: 0,
+  },
+  statIconTeal: {
+    background: 'var(--teal-soft)',
+    color: 'var(--teal)',
+  },
+  statIconCoral: {
+    background: 'var(--coral-soft)',
+    color: 'var(--coral)',
+  },
+  statIconGood: {
+    background: 'rgb(210, 240, 220)',
+    color: 'var(--good)',
+  },
+  statValue: {
+    fontFamily: "'Space Grotesk', sans-serif",
+    fontSize: 28,
+    fontWeight: 700,
+    color: 'var(--ink)',
+    lineHeight: 1,
+  },
+  statLabel: {
+    fontSize: 13,
+    color: 'var(--muted)',
+    marginTop: 2,
+  },
+  contentGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 340px',
+    gap: 24,
+    alignItems: 'start',
+  },
+  sectionHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sectionTitle: {
     fontFamily: "'Space Grotesk', sans-serif",
     fontSize: 19,
+    fontWeight: 700,
+  },
+  assessmentGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(2, 1fr)',
+    gap: 16,
+  },
+  resultsPanel: {
+    position: 'sticky',
+    top: 24,
+  },
+  resultsTitle: {
+    fontFamily: "'Space Grotesk', sans-serif",
+    fontSize: 19,
+    fontWeight: 700,
     marginBottom: 16,
   },
   resultItem: {
@@ -84,11 +112,62 @@ const styles = {
   resultName: {
     fontSize: 14,
     fontWeight: 700,
+    color: 'var(--ink)',
   },
   resultDate: {
     fontSize: 12,
     color: 'var(--muted)',
     marginTop: 2,
+  },
+  resultCheck: {
+    width: 28,
+    height: 28,
+    borderRadius: '50%',
+    background: 'var(--teal-soft)',
+    color: 'var(--teal)',
+    display: 'grid',
+    placeItems: 'center',
+    flexShrink: 0,
+    marginRight: 12,
+  },
+  resultLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 0,
+  },
+  howItWorks: {
+    marginTop: 24,
+  },
+  howTitle: {
+    fontFamily: "'Space Grotesk', sans-serif",
+    fontSize: 15,
+    fontWeight: 700,
+    marginBottom: 12,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+  },
+  step: {
+    display: 'flex',
+    gap: 12,
+    marginBottom: 12,
+  },
+  stepNumber: {
+    width: 24,
+    height: 24,
+    borderRadius: '50%',
+    background: 'var(--teal-soft)',
+    color: 'var(--teal)',
+    display: 'grid',
+    placeItems: 'center',
+    fontSize: 12,
+    fontWeight: 700,
+    flexShrink: 0,
+  },
+  stepText: {
+    fontSize: 13,
+    color: 'var(--ink)',
+    lineHeight: 1.5,
   },
   loading: {
     textAlign: 'center',
@@ -213,33 +292,38 @@ const styles = {
 function formatDate(iso) {
   if (!iso) return '';
   const d = new Date(iso);
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 export default function AssessmentsPage() {
   const { user } = useAuth();
-  const [recommended, setRecommended] = useState(null);
+  const [available, setAvailable] = useState(null);
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [deviceCheck, setDeviceCheck] = useState('idle');
+  const [assessmentOpen, setAssessmentOpen] = useState(false);
+  const [currentAssessmentId, setCurrentAssessmentId] = useState(null);
+  const [currentSkillName, setCurrentSkillName] = useState('');
 
   useEffect(() => {
+    const controller = new AbortController();
     let failed = false;
     Promise.all([
-      api.get('/assessments/recommended').catch(() => {
+      api.get('/assessments/available', { signal: controller.signal }).catch(() => {
         failed = true;
         return null;
       }),
-      api.get('/assessments/results').catch(() => []),
+      api.get('/assessments/results', { signal: controller.signal }).catch(() => []),
     ])
-      .then(([rec, res]) => {
+      .then(([avail, res]) => {
         setError(failed);
-        setRecommended(rec);
+        setAvailable(avail);
         setResults(res || []);
       })
       .finally(() => setLoading(false));
+    return () => controller.abort();
   }, []);
 
   const targetRole = user?.targetRole?.trim();
@@ -255,78 +339,175 @@ export default function AssessmentsPage() {
     }
   }
 
+  async function handleStartAssessment(skillId, skillName) {
+    setCurrentSkillName(skillName);
+    setDeviceCheck('idle');
+    setModalOpen(true);
+  }
+
+  async function confirmStartAssessment(skillId) {
+    try {
+      const response = await api.post('/assessments/start', { skillId });
+      setCurrentAssessmentId(response.assessmentId);
+      setModalOpen(false);
+      setAssessmentOpen(true);
+    } catch {
+      setDeviceCheck('idle');
+      setModalOpen(false);
+    }
+  }
+
+  const recommendedSkill = available?.assessments?.find(a => a.gap > 0);
+
   return (
     <div className="view-enter">
       <div style={styles.heading}>
-        <div>
-          <div style={styles.eyebrow}>Proof that moves with you</div>
-          <h1 style={styles.h1}>Assessments</h1>
-          <p style={styles.subtitle}>
-            Verified results strengthen your profile and your job match.
-          </p>
-        </div>
+        <h1 style={styles.h1}>Assessments</h1>
+        <p style={styles.subtitle}>
+          Verified results strengthen your skill profile and your job match. Take a proctored
+          assessment to move a self-declared skill into your applications.
+        </p>
       </div>
 
-      <div style={styles.grid}>
-        <Panel style={styles.col7}>
-          {loading ? (
-            <div style={styles.loading}>Loading...</div>
-          ) : recommended ? (
-            <div>
-              <span style={styles.recBadge}>Recommended next</span>
-              <h2 style={styles.recTitle}>{recommended.skillName}</h2>
-              <p style={styles.recMeta}>
-                30 questions · 45 minutes · Proctored · Builds toward {recommended.targetLevelLabel}
-              </p>
-              <div style={styles.recBanner}>
-                <div>Your current level is {recommended.currentLevel} {recommended.currentLevelLabel}.</div>
-                <div>A verified result can move this skill into your job applications.</div>
-              </div>
-              <Button variant="primary" onClick={() => { setDeviceCheck('idle'); setModalOpen(true); }}>
-                Start assessment <ArrowUpRight size={14} />
-              </Button>
+      {!loading && available && (
+        <div style={styles.statsRow}>
+          <div style={styles.statCard}>
+            <div style={{ ...styles.statIcon, ...styles.statIconTeal }}>
+              <TrendingUp size={22} />
             </div>
-          ) : (
-            <EmptyState
-              title={targetRole && !error ? 'All skills matched' : 'No recommended assessment'}
-              description={targetRole && !error
-                ? 'You have no remaining skill gaps for your target role.'
-                : 'Set a target role to see which assessment to take next.'}
-            />
-          )}
-        </Panel>
+            <div>
+              <div style={styles.statValue}>{available.matchPercent}%</div>
+              <div style={styles.statLabel}>{targetRole || 'Target role'} match</div>
+            </div>
+          </div>
+          <div style={styles.statCard}>
+            <div style={{ ...styles.statIcon, ...styles.statIconGood }}>
+              <Shield size={22} />
+            </div>
+            <div>
+              <div style={styles.statValue}>{available.verifiedSkillsCount}</div>
+              <div style={styles.statLabel}>Verified skills</div>
+            </div>
+          </div>
+          <div style={styles.statCard}>
+            <div style={{ ...styles.statIcon, ...styles.statIconCoral }}>
+              <Target size={22} />
+            </div>
+            <div>
+              <div style={styles.statValue}>{available.recommendedCount}</div>
+              <div style={styles.statLabel}>Recommended assessment</div>
+            </div>
+          </div>
+        </div>
+      )}
 
-        <Panel style={styles.col5}>
-          <h3 style={styles.resultsH3}>Recent results</h3>
+      <div style={styles.contentGrid}>
+        <div>
+          <div style={styles.sectionHeader}>
+            <h2 style={styles.sectionTitle}>Available assessments</h2>
+            {available?.assessments && (
+              <Tag>{available.assessments.length} skills</Tag>
+            )}
+          </div>
+
           {loading ? (
             <div style={styles.loading}>Loading...</div>
-          ) : results.length === 0 ? (
-            <EmptyState
-              title="No results yet"
-              description="Verified assessment results will appear here."
-            />
+          ) : !available?.assessments?.length ? (
+            <Panel>
+              <EmptyState
+                title={targetRole && !error ? 'All skills matched' : 'No available assessments'}
+                description={targetRole && !error
+                  ? 'You have no remaining skill gaps for your target role.'
+                  : 'Set a target role to see which assessments to take.'}
+              />
+            </Panel>
           ) : (
-            results.map((result, i) => (
-              <div key={result.assessmentId} style={{
-                ...styles.resultItem,
-                borderBottom: i === results.length - 1 ? 'none' : '1px solid var(--line)',
-              }}>
-                <div>
-                  <div style={styles.resultName}>{result.skillName}</div>
-                  <div style={styles.resultDate}>Verified {formatDate(result.completedAt)}</div>
-                </div>
-                <Tag variant="good">{result.scoredLevel} {result.levelLabel}</Tag>
-              </div>
-            ))
+            <div style={styles.assessmentGrid}>
+              {available.assessments.map((assessment) => (
+                <AssessmentCard
+                  key={assessment.skillId}
+                  skillId={assessment.skillId}
+                  skillName={assessment.skillName}
+                  category={assessment.category}
+                  currentLevel={assessment.currentLevel}
+                  currentLevelLabel={assessment.currentLevelLabel}
+                  targetLevel={assessment.targetLevel}
+                  targetLevelLabel={assessment.targetLevelLabel}
+                  gap={assessment.gap}
+                  hasAssessment={assessment.hasAssessment}
+                  questionCount={assessment.questionCount}
+                  timeLimitMinutes={assessment.timeLimitMinutes}
+                  isRecommended={assessment === recommendedSkill}
+                  onStart={handleStartAssessment}
+                />
+              ))}
+            </div>
           )}
-        </Panel>
+        </div>
+
+        <div style={styles.resultsPanel}>
+          <Panel>
+            <h3 style={styles.resultsTitle}>Recent results</h3>
+            {loading ? (
+              <div style={styles.loading}>Loading...</div>
+            ) : results.length === 0 ? (
+              <EmptyState
+                title="No results yet"
+                description="Verified assessment results will appear here."
+              />
+            ) : (
+              results.map((result, i) => (
+                <div key={result.assessmentId} style={{
+                  ...styles.resultItem,
+                  borderBottom: i === results.length - 1 ? 'none' : '1px solid var(--line)',
+                }}>
+                  <div style={styles.resultLeft}>
+                    <div style={styles.resultCheck}>
+                      <Check size={14} />
+                    </div>
+                    <div>
+                      <div style={styles.resultName}>{result.skillName}</div>
+                      <div style={styles.resultDate}>Verified {formatDate(result.completedAt)}</div>
+                    </div>
+                  </div>
+                  <Tag variant="good">{result.scoredLevel} {result.levelLabel}</Tag>
+                </div>
+              ))
+            )}
+          </Panel>
+
+          <Panel style={styles.howItWorks}>
+            <h4 style={styles.howTitle}>
+              <Target size={16} style={{ color: 'var(--teal)' }} />
+              How verification works
+            </h4>
+            <div style={styles.step}>
+              <div style={styles.stepNumber}>1</div>
+              <div style={styles.stepText}>
+                Consent to proctoring — camera, mic, and focus, requested up front.
+              </div>
+            </div>
+            <div style={styles.step}>
+              <div style={styles.stepNumber}>2</div>
+              <div style={styles.stepText}>
+                Pass a quick device check before the timer starts.
+              </div>
+            </div>
+            <div style={styles.step}>
+              <div style={styles.stepNumber}>3</div>
+              <div style={styles.stepText}>
+                Your verified level is added to credentials and job matching.
+              </div>
+            </div>
+          </Panel>
+        </div>
       </div>
 
       <Modal
         open={modalOpen}
         onClose={() => { setDeviceCheck('idle'); setModalOpen(false); }}
         eyebrow="Before the timer starts"
-        title={recommended?.skillName || 'Assessment'}
+        title={currentSkillName || 'Assessment'}
         footer={
           deviceCheck === 'idle' ? (
             <>
@@ -346,7 +527,10 @@ export default function AssessmentsPage() {
               <Button variant="ghost" onClick={() => { setDeviceCheck('idle'); setModalOpen(false); }}>
                 Close
               </Button>
-              <Button variant="primary" onClick={() => setModalOpen(false)}>
+              <Button variant="primary" onClick={() => {
+                const skill = available?.assessments?.find(a => a.skillName === currentSkillName);
+                if (skill) confirmStartAssessment(skill.skillId);
+              }}>
                 Start assessment
               </Button>
             </>
@@ -417,6 +601,13 @@ export default function AssessmentsPage() {
           </div>
         )}
       </Modal>
+
+      <AssessmentModal
+        open={assessmentOpen}
+        onClose={() => { setAssessmentOpen(false); setCurrentAssessmentId(null); }}
+        assessmentId={currentAssessmentId}
+        skillName={currentSkillName}
+      />
     </div>
   );
 }

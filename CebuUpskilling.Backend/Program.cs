@@ -1,6 +1,8 @@
 using System.Text;
 using CebuUpskilling.Backend.Data;
 using CebuUpskilling.Backend.Entities;
+using CebuUpskilling.Backend.Handlers;
+using CebuUpskilling.Backend.Repositories;
 using CebuUpskilling.Backend.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -26,6 +28,25 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+
+builder.Services.AddScoped<IDisciplineRepository, DisciplineRepository>();
+builder.Services.AddScoped<ISubDisciplineRepository, SubDisciplineRepository>();
+builder.Services.AddScoped<IGenreRepository, GenreRepository>();
+builder.Services.AddScoped<ICourseRepository, CourseRepository>();
+builder.Services.AddScoped<ILessonRepository, LessonRepository>();
+builder.Services.AddScoped<ILessonContentRepository, LessonContentRepository>();
+builder.Services.AddScoped<IExerciseRepository, ExerciseRepository>();
+builder.Services.AddScoped<ICompanyRepository, CompanyRepository>();
+builder.Services.AddScoped<IPostRepository, PostRepository>();
+builder.Services.AddScoped<ILearnerRepository, LearnerRepository>();
+builder.Services.AddScoped<ISkillRepository, SkillRepository>();
+builder.Services.AddScoped<IAppUserRepository, AppUserRepository>();
+builder.Services.AddScoped<IRoleSkillRepository, RoleSkillRepository>();
+builder.Services.AddScoped<ILearnerSkillRepository, LearnerSkillRepository>();
+builder.Services.AddScoped<ILearnerAssessmentRepository, LearnerAssessmentRepository>();
+builder.Services.AddScoped<IAssessmentQuestionRepository, AssessmentQuestionRepository>();
+builder.Services.AddScoped<ILearnerStudyCourseRepository, LearnerStudyCourseRepository>();
+
 builder.Services.AddScoped<IEntityService<Discipline>, DisciplineService>();
 builder.Services.AddScoped<IEntityService<SubDiscipline>, SubDisciplineService>();
 builder.Services.AddScoped<IEntityService<Genre>, GenreService>();
@@ -39,6 +60,8 @@ builder.Services.AddScoped<IEntityService<Learner>, LearnerService>();
 builder.Services.AddScoped<LearnerService>();
 builder.Services.AddScoped<ISkillGapService, SkillGapService>();
 builder.Services.AddScoped<IAssessmentService, AssessmentService>();
+builder.Services.AddScoped<IEnrollmentsService, EnrollmentsService>();
+builder.Services.AddScoped<IStatsService, StatsService>();
 
 var jwtKey = builder.Configuration["Jwt:Key"]!;
 builder.Services.AddAuthentication(options =>
@@ -68,6 +91,8 @@ builder.Services.AddControllers(options =>
 {
     options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
 });
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
@@ -77,6 +102,7 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
+app.UseExceptionHandler();
 app.UseCors(myAllowSpecificOrigins);
 app.UseAuthentication();
 app.UseAuthorization();

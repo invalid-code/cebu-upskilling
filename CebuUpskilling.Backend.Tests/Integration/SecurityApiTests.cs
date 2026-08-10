@@ -490,4 +490,37 @@ public class SecurityApiTests : ProductionApiTestBase
 
         Assert.False(response.Headers.Contains("Access-Control-Allow-Origin"));
     }
+
+    // ------------------------------------------------------------------ //
+    // Error handling
+    // ------------------------------------------------------------------ //
+
+    [Fact]
+    public async Task ServerError_ReturnsGenericMessageWithoutStackTrace()
+    {
+        // A validly-signed token that omits the NameIdentifier claim causes the
+        // stats endpoint to throw an unhandled NullReferenceException (500).
+        var (key, issuer, audience) = JwtConfig();
+        var handler = new JwtSecurityTokenHandler();
+        var token = handler.WriteToken(new JwtSecurityToken(
+            issuer: issuer,
+            audience: audience,
+            claims: new[] { new Claim(ClaimTypes.Email, "sec.err@example.com") },
+            expires: DateTime.UtcNow.AddDays(1),
+            signingCredentials: new SigningCredentials(
+                new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)),
+                SecurityAlgorithms.HmacSha256)));
+
+        var response = await AuthorizedClient(token).GetAsync("/api/stats/week");
+
+        Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.DoesNotContain("Exception", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Stack", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("System.", body, StringComparison.OrdinalIgnoreCase);
+
+        var json = await ReadJsonAsync(response);
+        Assert.Equal("An unexpected error occurred", json.GetProperty("error").GetString());
+    }
 }

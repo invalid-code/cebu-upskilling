@@ -141,10 +141,12 @@ export default function SkillsPage() {
       setSkillGapsLoading(false);
       return;
     }
-    api.get('/skillgaps')
+    const controller = new AbortController();
+    api.get('/skillgaps', { signal: controller.signal })
       .then((data) => setSkillGaps(data || []))
       .catch(() => setSkillGaps([]))
       .finally(() => setSkillGapsLoading(false));
+    return () => controller.abort();
   }, [hasRole]);
 
   const handleSelect = (role) => {

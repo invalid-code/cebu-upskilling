@@ -1,10 +1,9 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using CebuUpskilling.Backend.Data;
 using CebuUpskilling.Backend.DTOs;
 using CebuUpskilling.Backend.Entities;
-using Microsoft.EntityFrameworkCore;
+using CebuUpskilling.Backend.Repositories;
 using Microsoft.IdentityModel.Tokens;
 
 namespace CebuUpskilling.Backend.Services;
@@ -61,13 +60,25 @@ public interface IAuthService
 
 public class AuthService : IAuthService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IAppUserRepository _users;
+    private readonly ILearnerRepository _learners;
+    private readonly IRoleSkillRepository _roleSkills;
+    private readonly ILearnerSkillRepository _learnerSkills;
     private readonly IJwtTokenService _tokenService;
     private readonly ILogger<AuthService> _logger;
 
-    public AuthService(ApplicationDbContext context, IJwtTokenService tokenService, ILogger<AuthService> logger)
+    public AuthService(
+        IAppUserRepository users,
+        ILearnerRepository learners,
+        IRoleSkillRepository roleSkills,
+        ILearnerSkillRepository learnerSkills,
+        IJwtTokenService tokenService,
+        ILogger<AuthService> logger)
     {
-        _context = context;
+        _users = users;
+        _learners = learners;
+        _roleSkills = roleSkills;
+        _learnerSkills = learnerSkills;
         _tokenService = tokenService;
         _logger = logger;
     }
@@ -82,7 +93,7 @@ public class AuthService : IAuthService
             throw new InvalidOperationException($"Role '{request.Role}' is not allowed");
         }
 
-        if (await _context.Users.AnyAsync(u => u.EmailAddress == request.EmailAddress))
+        if (await _users.ExistsByEmailAsync(request.EmailAddress))
         {
             _logger.LogWarning("Registration failed: email {Email} already exists", request.EmailAddress);
             throw new InvalidOperationException("Email already registered");
@@ -101,22 +112,20 @@ public class AuthService : IAuthService
             Address = request.Address,
         };
 
-        _context.Users.Add(user);
-        await _context.SaveChangesAsync();
+        await _users.AddAsync(user);
+        await _users.SaveChangesAsync();
         _logger.LogInformation("User registered successfully: {UserId} ({Email}), Role: {Role}", user.UserId, user.EmailAddress, user.Role);
 
         if (request.Role == "Learner")
         {
             var learner = new Learner { UserId = user.UserId, IsPremium = false };
-            _context.Learners.Add(learner);
-            await _context.SaveChangesAsync();
+            await _learners.AddAsync(learner);
+            await _learners.SaveChangesAsync();
             _logger.LogInformation("Learner profile created for user {UserId}", user.UserId);
 
             if (!string.IsNullOrWhiteSpace(request.TargetRole))
             {
-                var roleSkills = await _context.RoleSkills
-                    .Where(rs => rs.TargetRole == request.TargetRole)
-                    .ToListAsync();
+                var roleSkills = await _roleSkills.GetByTargetRoleAsync(request.TargetRole);
 
                 if (roleSkills.Count > 0)
                 {
@@ -128,8 +137,8 @@ public class AuthService : IAuthService
                         Verified = false,
                     }).ToList();
 
-                    _context.LearnerSkills.AddRange(learnerSkills);
-                    await _context.SaveChangesAsync();
+                    _learnerSkills.AddRange(learnerSkills);
+                    await _learnerSkills.SaveChangesAsync();
                     _logger.LogInformation("Created {Count} learner skills for user {UserId} (role: {Role})",
                         learnerSkills.Count, user.UserId, request.TargetRole);
                 }
@@ -145,7 +154,7 @@ public class AuthService : IAuthService
     {
         _logger.LogInformation("Login attempt for email {Email}", request.EmailAddress);
 
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.EmailAddress == request.EmailAddress);
+        var user = await _users.GetByEmailAsync(request.EmailAddress);
         if (user == null)
         {
             _logger.LogWarning("Login failed: user not found for email {Email}", request.EmailAddress);
@@ -167,7 +176,7 @@ public class AuthService : IAuthService
 
     public async Task<AuthResponse> UpdateProfileAsync(int userId, UpdateProfileRequest request)
     {
-        var user = await _context.Users.FindAsync(userId);
+        var user = await _users.GetByIdAsync(userId);
         if (user == null)
         {
             throw new InvalidOperationException("User not found");
@@ -188,7 +197,7 @@ public class AuthService : IAuthService
             user.RemoteFriendly = request.RemoteFriendly.Value;
         }
 
-        await _context.SaveChangesAsync();
+        await _users.SaveChangesAsync();
         _logger.LogInformation("Profile updated for user {UserId}", userId);
 
         var token = _tokenService.GenerateToken(user);

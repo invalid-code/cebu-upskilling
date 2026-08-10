@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { AuthProvider } from '../context/AuthContext';
@@ -9,22 +9,50 @@ import AssessmentsPage from './AssessmentsPage';
 vi.mock('../api/client', () => ({
   api: {
     get: vi.fn(),
+    post: vi.fn(),
   },
 }));
 
 import { api } from '../api/client';
 
-const mockRecommended = {
-  skillName: 'TypeScript',
-  currentLevel: 1,
-  currentLevelLabel: 'Beginner',
-  targetLevelLabel: 'Intermediate',
+const mockAvailable = {
+  assessments: [
+    {
+      skillId: 1,
+      skillName: 'TypeScript',
+      category: 'Programming',
+      currentLevel: 1,
+      currentLevelLabel: 'No Knowledge',
+      targetLevel: 3,
+      targetLevelLabel: 'Intermediate',
+      gap: 2,
+      hasAssessment: false,
+      questionCount: 25,
+      timeLimitMinutes: 40,
+    },
+    {
+      skillId: 2,
+      skillName: 'JavaScript',
+      category: 'Programming',
+      currentLevel: 3,
+      currentLevelLabel: 'Intermediate',
+      targetLevel: 4,
+      targetLevelLabel: 'Advanced',
+      gap: 1,
+      hasAssessment: true,
+      questionCount: 30,
+      timeLimitMinutes: 45,
+    },
+  ],
+  matchPercent: 78,
+  verifiedSkillsCount: 3,
+  recommendedCount: 2,
 };
 
 const mockResults = [
   {
     assessmentId: 1,
-    skillName: 'JavaScript',
+    skillName: 'CSS',
     scoredLevel: 3,
     levelLabel: 'Intermediate',
     completedAt: '2026-01-15T10:00:00Z',
@@ -59,7 +87,7 @@ describe('AssessmentsPage', () => {
   beforeEach(() => {
     api.get.mockReset();
     api.get.mockImplementation((path) => {
-      if (path === '/assessments/recommended') return Promise.resolve(mockRecommended);
+      if (path === '/assessments/available') return Promise.resolve(mockAvailable);
       if (path === '/assessments/results') return Promise.resolve(mockResults);
       return Promise.resolve(null);
     });
@@ -72,38 +100,56 @@ describe('AssessmentsPage', () => {
 
   it('renders the subtitle', async () => {
     renderAssessments();
-    expect(await screen.findByText('Verified results strengthen your profile and your job match.')).toBeInTheDocument();
+    expect(await screen.findByText(/Verified results strengthen your skill profile/)).toBeInTheDocument();
   });
 
-  it('displays recommended assessment when available', async () => {
+  it('displays stat cards when data loads', async () => {
     renderAssessments();
-    expect(await screen.findByText('Recommended next')).toBeInTheDocument();
-    expect(screen.getByText('TypeScript')).toBeInTheDocument();
-    expect(screen.getByText('Your current level is 1 Beginner.')).toBeInTheDocument();
-    expect(screen.getByText('A verified result can move this skill into your job applications.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /start assessment/i })).toBeInTheDocument();
+    await screen.findByText('78%');
+    expect(screen.getByText('Verified skills')).toBeInTheDocument();
+    expect(screen.getByText('Recommended assessment')).toBeInTheDocument();
+  });
+
+  it('displays available assessments', async () => {
+    renderAssessments();
+    expect(await screen.findByText('TypeScript')).toBeInTheDocument();
+    expect(screen.getByText('Available assessments')).toBeInTheDocument();
+  });
+
+  it('shows retake button for completed assessments', async () => {
+    renderAssessments();
+    await screen.findByText('TypeScript');
+    const retakeButtons = screen.getAllByText('Retake');
+    expect(retakeButtons.length).toBeGreaterThan(0);
+    const startButtons = screen.getAllByText('Start');
+    expect(startButtons.length).toBeGreaterThan(0);
   });
 
   it('displays recent results when available', async () => {
     renderAssessments();
-    await screen.findByText('Recommended next');
+    await screen.findByText('TypeScript');
     expect(screen.getByText('Recent results')).toBeInTheDocument();
-    expect(screen.getByText('JavaScript')).toBeInTheDocument();
     expect(screen.getByText('React')).toBeInTheDocument();
-    expect(screen.getByText('Verified Jan 15')).toBeInTheDocument();
-    expect(screen.getByText('Verified Feb 20')).toBeInTheDocument();
   });
 
   it('shows assessment results with correct tags', async () => {
     renderAssessments();
-    await screen.findByText('Recommended next');
+    await screen.findByText('TypeScript');
     expect(screen.getByText('3 Intermediate')).toBeInTheDocument();
     expect(screen.getByText('4 Advanced')).toBeInTheDocument();
   });
 
-  it('shows empty state for recommended when no target role is set', async () => {
+  it('shows how verification works section', async () => {
+    renderAssessments();
+    await screen.findByText('How verification works');
+    expect(screen.getByText(/Consent to proctoring/)).toBeInTheDocument();
+    expect(screen.getByText(/Pass a quick device check/)).toBeInTheDocument();
+    expect(screen.getByText(/Your verified level is added/)).toBeInTheDocument();
+  });
+
+  it('shows empty state for assessments when no target role is set', async () => {
     api.get.mockImplementationOnce((path) => {
-      if (path === '/assessments/recommended') return Promise.resolve(null);
+      if (path === '/assessments/available') return Promise.resolve(null);
       return Promise.resolve([]);
     });
     api.get.mockImplementationOnce((path) => {
@@ -113,29 +159,13 @@ describe('AssessmentsPage', () => {
 
     renderAssessments({ targetRole: '' });
 
-    expect(await screen.findByText('No recommended assessment')).toBeInTheDocument();
-    expect(screen.getByText('Set a target role to see which assessment to take next.')).toBeInTheDocument();
-  });
-
-  it('shows all skills matched when no skill gaps remain', async () => {
-    api.get.mockImplementationOnce((path) => {
-      if (path === '/assessments/recommended') return Promise.resolve(null);
-      return Promise.resolve([]);
-    });
-    api.get.mockImplementationOnce((path) => {
-      if (path === '/assessments/results') return Promise.resolve([]);
-      return Promise.resolve([]);
-    });
-
-    renderAssessments({ targetRole: 'Frontend Developer' });
-
-    expect(await screen.findByText('All skills matched')).toBeInTheDocument();
-    expect(screen.getByText('You have no remaining skill gaps for your target role.')).toBeInTheDocument();
+    expect(await screen.findByText('No available assessments')).toBeInTheDocument();
+    expect(screen.getByText('Set a target role to see which assessments to take.')).toBeInTheDocument();
   });
 
   it('shows empty state for results when no results exist', async () => {
     api.get.mockImplementationOnce((path) => {
-      if (path === '/assessments/recommended') return Promise.resolve(null);
+      if (path === '/assessments/available') return Promise.resolve(mockAvailable);
       return Promise.resolve([]);
     });
     api.get.mockImplementationOnce((path) => {
@@ -150,18 +180,18 @@ describe('AssessmentsPage', () => {
   });
 
   it('shows loading state initially', async () => {
-    let resolveRec, resolveRes;
+    let resolveAvail, resolveRes;
     api.get
-      .mockImplementationOnce(() => new Promise((resolve) => { resolveRec = resolve; }))
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveAvail = resolve; }))
       .mockImplementationOnce(() => new Promise((resolve) => { resolveRes = resolve; }));
 
     renderAssessments();
 
     expect(screen.getAllByText('Loading...').length).toBeGreaterThan(0);
 
-    resolveRec(mockRecommended);
+    resolveAvail(mockAvailable);
     resolveRes(mockResults);
-    await waitFor(() => expect(screen.queryByText('Loading...')).not.toBeInTheDocument());
+    await screen.findByText('78%');
   });
 
   it('handles API errors gracefully', async () => {
@@ -171,6 +201,6 @@ describe('AssessmentsPage', () => {
 
     renderAssessments();
 
-    expect(await screen.findByText('No recommended assessment')).toBeInTheDocument();
+    expect(await screen.findByText('No available assessments')).toBeInTheDocument();
   });
 });

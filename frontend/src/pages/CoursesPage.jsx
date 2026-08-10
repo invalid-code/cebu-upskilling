@@ -73,7 +73,8 @@ export default function CoursesPage() {
   const [price, setPrice] = useState('');
 
   useEffect(() => {
-    api.get('/courses')
+    const controller = new AbortController();
+    api.get('/courses', { signal: controller.signal })
       .then((data) => {
         setCourses((data || []).map((c) => ({
           courseId: c.courseId,
@@ -88,6 +89,7 @@ export default function CoursesPage() {
       })
       .catch((err) => setError(err.message || 'Could not load courses'))
       .finally(() => setLoading(false));
+    return () => controller.abort();
   }, []);
 
   const filteredCourses = courses.filter((course) => {
