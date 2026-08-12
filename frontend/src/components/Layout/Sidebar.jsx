@@ -1,11 +1,12 @@
 import { NavLink } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth, isRecruiter } from '../../context/AuthContext';
 import {
   LayoutDashboard, Orbit, BriefcaseBusiness, BookOpenCheck,
   ClipboardList, ScanFace, BadgeCheck, CircleHelp, LogOut,
+  ChartBar,
 } from 'lucide-react';
 
-const pathwayNav = [
+const learnerPathwayNav = [
   { to: '/', icon: LayoutDashboard, label: 'Overview' },
   { to: '/skills', icon: Orbit, label: 'Skill profile' },
   { to: '/jobs', icon: BriefcaseBusiness, label: 'Find work' },
@@ -14,8 +15,13 @@ const pathwayNav = [
   { to: '/assessments', icon: ScanFace, label: 'Assessments' },
 ];
 
-const accountNav = [
+const learnerAccountNav = [
   { to: '/credentials', icon: BadgeCheck, label: 'Credentials' },
+  { to: '/help', icon: CircleHelp, label: 'Help center' },
+];
+
+const recruiterNav = [
+  { to: '/business-dashboard', icon: ChartBar, label: 'Business dashboard' },
   { to: '/help', icon: CircleHelp, label: 'Help center' },
 ];
 
@@ -149,6 +155,8 @@ export default function Sidebar() {
     ? `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`
     : 'U';
 
+  const recruiter = isRecruiter(user);
+
   return (
     <aside className="rail" style={styles.rail}>
       <div style={styles.brand}>
@@ -159,19 +167,32 @@ export default function Sidebar() {
         </div>
       </div>
 
-      <div style={styles.navLabel}>My pathway</div>
-      <nav style={styles.nav}>
-        {pathwayNav.map((item) => (
-          <NavItem key={item.to} {...item} />
-        ))}
-      </nav>
+      {recruiter ? (
+        <>
+          <div style={styles.navLabel}>Employer tools</div>
+          <nav style={styles.nav}>
+            {recruiterNav.map((item) => (
+              <NavItem key={item.to} {...item} />
+            ))}
+          </nav>
+        </>
+      ) : (
+        <>
+          <div style={styles.navLabel}>My pathway</div>
+          <nav style={styles.nav}>
+            {learnerPathwayNav.map((item) => (
+              <NavItem key={item.to} {...item} />
+            ))}
+          </nav>
 
-      <div style={styles.navLabel}>Account</div>
-      <nav style={styles.nav}>
-        {accountNav.map((item) => (
-          <NavItem key={item.to} {...item} />
-        ))}
-      </nav>
+          <div style={styles.navLabel}>Account</div>
+          <nav style={styles.nav}>
+            {learnerAccountNav.map((item) => (
+              <NavItem key={item.to} {...item} />
+            ))}
+          </nav>
+        </>
+      )}
 
        <div style={styles.account}>
          <div style={styles.avatar}>{initials}</div>
@@ -179,7 +200,7 @@ export default function Sidebar() {
            <strong style={styles.userName}>
              {user?.firstName || 'User'}
            </strong>
-           <small style={styles.userRole}>Learner</small>
+           <small style={styles.userRole}>{user?.role || 'User'}</small>
          </div>
          <button
            style={styles.logoutBtn}

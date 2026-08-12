@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Button from '../components/ui/Button';
-import { extractResumeText } from '../utils/resumeText';
 
 const styles = {
   container: {
@@ -63,18 +62,6 @@ const styles = {
     marginBottom: 12,
     fontSize: 14,
   },
-  fileInput: {
-    width: '100%',
-    background: 'var(--surface)',
-    border: '1px solid var(--line)',
-    borderRadius: 10,
-    minHeight: 42,
-    padding: '9px 12px',
-    color: 'var(--ink)',
-    marginBottom: 12,
-    fontSize: 14,
-    cursor: 'pointer',
-  },
   row: {
     display: 'grid',
     gridTemplateColumns: '1fr 1fr',
@@ -94,6 +81,27 @@ const styles = {
     fontSize: 13,
     color: 'var(--muted)',
   },
+  roleToggle: {
+    display: 'flex',
+    gap: 6,
+    marginBottom: 16,
+  },
+  roleButton: {
+    flex: 1,
+    padding: '9px 12px',
+    border: '1px solid var(--line)',
+    borderRadius: 10,
+    background: 'transparent',
+    color: 'var(--muted)',
+    fontSize: 14,
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    boxSizing: 'border-box',
+  },
+  roleButtonActive: {
+    background: 'var(--coral-soft)',
+    color: 'rgb(110, 65, 45)',
+  },
 };
 
 export default function RegisterPage() {
@@ -102,53 +110,42 @@ export default function RegisterPage() {
     lastName: '',
     emailAddress: '',
     password: '',
+    targetRole: '',
     address: '',
     birthday: '',
-    resume: '',
+    companyName: '',
   });
+  const [role, setRole] = useState('learner');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [resumeFile, setResumeFile] = useState(null);
-  const { register } = useAuth();
+  const { register, registerCompany } = useAuth();
   const navigate = useNavigate();
 
   const update = (field) => (e) => setForm({ ...form, [field]: e.target.value });
 
-  const handleResumeFile = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const allowed = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-    const isDocx = file.name.toLowerCase().endsWith('.docx');
-    if (!allowed.includes(file.type) && !isDocx) {
-      setResumeFile(null);
-      setError('Resume must be a PDF or DOCX file only');
-      e.target.value = '';
-      return;
-    }
-    setError('');
-    setResumeFile(file);
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!resumeFile) {
-      setError('Resume is required');
-      return;
-    }
     setError('');
     setLoading(true);
     try {
-      const payload = { ...form };
-      if (resumeFile) {
-        const resumeText = await extractResumeText(resumeFile);
-        if (!resumeText) {
-          setError('Could not read the resume. Ensure it contains selectable text.');
-          setLoading(false);
-          return;
+      if (role === 'recruiter') {
+        if (!form.companyName.trim()) {
+          throw new Error('Company name is required');
         }
-        payload.resume = resumeText;
+        await registerCompany({
+          companyName: form.companyName,
+          firstName: form.firstName,
+          lastName: form.lastName,
+          emailAddress: form.emailAddress,
+          password: form.password,
+          address: form.address,
+          birthday: form.birthday,
+        });
+        navigate('/business-dashboard');
+        return;
+      } else {
+        await register(form);
       }
-      await register(payload);
       navigate('/');
     } catch (err) {
       setError(err.message || 'Registration failed');
@@ -171,7 +168,39 @@ export default function RegisterPage() {
 
         {error && <div style={styles.error}>{error}</div>}
 
-        <form onSubmit={handleSubmit}>
+        <div style={styles.roleToggle}>
+          <button
+            type="button"
+            style={{
+              ...styles.roleButton,
+              ...(role === 'learner' ? styles.roleButtonActive : {}),
+            }}
+            onClick={() => setRole('learner')}
+          >
+            Learner
+          </button>
+          <button
+            type="button"
+            style={{
+              ...styles.roleButton,
+              ...(role === 'recruiter' ? styles.roleButtonActive : {}),
+            }}
+            onClick={() => setRole('recruiter')}
+          >
+            Employer
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} noValidate>
+          {role === 'recruiter' && (
+            <input
+              style={styles.field}
+              placeholder="Company name"
+              value={form.companyName}
+              onChange={update('companyName')}
+              required
+            />
+          )}
           <div style={styles.row}>
             <input
               style={styles.field}
@@ -205,26 +234,41 @@ export default function RegisterPage() {
             required
             minLength={6}
           />
-          <input
-            style={styles.field}
-            type="date"
-            aria-label="Birthday"
-            value={form.birthday}
-            onChange={update('birthday')}
-          />
-          <input
-            style={styles.field}
-            placeholder="Address (optional)"
-            value={form.address}
-            onChange={update('address')}
-          />
-          <input
-            style={styles.fileInput}
-            type="file"
-            accept=".pdf,.docx"
-            aria-label="Resume"
-            onChange={handleResumeFile}
-          />
+          {role === 'learner' && (
+            <>
+              <input
+                style={styles.field}
+                type="date"
+                aria-label="Birthday"
+                value={form.birthday}
+                onChange={update('birthday')}
+              />
+              <input
+                style={styles.field}
+                placeholder="Address (optional)"
+                value={form.address}
+                onChange={update('address')}
+              />
+              <select
+                style={styles.field}
+                aria-label="Target role"
+                value={form.targetRole}
+                onChange={update('targetRole')}
+              >
+                <option value="">Target role (optional)</option>
+                <option value="Frontend Developer">Frontend Developer</option>
+                <option value="Backend Developer">Backend Developer</option>
+                <option value="Full Stack Developer">Full Stack Developer</option>
+                <option value="Data Analyst">Data Analyst</option>
+                <option value="Data Scientist">Data Scientist</option>
+                <option value="UI/UX Designer">UI/UX Designer</option>
+                <option value="DevOps Engineer">DevOps Engineer</option>
+                <option value="Quality Assurance">Quality Assurance</option>
+                <option value="Project Manager">Project Manager</option>
+                <option value="Other">Other</option>
+              </select>
+            </>
+          )}
           <Button
             variant="primary"
             style={{ width: '100%', marginTop: 4 }}

@@ -1,21 +1,22 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext';
+import { AuthProvider, useAuth, isRecruiter } from './context/AuthContext';
 import { EnrollmentsProvider } from './context/EnrollmentsContext';
 import { ApplicationsProvider } from './context/ApplicationsContext';
 import { ToastProvider } from './context/ToastContext';
 import Sidebar from './components/Layout/Sidebar';
 import Topbar from './components/Layout/Topbar';
+import { LearnerRoute, RecruiterRoute } from './components/RoleRoute';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import OverviewPage from './pages/OverviewPage';
 import SkillsPage from './pages/SkillsPage';
 import JobsPage from './pages/JobsPage';
 import CoursesPage from './pages/CoursesPage';
-import CourseContentPage from './pages/CourseContentPage';
 import ApplicationsPage from './pages/ApplicationsPage';
 import AssessmentsPage from './pages/AssessmentsPage';
 import CredentialsPage from './pages/CredentialsPage';
 import HelpPage from './pages/HelpPage';
+import BusinessDashboardPage from './pages/BusinessDashboardPage';
 
 const appStyles = {
   app: {
@@ -53,8 +54,13 @@ function ProtectedRoute() {
 
 function PublicRoute() {
   const { user } = useAuth();
-  if (user) return <Navigate to="/" replace />;
+  if (user) return <Navigate to={isRecruiter(user) ? '/business-dashboard' : '/'} replace />;
   return <Outlet />;
+}
+
+function RoleRedirect() {
+  const { user } = useAuth();
+  return <Navigate to={isRecruiter(user) ? '/business-dashboard' : '/'} replace />;
 }
 
 export default function App() {
@@ -70,18 +76,21 @@ export default function App() {
               <Route path="/register" element={<RegisterPage />} />
             </Route>
             <Route element={<ProtectedRoute />}>
-              <Route path="/" element={<OverviewPage />} />
-              <Route path="/skills" element={<SkillsPage />} />
-              <Route path="/jobs" element={<JobsPage />} />
-              <Route path="/courses" element={<CoursesPage />} />
-              <Route path="/courses/:courseId/learn/:lessonId" element={<CourseContentPage />} />
-              <Route path="/courses/:courseId/learn" element={<CourseContentPage />} />
-              <Route path="/applications" element={<ApplicationsPage />} />
-              <Route path="/assessments" element={<AssessmentsPage />} />
-              <Route path="/credentials" element={<CredentialsPage />} />
+              <Route element={<LearnerRoute />}>
+                <Route path="/" element={<OverviewPage />} />
+                <Route path="/skills" element={<SkillsPage />} />
+                <Route path="/jobs" element={<JobsPage />} />
+                <Route path="/courses" element={<CoursesPage />} />
+                <Route path="/applications" element={<ApplicationsPage />} />
+                <Route path="/assessments" element={<AssessmentsPage />} />
+                <Route path="/credentials" element={<CredentialsPage />} />
+              </Route>
+              <Route element={<RecruiterRoute />}>
+                <Route path="/business-dashboard" element={<BusinessDashboardPage />} />
+              </Route>
               <Route path="/help" element={<HelpPage />} />
             </Route>
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<RoleRedirect />} />
           </Routes>
           </ToastProvider>
           </ApplicationsProvider>

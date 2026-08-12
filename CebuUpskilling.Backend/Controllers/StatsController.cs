@@ -22,6 +22,7 @@ public class StatsController : ControllerBase
     }
 
     [HttpGet("week")]
+    [Authorize(Roles = "Learner")]
     public async Task<IActionResult> GetWeeklyStats()
     {
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);

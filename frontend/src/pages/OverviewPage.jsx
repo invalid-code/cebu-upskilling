@@ -2,13 +2,13 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../components/ui/Button';
 import Panel from '../components/ui/Panel';
-
+import Tag from '../components/ui/Tag';
 import EmptyState from '../components/shared/EmptyState';
 import StatCard from '../components/shared/StatCard';
 import CourseCard from '../components/shared/CourseCard';
 import SkillGapItem from '../components/shared/SkillGapItem';
-import { useAuth } from '../context/AuthContext';
-import { useApplications } from '../context/ApplicationsContext';
+import { useAuth, isRecruiter } from '../context/AuthContext';
+import EmployerOverviewPage from './EmployerOverviewPage';
 import { api } from '../api/client';
 import { ArrowUpRight, Check, Clock, BookOpen, Send } from 'lucide-react';
 
@@ -217,10 +217,14 @@ const styles = {
 };
 
 export default function OverviewPage() {
+  const { user } = useAuth();
+  if (isRecruiter(user)) return <EmployerOverviewPage />;
+  return <LearnerOverview />;
+}
+
+function LearnerOverview() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { applications } = useApplications();
-  const hasApplied = applications.length > 0;
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [skillGaps, setSkillGaps] = useState([]);
@@ -232,8 +236,7 @@ export default function OverviewPage() {
   const targetRole = user?.targetRole?.trim();
 
   useEffect(() => {
-    const controller = new AbortController();
-    api.get('/courses', { signal: controller.signal })
+    api.get('/courses')
       .then((data) => {
         setCourses((data || []).map((c) => ({
           courseId: c.courseId,
@@ -246,39 +249,31 @@ export default function OverviewPage() {
       })
       .catch(() => setCourses([]))
       .finally(() => setLoading(false));
-    return () => controller.abort();
   }, []);
 
   useEffect(() => {
-    if (!targetRole || !hasApplied) {
-      setSkillGaps([]);
+    if (!targetRole) {
       setSkillGapsLoading(false);
       return;
     }
-    const controller = new AbortController();
-    api.get('/skillgaps', { signal: controller.signal })
+    api.get('/skillgaps')
       .then((data) => setSkillGaps(data || []))
       .catch(() => setSkillGaps([]))
       .finally(() => setSkillGapsLoading(false));
-    return () => controller.abort();
-  }, [targetRole, hasApplied]);
-
-  useEffect(() => {
-    if (!targetRole) return;
-    const controller = new AbortController();
-    api.get('/assessments/recommended', { signal: controller.signal })
-      .then((data) => setRecommendedAssessment(data))
-      .catch(() => setRecommendedAssessment(null));
-    return () => controller.abort();
   }, [targetRole]);
 
   useEffect(() => {
-    const controller = new AbortController();
-    api.get('/stats/week', { signal: controller.signal })
+    if (!targetRole) return;
+    api.get('/assessments/recommended')
+      .then((data) => setRecommendedAssessment(data))
+      .catch(() => setRecommendedAssessment(null));
+  }, [targetRole]);
+
+  useEffect(() => {
+    api.get('/stats/week')
       .then((data) => setWeeklyStats(data))
       .catch(() => setWeeklyStats({ learningTimeHours: 0, coursesActive: 0, jobsWorthApplying: 0 }))
       .finally(() => setWeeklyStatsLoading(false));
-    return () => controller.abort();
   }, []);
 
   const recommended = courses.slice(0, 3);
@@ -330,10 +325,8 @@ export default function OverviewPage() {
                 <div style={styles.loading}>Calculating...</div>
               ) : skillGaps.length === 0 ? (
                 <EmptyState
-                  title={hasApplied ? 'No score yet' : 'Apply for a job first'}
-                  description={hasApplied
-                    ? 'Set a target role and add skills to generate your match score.'
-                    : 'Your match score and skill gaps unlock once you apply for a job.'}
+                  title="No score yet"
+                  description="Set a target role and add skills to generate your match score."
                 />
               ) : (() => {
                 const totalRequired = skillGaps.reduce((s, g) => s + g.requiredLevel, 0);
@@ -511,14 +504,10 @@ export default function OverviewPage() {
           <div style={styles.loading}>Loading skill gaps...</div>
         ) : skillGaps.length === 0 ? (
           <EmptyState
-            title={!hasApplied
-              ? 'Apply for a job to see your gaps'
-              : targetRole ? 'No skill gaps yet' : 'Set a target role to see your gaps'}
-            description={!hasApplied
-              ? 'Skill gaps appear once you apply for a role.'
-              : targetRole
-                ? 'Your profile is complete for this role.'
-                : 'Choose a target role to compare your skills against.'}
+            title={targetRole ? 'No skill gaps yet' : 'Set a target role to see your gaps'}
+            description={targetRole
+              ? 'Your profile is complete for this role.'
+              : 'Choose a target role to compare your skills against.'}
           />
         ) : (
           skillGaps.map((gap) => (

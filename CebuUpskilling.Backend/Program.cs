@@ -1,82 +1,52 @@
 using System.Text;
 using CebuUpskilling.Backend.Data;
 using CebuUpskilling.Backend.Entities;
-using CebuUpskilling.Backend.Handlers;
-using CebuUpskilling.Backend.Options;
-using CebuUpskilling.Backend.Repositories;
 using CebuUpskilling.Backend.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+
+// Allow writing DateTime values with Kind=Unspecified (e.g. from JSON deserialization)
+// to PostgreSQL 'timestamp with time zone' columns, which Npgsql otherwise rejects.
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-builder.Services.AddHealthChecks()
-    .AddDbContextCheck<ApplicationDbContext>();
-
-builder.Services.Configure<R2Options>(builder.Configuration.GetSection(R2Options.SectionName));
-builder.Services.Configure<OpenRouterOptions>(builder.Configuration.GetSection(OpenRouterOptions.SectionName));
-
-var openRouterOptions = builder.Configuration.GetSection(OpenRouterOptions.SectionName).Get<OpenRouterOptions>();
-builder.Services.AddHttpClient<IOpenRouterService, OpenRouterService>(client =>
-{
-    client.BaseAddress = new Uri(openRouterOptions?.BaseUrl ?? "https://openrouter.ai/api/v1");
-});
-
 var myAllowSpecificOrigins = "_myAllowSpecificOrigins";
-
-var corsOriginsValue = builder.Configuration["Cors:AllowedOrigins"];
-var allowedOrigins = string.IsNullOrWhiteSpace(corsOriginsValue)
-    ? new[] { "http://localhost:5173" }
-    : corsOriginsValue.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(name: myAllowSpecificOrigins, policy =>
         {
-            policy.WithOrigins(allowedOrigins)
-                .WithHeaders("Authorization", "Content-Type")
-                .WithMethods("GET", "POST", "PATCH");
+            policy.WithOrigins(
+                    "http://localhost:5173",
+                    "http://localhost:5174",
+                    "http://localhost:5175",
+                    "http://localhost:5179")
+                .AllowAnyHeader()
+                .AllowAnyMethod();
         });
 });
 
 
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
-
-builder.Services.AddScoped<ICourseRepository, CourseRepository>();
-builder.Services.AddScoped<ILessonRepository, LessonRepository>();
-builder.Services.AddScoped<IPostRepository, PostRepository>();
-builder.Services.AddScoped<ILearnerRepository, LearnerRepository>();
-builder.Services.AddScoped<ISkillRepository, SkillRepository>();
-builder.Services.AddScoped<IAppUserRepository, AppUserRepository>();
-builder.Services.AddScoped<IRoleSkillRepository, RoleSkillRepository>();
-builder.Services.AddScoped<ILearnerSkillRepository, LearnerSkillRepository>();
-builder.Services.AddScoped<ILearnerAssessmentRepository, LearnerAssessmentRepository>();
-builder.Services.AddScoped<IAssessmentQuestionRepository, AssessmentQuestionRepository>();
-builder.Services.AddScoped<IRecruiterRepository, RecruiterRepository>();
-builder.Services.AddScoped<ILearnerStudyCourseRepository, LearnerStudyCourseRepository>();
-builder.Services.AddScoped<IApplicationRepository, ApplicationRepository>();
-builder.Services.AddScoped<IMediaRepository, MediaRepository>();
-
+builder.Services.AddScoped<IEntityService<Discipline>, DisciplineService>();
+builder.Services.AddScoped<IEntityService<SubDiscipline>, SubDisciplineService>();
+builder.Services.AddScoped<IEntityService<Genre>, GenreService>();
 builder.Services.AddScoped<IEntityService<Course>, CourseService>();
+builder.Services.AddScoped<IEntityService<Lesson>, LessonService>();
+builder.Services.AddScoped<IEntityService<LessonContent>, LessonContentService>();
+builder.Services.AddScoped<IEntityService<Exercise>, ExerciseService>();
+builder.Services.AddScoped<IEntityService<Company>, CompanyService>();
 builder.Services.AddScoped<IEntityService<Post>, PostService>();
-builder.Services.AddScoped<IEntityService<AppUser>, AppUserService>();
-builder.Services.AddScoped<IEntityService<LearnerAssessment>, LearnerAssessmentService>();
-builder.Services.AddScoped<IEntityService<LearnerStudyCourse>, LearnerStudyCourseService>();
+builder.Services.AddScoped<IEntityService<Learner>, LearnerService>();
+builder.Services.AddScoped<LearnerService>();
 builder.Services.AddScoped<ISkillGapService, SkillGapService>();
 builder.Services.AddScoped<IAssessmentService, AssessmentService>();
-builder.Services.AddScoped<IEnrollmentsService, EnrollmentsService>();
-builder.Services.AddScoped<IApplicationsService, ApplicationsService>();
-builder.Services.AddScoped<IStatsService, StatsService>();
-builder.Services.AddScoped<ICoursesPageService, CoursesPageService>();
-builder.Services.AddScoped<ICourseContentService, CourseContentService>();
-builder.Services.AddScoped<IObjectStorageService, R2StorageService>();
-builder.Services.AddScoped<IMediaService, MediaService>();
 
 var jwtKey = builder.Configuration["Jwt:Key"]!;
 builder.Services.AddAuthentication(options =>
@@ -106,23 +76,36 @@ builder.Services.AddControllers(options =>
 {
     options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
 });
-builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
-builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
+
+// Some browser extensions/injections strip the "/api" prefix from outgoing
+// requests (e.g. "/auth/register-company" arrives instead of "/api/auth/register-company").
+// Rewrite any non-API, non-OpenAPI request to carry the "/api" prefix so the
+// controllers handle it. This MUST run before routing picks the endpoint.
+app.Use(async (context, next) =>
+{
+    var rawPath = context.Request.Path.Value ?? "";
+    if (!rawPath.StartsWith("/api", StringComparison.OrdinalIgnoreCase) &&
+        !rawPath.StartsWith("/openapi", StringComparison.OrdinalIgnoreCase))
+    {
+        context.Request.Path = "/api" + rawPath;
+    }
+    await next();
+});
+
+app.UseRouting();
 
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
 
-app.UseExceptionHandler();
 app.UseCors(myAllowSpecificOrigins);
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
-app.MapHealthChecks("/health");
 
 app.Lifetime.ApplicationStarted.Register(() =>
     app.Services.GetRequiredService<ILogger<Program>>().LogInformation("Application started"));

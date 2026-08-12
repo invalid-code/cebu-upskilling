@@ -8,7 +8,7 @@ namespace CebuUpskilling.Backend.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Roles = "Learner")]
 public class SkillGapsController : ControllerBase
 {
     private readonly ISkillGapService _skillGapService;

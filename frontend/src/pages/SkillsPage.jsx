@@ -160,16 +160,7 @@ export default function SkillsPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const res = await fetch('http://localhost:5179/api/auth/profile', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: JSON.stringify({ targetRole: selectedRole, address, remoteFriendly }),
-      });
-      if (!res.ok) throw new Error('Failed to save');
-      const updatedUser = await res.json();
+      const updatedUser = await api.patch('/auth/profile', { targetRole: selectedRole, address, remoteFriendly });
       localStorage.setItem('user', JSON.stringify(updatedUser));
       setUser(updatedUser);
       showToast('Target role saved');
