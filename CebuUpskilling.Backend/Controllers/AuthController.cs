@@ -35,6 +35,23 @@ public class AuthController : ControllerBase
         }
     }
 
+    [HttpPost("register-company")]
+    public async Task<ActionResult<CompanyRegisterResponse>> RegisterCompany(CompanyRegisterRequest request)
+    {
+        _logger.LogInformation("POST /api/auth/register-company called for {Email}, company {CompanyName}", request.EmailAddress, request.CompanyName);
+        try
+        {
+            var result = await _authService.CompanyRegisterAsync(request);
+            _logger.LogInformation("Company registration successful for {Email}, UserId: {UserId}, CompanyId: {CompanyId}", request.EmailAddress, result.UserId, result.CompanyId);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning("Company registration failed for {Email}: {Error}", request.EmailAddress, ex.Message);
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
     [HttpPost("login")]
     public async Task<ActionResult<AuthResponse>> Login(LoginRequest request)
     {
