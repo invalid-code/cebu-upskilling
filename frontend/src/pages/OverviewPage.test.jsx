@@ -123,13 +123,13 @@ describe('OverviewPage', () => {
     expect(await screen.findByText('Modern JavaScript for Frontend Work')).toBeInTheDocument();
     expect(screen.getByText('TypeScript from Zero to Confident')).toBeInTheDocument();
     expect(screen.getByText('Frontend Portfolio Sprint')).toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: 'Enroll' })).toHaveLength(3);
+    expect(screen.getAllByRole('button', { name: /enroll free/i })).toHaveLength(3);
   });
 
   it('shows a toast when a course is enrolled', async () => {
     api.post.mockResolvedValue({ courseId: 1, started: '2026-01-01T00:00:00Z' });
     renderOverview();
-    const enroll = await screen.findAllByRole('button', { name: 'Enroll' });
+    const enroll = await screen.findAllByRole('button', { name: /enroll free/i });
     fireEvent.click(enroll[0]);
     expect(await screen.findByText('Course added to your pathway')).toBeInTheDocument();
   });

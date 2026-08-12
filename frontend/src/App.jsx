@@ -11,6 +11,7 @@ import OverviewPage from './pages/OverviewPage';
 import SkillsPage from './pages/SkillsPage';
 import JobsPage from './pages/JobsPage';
 import CoursesPage from './pages/CoursesPage';
+import CourseContentPage from './pages/CourseContentPage';
 import ApplicationsPage from './pages/ApplicationsPage';
 import AssessmentsPage from './pages/AssessmentsPage';
 import CredentialsPage from './pages/CredentialsPage';
@@ -73,6 +74,8 @@ export default function App() {
               <Route path="/skills" element={<SkillsPage />} />
               <Route path="/jobs" element={<JobsPage />} />
               <Route path="/courses" element={<CoursesPage />} />
+              <Route path="/courses/:courseId/learn/:lessonId" element={<CourseContentPage />} />
+              <Route path="/courses/:courseId/learn" element={<CourseContentPage />} />
               <Route path="/applications" element={<ApplicationsPage />} />
               <Route path="/assessments" element={<AssessmentsPage />} />
               <Route path="/credentials" element={<CredentialsPage />} />

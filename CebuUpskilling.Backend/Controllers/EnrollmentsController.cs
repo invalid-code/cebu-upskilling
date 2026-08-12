@@ -1,26 +1,27 @@
 using System.Security.Claims;
+using CebuUpskilling.Backend.Entities;
 using CebuUpskilling.Backend.Services;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CebuUpskilling.Backend.Controllers;
 
-[ApiController]
-[Route("api/[controller]")]
-[Authorize]
-public class EnrollmentsController : ControllerBase
+public class EnrollmentsController : BaseEntityController<LearnerStudyCourse>
 {
     private readonly IEnrollmentsService _enrollmentsService;
-    private readonly ILogger<EnrollmentsController> _logger;
 
-    public EnrollmentsController(IEnrollmentsService enrollmentsService, ILogger<EnrollmentsController> logger)
+    public EnrollmentsController(
+        IEntityService<LearnerStudyCourse> service,
+        IEnrollmentsService enrollmentsService,
+        ILogger<EnrollmentsController> logger)
+        : base(service, logger, "Enrollments")
     {
         _enrollmentsService = enrollmentsService;
-        _logger = logger;
     }
 
+    protected override int GetId(LearnerStudyCourse entity) => entity.CourseId;
+
     [HttpGet]
-    public async Task<IActionResult> GetMyEnrollments()
+    public override async Task<ActionResult<List<LearnerStudyCourse>>> GetAll()
     {
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
 
@@ -32,11 +33,11 @@ public class EnrollmentsController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> Enroll([FromBody] EnrollRequest request)
+    public override async Task<ActionResult<LearnerStudyCourse>> Create(LearnerStudyCourse entity)
     {
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
 
-        var outcome = await _enrollmentsService.EnrollAsync(userId, request.CourseId);
+        var outcome = await _enrollmentsService.EnrollAsync(userId, entity.CourseId);
 
         if (outcome.Failure == EnrollFailure.NoLearnerProfile)
         {
@@ -46,18 +47,16 @@ public class EnrollmentsController : ControllerBase
 
         if (outcome.Failure == EnrollFailure.CourseNotFound)
         {
-            _logger.LogWarning("Course {CourseId} not found", request.CourseId);
+            _logger.LogWarning("Course {CourseId} not found", entity.CourseId);
             return NotFound(new { error = "Course not found" });
         }
 
         if (outcome.Failure == EnrollFailure.AlreadyEnrolled)
         {
-            _logger.LogInformation("User {UserId} already enrolled in course {CourseId}", userId, request.CourseId);
+            _logger.LogInformation("User {UserId} already enrolled in course {CourseId}", userId, entity.CourseId);
             return Ok(new { message = "Already enrolled" });
         }
 
         return StatusCode(201, new { outcome.CourseId, outcome.Started });
     }
 }
-
-public record EnrollRequest(int CourseId);

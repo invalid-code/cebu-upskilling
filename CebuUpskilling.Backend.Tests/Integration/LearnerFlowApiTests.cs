@@ -263,14 +263,15 @@ public class LearnerFlowApiTests : ProductionApiTestBase
         var userId = registerBody.GetProperty("userId").GetInt32();
         var authorized = AuthorizedClient(token);
 
-        var companyResponse = await authorized.PostAsJsonAsync("/api/companies", new { name = "Acme Corp" });
-        companyResponse.EnsureSuccessStatusCode();
-        var company = await ReadJsonAsync(companyResponse);
-        var companyId = company.GetProperty("companyId").GetInt32();
-
+        int companyId;
         using (var scope = Factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var company = new Company { Name = "Acme Corp" };
+            db.Companies.Add(company);
+            await db.SaveChangesAsync();
+            companyId = company.CompanyId;
+
             db.Recruiters.Add(new Recruiter { CompanyId = companyId, UserId = userId });
             await db.SaveChangesAsync();
         }

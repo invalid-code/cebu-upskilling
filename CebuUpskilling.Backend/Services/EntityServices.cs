@@ -79,44 +79,6 @@ public abstract class BaseEntityService<T> : IEntityService<T> where T : class
     protected abstract void SaveUpdates(T existing, T entity);
 }
 
-public class DisciplineService : BaseEntityService<Discipline>
-{
-    public DisciplineService(IDisciplineRepository repository, ILogger<DisciplineService> logger)
-        : base(repository, logger, "Discipline") { }
-
-    protected override void SaveUpdates(Discipline existing, Discipline entity)
-    {
-        existing.Name = entity.Name;
-        existing.Description = entity.Description;
-    }
-}
-
-public class SubDisciplineService : BaseEntityService<SubDiscipline>
-{
-    public SubDisciplineService(ISubDisciplineRepository repository, ILogger<SubDisciplineService> logger)
-        : base(repository, logger, "SubDiscipline") { }
-
-    protected override void SaveUpdates(SubDiscipline existing, SubDiscipline entity)
-    {
-        existing.Name = entity.Name;
-        existing.Description = entity.Description;
-        existing.DisciplineId = entity.DisciplineId;
-    }
-}
-
-public class GenreService : BaseEntityService<Genre>
-{
-    public GenreService(IGenreRepository repository, ILogger<GenreService> logger)
-        : base(repository, logger, "Genre") { }
-
-    protected override void SaveUpdates(Genre existing, Genre entity)
-    {
-        existing.Name = entity.Name;
-        existing.Description = entity.Description;
-        existing.SubDisciplineId = entity.SubDisciplineId;
-    }
-}
-
 public class CourseService : BaseEntityService<Course>
 {
     public CourseService(ICourseRepository repository, ILogger<CourseService> logger)
@@ -130,58 +92,6 @@ public class CourseService : BaseEntityService<Course>
         existing.TechnicalLevel = entity.TechnicalLevel;
         existing.Price = entity.Price;
         existing.Mode = entity.Mode;
-    }
-}
-
-public class LessonService : BaseEntityService<Lesson>
-{
-    public LessonService(ILessonRepository repository, ILogger<LessonService> logger)
-        : base(repository, logger, "Lesson") { }
-
-    protected override void SaveUpdates(Lesson existing, Lesson entity)
-    {
-        existing.Name = entity.Name;
-        existing.Description = entity.Description;
-        existing.CourseId = entity.CourseId;
-    }
-}
-
-public class LessonContentService : BaseEntityService<LessonContent>
-{
-    public LessonContentService(ILessonContentRepository repository, ILogger<LessonContentService> logger)
-        : base(repository, logger, "LessonContent") { }
-
-    protected override void SaveUpdates(LessonContent existing, LessonContent entity)
-    {
-        existing.BlockType = entity.BlockType;
-        existing.Content = entity.Content;
-        existing.LessonOrder = entity.LessonOrder;
-        existing.TopicOrder = entity.TopicOrder;
-        existing.PercentAddedPerContent = entity.PercentAddedPerContent;
-    }
-}
-
-public class ExerciseService : BaseEntityService<Exercise>
-{
-    public ExerciseService(IExerciseRepository repository, ILogger<ExerciseService> logger)
-        : base(repository, logger, "Exercise") { }
-
-    protected override void SaveUpdates(Exercise existing, Exercise entity)
-    {
-        existing.Type = entity.Type;
-        existing.LessonId = entity.LessonId;
-        existing.AnswerKey = entity.AnswerKey;
-    }
-}
-
-public class CompanyService : BaseEntityService<Company>
-{
-    public CompanyService(ICompanyRepository repository, ILogger<CompanyService> logger)
-        : base(repository, logger, "Company") { }
-
-    protected override void SaveUpdates(Company existing, Company entity)
-    {
-        existing.Name = entity.Name;
     }
 }
 
@@ -199,20 +109,51 @@ public class PostService : BaseEntityService<Post>
     }
 }
 
-public class LearnerService : BaseEntityService<Learner>
+public class AppUserService : BaseEntityService<AppUser>
 {
-    private readonly ILearnerRepository _learnerRepository;
+    public AppUserService(IAppUserRepository repository, ILogger<AppUserService> logger)
+        : base(repository, logger, "AppUser") { }
 
-    public LearnerService(ILearnerRepository repository, ILogger<LearnerService> logger)
-        : base(repository, logger, "Learner")
+    protected override void SaveUpdates(AppUser existing, AppUser entity)
     {
-        _learnerRepository = repository;
+        existing.FirstName = entity.FirstName;
+        existing.LastName = entity.LastName;
+        existing.MiddleName = entity.MiddleName;
+        existing.Birthday = entity.Birthday;
+        existing.EmailAddress = entity.EmailAddress;
+        existing.Role = entity.Role;
+        existing.TargetRole = entity.TargetRole;
+        existing.Address = entity.Address;
+        existing.RemoteFriendly = entity.RemoteFriendly;
     }
+}
 
-    public Task<Learner?> GetByUserIdAsync(int userId) => _learnerRepository.GetByUserIdAsync(userId);
+public class LearnerAssessmentService : BaseEntityService<LearnerAssessment>
+{
+    public LearnerAssessmentService(ILearnerAssessmentRepository repository, ILogger<LearnerAssessmentService> logger)
+        : base(repository, logger, "LearnerAssessment") { }
 
-    protected override void SaveUpdates(Learner existing, Learner entity)
+    protected override void SaveUpdates(LearnerAssessment existing, LearnerAssessment entity)
     {
-        existing.IsPremium = entity.IsPremium;
+        existing.LearnerId = entity.LearnerId;
+        existing.SkillId = entity.SkillId;
+        existing.ScoredLevel = entity.ScoredLevel;
+        existing.Verified = entity.Verified;
+        existing.CompletedAt = entity.CompletedAt;
+    }
+}
+
+public class LearnerStudyCourseService : BaseEntityService<LearnerStudyCourse>
+{
+    public LearnerStudyCourseService(ILearnerStudyCourseRepository repository, ILogger<LearnerStudyCourseService> logger)
+        : base(repository, logger, "LearnerStudyCourse") { }
+
+    protected override void SaveUpdates(LearnerStudyCourse existing, LearnerStudyCourse entity)
+    {
+        existing.LearnerId = entity.LearnerId;
+        existing.CourseId = entity.CourseId;
+        existing.Started = entity.Started;
+        existing.LastTotalProgressPercent = entity.LastTotalProgressPercent;
+        existing.LastOnline = entity.LastOnline;
     }
 }

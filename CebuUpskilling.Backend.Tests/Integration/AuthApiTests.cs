@@ -125,7 +125,7 @@ public class AuthApiTests : ProductionApiTestBase
     [Fact]
     public async Task ProtectedEndpoint_WithoutToken_ReturnsUnauthorized()
     {
-        var response = await Client.GetAsync("/api/disciplines");
+        var response = await Client.GetAsync("/api/courses");
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }

@@ -4,16 +4,22 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CebuUpskilling.Backend.Repositories;
 
-public interface ILearnerAssessmentRepository : IRepository<LearnerAssessment>
+public interface ILearnerAssessmentRepository : IEntityRepository<LearnerAssessment>
 {
     Task<List<LearnerAssessment>> GetVerifiedByLearnerIdAsync(int learnerId);
     Task<List<LearnerAssessment>> GetByLearnerIdAsync(int learnerId);
     Task<LearnerAssessment?> GetByIdForLearnerAsync(int assessmentId, int learnerId);
 }
 
-public class LearnerAssessmentRepository : Repository<LearnerAssessment>, ILearnerAssessmentRepository
+public class LearnerAssessmentRepository : EntityRepository<LearnerAssessment>, ILearnerAssessmentRepository
 {
     public LearnerAssessmentRepository(ApplicationDbContext context) : base(context) { }
+
+    public override async Task<List<LearnerAssessment>> GetAllAsync()
+        => await _dbSet.ToListAsync();
+
+    public override async Task<LearnerAssessment?> GetByIdAsync(int id)
+        => await _dbSet.FirstOrDefaultAsync(a => a.LearnerAssessmentId == id);
 
     public async Task<List<LearnerAssessment>> GetVerifiedByLearnerIdAsync(int learnerId)
         => await _dbSet

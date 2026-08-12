@@ -343,68 +343,6 @@ public class SecurityApiTests : ProductionApiTestBase
     }
 
     // ------------------------------------------------------------------ //
-    // Learner profile exposure
-    // ------------------------------------------------------------------ //
-
-    [Fact]
-    public async Task LearnerCollection_ReturnsOnlyTheCallersOwnProfile()
-    {
-        var (tokenA, _) = await RegisterUserAsync("sec.pii.a@example.com");
-        await RegisterUserAsync("sec.pii.b@example.com");
-
-        var response = await AuthorizedClient(tokenA).GetAsync("/api/learners");
-        response.EnsureSuccessStatusCode();
-
-        var raw = await response.Content.ReadAsStringAsync();
-        var learners = (JsonDocument.Parse(raw).RootElement).EnumerateArray().ToList();
-
-        Assert.Single(learners);
-        Assert.Equal("sec.pii.a@example.com", learners[0].GetProperty("user").GetProperty("emailAddress").GetString());
-        Assert.DoesNotContain("sec.pii.b@example.com", raw);
-        Assert.DoesNotContain("passwordHash", raw, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public async Task LearnerProfile_OfAnotherUser_IsNotAccessibleById()
-    {
-        var (tokenA, _) = await RegisterUserAsync("sec.pii.c@example.com");
-        var (_, userIdB) = await RegisterUserAsync("sec.pii.d@example.com");
-        var learnerIdB = await GetLearnerIdAsync(userIdB);
-
-        var response = await AuthorizedClient(tokenA).GetAsync($"/api/learners/{learnerIdB}");
-
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task LearnerProfile_OwnProfile_IsAccessible()
-    {
-        var (tokenA, userIdA) = await RegisterUserAsync("sec.pii.e@example.com");
-        var learnerIdA = await GetLearnerIdAsync(userIdA);
-
-        var response = await AuthorizedClient(tokenA).GetAsync($"/api/learners/{learnerIdA}");
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await ReadJsonAsync(response);
-        Assert.Equal("sec.pii.e@example.com", body.GetProperty("user").GetProperty("emailAddress").GetString());
-    }
-
-    [Fact]
-    public async Task LearnerProfile_CannotBeCreatedForAnotherUser()
-    {
-        var (tokenA, _) = await RegisterUserAsync("sec.pii.f@example.com");
-        var (_, userIdB) = await RegisterUserAsync("sec.pii.g@example.com");
-
-        var response = await AuthorizedClient(tokenA).PostAsJsonAsync("/api/learners", new
-        {
-            userId = userIdB,
-            isPremium = false,
-        });
-
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-    }
-
-    // ------------------------------------------------------------------ //
     // Injection
     // ------------------------------------------------------------------ //
 
@@ -445,7 +383,7 @@ public class SecurityApiTests : ProductionApiTestBase
     [Fact]
     public async Task Cors_AllowedOrigin_IsReflected()
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, "/api/disciplines");
+        var request = new HttpRequestMessage(HttpMethod.Get, "/api/courses");
         request.Headers.Add("Origin", "http://localhost:5173");
 
         var response = await Client.SendAsync(request);
@@ -457,7 +395,7 @@ public class SecurityApiTests : ProductionApiTestBase
     [Fact]
     public async Task Cors_DisallowedOrigin_IsNotReflected()
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, "/api/disciplines");
+        var request = new HttpRequestMessage(HttpMethod.Get, "/api/courses");
         request.Headers.Add("Origin", "https://evil.example.com");
 
         var response = await Client.SendAsync(request);

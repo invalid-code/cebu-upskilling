@@ -29,14 +29,8 @@ builder.Services.AddCors(options =>
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 
-builder.Services.AddScoped<IDisciplineRepository, DisciplineRepository>();
-builder.Services.AddScoped<ISubDisciplineRepository, SubDisciplineRepository>();
-builder.Services.AddScoped<IGenreRepository, GenreRepository>();
 builder.Services.AddScoped<ICourseRepository, CourseRepository>();
 builder.Services.AddScoped<ILessonRepository, LessonRepository>();
-builder.Services.AddScoped<ILessonContentRepository, LessonContentRepository>();
-builder.Services.AddScoped<IExerciseRepository, ExerciseRepository>();
-builder.Services.AddScoped<ICompanyRepository, CompanyRepository>();
 builder.Services.AddScoped<IPostRepository, PostRepository>();
 builder.Services.AddScoped<ILearnerRepository, LearnerRepository>();
 builder.Services.AddScoped<ISkillRepository, SkillRepository>();
@@ -47,21 +41,17 @@ builder.Services.AddScoped<ILearnerAssessmentRepository, LearnerAssessmentReposi
 builder.Services.AddScoped<IAssessmentQuestionRepository, AssessmentQuestionRepository>();
 builder.Services.AddScoped<ILearnerStudyCourseRepository, LearnerStudyCourseRepository>();
 
-builder.Services.AddScoped<IEntityService<Discipline>, DisciplineService>();
-builder.Services.AddScoped<IEntityService<SubDiscipline>, SubDisciplineService>();
-builder.Services.AddScoped<IEntityService<Genre>, GenreService>();
 builder.Services.AddScoped<IEntityService<Course>, CourseService>();
-builder.Services.AddScoped<IEntityService<Lesson>, LessonService>();
-builder.Services.AddScoped<IEntityService<LessonContent>, LessonContentService>();
-builder.Services.AddScoped<IEntityService<Exercise>, ExerciseService>();
-builder.Services.AddScoped<IEntityService<Company>, CompanyService>();
 builder.Services.AddScoped<IEntityService<Post>, PostService>();
-builder.Services.AddScoped<IEntityService<Learner>, LearnerService>();
-builder.Services.AddScoped<LearnerService>();
+builder.Services.AddScoped<IEntityService<AppUser>, AppUserService>();
+builder.Services.AddScoped<IEntityService<LearnerAssessment>, LearnerAssessmentService>();
+builder.Services.AddScoped<IEntityService<LearnerStudyCourse>, LearnerStudyCourseService>();
 builder.Services.AddScoped<ISkillGapService, SkillGapService>();
 builder.Services.AddScoped<IAssessmentService, AssessmentService>();
 builder.Services.AddScoped<IEnrollmentsService, EnrollmentsService>();
 builder.Services.AddScoped<IStatsService, StatsService>();
+builder.Services.AddScoped<ICoursesPageService, CoursesPageService>();
+builder.Services.AddScoped<ICourseContentService, CourseContentService>();
 
 var jwtKey = builder.Configuration["Jwt:Key"]!;
 builder.Services.AddAuthentication(options =>

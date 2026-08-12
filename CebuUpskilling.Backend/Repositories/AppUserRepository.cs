@@ -4,18 +4,20 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CebuUpskilling.Backend.Repositories;
 
-public interface IAppUserRepository : IRepository<AppUser>
+public interface IAppUserRepository : IEntityRepository<AppUser>
 {
-    Task<AppUser?> GetByIdAsync(int userId);
     Task<AppUser?> GetByEmailAsync(string email);
     Task<bool> ExistsByEmailAsync(string email);
 }
 
-public class AppUserRepository : Repository<AppUser>, IAppUserRepository
+public class AppUserRepository : EntityRepository<AppUser>, IAppUserRepository
 {
     public AppUserRepository(ApplicationDbContext context) : base(context) { }
 
-    public async Task<AppUser?> GetByIdAsync(int userId) => await _dbSet.FindAsync(userId);
+    public override async Task<List<AppUser>> GetAllAsync()
+        => await _dbSet.ToListAsync();
+
+    public override async Task<AppUser?> GetByIdAsync(int userId) => await _dbSet.FindAsync(userId);
 
     public async Task<AppUser?> GetByEmailAsync(string email)
         => await _dbSet.FirstOrDefaultAsync(u => u.EmailAddress == email);

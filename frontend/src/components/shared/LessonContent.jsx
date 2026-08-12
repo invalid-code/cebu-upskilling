@@ -1,0 +1,140 @@
+import { FileText, MessageSquare } from 'lucide-react';
+
+const styles = {
+  container: {
+    flex: 1,
+    minWidth: 0,
+  },
+  moduleLabel: {
+    fontSize: 12,
+    color: 'var(--muted)',
+    marginBottom: 4,
+  },
+  lessonTitle: {
+    fontFamily: "'Space Grotesk', sans-serif",
+    fontSize: 24,
+    fontWeight: 700,
+    color: 'var(--ink)',
+    marginBottom: 16,
+  },
+  contentBlock: {
+    marginBottom: 20,
+  },
+  paragraph: {
+    fontSize: 15,
+    lineHeight: 1.7,
+    color: 'var(--ink)',
+    marginBottom: 16,
+  },
+  heading: {
+    fontFamily: "'Space Grotesk', sans-serif",
+    fontSize: 18,
+    fontWeight: 700,
+    color: 'var(--ink)',
+    marginTop: 24,
+    marginBottom: 12,
+  },
+  codeBlock: {
+    background: '#1a2e27',
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 20,
+  },
+  codeHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '10px 16px',
+    background: 'rgba(0,0,0,0.2)',
+    borderBottom: '1px solid rgba(255,255,255,0.1)',
+  },
+  codeFileName: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.7)',
+    fontFamily: 'monospace',
+  },
+  codeContent: {
+    padding: '16px',
+    fontSize: 13,
+    lineHeight: 1.6,
+    fontFamily: 'monospace',
+    color: '#e8f0ee',
+    overflowX: 'auto',
+  },
+  notesButton: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '8px 14px',
+    background: 'var(--surface)',
+    border: '1px solid var(--line)',
+    borderRadius: 8,
+    fontSize: 13,
+    fontWeight: 600,
+    color: 'var(--muted)',
+    cursor: 'pointer',
+    marginBottom: 16,
+  },
+};
+
+export default function LessonContent({ lesson, moduleName }) {
+  if (!lesson) return null;
+
+  const renderContentBlock = (block, index) => {
+    switch (block.blockType) {
+      case 'text':
+      case 'paragraph':
+        return (
+          <div key={index} style={styles.paragraph}>
+            {block.content}
+          </div>
+        );
+      case 'heading':
+        return (
+          <h3 key={index} style={styles.heading}>
+            {block.content}
+          </h3>
+        );
+      case 'code':
+        return (
+          <div key={index} style={styles.codeBlock}>
+            <div style={styles.codeHeader}>
+              <span style={styles.codeFileName}>example.js</span>
+              <FileText size={14} color="rgba(255,255,255,0.5)" />
+            </div>
+            <pre style={styles.codeContent}>
+              <code>{block.content}</code>
+            </pre>
+          </div>
+        );
+      default:
+        return (
+          <div key={index} style={styles.paragraph}>
+            {block.content}
+          </div>
+        );
+    }
+  };
+
+  return (
+    <div style={styles.container}>
+      <div style={styles.moduleLabel}>
+        Module {lesson.lessonOrder} · {moduleName || lesson.name}
+      </div>
+      <h2 style={styles.lessonTitle}>{lesson.name}</h2>
+
+      <button style={styles.notesButton}>
+        <MessageSquare size={14} />
+        Notes
+      </button>
+
+      {lesson.contentBlocks.map((block, index) =>
+        renderContentBlock(block, index)
+      )}
+
+      {lesson.contentBlocks.length === 0 && lesson.description && (
+        <div style={styles.paragraph}>{lesson.description}</div>
+      )}
+    </div>
+  );
+}

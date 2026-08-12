@@ -1,24 +1,25 @@
 using System.Security.Claims;
 using CebuUpskilling.Backend.DTOs;
+using CebuUpskilling.Backend.Entities;
 using CebuUpskilling.Backend.Services;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CebuUpskilling.Backend.Controllers;
 
-[ApiController]
-[Route("api/[controller]")]
-[Authorize]
-public class AssessmentsController : ControllerBase
+public class AssessmentsController : BaseEntityController<LearnerAssessment>
 {
     private readonly IAssessmentService _assessmentService;
-    private readonly ILogger<AssessmentsController> _logger;
 
-    public AssessmentsController(IAssessmentService assessmentService, ILogger<AssessmentsController> logger)
+    public AssessmentsController(
+        IEntityService<LearnerAssessment> service,
+        IAssessmentService assessmentService,
+        ILogger<AssessmentsController> logger)
+        : base(service, logger, "Assessments")
     {
         _assessmentService = assessmentService;
-        _logger = logger;
     }
+
+    protected override int GetId(LearnerAssessment entity) => entity.LearnerAssessmentId;
 
     [HttpGet("results")]
     public async Task<ActionResult<List<AssessmentResultResponse>>> GetRecentResults()

@@ -1,23 +1,25 @@
+using System.Security.Claims;
 using CebuUpskilling.Backend.DTOs;
+using CebuUpskilling.Backend.Entities;
 using CebuUpskilling.Backend.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CebuUpskilling.Backend.Controllers;
 
-[ApiController]
-[Route("api/[controller]")]
-public class AuthController : ControllerBase
+public class AuthController : BaseEntityController<AppUser>
 {
     private readonly IAuthService _authService;
-    private readonly ILogger<AuthController> _logger;
 
-    public AuthController(IAuthService authService, ILogger<AuthController> logger)
+    public AuthController(IEntityService<AppUser> service, IAuthService authService, ILogger<AuthController> logger)
+        : base(service, logger, "Auth")
     {
         _authService = authService;
-        _logger = logger;
     }
 
+    protected override int GetId(AppUser entity) => entity.UserId;
+
+    [AllowAnonymous]
     [HttpPost("register")]
     public async Task<ActionResult<AuthResponse>> Register(RegisterRequest request)
     {
@@ -35,6 +37,7 @@ public class AuthController : ControllerBase
         }
     }
 
+    [AllowAnonymous]
     [HttpPost("login")]
     public async Task<ActionResult<AuthResponse>> Login(LoginRequest request)
     {
@@ -52,11 +55,10 @@ public class AuthController : ControllerBase
         }
     }
 
-    [Authorize]
     [HttpPatch("profile")]
     public async Task<ActionResult<AuthResponse>> UpdateProfile(UpdateProfileRequest request)
     {
-        var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
         _logger.LogInformation("PATCH /api/auth/profile called for UserId: {UserId}", userId);
         try
         {
