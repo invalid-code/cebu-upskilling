@@ -6,11 +6,22 @@ public record RegisterRequest(
     [Required] string FirstName,
     [Required] string LastName,
     string? MiddleName,
-    DateTime? Birthday,
+    string? Birthday,
     [Required] string EmailAddress,
     [Required, MinLength(6)] string Password,
     string Role = "Learner",
     string? TargetRole = null,
+    string? Address = null
+);
+
+public record CompanyRegisterRequest(
+    [Required] string CompanyName,
+    [Required] string FirstName,
+    [Required] string LastName,
+    string? MiddleName,
+    string? Birthday,
+    [Required] string EmailAddress,
+    [Required, MinLength(6)] string Password,
     string? Address = null
 );
 
@@ -34,5 +45,16 @@ public record AuthResponse(
     string? TargetRole,
     string? Address,
     bool RemoteFriendly,
+    string Token
+);
+
+public record CompanyRegisterResponse(
+    int UserId,
+    string FirstName,
+    string LastName,
+    string EmailAddress,
+    string Role,
+    int CompanyId,
+    string CompanyName,
     string Token
 );

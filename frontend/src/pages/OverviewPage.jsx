@@ -7,7 +7,8 @@ import EmptyState from '../components/shared/EmptyState';
 import StatCard from '../components/shared/StatCard';
 import CourseCard from '../components/shared/CourseCard';
 import SkillGapItem from '../components/shared/SkillGapItem';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, isRecruiter } from '../context/AuthContext';
+import EmployerOverviewPage from './EmployerOverviewPage';
 import { api } from '../api/client';
 import { ArrowUpRight, Check, Clock, BookOpen, Send } from 'lucide-react';
 
@@ -216,6 +217,12 @@ const styles = {
 };
 
 export default function OverviewPage() {
+  const { user } = useAuth();
+  if (isRecruiter(user)) return <EmployerOverviewPage />;
+  return <LearnerOverview />;
+}
+
+function LearnerOverview() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [courses, setCourses] = useState([]);

@@ -5,6 +5,7 @@ using CebuUpskilling.Backend.Data;
 using CebuUpskilling.Backend.DTOs;
 using CebuUpskilling.Backend.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.IdentityModel.Tokens;
 
 namespace CebuUpskilling.Backend.Services;
@@ -55,6 +56,7 @@ public class JwtTokenService : IJwtTokenService
 public interface IAuthService
 {
     Task<AuthResponse> RegisterAsync(RegisterRequest request);
+    Task<CompanyRegisterResponse> CompanyRegisterAsync(CompanyRegisterRequest request);
     Task<AuthResponse> LoginAsync(LoginRequest request);
     Task<AuthResponse> UpdateProfileAsync(int userId, UpdateProfileRequest request);
 }
@@ -93,7 +95,7 @@ public class AuthService : IAuthService
             FirstName = request.FirstName,
             LastName = request.LastName,
             MiddleName = request.MiddleName,
-            Birthday = request.Birthday,
+            Birthday = ParseBirthday(request.Birthday),
             EmailAddress = request.EmailAddress,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
             Role = request.Role,
@@ -139,6 +141,100 @@ public class AuthService : IAuthService
         var token = _tokenService.GenerateToken(user);
 
         return new AuthResponse(user.UserId, user.FirstName, user.LastName, user.EmailAddress, user.Role, user.TargetRole, user.Address, user.RemoteFriendly, token);
+    }
+
+    public async Task<CompanyRegisterResponse> CompanyRegisterAsync(CompanyRegisterRequest request)
+    {
+        _logger.LogInformation("Company registration attempt for email {Email}, company {CompanyName}", request.EmailAddress, request.CompanyName);
+
+        if (await _context.Users.AnyAsync(u => u.EmailAddress == request.EmailAddress))
+        {
+            _logger.LogWarning("Company registration failed: email {Email} already exists", request.EmailAddress);
+            throw new InvalidOperationException("Email already registered");
+        }
+
+        if (await _context.Companies.AnyAsync(c => c.Name == request.CompanyName))
+        {
+            _logger.LogWarning("Company registration failed: company name {CompanyName} already exists", request.CompanyName);
+            throw new InvalidOperationException("Company name already registered");
+        }
+
+        // Transactions are only supported by relational databases (e.g. PostgreSQL).
+        // Skip the transaction for non-relational providers like the in-memory test database.
+        IDbContextTransaction? transaction = null;
+        if (_context.Database.ProviderName != "Microsoft.EntityFrameworkCore.InMemory")
+        {
+            transaction = await _context.Database.BeginTransactionAsync();
+        }
+
+        try
+        {
+            var company = new Company { Name = request.CompanyName };
+            _context.Companies.Add(company);
+            await _context.SaveChangesAsync();
+            _logger.LogInformation("Company created: {CompanyId} ({CompanyName})", company.CompanyId, company.Name);
+
+            var user = new AppUser
+            {
+                FirstName = request.FirstName,
+                LastName = request.LastName,
+                MiddleName = request.MiddleName,
+                Birthday = ParseBirthday(request.Birthday),
+                EmailAddress = request.EmailAddress,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
+                Role = "Recruiter",
+                Address = request.Address,
+            };
+
+            _context.Users.Add(user);
+            await _context.SaveChangesAsync();
+            _logger.LogInformation("Recruiter user registered: {UserId} ({Email})", user.UserId, user.EmailAddress);
+
+            var recruiter = new Recruiter
+            {
+                UserId = user.UserId,
+                CompanyId = company.CompanyId,
+            };
+            _context.Recruiters.Add(recruiter);
+            await _context.SaveChangesAsync();
+            _logger.LogInformation("Recruiter profile created: {RecruiterId} for user {UserId}, company {CompanyId}", recruiter.RecruiterId, user.UserId, company.CompanyId);
+
+            if (transaction != null)
+                await transaction.CommitAsync();
+
+            var token = _tokenService.GenerateToken(user);
+
+            return new CompanyRegisterResponse(
+                user.UserId,
+                user.FirstName,
+                user.LastName,
+                user.EmailAddress,
+                user.Role,
+                company.CompanyId,
+                company.Name,
+                token
+            );
+        }
+        catch
+        {
+            if (transaction != null)
+                await transaction.RollbackAsync();
+            throw;
+        }
+        finally
+        {
+            transaction?.Dispose();
+        }
+    }
+
+    private static DateTime? ParseBirthday(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        return DateTime.TryParse(value, out var parsed) ? parsed : null;
     }
 
     public async Task<AuthResponse> LoginAsync(LoginRequest request)

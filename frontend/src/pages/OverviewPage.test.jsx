@@ -70,8 +70,23 @@ describe('OverviewPage', () => {
       if (path === '/enrollments') return Promise.resolve([]);
       if (path === '/skillgaps') return Promise.resolve([]);
       if (path === '/assessments/recommended') return Promise.resolve(null);
+      if (path === '/stats/business') return Promise.resolve({
+        company: { name: 'Acme Corp', jobPostings: 2, recruiters: 3 },
+        talentPool: { totalLearners: 120, avgSkillLevel: 3.4 },
+      });
       return Promise.resolve([]);
     });
+  });
+
+  it('renders employer landing content for recruiters without learner data', async () => {
+    localStorage.setItem('user', JSON.stringify({ firstName: 'Employer', role: 'Recruiter' }));
+    renderOverview();
+    expect(await screen.findByText('Welcome back.')).toBeInTheDocument();
+    expect(screen.getByText('View business dashboard')).toBeInTheDocument();
+    expect(screen.getByText('job postings')).toBeInTheDocument();
+    expect(screen.queryByText('Your next move is clear.')).not.toBeInTheDocument();
+    expect(screen.queryByText(/of the way to your target role/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Pathway rail')).not.toBeInTheDocument();
   });
 
   it('renders the dashboard heading', async () => {

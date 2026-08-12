@@ -8,7 +8,7 @@ namespace CebuUpskilling.Backend.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Roles = "Learner")]
 public class AssessmentsController : ControllerBase
 {
     private readonly IAssessmentService _assessmentService;

@@ -33,6 +33,17 @@ public class AuthServiceTests
         Role: "Learner"
     );
 
+    private static CompanyRegisterRequest NewCompanyRegisterRequest() => new(
+        CompanyName: "Tech Solutions Inc",
+        FirstName: "Maria",
+        LastName: "Santos",
+        MiddleName: null,
+        Birthday: null,
+        EmailAddress: "maria@tech.com",
+        Password: "P@ssw0rd!",
+        Address: null
+    );
+
     [Fact]
     public async Task RegisterAsync_CreatesUser_ReturnsTokenAndProfile()
     {
@@ -94,6 +105,59 @@ public class AuthServiceTests
 
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => service.RegisterAsync(NewRegisterRequest()));
+    }
+
+    [Fact]
+    public async Task CompanyRegisterAsync_CreatesCompanyAndRecruiter_ReturnsTokenAndCompanyInfo()
+    {
+        var context = TestDbContextFactory.Create();
+        var service = CreateService(context);
+
+        var result = await service.CompanyRegisterAsync(NewCompanyRegisterRequest());
+
+        Assert.True(result.UserId > 0);
+        Assert.True(result.CompanyId > 0);
+        Assert.Equal("Tech Solutions Inc", result.CompanyName);
+        Assert.Equal("Maria", result.FirstName);
+        Assert.Equal("maria@tech.com", result.EmailAddress);
+        Assert.Equal("Recruiter", result.Role);
+        Assert.False(string.IsNullOrWhiteSpace(result.Token));
+
+        var savedUser = await context.Users.SingleAsync(u => u.EmailAddress == "maria@tech.com");
+        Assert.Equal("Recruiter", savedUser.Role);
+        Assert.True(BCrypt.Net.BCrypt.Verify("P@ssw0rd!", savedUser.PasswordHash));
+
+        var savedCompany = await context.Companies.SingleAsync(c => c.Name == "Tech Solutions Inc");
+        Assert.Equal(result.CompanyId, savedCompany.CompanyId);
+
+        var savedRecruiter = await context.Recruiters.SingleAsync(r => r.UserId == savedUser.UserId);
+        Assert.Equal(savedRecruiter.CompanyId, savedCompany.CompanyId);
+    }
+
+    [Fact]
+    public async Task CompanyRegisterAsync_DuplicateEmail_Throws()
+    {
+        var context = TestDbContextFactory.Create();
+        var service = CreateService(context);
+
+        await service.CompanyRegisterAsync(NewCompanyRegisterRequest());
+
+        var duplicateRequest = NewCompanyRegisterRequest() with { CompanyName = "Different Corp" };
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.CompanyRegisterAsync(duplicateRequest));
+    }
+
+    [Fact]
+    public async Task CompanyRegisterAsync_DuplicateCompanyName_Throws()
+    {
+        var context = TestDbContextFactory.Create();
+        var service = CreateService(context);
+
+        await service.CompanyRegisterAsync(NewCompanyRegisterRequest());
+
+        var duplicateRequest = NewCompanyRegisterRequest() with { EmailAddress = "maria2@tech.com" };
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.CompanyRegisterAsync(duplicateRequest));
     }
 
     [Fact]

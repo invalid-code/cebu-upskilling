@@ -81,21 +81,44 @@ const styles = {
     fontSize: 13,
     color: 'var(--muted)',
   },
+  roleToggle: {
+    display: 'flex',
+    gap: 6,
+    marginBottom: 16,
+  },
+  roleButton: {
+    flex: 1,
+    padding: '9px 12px',
+    border: '1px solid var(--line)',
+    borderRadius: 10,
+    background: 'transparent',
+    color: 'var(--muted)',
+    fontSize: 14,
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    boxSizing: 'border-box',
+  },
+  roleButtonActive: {
+    background: 'var(--coral-soft)',
+    color: 'rgb(110, 65, 45)',
+  },
 };
 
 export default function RegisterPage() {
-   const [form, setForm] = useState({
-     firstName: '',
-     lastName: '',
-     emailAddress: '',
-     password: '',
-     targetRole: '',
-     address: '',
-     birthday: '',
-   });
+  const [form, setForm] = useState({
+    firstName: '',
+    lastName: '',
+    emailAddress: '',
+    password: '',
+    targetRole: '',
+    address: '',
+    birthday: '',
+    companyName: '',
+  });
+  const [role, setRole] = useState('learner');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { register } = useAuth();
+  const { register, registerCompany } = useAuth();
   const navigate = useNavigate();
 
   const update = (field) => (e) => setForm({ ...form, [field]: e.target.value });
@@ -105,7 +128,24 @@ export default function RegisterPage() {
     setError('');
     setLoading(true);
     try {
-      await register(form);
+      if (role === 'recruiter') {
+        if (!form.companyName.trim()) {
+          throw new Error('Company name is required');
+        }
+        await registerCompany({
+          companyName: form.companyName,
+          firstName: form.firstName,
+          lastName: form.lastName,
+          emailAddress: form.emailAddress,
+          password: form.password,
+          address: form.address,
+          birthday: form.birthday,
+        });
+        navigate('/business-dashboard');
+        return;
+      } else {
+        await register(form);
+      }
       navigate('/');
     } catch (err) {
       setError(err.message || 'Registration failed');
@@ -128,7 +168,39 @@ export default function RegisterPage() {
 
         {error && <div style={styles.error}>{error}</div>}
 
-        <form onSubmit={handleSubmit}>
+        <div style={styles.roleToggle}>
+          <button
+            type="button"
+            style={{
+              ...styles.roleButton,
+              ...(role === 'learner' ? styles.roleButtonActive : {}),
+            }}
+            onClick={() => setRole('learner')}
+          >
+            Learner
+          </button>
+          <button
+            type="button"
+            style={{
+              ...styles.roleButton,
+              ...(role === 'recruiter' ? styles.roleButtonActive : {}),
+            }}
+            onClick={() => setRole('recruiter')}
+          >
+            Employer
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} noValidate>
+          {role === 'recruiter' && (
+            <input
+              style={styles.field}
+              placeholder="Company name"
+              value={form.companyName}
+              onChange={update('companyName')}
+              required
+            />
+          )}
           <div style={styles.row}>
             <input
               style={styles.field}
@@ -153,47 +225,51 @@ export default function RegisterPage() {
             onChange={update('emailAddress')}
             required
           />
-           <input
-             style={styles.field}
-             type="password"
-             placeholder="Password"
-             value={form.password}
-             onChange={update('password')}
-             required
-             minLength={6}
-           />
           <input
             style={styles.field}
-            type="date"
-            aria-label="Birthday"
-            value={form.birthday}
-            onChange={update('birthday')}
+            type="password"
+            placeholder="Password"
+            value={form.password}
+            onChange={update('password')}
+            required
+            minLength={6}
           />
-          <input
-            style={styles.field}
-            placeholder="Address (optional)"
-            value={form.address}
-            onChange={update('address')}
-          />
-           <select
-             style={styles.field}
-             aria-label="Target role"
-             value={form.targetRole}
-             onChange={update('targetRole')}
-           >
-             <option value="">Target role (optional)</option>
-             <option value="Frontend Developer">Frontend Developer</option>
-             <option value="Backend Developer">Backend Developer</option>
-             <option value="Full Stack Developer">Full Stack Developer</option>
-             <option value="Data Analyst">Data Analyst</option>
-             <option value="Data Scientist">Data Scientist</option>
-             <option value="UI/UX Designer">UI/UX Designer</option>
-             <option value="DevOps Engineer">DevOps Engineer</option>
-             <option value="Quality Assurance">Quality Assurance</option>
-             <option value="Project Manager">Project Manager</option>
-             <option value="Other">Other</option>
-           </select>
-           <Button
+          {role === 'learner' && (
+            <>
+              <input
+                style={styles.field}
+                type="date"
+                aria-label="Birthday"
+                value={form.birthday}
+                onChange={update('birthday')}
+              />
+              <input
+                style={styles.field}
+                placeholder="Address (optional)"
+                value={form.address}
+                onChange={update('address')}
+              />
+              <select
+                style={styles.field}
+                aria-label="Target role"
+                value={form.targetRole}
+                onChange={update('targetRole')}
+              >
+                <option value="">Target role (optional)</option>
+                <option value="Frontend Developer">Frontend Developer</option>
+                <option value="Backend Developer">Backend Developer</option>
+                <option value="Full Stack Developer">Full Stack Developer</option>
+                <option value="Data Analyst">Data Analyst</option>
+                <option value="Data Scientist">Data Scientist</option>
+                <option value="UI/UX Designer">UI/UX Designer</option>
+                <option value="DevOps Engineer">DevOps Engineer</option>
+                <option value="Quality Assurance">Quality Assurance</option>
+                <option value="Project Manager">Project Manager</option>
+                <option value="Other">Other</option>
+              </select>
+            </>
+          )}
+          <Button
             variant="primary"
             style={{ width: '100%', marginTop: 4 }}
             disabled={loading}

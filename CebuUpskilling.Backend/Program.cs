@@ -6,6 +6,10 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
+// Allow writing DateTime values with Kind=Unspecified (e.g. from JSON deserialization)
+// to PostgreSQL 'timestamp with time zone' columns, which Npgsql otherwise rejects.
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
@@ -17,7 +21,11 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy(name: myAllowSpecificOrigins, policy =>
         {
-            policy.WithOrigins("http://localhost:5173")
+            policy.WithOrigins(
+                    "http://localhost:5173",
+                    "http://localhost:5174",
+                    "http://localhost:5175",
+                    "http://localhost:5179")
                 .AllowAnyHeader()
                 .AllowAnyMethod();
         });
@@ -71,6 +79,23 @@ builder.Services.AddControllers(options =>
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
+
+// Some browser extensions/injections strip the "/api" prefix from outgoing
+// requests (e.g. "/auth/register-company" arrives instead of "/api/auth/register-company").
+// Rewrite any non-API, non-OpenAPI request to carry the "/api" prefix so the
+// controllers handle it. This MUST run before routing picks the endpoint.
+app.Use(async (context, next) =>
+{
+    var rawPath = context.Request.Path.Value ?? "";
+    if (!rawPath.StartsWith("/api", StringComparison.OrdinalIgnoreCase) &&
+        !rawPath.StartsWith("/openapi", StringComparison.OrdinalIgnoreCase))
+    {
+        context.Request.Path = "/api" + rawPath;
+    }
+    await next();
+});
+
+app.UseRouting();
 
 if (app.Environment.IsDevelopment())
 {

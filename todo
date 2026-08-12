@@ -1,6 +1,10 @@
-1. Make a dashboard for a business
+1. [DONE] Make a dashboard for a business — (see implementation_plan.md)
 2. Make a ui for the learner assessments
 3. Make a ui for the learner courses.
+
+
+
+
 4. Need to know who creates the assessments:
 ANSWERS:
 -The app itself conducts examinations to check learner progress and verify learnings 
@@ -16,3 +20,6 @@ ANSWERS
 -Open yet approved sources
 
 6. Need to know who decides the skill gaps for a target role
+ANSWERs:
+-Employers / Enterprises
+-yawa

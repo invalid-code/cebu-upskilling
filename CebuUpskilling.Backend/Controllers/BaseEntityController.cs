@@ -140,6 +140,7 @@ public class ExercisesController : BaseEntityController<Exercise>
     protected override int GetId(Exercise entity) => entity.ExerciseId;
 }
 
+[Authorize(Roles = "Recruiter")]
 public class CompaniesController : BaseEntityController<Company>
 {
     public CompaniesController(IEntityService<Company> service, ILogger<CompaniesController> logger)
@@ -154,8 +155,24 @@ public class PostsController : BaseEntityController<Post>
         : base(service, logger, "Posts") { }
 
     protected override int GetId(Post entity) => entity.PostId;
+
+    [HttpPost]
+    [Authorize(Roles = "Recruiter")]
+    public override async Task<ActionResult<Post>> Create(Post entity)
+        => await base.Create(entity);
+
+    [HttpPut("{id}")]
+    [Authorize(Roles = "Recruiter")]
+    public override async Task<ActionResult<Post>> Update(int id, Post entity)
+        => await base.Update(id, entity);
+
+    [HttpDelete("{id}")]
+    [Authorize(Roles = "Recruiter")]
+    public override async Task<IActionResult> Delete(int id)
+        => await base.Delete(id);
 }
 
+[Authorize(Roles = "Learner")]
 public class LearnersController : BaseEntityController<Learner>
 {
     private readonly LearnerService _learnerService;
@@ -240,7 +257,7 @@ public class LearnersController : BaseEntityController<Learner>
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Roles = "Learner")]
 public class EnrollmentsController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
