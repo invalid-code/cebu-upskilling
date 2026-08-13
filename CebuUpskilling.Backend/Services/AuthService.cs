@@ -78,12 +78,6 @@ public class AuthService : IAuthService
     {
         _logger.LogInformation("Registration attempt for email {Email}", request.EmailAddress);
 
-        if (request.Role != "Learner" && request.Role != "Recruiter")
-        {
-            _logger.LogWarning("Registration failed: role '{Role}' is not allowed", request.Role);
-            throw new InvalidOperationException($"Role '{request.Role}' is not allowed");
-        }
-
         if (await _context.Users.AnyAsync(u => u.EmailAddress == request.EmailAddress))
         {
             _logger.LogWarning("Registration failed: email {Email} already exists", request.EmailAddress);

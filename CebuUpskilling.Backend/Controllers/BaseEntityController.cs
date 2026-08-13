@@ -49,6 +49,9 @@ public abstract class BaseEntityController<T> : ControllerBase where T : class
     [HttpPost]
     public virtual async Task<ActionResult<T>> Create(T entity)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
         _logger.LogInformation("POST /api/{Controller} called", _entityName);
         var created = await _service.CreateAsync(entity);
         _logger.LogInformation("POST /api/{Controller} - created successfully", _entityName);
@@ -58,6 +61,9 @@ public abstract class BaseEntityController<T> : ControllerBase where T : class
     [HttpPut("{id}")]
     public virtual async Task<ActionResult<T>> Update(int id, T entity)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
         _logger.LogInformation("PUT /api/{Controller}/{Id} called", _entityName, id);
         var updated = await _service.UpdateAsync(id, entity);
         if (updated == null)
@@ -159,12 +165,20 @@ public class PostsController : BaseEntityController<Post>
     [HttpPost]
     [Authorize(Roles = "Recruiter")]
     public override async Task<ActionResult<Post>> Create(Post entity)
-        => await base.Create(entity);
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+        return await base.Create(entity);
+    }
 
     [HttpPut("{id}")]
     [Authorize(Roles = "Recruiter")]
     public override async Task<ActionResult<Post>> Update(int id, Post entity)
-        => await base.Update(id, entity);
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+        return await base.Update(id, entity);
+    }
 
     [HttpDelete("{id}")]
     [Authorize(Roles = "Recruiter")]
@@ -211,6 +225,9 @@ public class LearnersController : BaseEntityController<Learner>
     [HttpPost]
     public override async Task<ActionResult<Learner>> Create(Learner entity)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
         if (entity.UserId != CurrentUserId())
         {
             _logger.LogWarning("POST /api/Learners - denied: cannot create a profile for another user");
@@ -230,6 +247,9 @@ public class LearnersController : BaseEntityController<Learner>
     [HttpPut("{id}")]
     public override async Task<ActionResult<Learner>> Update(int id, Learner entity)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
         var learner = await GetOwnLearnerAsync();
         if (learner == null || learner.LearnerId != id)
         {
@@ -295,6 +315,9 @@ public class EnrollmentsController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Enroll([FromBody] EnrollRequest request)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
         _logger.LogInformation("User {UserId} attempting to enroll in course {CourseId}", userId, request.CourseId);
 

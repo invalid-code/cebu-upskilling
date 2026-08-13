@@ -1,7 +1,12 @@
 using System.Text;
+using CebuUpskilling.Backend.Controllers;
 using CebuUpskilling.Backend.Data;
+using CebuUpskilling.Backend.DTOs;
 using CebuUpskilling.Backend.Entities;
 using CebuUpskilling.Backend.Services;
+using CebuUpskilling.Backend.Validators;
+using FluentValidation;
+using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -47,6 +52,9 @@ builder.Services.AddScoped<IEntityService<Learner>, LearnerService>();
 builder.Services.AddScoped<LearnerService>();
 builder.Services.AddScoped<ISkillGapService, SkillGapService>();
 builder.Services.AddScoped<IAssessmentService, AssessmentService>();
+
+builder.Services.AddFluentValidationAutoValidation();
+builder.Services.AddValidatorsFromAssemblyContaining<RegisterRequestValidator>();
 
 var jwtKey = builder.Configuration["Jwt:Key"]!;
 builder.Services.AddAuthentication(options =>

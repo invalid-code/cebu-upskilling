@@ -21,6 +21,9 @@ public class AuthController : ControllerBase
     [HttpPost("register")]
     public async Task<ActionResult<AuthResponse>> Register(RegisterRequest request)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
         _logger.LogInformation("POST /api/auth/register called for {Email}", request.EmailAddress);
         try
         {
@@ -38,6 +41,9 @@ public class AuthController : ControllerBase
     [HttpPost("register-company")]
     public async Task<ActionResult<CompanyRegisterResponse>> RegisterCompany(CompanyRegisterRequest request)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
         _logger.LogInformation("POST /api/auth/register-company called for {Email}, company {CompanyName}", request.EmailAddress, request.CompanyName);
         try
         {
@@ -55,6 +61,9 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     public async Task<ActionResult<AuthResponse>> Login(LoginRequest request)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
         _logger.LogInformation("POST /api/auth/login called for {Email}", request.EmailAddress);
         try
         {
@@ -73,6 +82,9 @@ public class AuthController : ControllerBase
     [HttpPatch("profile")]
     public async Task<ActionResult<AuthResponse>> UpdateProfile(UpdateProfileRequest request)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
         var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
         _logger.LogInformation("PATCH /api/auth/profile called for UserId: {UserId}", userId);
         try
