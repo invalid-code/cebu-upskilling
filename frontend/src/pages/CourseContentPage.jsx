@@ -209,7 +209,8 @@ export default function CourseContentPage() {
 
         <div style={styles.mainContent}>
           <VideoPlayer
-            lesson={courseData.currentLesson}
+            media={courseData.currentLesson.media}
+            lessonName={courseData.currentLesson.name}
             totalLessons={courseData.totalLessons}
             currentIndex={currentLessonIndex >= 0 ? currentLessonIndex : 0}
           />

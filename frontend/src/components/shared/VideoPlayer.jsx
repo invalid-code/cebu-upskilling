@@ -1,5 +1,5 @@
-import { Play, Pause, SkipForward, SkipBack, Maximize, Volume2 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { Play, Pause, SkipForward, SkipBack, Maximize, Volume2, VolumeX } from 'lucide-react';
 
 const styles = {
   container: {
@@ -8,25 +8,21 @@ const styles = {
     overflow: 'hidden',
     marginBottom: 20,
   },
-  videoArea: {
-    position: 'relative',
+  video: {
+    display: 'block',
+    width: '100%',
+    aspectRatio: '16/9',
+    background: '#000',
+  },
+  placeholder: {
     aspectRatio: '16/9',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    background: 'linear-gradient(135deg, #1a2e27 0%, #2d4a3f 100%)',
-  },
-  playButton: {
-    width: 80,
-    height: 80,
-    borderRadius: '50%',
-    background: 'rgba(255,255,255,0.2)',
-    border: '3px solid rgba(255,255,255,0.9)',
-    color: 'white',
-    display: 'grid',
-    placeItems: 'center',
-    cursor: 'pointer',
-    transition: 'transform 0.2s, background 0.2s',
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 14,
+    textAlign: 'center',
+    padding: 24,
   },
   lessonInfo: {
     position: 'absolute',
@@ -36,6 +32,7 @@ const styles = {
     padding: '24px 20px 16px',
     background: 'linear-gradient(transparent, rgba(0,0,0,0.6))',
     color: 'white',
+    pointerEvents: 'none',
   },
   lessonLabel: {
     fontSize: 11,
@@ -117,44 +114,100 @@ const styles = {
   },
 };
 
-export default function VideoPlayer({ lesson, totalLessons, currentIndex }) {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(258);
-  const [duration] = useState(1334);
+const formatTime = (seconds) => {
+  if (!Number.isFinite(seconds)) return '0:00';
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
 
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+export default function VideoPlayer({ media = [], lessonName, currentIndex = 0, totalLessons = 0 }) {
+  const videoRef = useRef(null);
+  const containerRef = useRef(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [muted, setMuted] = useState(false);
+
+  const videoMedia = media.find((m) => (m.type || '').toLowerCase().startsWith('video'));
+
+  useEffect(() => {
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
+  }, [videoMedia?.pathFile]);
+
+  if (!videoMedia) {
+    return (
+      <div style={styles.container}>
+        <div style={styles.placeholder}>
+          No video available for this lesson yet.
+        </div>
+      </div>
+    );
+  }
+
+  const togglePlay = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (video.paused) {
+      video.play();
+    } else {
+      video.pause();
+    }
   };
 
-  const progressPercent = (currentTime / duration) * 100;
+  const skip = (delta) => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.currentTime = Math.min(Math.max(0, video.currentTime + delta), video.duration || 0);
+  };
+
+  const toggleMute = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.muted = !video.muted;
+    setMuted(video.muted);
+  };
+
+  const handleProgressClick = (e) => {
+    const video = videoRef.current;
+    if (!video || !video.duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const percent = (e.clientX - rect.left) / rect.width;
+    video.currentTime = percent * video.duration;
+  };
+
+  const enterFullscreen = () => {
+    const container = containerRef.current;
+    if (container?.requestFullscreen) {
+      container.requestFullscreen();
+    }
+  };
+
+  const progressPercent = duration ? (currentTime / duration) * 100 : 0;
 
   return (
-    <div style={styles.container}>
-      <div style={styles.videoArea}>
-        <button
-          style={styles.playButton}
-          onClick={() => setIsPlaying(!isPlaying)}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'scale(1.05)';
-            e.currentTarget.style.background = 'rgba(255,255,255,0.3)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'scale(1)';
-            e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
-          }}
-        >
-          {isPlaying ? <Pause size={32} /> : <Play size={32} style={{ marginLeft: 4 }} />}
-        </button>
-
+    <div style={styles.container} ref={containerRef}>
+      <div style={{ position: 'relative' }}>
+        <video
+          ref={videoRef}
+          style={styles.video}
+          src={videoMedia.pathFile}
+          onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
+          onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+          onPlay={() => setIsPlaying(true)}
+          onPause={() => setIsPlaying(false)}
+          onEnded={() => setIsPlaying(false)}
+          onClick={togglePlay}
+        />
         <div style={styles.lessonInfo}>
           <div style={styles.lessonLabel}>
             Lesson {currentIndex + 1} of {totalLessons}
           </div>
-          <div style={styles.lessonTitle}>{lesson?.name}</div>
+          <div style={styles.lessonTitle}>{lessonName}</div>
           <div style={styles.lessonMeta}>
-            {lesson?.durationMinutes || 22} min · Watch at your own pace
+            {(videoMedia.mbSize || 0).toFixed(1)} MB · Watch at your own pace
           </div>
         </div>
       </div>
@@ -162,14 +215,7 @@ export default function VideoPlayer({ lesson, totalLessons, currentIndex }) {
       <div style={styles.controls}>
         <span style={styles.timeDisplay}>{formatTime(currentTime)}</span>
 
-        <div
-          style={styles.progressContainer}
-          onClick={(e) => {
-            const rect = e.currentTarget.getBoundingClientRect();
-            const percent = (e.clientX - rect.left) / rect.width;
-            setCurrentTime(Math.floor(percent * duration));
-          }}
-        >
+        <div style={styles.progressContainer} onClick={handleProgressClick}>
           <div style={{ ...styles.progressBar, width: `${progressPercent}%` }} />
           <div style={{ ...styles.progressThumb, left: `${progressPercent}%` }} />
         </div>
@@ -177,16 +223,23 @@ export default function VideoPlayer({ lesson, totalLessons, currentIndex }) {
         <span style={styles.timeDisplay}>{formatTime(duration)}</span>
 
         <div style={styles.rightControls}>
-          <button style={styles.controlButton}>
+          <button style={styles.controlButton} onClick={() => skip(-10)} aria-label="Skip back 10 seconds">
             <SkipBack size={16} />
           </button>
-          <button style={styles.controlButton}>
+          <button
+            style={{ ...styles.controlButton, ...styles.controlButtonPrimary }}
+            onClick={togglePlay}
+            aria-label={isPlaying ? 'Pause' : 'Play'}
+          >
+            {isPlaying ? <Pause size={16} /> : <Play size={16} style={{ marginLeft: 2 }} />}
+          </button>
+          <button style={styles.controlButton} onClick={() => skip(10)} aria-label="Skip forward 10 seconds">
             <SkipForward size={16} />
           </button>
-          <button style={styles.controlButton}>
-            <Volume2 size={16} />
+          <button style={styles.controlButton} onClick={toggleMute} aria-label={muted ? 'Unmute' : 'Mute'}>
+            {muted ? <VolumeX size={16} /> : <Volume2 size={16} />}
           </button>
-          <button style={styles.controlButton}>
+          <button style={styles.controlButton} onClick={enterFullscreen} aria-label="Fullscreen">
             <Maximize size={16} />
           </button>
         </div>

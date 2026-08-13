@@ -2,16 +2,20 @@ using System.Text;
 using CebuUpskilling.Backend.Data;
 using CebuUpskilling.Backend.Entities;
 using CebuUpskilling.Backend.Handlers;
+using CebuUpskilling.Backend.Options;
 using CebuUpskilling.Backend.Repositories;
 using CebuUpskilling.Backend.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services.Configure<R2Options>(builder.Configuration.GetSection(R2Options.SectionName));
 
 var myAllowSpecificOrigins = "_myAllowSpecificOrigins";
 
@@ -40,6 +44,7 @@ builder.Services.AddScoped<ILearnerSkillRepository, LearnerSkillRepository>();
 builder.Services.AddScoped<ILearnerAssessmentRepository, LearnerAssessmentRepository>();
 builder.Services.AddScoped<IAssessmentQuestionRepository, AssessmentQuestionRepository>();
 builder.Services.AddScoped<ILearnerStudyCourseRepository, LearnerStudyCourseRepository>();
+builder.Services.AddScoped<IMediaRepository, MediaRepository>();
 
 builder.Services.AddScoped<IEntityService<Course>, CourseService>();
 builder.Services.AddScoped<IEntityService<Post>, PostService>();
@@ -52,6 +57,8 @@ builder.Services.AddScoped<IEnrollmentsService, EnrollmentsService>();
 builder.Services.AddScoped<IStatsService, StatsService>();
 builder.Services.AddScoped<ICoursesPageService, CoursesPageService>();
 builder.Services.AddScoped<ICourseContentService, CourseContentService>();
+builder.Services.AddScoped<IObjectStorageService, R2StorageService>();
+builder.Services.AddScoped<IMediaService, MediaService>();
 
 var jwtKey = builder.Configuration["Jwt:Key"]!;
 builder.Services.AddAuthentication(options =>
