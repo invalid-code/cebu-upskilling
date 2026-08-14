@@ -78,10 +78,22 @@ public class AuthService : IAuthService
     {
         _logger.LogInformation("Registration attempt for email {Email}", request.EmailAddress);
 
+        if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 6)
+        {
+            _logger.LogWarning("Registration failed: weak password for email {Email}", request.EmailAddress);
+            throw new InvalidOperationException("Password must be at least 6 characters long");
+        }
+
         if (request.Role != "Learner" && request.Role != "Recruiter")
         {
             _logger.LogWarning("Registration failed: role '{Role}' is not allowed", request.Role);
             throw new InvalidOperationException($"Role '{request.Role}' is not allowed");
+        }
+
+        if (request.Role == "Learner" && string.IsNullOrWhiteSpace(request.Resume))
+        {
+            _logger.LogWarning("Registration failed: learner resume is required for email {Email}", request.EmailAddress);
+            throw new InvalidOperationException("Resume is required for learners");
         }
 
         if (await _context.Users.AnyAsync(u => u.EmailAddress == request.EmailAddress))

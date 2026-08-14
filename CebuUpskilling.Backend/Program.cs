@@ -10,6 +10,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
@@ -64,6 +66,7 @@ builder.Services.AddScoped<IApplicationRepository, ApplicationRepository>();
 builder.Services.AddScoped<IMediaRepository, MediaRepository>();
 
 builder.Services.AddScoped<IEntityService<Course>, CourseService>();
+
 builder.Services.AddScoped<IEntityService<Post>, PostService>();
 builder.Services.AddScoped<IEntityService<AppUser>, AppUserService>();
 builder.Services.AddScoped<IEntityService<LearnerAssessment>, LearnerAssessmentService>();

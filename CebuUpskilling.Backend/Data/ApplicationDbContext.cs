@@ -167,5 +167,13 @@ public class ApplicationDbContext : DbContext
             .HasOne(q => q.Company)
             .WithMany()
             .HasForeignKey(q => q.CompanyId);
+
+        modelBuilder.Entity<Application>(entity =>
+        {
+            entity.Property(a => a.AppliedAt)
+                .HasColumnType("timestamp with time zone");
+            entity.Property(a => a.SavedAt)
+                .HasColumnType("timestamp with time zone");
+        });
     }
 }

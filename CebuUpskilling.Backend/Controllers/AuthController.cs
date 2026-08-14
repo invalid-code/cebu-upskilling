@@ -55,6 +55,7 @@ public class AuthController : BaseEntityController<AppUser>
         }
     }
 
+    [AllowAnonymous]
     [HttpPost("login")]
     public async Task<ActionResult<AuthResponse>> Login(LoginRequest request)
     {
