@@ -66,7 +66,7 @@ public class AssessmentService : IAssessmentService
         var learner = await _learners.GetByUserIdAsync(userId);
         if (learner == null)
         {
-            _logger.LogInformation("No learner profile for user {UserId}", userId);
+            _logger.LogInformation("No learner profile found for user {UserId}", userId);
             return new List<AssessmentResultResponse>();
         }
 
@@ -90,14 +90,18 @@ public class AssessmentService : IAssessmentService
         var user = await _users.GetByIdAsync(userId);
         if (user?.TargetRole == null)
         {
-            _logger.LogInformation("User {UserId} has no target role", userId);
+            _logger.LogInformation("User {UserId} has no target role set", userId);
             return null;
         }
 
         var roleSkills = await _roleSkills.GetByTargetRoleWithSkillAsync(user.TargetRole);
 
         var learner = await _learners.GetByUserIdAsync(userId);
-        if (learner == null) return null;
+        if (learner == null)
+        {
+            _logger.LogInformation("No learner profile found for user {UserId}", userId);
+            return null;
+        }
 
         var learnerSkills = await _learnerSkills.GetByLearnerIdWithSkillAsync(learner.LearnerId);
 
@@ -145,14 +149,18 @@ public class AssessmentService : IAssessmentService
         var user = await _users.GetByIdAsync(userId);
         if (user?.TargetRole == null)
         {
-            _logger.LogInformation("User {UserId} has no target role", userId);
+            _logger.LogInformation("User {UserId} has no target role set", userId);
             return null;
         }
 
         var roleSkills = await _roleSkills.GetByTargetRoleWithSkillAsync(user.TargetRole);
 
         var learner = await _learners.GetByUserIdAsync(userId);
-        if (learner == null) return null;
+        if (learner == null)
+        {
+            _logger.LogInformation("No learner profile found for user {UserId}", userId);
+            return null;
+        }
 
         var learnerSkills = await _learnerSkills.GetByLearnerIdWithSkillAsync(learner.LearnerId);
         var learnerSkillMap = learnerSkills.ToDictionary(ls => ls.SkillId);
@@ -226,7 +234,7 @@ public class AssessmentService : IAssessmentService
         var learner = await _learners.GetByUserIdAsync(userId);
         if (learner == null)
         {
-            _logger.LogWarning("No learner profile for user {UserId}", userId);
+            _logger.LogWarning("No learner profile found for user {UserId}", userId);
             return null;
         }
 

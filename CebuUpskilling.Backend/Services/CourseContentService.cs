@@ -34,17 +34,35 @@ public class CourseContentService : ICourseContentService
 
     public async Task<CourseContentResponse?> GetCourseContentAsync(int userId, int courseId, int? lessonId = null)
     {
+        _logger.LogDebug("Getting course content for user {UserId}, course {CourseId}", userId, courseId);
+
         var learner = await _learners.GetByUserIdAsync(userId);
-        if (learner == null) return null;
+        if (learner == null)
+        {
+            _logger.LogInformation("No learner profile found for user {UserId}", userId);
+            return null;
+        }
 
         var enrollment = await _learnerStudyCourses.GetByLearnerAndCourseAsync(learner.LearnerId, courseId);
-        if (enrollment == null) return null;
+        if (enrollment == null)
+        {
+            _logger.LogInformation("No enrollment found for user {UserId} in course {CourseId}", userId, courseId);
+            return null;
+        }
 
         var course = await _courses.GetWithLessonsAsync(courseId);
-        if (course == null) return null;
+        if (course == null)
+        {
+            _logger.LogWarning("Course {CourseId} not found", courseId);
+            return null;
+        }
 
         var lessons = await _lessons.GetByCourseIdWithContentAsync(courseId);
-        if (lessons.Count == 0) return null;
+        if (lessons.Count == 0)
+        {
+            _logger.LogWarning("No lessons found for course {CourseId}", courseId);
+            return null;
+        }
 
         var currentLessonId = lessonId ?? lessons.First().LessonId;
         var currentLesson = lessons.FirstOrDefault(l => l.LessonId == currentLessonId) ?? lessons.First();
@@ -70,29 +88,57 @@ public class CourseContentService : ICourseContentService
 
     public async Task<LessonDetailDto?> GetLessonDetailAsync(int userId, int lessonId)
     {
+        _logger.LogDebug("Getting lesson detail for user {UserId}, lesson {LessonId}", userId, lessonId);
+
         var learner = await _learners.GetByUserIdAsync(userId);
-        if (learner == null) return null;
+        if (learner == null)
+        {
+            _logger.LogInformation("No learner profile found for user {UserId}", userId);
+            return null;
+        }
 
         var lesson = await _lessons.GetWithContentAsync(lessonId);
-        if (lesson == null) return null;
+        if (lesson == null)
+        {
+            _logger.LogWarning("Lesson {LessonId} not found", lessonId);
+            return null;
+        }
 
         return MapToLessonDetailDto(lesson);
     }
 
     public async Task<LessonProgressDto?> UpdateLessonProgressAsync(int userId, int lessonId, int progressPercent)
     {
+        _logger.LogDebug("Updating lesson progress for user {UserId}, lesson {LessonId} to {ProgressPercent}%", userId, lessonId, progressPercent);
+
         var learner = await _learners.GetByUserIdAsync(userId);
-        if (learner == null) return null;
+        if (learner == null)
+        {
+            _logger.LogInformation("No learner profile found for user {UserId}", userId);
+            return null;
+        }
 
         var lesson = await _lessons.GetByIdAsync(lessonId);
-        if (lesson == null) return null;
+        if (lesson == null)
+        {
+            _logger.LogWarning("Lesson {LessonId} not found", lessonId);
+            return null;
+        }
 
         var enrollment = await _learnerStudyCourses.GetByLearnerAndCourseAsync(learner.LearnerId, lesson.CourseId);
-        if (enrollment == null) return null;
+        if (enrollment == null)
+        {
+            _logger.LogInformation("No enrollment found for user {UserId} in course {CourseId}", userId, lesson.CourseId);
+            return null;
+        }
 
         var allLessons = await _lessons.GetByCourseIdAsync(lesson.CourseId);
         var lessonIndex = allLessons.FindIndex(l => l.LessonId == lessonId);
-        if (lessonIndex < 0) return null;
+        if (lessonIndex < 0)
+        {
+            _logger.LogWarning("Lesson {LessonId} not found in course {CourseId}", lessonId, lesson.CourseId);
+            return null;
+        }
 
         var totalLessons = allLessons.Count;
         var lessonWeight = 100.0 / totalLessons;
@@ -105,6 +151,8 @@ public class CourseContentService : ICourseContentService
         enrollment.LastOnline = DateTime.UtcNow;
 
         await _learnerStudyCourses.SaveChangesAsync();
+
+        _logger.LogInformation("Updated progress for user {UserId}, lesson {LessonId}: overall {ProgressPercent}%", userId, lessonId, newOverallProgress);
 
         return new LessonProgressDto(
             LessonId: lessonId,

@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { validateEmail, validatePassword, validateRequired, validateBirthday } from '../utils/validation';
 import Button from '../components/ui/Button';
+import { extractResumeText } from '../utils/resumeText';
 
 const styles = {
   container: {
@@ -62,6 +63,18 @@ const styles = {
     color: 'var(--ink)',
     marginBottom: 4,
     fontSize: 14,
+  },
+  fileInput: {
+    width: '100%',
+    background: 'var(--surface)',
+    border: '1px solid var(--line)',
+    borderRadius: 10,
+    minHeight: 42,
+    padding: '9px 12px',
+    color: 'var(--ink)',
+    marginBottom: 12,
+    fontSize: 14,
+    cursor: 'pointer',
   },
   row: {
     display: 'grid',
@@ -135,8 +148,24 @@ export default function RegisterPage() {
   const [fieldErrors, setFieldErrors] = useState(initialFieldErrors);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resumeFile, setResumeFile] = useState(null);
   const { register, registerCompany } = useAuth();
   const navigate = useNavigate();
+
+  const handleResumeFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const allowed = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    const isDocx = file.name.toLowerCase().endsWith('.docx');
+    if (!allowed.includes(file.type) && !isDocx) {
+      setResumeFile(null);
+      setError('Resume must be a PDF or DOCX file only');
+      e.target.value = '';
+      return;
+    }
+    setError('');
+    setResumeFile(file);
+  };
 
   const update = (field) => (e) => {
     setForm({ ...form, [field]: e.target.value });
@@ -176,9 +205,18 @@ export default function RegisterPage() {
         });
         navigate('/business-dashboard');
         return;
-      } else {
-        await register(form);
       }
+      const payload = { ...form, birthday: form.birthday || null };
+      if (resumeFile) {
+        const resumeText = await extractResumeText(resumeFile);
+        if (!resumeText) {
+          setError('Could not read the resume. Ensure it contains selectable text.');
+          setLoading(false);
+          return;
+        }
+        payload.resume = resumeText;
+      }
+      await register(payload);
       navigate('/');
     } catch (err) {
       setError(err.message || 'Registration failed');
@@ -303,6 +341,13 @@ export default function RegisterPage() {
                 placeholder="Address (optional)"
                 value={form.address}
                 onChange={update('address')}
+              />
+              <input
+                style={styles.fileInput}
+                type="file"
+                accept=".pdf,.docx"
+                aria-label="Resume"
+                onChange={handleResumeFile}
               />
               <select
                 style={styles.field}

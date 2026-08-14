@@ -1,4 +1,5 @@
 using CebuUpskilling.Backend.Data;
+using CebuUpskilling.Backend.Services;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -71,6 +72,14 @@ public class ProductionApiFactory : WebApplicationFactory<Program>
         {
             logging.ClearProviders();
             logging.AddConsole();
+        });
+
+        // The media endpoint talks to R2 storage; tests must not require R2
+        // credentials, so swap in an in-memory fake. This registration is
+        // applied after Program.cs services, so it wins.
+        builder.ConfigureServices(services =>
+        {
+            services.AddScoped<IObjectStorageService, FakeObjectStorageService>();
         });
     }
 

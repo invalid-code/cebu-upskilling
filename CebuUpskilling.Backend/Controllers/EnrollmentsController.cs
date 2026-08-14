@@ -26,6 +26,7 @@ public class EnrollmentsController : BaseEntityController<LearnerStudyCourse>
     public override async Task<ActionResult<List<LearnerStudyCourse>>> GetAll()
     {
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        _logger.LogInformation("HTTP GET /api/enrollments called by user {UserId}", userId);
 
         var enrollments = await _enrollmentsService.GetMyEnrollmentsAsync(userId);
         if (enrollments == null)
@@ -39,6 +40,7 @@ public class EnrollmentsController : BaseEntityController<LearnerStudyCourse>
     public override async Task<ActionResult<LearnerStudyCourse>> Create(LearnerStudyCourse entity)
     {
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        _logger.LogInformation("HTTP POST /api/enrollments called by user {UserId} for course {CourseId}", userId, entity.CourseId);
 
         var outcome = await _enrollmentsService.EnrollAsync(userId, entity.CourseId);
 

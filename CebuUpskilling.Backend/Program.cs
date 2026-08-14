@@ -12,10 +12,14 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using Serilog;
 
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Host.UseSerilog((context, configuration) =>
+    configuration.ReadFrom.Configuration(context.Configuration));
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -29,7 +33,8 @@ builder.Services.Configure<OpenRouterOptions>(builder.Configuration.GetSection(O
 var openRouterOptions = builder.Configuration.GetSection(OpenRouterOptions.SectionName).Get<OpenRouterOptions>();
 builder.Services.AddHttpClient<IOpenRouterService, OpenRouterService>(client =>
 {
-    client.BaseAddress = new Uri(openRouterOptions?.BaseUrl ?? "https://openrouter.ai/api/v1");
+    var baseUrl = openRouterOptions?.BaseUrl ?? "https://openrouter.ai/api/v1";
+    client.BaseAddress = new Uri(baseUrl.EndsWith('/') ? baseUrl : baseUrl + "/");
 });
 
 var myAllowSpecificOrigins = "_myAllowSpecificOrigins";
@@ -140,11 +145,13 @@ app.MapControllers();
 app.MapHealthChecks("/health");
 
 app.Lifetime.ApplicationStarted.Register(() =>
-    app.Services.GetRequiredService<ILogger<Program>>().LogInformation("Application started"));
+    Log.Information("Application started"));
 
 app.Lifetime.ApplicationStopping.Register(() =>
-    app.Services.GetRequiredService<ILogger<Program>>().LogInformation("Application is shutting down"));
+    Log.Information("Application is shutting down"));
 
 app.Run();
+
+Log.CloseAndFlush();
 
 public partial class Program { }

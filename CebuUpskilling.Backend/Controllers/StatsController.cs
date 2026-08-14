@@ -26,7 +26,7 @@ public class StatsController : ControllerBase
     public async Task<IActionResult> GetWeeklyStats()
     {
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        _logger.LogInformation("GET /api/stats/week called by user {UserId}", userId);
+        _logger.LogInformation("HTTP GET /api/stats/week called by user {UserId}", userId);
 
         var learner = await _context.Learners.FirstOrDefaultAsync(l => l.UserId == userId);
         if (learner == null)
