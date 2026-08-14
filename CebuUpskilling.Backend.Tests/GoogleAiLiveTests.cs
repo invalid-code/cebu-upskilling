@@ -1,11 +1,12 @@
 using CebuUpskilling.Backend.Options;
 using CebuUpskilling.Backend.Services;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 
 namespace CebuUpskilling.Backend.Tests;
 
 [Trait("Category", "ExternalIntegration")]
-public class OpenRouterLiveTests
+public class GoogleAiLiveTests
 {
     private static readonly string[] KnownSkills = new[]
     {
@@ -13,20 +14,18 @@ public class OpenRouterLiveTests
         "Python", "SQL", "Git", "REST APIs", "Vue.js", "Angular", "Docker", "AWS", "Figma",
     };
 
-    private static OpenRouterService CreateService()
+    private static GoogleAiService CreateService()
     {
-        var options = new OpenRouterOptions
+        var options = new GoogleAiOptions
         {
-            ApiKey = ExternalIntegrationSettings.OpenRouterApiKey!,
-            Model = Environment.GetEnvironmentVariable("OpenRouter__Model") ?? "nvidia/nemotron-3-ultra-550b-a55b:free",
-            BaseUrl = Environment.GetEnvironmentVariable("OpenRouter__BaseUrl") ?? "https://openrouter.ai/api/v1",
-            AppUrl = Environment.GetEnvironmentVariable("OpenRouter__AppUrl") ?? "https://cebu-upskilling.vercel.app",
-            AppName = Environment.GetEnvironmentVariable("OpenRouter__AppName") ?? "Cebu Upskilling",
+            ApiKey = ExternalIntegrationSettings.GoogleAiApiKey!,
+            Model = Environment.GetEnvironmentVariable("GoogleAi__Model") ?? "gemini-3.5-flash",
+            BaseUrl = Environment.GetEnvironmentVariable("GoogleAi__BaseUrl") ?? "https://generativelanguage.googleapis.com/v1beta",
         };
 
         var baseUrl = options.BaseUrl.EndsWith('/') ? options.BaseUrl : options.BaseUrl + "/";
         var client = new HttpClient { BaseAddress = new Uri(baseUrl), Timeout = TimeSpan.FromSeconds(60) };
-        return new OpenRouterService(client, Microsoft.Extensions.Options.Options.Create(options), NullLogger<OpenRouterService>.Instance);
+        return new GoogleAiService(client, Microsoft.Extensions.Options.Options.Create(options), NullLogger<GoogleAiService>.Instance);
     }
 
     [LiveExternalIntegrationFact]

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { validateEmail, validatePassword, validateRequired, validateBirthday } from '../utils/validation';
+import { useToast } from '../context/ToastContext';
 import Button from '../components/ui/Button';
 import { extractResumeText } from '../utils/resumeText';
 
@@ -149,7 +150,8 @@ export default function RegisterPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [resumeFile, setResumeFile] = useState(null);
-  const { register, registerCompany } = useAuth();
+const { register, registerCompany } = useAuth();
+  const { showToast } = useToast();
   const navigate = useNavigate();
 
   const handleResumeFile = (e) => {
@@ -192,6 +194,7 @@ export default function RegisterPage() {
     setError('');
     if (!validateForm()) return;
     setLoading(true);
+    showToast('Creating your account and parsing your resume…');
     try {
       if (role === 'recruiter') {
         await registerCompany({
@@ -216,7 +219,17 @@ export default function RegisterPage() {
         }
         payload.resume = resumeText;
       }
-      await register(payload);
+      const res = await register(payload);
+      const parsed = res?.parsedSkillCount ?? 0;
+      const assessments = res?.assessmentCount ?? 0;
+      if (parsed > 0) {
+        showToast(
+          `Parsed ${parsed} skill${parsed === 1 ? '' : 's'}` +
+          (assessments > 0 ? ` · ${assessments} assessment${assessments === 1 ? '' : 's'} ready to verify` : '')
+        );
+      } else {
+        showToast('Account created');
+      }
       navigate('/');
     } catch (err) {
       setError(err.message || 'Registration failed');

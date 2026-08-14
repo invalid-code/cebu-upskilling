@@ -46,7 +46,9 @@ public record AuthResponse(
     string? TargetRole,
     string? Address,
     bool RemoteFriendly,
-    string Token
+    string Token,
+    int ParsedSkillCount = 0,
+    int AssessmentCount = 0
 );
 
 public record CompanyRegisterResponse(

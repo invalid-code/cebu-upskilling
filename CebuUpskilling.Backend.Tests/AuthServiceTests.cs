@@ -1,4 +1,6 @@
 using CebuUpskilling.Backend.DTOs;
+using CebuUpskilling.Backend.Entities;
+using CebuUpskilling.Backend.Repositories;
 using CebuUpskilling.Backend.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -8,6 +10,23 @@ namespace CebuUpskilling.Backend.Tests;
 
 public class AuthServiceTests
 {
+private class FakeGoogleAiService : IGoogleAiService
+    {
+        private readonly List<string> _skills;
+        private readonly List<GeneratedAssessmentQuestion> _questions;
+
+        public FakeGoogleAiService(List<string>? skills = null, List<GeneratedAssessmentQuestion>? questions = null)
+        {
+            _skills = skills ?? new List<string>();
+            _questions = questions ?? new List<GeneratedAssessmentQuestion>();
+        }
+
+        public Task<List<string>> ParseSkillsFromResumeAsync(string resumeText, CancellationToken ct = default)
+            => Task.FromResult(new List<string>(_skills));
+
+        public Task<List<GeneratedAssessmentQuestion>> GenerateAssessmentQuestionsAsync(string skillName, int count = 5, CancellationToken ct = default)
+            => Task.FromResult(new List<GeneratedAssessmentQuestion>(_questions));
+    }
     private static IConfiguration CreateConfig() => new ConfigurationBuilder()
         .AddInMemoryCollection(new Dictionary<string, string?>
         {
@@ -17,8 +36,15 @@ public class AuthServiceTests
         })
         .Build();
 
-    private static AuthService CreateService(Data.ApplicationDbContext context) => new(
+private static AuthService CreateService(Data.ApplicationDbContext context, IGoogleAiService? aiService = null) => new(
         context,
+        new SkillParsingService(
+            aiService ?? new FakeGoogleAiService(),
+            new SkillRepository(context),
+            new LearnerRepository(context),
+            new LearnerSkillRepository(context),
+            new LearnerAssessmentRepository(context),
+            NullLogger<SkillParsingService>.Instance),
         new JwtTokenService(CreateConfig(), NullLogger<JwtTokenService>.Instance),
         NullLogger<AuthService>.Instance
     );
@@ -107,6 +133,78 @@ public class AuthServiceTests
 
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => service.RegisterAsync(NewRegisterRequest()));
+    }
+
+    [Fact]
+    public async Task RegisterAsync_WithResumeParsesAndCreatesLearnerSkills()
+    {
+        var context = TestDbContextFactory.Create();
+
+        context.Skills.Add(new Skill { Name = "JavaScript" });
+        context.Skills.Add(new Skill { Name = "React" });
+        context.Skills.Add(new Skill { Name = "Docker" });
+        await context.SaveChangesAsync();
+
+        var aiService = new FakeGoogleAiService(new List<string> { "JavaScript", "React", "NonExistent" });
+        var service = CreateService(context, aiService);
+
+        var result = await service.RegisterAsync(NewRegisterRequest());
+
+        var learner = await context.Learners.SingleAsync(l => l.UserId == result.UserId);
+        var learnerSkills = await context.LearnerSkills
+            .Where(ls => ls.LearnerId == learner.LearnerId)
+            .ToListAsync();
+
+        Assert.Equal(2, learnerSkills.Count);
+        var skillIds = learnerSkills.Select(ls => ls.SkillId).ToHashSet();
+        var jsSkill = await context.Skills.SingleAsync(s => s.Name == "JavaScript");
+        var reactSkill = await context.Skills.SingleAsync(s => s.Name == "React");
+        Assert.Contains(jsSkill.SkillId, skillIds);
+        Assert.Contains(reactSkill.SkillId, skillIds);
+    }
+
+    [Fact]
+    public async Task RegisterAsync_WithResume_GeneratesAssessmentQuestionsForParsedSkills()
+    {
+        var context = TestDbContextFactory.Create();
+
+        context.Skills.Add(new Skill { Name = "JavaScript" });
+        context.Skills.Add(new Skill { Name = "React" });
+        await context.SaveChangesAsync();
+
+        var generatedQuestions = new List<GeneratedAssessmentQuestion>
+        {
+            new("What is a closure?", "A", "B", "C", "D", 0),
+            new("What is JSX?", "A", "B", "C", "D", 1),
+        };
+        var aiService = new FakeGoogleAiService(
+            new List<string> { "JavaScript", "React" },
+            generatedQuestions);
+
+        var service = CreateService(context, aiService);
+
+        await service.RegisterAsync(NewRegisterRequest());
+
+        var saved = await context.AssessmentQuestions.ToListAsync();
+        Assert.Equal(4, saved.Count);
+        Assert.All(saved, q => Assert.Equal(AssessmentSource.AI, q.Source));
+        var jsSkillId = (await context.Skills.SingleAsync(s => s.Name == "JavaScript")).SkillId;
+        var reactSkillId = (await context.Skills.SingleAsync(s => s.Name == "React")).SkillId;
+        Assert.Contains(saved, q => q.SkillId == jsSkillId);
+        Assert.Contains(saved, q => q.SkillId == reactSkillId);
+    }
+
+    [Fact]
+    public async Task RegisterAsync_LearnerWithoutResume_Throws()
+    {
+        var context = TestDbContextFactory.Create();
+        var service = CreateService(context);
+
+        var request = NewRegisterRequest() with { Resume = null };
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.RegisterAsync(request));
+        Assert.Equal("Resume is required for learners", ex.Message);
     }
 
     [Fact]

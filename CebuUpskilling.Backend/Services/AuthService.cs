@@ -65,13 +65,19 @@ public interface IAuthService
 
 public class AuthService : IAuthService
 {
-    private readonly ApplicationDbContext _context;
+private readonly ApplicationDbContext _context;
+    private readonly ISkillParsingService _skillParsingService;
     private readonly IJwtTokenService _tokenService;
     private readonly ILogger<AuthService> _logger;
 
-    public AuthService(ApplicationDbContext context, IJwtTokenService tokenService, ILogger<AuthService> logger)
+    public AuthService(
+        ApplicationDbContext context,
+        ISkillParsingService skillParsingService,
+        IJwtTokenService tokenService,
+        ILogger<AuthService> logger)
     {
         _context = context;
+        _skillParsingService = skillParsingService;
         _tokenService = tokenService;
         _logger = logger;
     }
@@ -121,6 +127,8 @@ public class AuthService : IAuthService
         await _context.SaveChangesAsync();
         _logger.LogInformation("User registered successfully: {UserId} ({Email}), Role: {Role}", user.UserId, user.EmailAddress, user.Role);
 
+        ParseSkillsResult? parseResult = null;
+
         if (request.Role == "Learner")
         {
             var learner = new Learner { UserId = user.UserId, IsPremium = false };
@@ -150,11 +158,33 @@ public class AuthService : IAuthService
                         learnerSkills.Count, user.UserId, request.TargetRole);
                 }
             }
+
+            var resumeText = request.Resume ?? string.Empty;
+            try
+            {
+                parseResult = await _skillParsingService.ParseAndCreateAssessmentsAsync(user.UserId, resumeText, CancellationToken.None);
+                _logger.LogInformation("Auto-parsed resume skills and created assessments for user {UserId}", user.UserId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Resume skill parsing failed during registration for user {UserId}", user.UserId);
+            }
         }
 
         var token = _tokenService.GenerateToken(user);
 
-        return new AuthResponse(user.UserId, user.FirstName, user.LastName, user.EmailAddress, user.Role, user.TargetRole, user.Address, user.RemoteFriendly, token);
+        return new AuthResponse(
+            user.UserId,
+            user.FirstName,
+            user.LastName,
+            user.EmailAddress,
+            user.Role,
+            user.TargetRole,
+            user.Address,
+            user.RemoteFriendly,
+            token,
+            parseResult?.Skills.Count ?? 0,
+            parseResult?.Skills.Count(s => s.AssessmentId != null) ?? 0);
     }
 
     public async Task<CompanyRegisterResponse> CompanyRegisterAsync(CompanyRegisterRequest request)

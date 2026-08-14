@@ -10,7 +10,7 @@ namespace CebuUpskilling.Backend.Tests;
 
 public class AssessmentServiceTests
 {
-    private class FakeOpenRouterService : IOpenRouterService
+    private class FakeGoogleAiService : IGoogleAiService
     {
         public int GenerationCalls { get; private set; }
 
@@ -26,7 +26,7 @@ public class AssessmentServiceTests
         }
     }
 
-    private static AssessmentService CreateService(ApplicationDbContext context, FakeOpenRouterService openRouterService) => new(
+    private static AssessmentService CreateService(ApplicationDbContext context, FakeGoogleAiService aiService) => new(
         new AppUserRepository(context),
         new RoleSkillRepository(context),
         new LearnerRepository(context),
@@ -35,13 +35,13 @@ public class AssessmentServiceTests
         new AssessmentQuestionRepository(context),
         new SkillRepository(context),
         new RecruiterRepository(context),
-        openRouterService,
+        aiService,
         NullLogger<AssessmentService>.Instance
     );
 
     private static async Task<(AssessmentService Service, int UserId)> CreateLearnerWithSkillAsync(
         ApplicationDbContext context,
-        FakeOpenRouterService openRouterService)
+        FakeGoogleAiService aiService)
     {
         var user = new AppUser
         {
@@ -61,7 +61,7 @@ public class AssessmentServiceTests
         context.Skills.Add(skill);
         await context.SaveChangesAsync();
 
-        var service = CreateService(context, openRouterService);
+        var service = CreateService(context, aiService);
         var start = await service.StartAssessmentAsync(user.UserId, new StartAssessmentRequest(skill.SkillId));
         Assert.NotNull(start);
 
@@ -96,8 +96,8 @@ public class AssessmentServiceTests
     public async Task GetQuestionsAsync_WhenNoQuestionsExist_GeneratesAndPersistsAITargetedQuestions()
     {
         var context = TestDbContextFactory.Create();
-        var openRouter = new FakeOpenRouterService { Questions = SampleQuestions() };
-        var (service, userId) = await CreateLearnerWithSkillAsync(context, openRouter);
+        var aiService = new FakeGoogleAiService { Questions = SampleQuestions() };
+        var (service, userId) = await CreateLearnerWithSkillAsync(context, aiService);
 
         var skill = await context.Skills.SingleAsync(s => s.Name == "JavaScript");
         var assessment = await context.LearnerAssessments.SingleAsync(a => a.Learner.UserId == userId);
@@ -115,7 +115,7 @@ public class AssessmentServiceTests
             Assert.Equal("AI-generated", q.Source);
             Assert.Null(q.CompanyName);
         });
-        Assert.Equal(1, openRouter.GenerationCalls);
+        Assert.Equal(1, aiService.GenerationCalls);
 
         var saved = await context.AssessmentQuestions
             .Where(q => q.SkillId == skill.SkillId)
@@ -136,8 +136,8 @@ public class AssessmentServiceTests
     public async Task GetQuestionsAsync_WhenQuestionsExist_ReusesStoredQuestionsWithoutCallingAI()
     {
         var context = TestDbContextFactory.Create();
-        var openRouter = new FakeOpenRouterService { Questions = SampleQuestions() };
-        var (service, userId) = await CreateLearnerWithSkillAsync(context, openRouter);
+        var aiService = new FakeGoogleAiService { Questions = SampleQuestions() };
+        var (service, userId) = await CreateLearnerWithSkillAsync(context, aiService);
 
         var skill = await context.Skills.SingleAsync(s => s.Name == "JavaScript");
         context.AssessmentQuestions.Add(new AssessmentQuestion
@@ -155,15 +155,15 @@ public class AssessmentServiceTests
 
         Assert.NotNull(result);
         Assert.Single(result!.Questions);
-        Assert.Equal(0, openRouter.GenerationCalls);
+        Assert.Equal(0, aiService.GenerationCalls);
     }
 
     [Fact]
     public async Task GetQuestionsAsync_WhenAIGenerationReturnsNothing_ReturnsEmptyQuestions()
     {
         var context = TestDbContextFactory.Create();
-        var openRouter = new FakeOpenRouterService { Questions = new List<GeneratedAssessmentQuestion>() };
-        var (service, userId) = await CreateLearnerWithSkillAsync(context, openRouter);
+        var aiService = new FakeGoogleAiService { Questions = new List<GeneratedAssessmentQuestion>() };
+        var (service, userId) = await CreateLearnerWithSkillAsync(context, aiService);
 
         var assessment = await context.LearnerAssessments.SingleAsync(a => a.Learner.UserId == userId);
 
@@ -171,15 +171,15 @@ public class AssessmentServiceTests
 
         Assert.NotNull(result);
         Assert.Empty(result!.Questions);
-        Assert.Equal(1, openRouter.GenerationCalls);
+        Assert.Equal(1, aiService.GenerationCalls);
     }
 
     [Fact]
     public async Task GetQuestionsAsync_WhenCompanyQuestionsExist_PrefersCompanyQuestions()
     {
         var context = TestDbContextFactory.Create();
-        var openRouter = new FakeOpenRouterService { Questions = SampleQuestions() };
-        var (service, userId) = await CreateLearnerWithSkillAsync(context, openRouter);
+        var aiService = new FakeGoogleAiService { Questions = SampleQuestions() };
+        var (service, userId) = await CreateLearnerWithSkillAsync(context, aiService);
 
         var skill = await context.Skills.SingleAsync(s => s.Name == "JavaScript");
         var company = new Company { Name = "Acme Corp" };
@@ -208,15 +208,15 @@ public class AssessmentServiceTests
         Assert.False(result.Proctored);
         Assert.Equal("Company", result.Questions[0].Source);
         Assert.Equal("Acme Corp", result.Questions[0].CompanyName);
-        Assert.Equal(0, openRouter.GenerationCalls);
+        Assert.Equal(0, aiService.GenerationCalls);
     }
 
     [Fact]
     public async Task CreateCompanyQuestionAsync_ByRecruiter_CreatesAndTagsCompanyQuestion()
     {
         var context = TestDbContextFactory.Create();
-        var openRouter = new FakeOpenRouterService();
-        var service = CreateService(context, openRouter);
+        var aiService = new FakeGoogleAiService();
+        var service = CreateService(context, aiService);
 
         var skill = new Skill { Name = "React", Category = "Frontend" };
         context.Skills.Add(skill);
@@ -257,8 +257,8 @@ public class AssessmentServiceTests
     public async Task CreateCompanyQuestionAsync_ByNonRecruiter_ReturnsNull()
     {
         var context = TestDbContextFactory.Create();
-        var openRouter = new FakeOpenRouterService();
-        var service = CreateService(context, openRouter);
+        var aiService = new FakeGoogleAiService();
+        var service = CreateService(context, aiService);
 
         var skill = new Skill { Name = "React", Category = "Frontend" };
         context.Skills.Add(skill);

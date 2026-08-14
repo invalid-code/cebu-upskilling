@@ -2,7 +2,7 @@ using CebuUpskilling.Backend.DTOs;
 
 namespace CebuUpskilling.Backend.Services;
 
-public interface IOpenRouterService
+public interface IGoogleAiService
 {
     Task<List<string>> ParseSkillsFromResumeAsync(string resumeText, CancellationToken ct = default);
     Task<List<GeneratedAssessmentQuestion>> GenerateAssessmentQuestionsAsync(string skillName, int count = 5, CancellationToken ct = default);

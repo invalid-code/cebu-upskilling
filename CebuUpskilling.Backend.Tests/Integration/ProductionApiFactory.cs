@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Npgsql;
 
 namespace CebuUpskilling.Backend.Tests.Integration;
@@ -68,17 +69,21 @@ public class ProductionApiFactory : WebApplicationFactory<Program>
             });
         });
 
-        builder.ConfigureLogging(logging =>
+builder.ConfigureLogging(logging =>
         {
             logging.ClearProviders();
             logging.AddConsole();
         });
 
-        // The media endpoint talks to R2 storage; tests must not require R2
-        // credentials, so swap in an in-memory fake. This registration is
-        // applied after Program.cs services, so it wins.
+        // Tests must not log: swap in a blank logger so nothing is written to
+        // the Console/File sinks configured in appsettings.json for production.
+        // Registering NullLoggerFactory after Program.cs wins over Serilog.
         builder.ConfigureServices(services =>
         {
+            services.AddSingleton<ILoggerFactory>(_ => NullLoggerFactory.Instance);
+
+            // The media endpoint talks to R2 storage; tests must not require R2
+            // credentials, so swap in an in-memory fake.
             services.AddScoped<IObjectStorageService, FakeObjectStorageService>();
         });
     }

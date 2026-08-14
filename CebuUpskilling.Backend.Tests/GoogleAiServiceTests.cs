@@ -10,7 +10,7 @@ using Microsoft.Extensions.Options;
 namespace CebuUpskilling.Backend.Tests;
 
 [Trait("Category", "ExternalIntegration")]
-public class OpenRouterServiceTests
+public class GoogleAiServiceTests
 {
     private sealed class StubHttpMessageHandler : HttpMessageHandler
     {
@@ -31,25 +31,23 @@ public class OpenRouterServiceTests
         }
     }
 
-    private static OpenRouterService CreateService(StubHttpMessageHandler handler, Action<OpenRouterOptions>? configure = null)
+    private static GoogleAiService CreateService(StubHttpMessageHandler handler, Action<GoogleAiOptions>? configure = null)
     {
-        var options = new OpenRouterOptions
+        var options = new GoogleAiOptions
         {
             ApiKey = "test-api-key",
             Model = "test-model",
-            BaseUrl = "https://openrouter.ai/api/v1",
-            AppUrl = "https://example.com",
-            AppName = "Test App",
+            BaseUrl = "https://generativelanguage.googleapis.com/v1beta",
         };
         configure?.Invoke(options);
 
-        var client = new HttpClient(handler) { BaseAddress = new Uri("https://openrouter.ai/api/v1/") };
-        return new OpenRouterService(client, Microsoft.Extensions.Options.Options.Create(options), NullLogger<OpenRouterService>.Instance);
+        var client = new HttpClient(handler) { BaseAddress = new Uri("https://generativelanguage.googleapis.com/v1beta/") };
+        return new GoogleAiService(client, Microsoft.Extensions.Options.Options.Create(options), NullLogger<GoogleAiService>.Instance);
     }
 
-    private static HttpResponseMessage ChatResponse(string content)
+    private static HttpResponseMessage GenerateContentResponse(string content)
     {
-        var json = $"{{\"choices\":[{{\"message\":{{\"content\":{JsonSerializer.Serialize(content)}}}}}]}}";
+        var json = $"{{\"candidates\":[{{\"content\":{{\"parts\":[{{\"text\":{JsonSerializer.Serialize(content)}}}]}}}}]}}";
         return new HttpResponseMessage(HttpStatusCode.OK)
         {
             Content = new StringContent(json, Encoding.UTF8, "application/json"),
@@ -57,7 +55,7 @@ public class OpenRouterServiceTests
     }
 
     private static HttpResponseMessage QuestionsResponse(string questionsJson)
-        => ChatResponse(questionsJson);
+        => GenerateContentResponse(questionsJson);
 
     private static string QuestionJson(string text, int correctOption)
         => $"{{\"text\":\"{text}\",\"optionA\":\"A\",\"optionB\":\"B\",\"optionC\":\"C\",\"optionD\":\"D\",\"correctOption\":{correctOption}}}";
@@ -70,9 +68,9 @@ public class OpenRouterServiceTests
     // ------------------------------------------------------------------ //
 
     [ExternalIntegrationFact]
-    public async Task ParseSkillsFromResumeAsync_SendsChatCompletionRequest_WithBearerAuthAndPrompt()
+    public async Task ParseSkillsFromResumeAsync_SendsGenerateContentRequest_WithApiKeyAndPrompt()
     {
-        var handler = new StubHttpMessageHandler { Responder = _ => ChatResponse("[\"JavaScript\",\"React\"]") };
+        var handler = new StubHttpMessageHandler { Responder = _ => GenerateContentResponse("[\"JavaScript\",\"React\"]") };
         var service = CreateService(handler);
 
         var skills = await service.ParseSkillsFromResumeAsync("I am a React developer.");
@@ -80,15 +78,11 @@ public class OpenRouterServiceTests
         Assert.Equal(new[] { "JavaScript", "React" }, skills);
         Assert.Equal(1, handler.CallCount);
         Assert.Equal(HttpMethod.Post, handler.LastRequest!.Method);
-        Assert.EndsWith("/chat/completions", handler.LastRequest.RequestUri!.AbsolutePath);
-        Assert.Equal("Bearer", handler.LastRequest.Headers.Authorization!.Scheme);
-        Assert.Equal("test-api-key", handler.LastRequest.Headers.Authorization.Parameter);
-        Assert.Equal("https://example.com", Assert.Single(handler.LastRequest.Headers.GetValues("HTTP-Referer")));
-        Assert.Equal("Test App", Assert.Single(handler.LastRequest.Headers.GetValues("X-Title")));
+        Assert.EndsWith("/models/test-model:generateContent", handler.LastRequest.RequestUri!.AbsolutePath);
+        Assert.Contains("key=test-api-key", handler.LastRequest.RequestUri!.Query);
 
         var body = JsonDocument.Parse(RequestBody(handler)).RootElement;
-        Assert.Equal("test-model", body.GetProperty("model").GetString());
-        var prompt = body.GetProperty("messages")[0].GetProperty("content").GetString();
+        var prompt = body.GetProperty("contents")[0].GetProperty("parts")[0].GetProperty("text").GetString();
         Assert.Contains("React", prompt);
         Assert.Contains("I am a React developer.", prompt);
     }
@@ -102,7 +96,7 @@ public class OpenRouterServiceTests
         await service.GenerateAssessmentQuestionsAsync("Docker", count: 3);
 
         var body = JsonDocument.Parse(RequestBody(handler)).RootElement;
-        var prompt = body.GetProperty("messages")[0].GetProperty("content").GetString();
+        var prompt = body.GetProperty("contents")[0].GetProperty("parts")[0].GetProperty("text").GetString();
         Assert.Contains("Docker", prompt);
         Assert.Contains("3", prompt);
     }
@@ -116,7 +110,7 @@ public class OpenRouterServiceTests
     {
         var handler = new StubHttpMessageHandler
         {
-            Responder = _ => ChatResponse("[\"JavaScript\",\"react\",\"React\",\"  JavaScript  \",\"NonsenseSkill\"]"),
+            Responder = _ => GenerateContentResponse("[\"JavaScript\",\"react\",\"React\",\"  JavaScript  \",\"NonsenseSkill\"]"),
         };
         var service = CreateService(handler);
 
@@ -128,7 +122,7 @@ public class OpenRouterServiceTests
     [ExternalIntegrationFact]
     public async Task ParseSkillsFromResumeAsync_NonJsonOutput_ReturnsEmpty()
     {
-        var handler = new StubHttpMessageHandler { Responder = _ => ChatResponse("this is not json") };
+        var handler = new StubHttpMessageHandler { Responder = _ => GenerateContentResponse("this is not json") };
         var service = CreateService(handler);
 
         var skills = await service.ParseSkillsFromResumeAsync("resume");
@@ -152,6 +146,23 @@ public class OpenRouterServiceTests
     }
 
     [ExternalIntegrationFact]
+    public async Task ParseSkillsFromResumeAsync_NoCandidates_ReturnsEmpty()
+    {
+        var handler = new StubHttpMessageHandler
+        {
+            Responder = _ => new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"promptFeedback\":{}}", Encoding.UTF8, "application/json"),
+            },
+        };
+        var service = CreateService(handler);
+
+        var skills = await service.ParseSkillsFromResumeAsync("resume");
+
+        Assert.Empty(skills);
+    }
+
+    [ExternalIntegrationFact]
     public async Task ParseSkillsFromResumeAsync_HttpRequestFailure_ReturnsEmpty()
     {
         var handler = new StubHttpMessageHandler { Responder = _ => throw new HttpRequestException("connection refused") };
@@ -165,7 +176,7 @@ public class OpenRouterServiceTests
     [ExternalIntegrationFact]
     public async Task ParseSkillsFromResumeAsync_MissingApiKey_ReturnsEmpty_WithoutHttpCall()
     {
-        var handler = new StubHttpMessageHandler { Responder = _ => ChatResponse("[\"JavaScript\"]") };
+        var handler = new StubHttpMessageHandler { Responder = _ => GenerateContentResponse("[\"JavaScript\"]") };
         var service = CreateService(handler, options => options.ApiKey = string.Empty);
 
         var skills = await service.ParseSkillsFromResumeAsync("resume");
@@ -177,7 +188,7 @@ public class OpenRouterServiceTests
     [ExternalIntegrationFact]
     public async Task ParseSkillsFromResumeAsync_EmptyResume_ReturnsEmpty_WithoutHttpCall()
     {
-        var handler = new StubHttpMessageHandler { Responder = _ => ChatResponse("[\"JavaScript\"]") };
+        var handler = new StubHttpMessageHandler { Responder = _ => GenerateContentResponse("[\"JavaScript\"]") };
         var service = CreateService(handler);
 
         var skills = await service.ParseSkillsFromResumeAsync("   ");
@@ -240,7 +251,7 @@ public class OpenRouterServiceTests
     [ExternalIntegrationFact]
     public async Task GenerateAssessmentQuestionsAsync_NonJsonOutput_ReturnsEmpty()
     {
-        var handler = new StubHttpMessageHandler { Responder = _ => ChatResponse("not an array") };
+        var handler = new StubHttpMessageHandler { Responder = _ => GenerateContentResponse("not an array") };
         var service = CreateService(handler);
 
         var questions = await service.GenerateAssessmentQuestionsAsync("SQL");
