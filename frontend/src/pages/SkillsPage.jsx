@@ -157,10 +157,6 @@ export default function SkillsPage() {
     setSelectedRole(role);
   };
 
-  const handleParseSkillsToast = () => {
-    showToast('AI parsing learner skills');
-  };
-
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -188,9 +184,6 @@ export default function SkillsPage() {
         <div style={{ display: 'flex', gap: 12 }}>
           <Button variant="primary" onClick={() => showToast('Assessment flow opened')}>
             Assess a skill
-          </Button>
-          <Button variant="secondary" onClick={handleParseSkillsToast}>
-            Parse skills
           </Button>
         </div>
       </div>

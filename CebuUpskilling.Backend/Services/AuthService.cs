@@ -1,9 +1,11 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using System.Threading;
 using CebuUpskilling.Backend.Data;
 using CebuUpskilling.Backend.DTOs;
 using CebuUpskilling.Backend.Entities;
+using CebuUpskilling.Backend.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.IdentityModel.Tokens;
@@ -28,9 +30,7 @@ public class JwtTokenService : IJwtTokenService
 
     public string GenerateToken(AppUser user)
     {
-        var jwtKey = _config["Jwt:Key"] ?? throw new InvalidOperationException(
-            "Jwt:Key is not configured. Set Jwt:Key in appsettings.json or the Jwt__Key environment variable.");
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
         var claims = new[]
@@ -66,12 +66,30 @@ public interface IAuthService
 public class AuthService : IAuthService
 {
     private readonly ApplicationDbContext _context;
+    private readonly IAppUserRepository _users;
+    private readonly ILearnerRepository _learners;
+    private readonly IRoleSkillRepository _roleSkills;
+    private readonly ILearnerSkillRepository _learnerSkills;
+    private readonly ISkillParsingService _skillParsingService;
     private readonly IJwtTokenService _tokenService;
     private readonly ILogger<AuthService> _logger;
 
-    public AuthService(ApplicationDbContext context, IJwtTokenService tokenService, ILogger<AuthService> logger)
+    public AuthService(
+        ApplicationDbContext context,
+        IAppUserRepository users,
+        ILearnerRepository learners,
+        IRoleSkillRepository roleSkills,
+        ILearnerSkillRepository learnerSkills,
+        ISkillParsingService skillParsingService,
+        IJwtTokenService tokenService,
+        ILogger<AuthService> logger)
     {
         _context = context;
+        _users = users;
+        _learners = learners;
+        _roleSkills = roleSkills;
+        _learnerSkills = learnerSkills;
+        _skillParsingService = skillParsingService;
         _tokenService = tokenService;
         _logger = logger;
     }
@@ -80,28 +98,22 @@ public class AuthService : IAuthService
     {
         _logger.LogInformation("Registration attempt for email {Email}", request.EmailAddress);
 
-        if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 6)
-        {
-            _logger.LogWarning("Registration failed: weak password for email {Email}", request.EmailAddress);
-            throw new InvalidOperationException("Password must be at least 6 characters long");
-        }
-
         if (request.Role != "Learner" && request.Role != "Recruiter")
         {
             _logger.LogWarning("Registration failed: role '{Role}' is not allowed", request.Role);
             throw new InvalidOperationException($"Role '{request.Role}' is not allowed");
         }
 
-        if (request.Role == "Learner" && string.IsNullOrWhiteSpace(request.Resume))
-        {
-            _logger.LogWarning("Registration failed: learner resume is required for email {Email}", request.EmailAddress);
-            throw new InvalidOperationException("Resume is required for learners");
-        }
-
-        if (await _context.Users.AnyAsync(u => u.EmailAddress == request.EmailAddress))
+        if (await _users.ExistsByEmailAsync(request.EmailAddress))
         {
             _logger.LogWarning("Registration failed: email {Email} already exists", request.EmailAddress);
             throw new InvalidOperationException("Email already registered");
+        }
+
+        if (request.Role == "Learner" && string.IsNullOrWhiteSpace(request.Resume))
+        {
+            _logger.LogWarning("Registration failed: resume required for learner {Email}", request.EmailAddress);
+            throw new InvalidOperationException("Resume is required for learners");
         }
 
         var user = new AppUser
@@ -117,22 +129,22 @@ public class AuthService : IAuthService
             Address = request.Address,
         };
 
-        _context.Users.Add(user);
-        await _context.SaveChangesAsync();
+        await _users.AddAsync(user);
+        await _users.SaveChangesAsync();
         _logger.LogInformation("User registered successfully: {UserId} ({Email}), Role: {Role}", user.UserId, user.EmailAddress, user.Role);
+
+        ParseSkillsResult? parseResult = null;
 
         if (request.Role == "Learner")
         {
             var learner = new Learner { UserId = user.UserId, IsPremium = false };
-            _context.Learners.Add(learner);
-            await _context.SaveChangesAsync();
+            await _learners.AddAsync(learner);
+            await _learners.SaveChangesAsync();
             _logger.LogInformation("Learner profile created for user {UserId}", user.UserId);
 
             if (!string.IsNullOrWhiteSpace(request.TargetRole))
             {
-                var roleSkills = await _context.RoleSkills
-                    .Where(rs => rs.TargetRole == request.TargetRole)
-                    .ToListAsync();
+                var roleSkills = await _roleSkills.GetByTargetRoleAsync(request.TargetRole);
 
                 if (roleSkills.Count > 0)
                 {
@@ -144,17 +156,39 @@ public class AuthService : IAuthService
                         Verified = false,
                     }).ToList();
 
-                    _context.LearnerSkills.AddRange(learnerSkills);
-                    await _context.SaveChangesAsync();
+                    _learnerSkills.AddRange(learnerSkills);
+                    await _learnerSkills.SaveChangesAsync();
                     _logger.LogInformation("Created {Count} learner skills for user {UserId} (role: {Role})",
                         learnerSkills.Count, user.UserId, request.TargetRole);
                 }
+            }
+
+            var resumeText = request.Resume ?? string.Empty;
+            try
+            {
+                parseResult = await _skillParsingService.ParseAndCreateAssessmentsAsync(user.UserId, resumeText, CancellationToken.None);
+                _logger.LogInformation("Auto-parsed resume skills and created assessments for user {UserId}", user.UserId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Resume skill parsing failed during registration for user {UserId}", user.UserId);
             }
         }
 
         var token = _tokenService.GenerateToken(user);
 
-        return new AuthResponse(user.UserId, user.FirstName, user.LastName, user.EmailAddress, user.Role, user.TargetRole, user.Address, user.RemoteFriendly, token);
+        return new AuthResponse(
+            user.UserId,
+            user.FirstName,
+            user.LastName,
+            user.EmailAddress,
+            user.Role,
+            user.TargetRole,
+            user.Address,
+            user.RemoteFriendly,
+            token,
+            parseResult?.Skills.Count ?? 0,
+            parseResult?.Skills.Count(s => s.AssessmentId != null) ?? 0);
     }
 
     public async Task<CompanyRegisterResponse> CompanyRegisterAsync(CompanyRegisterRequest request)
@@ -255,7 +289,7 @@ public class AuthService : IAuthService
     {
         _logger.LogInformation("Login attempt for email {Email}", request.EmailAddress);
 
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.EmailAddress == request.EmailAddress);
+        var user = await _users.GetByEmailAsync(request.EmailAddress);
         if (user == null)
         {
             _logger.LogWarning("Login failed: user not found for email {Email}", request.EmailAddress);
@@ -272,12 +306,12 @@ public class AuthService : IAuthService
 
         var token = _tokenService.GenerateToken(user);
 
-        return new AuthResponse(user.UserId, user.FirstName, user.LastName, user.EmailAddress, user.Role, user.TargetRole, user.Address, user.RemoteFriendly, token);  
+        return new AuthResponse(user.UserId, user.FirstName, user.LastName, user.EmailAddress, user.Role, user.TargetRole, user.Address, user.RemoteFriendly, token);
     }
 
     public async Task<AuthResponse> UpdateProfileAsync(int userId, UpdateProfileRequest request)
     {
-        var user = await _context.Users.FindAsync(userId);
+        var user = await _users.GetByIdAsync(userId);
         if (user == null)
         {
             throw new InvalidOperationException("User not found");
@@ -298,7 +332,7 @@ public class AuthService : IAuthService
             user.RemoteFriendly = request.RemoteFriendly.Value;
         }
 
-        await _context.SaveChangesAsync();
+        await _users.SaveChangesAsync();
         _logger.LogInformation("Profile updated for user {UserId}", userId);
 
         var token = _tokenService.GenerateToken(user);

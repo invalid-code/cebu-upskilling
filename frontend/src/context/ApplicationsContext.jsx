@@ -22,14 +22,14 @@ export function ApplicationsProvider({ children }) {
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (signal) => {
     if (!userId) {
       setApplications([]);
       return;
     }
     setLoading(true);
     try {
-      const data = await api.get('/applications');
+      const data = await api.get('/applications', { signal });
       setApplications((data || []).map(normalize));
     } catch {
       setApplications([]);
@@ -39,7 +39,9 @@ export function ApplicationsProvider({ children }) {
   }, [userId]);
 
   useEffect(() => {
-    load();
+    const controller = new AbortController();
+    load(controller.signal);
+    return () => controller.abort();
   }, [load]);
 
   const applyToJob = useCallback(async (job) => {

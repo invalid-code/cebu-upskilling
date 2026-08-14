@@ -1,4 +1,3 @@
-using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using CebuUpskilling.Backend.DTOs;
@@ -7,11 +6,11 @@ using Microsoft.Extensions.Options;
 
 namespace CebuUpskilling.Backend.Services;
 
-public class OpenRouterService : IOpenRouterService
+public class GoogleAiService : IGoogleAiService
 {
     private readonly HttpClient _httpClient;
-    private readonly OpenRouterOptions _options;
-    private readonly ILogger<OpenRouterService> _logger;
+    private readonly GoogleAiOptions _options;
+    private readonly ILogger<GoogleAiService> _logger;
 
     private static readonly string[] KnownSkills = new[]
     {
@@ -24,7 +23,7 @@ public class OpenRouterService : IOpenRouterService
         PropertyNameCaseInsensitive = true,
     };
 
-    public OpenRouterService(HttpClient httpClient, IOptions<OpenRouterOptions> options, ILogger<OpenRouterService> logger)
+    public GoogleAiService(HttpClient httpClient, IOptions<GoogleAiOptions> options, ILogger<GoogleAiService> logger)
     {
         _httpClient = httpClient;
         _options = options.Value;
@@ -35,7 +34,7 @@ public class OpenRouterService : IOpenRouterService
     {
         if (string.IsNullOrWhiteSpace(_options.ApiKey) || string.IsNullOrWhiteSpace(resumeText))
         {
-            _logger.LogDebug("OpenRouter API key or resume text is empty; skipping skill parsing");
+            _logger.LogDebug("Gemini API key or resume text is empty; skipping skill parsing");
             return new List<string>();
         }
 
@@ -63,7 +62,7 @@ public class OpenRouterService : IOpenRouterService
         }
         catch (JsonException)
         {
-            _logger.LogWarning("OpenRouter returned non-JSON skill parse output; returning empty result");
+            _logger.LogWarning("Gemini returned non-JSON skill parse output; returning empty result");
             return new List<string>();
         }
     }
@@ -72,7 +71,7 @@ public class OpenRouterService : IOpenRouterService
     {
         if (string.IsNullOrWhiteSpace(_options.ApiKey) || string.IsNullOrWhiteSpace(skillName))
         {
-            _logger.LogDebug("OpenRouter API key or skill name is empty; skipping question generation");
+            _logger.LogDebug("Gemini API key or skill name is empty; skipping question generation");
             return new List<GeneratedAssessmentQuestion>();
         }
 
@@ -89,7 +88,7 @@ public class OpenRouterService : IOpenRouterService
         }
         catch (JsonException)
         {
-            _logger.LogWarning("OpenRouter returned non-JSON question output for skill {Skill}; returning empty result", skillName);
+            _logger.LogWarning("Gemini returned non-JSON question output for skill {Skill}; returning empty result", skillName);
             return new List<GeneratedAssessmentQuestion>();
         }
     }
@@ -98,41 +97,43 @@ public class OpenRouterService : IOpenRouterService
     {
         var request = new
         {
-            model = _options.Model,
-            messages = new[]
+            contents = new[]
             {
-                new { role = "user", content = prompt },
+                new { parts = new[] { new { text = prompt } } },
             },
         };
 
         var json = JsonSerializer.Serialize(request);
         using var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _options.ApiKey);
-        if (!string.IsNullOrWhiteSpace(_options.AppUrl))
-            _httpClient.DefaultRequestHeaders.Add("HTTP-Referer", _options.AppUrl);
-        if (!string.IsNullOrWhiteSpace(_options.AppName))
-            _httpClient.DefaultRequestHeaders.Add("X-Title", _options.AppName);
+        var url = $"{_options.BaseUrl.TrimEnd('/')}/models/{_options.Model}:generateContent?key={Uri.EscapeDataString(_options.ApiKey)}";
 
         try
         {
-            var response = await _httpClient.PostAsync("chat/completions", content, ct);
+            var response = await _httpClient.PostAsync(url, content, ct);
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogWarning("OpenRouter API returned {StatusCode}: {Body}", response.StatusCode, await response.Content.ReadAsStringAsync(ct));
+                _logger.LogWarning("Gemini API returned {StatusCode}: {Body}", response.StatusCode, await response.Content.ReadAsStringAsync(ct));
                 return null;
             }
 
             var responseJson = await response.Content.ReadAsStringAsync(ct);
             using var doc = JsonDocument.Parse(responseJson);
 
-            var choices = doc.RootElement.GetProperty("choices").EnumerateArray();
-            var first = choices.First();
-            return first.GetProperty("message").GetProperty("content").GetString()?.Trim();
+            if (!doc.RootElement.TryGetProperty("candidates", out var candidates)
+                || candidates.GetArrayLength() == 0)
+            {
+                _logger.LogWarning("Gemini API returned no candidates");
+                return null;
+            }
+
+            var parts = candidates[0].GetProperty("content").GetProperty("parts").EnumerateArray();
+            var text = string.Concat(parts.Select(p => p.GetProperty("text").GetString()));
+            return string.IsNullOrWhiteSpace(text) ? null : text.Trim();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to call OpenRouter API");
+            _logger.LogError(ex, "Failed to call Gemini API");
             return null;
         }
     }

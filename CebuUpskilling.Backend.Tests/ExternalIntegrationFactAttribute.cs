@@ -4,7 +4,7 @@ using Xunit.Sdk;
 namespace CebuUpskilling.Backend.Tests;
 
 /// <summary>
-/// Marks a test that exercises an external integration (OpenRouter, R2, ...).
+/// Marks a test that exercises an external integration (Google AI, R2, ...).
 /// These tests are skipped unless the RUN_EXTERNAL_INTEGRATION_TESTS
 /// environment variable is set to "1" or "true".
 /// </summary>
@@ -61,14 +61,14 @@ internal static class ExternalIntegrationSettings
         Environment.GetEnvironmentVariable("RUN_EXTERNAL_INTEGRATION_TESTS") is { } value
         && (value == "1" || value.Equals("true", StringComparison.OrdinalIgnoreCase));
 
-    public static string? OpenRouterApiKey { get; } = Environment.GetEnvironmentVariable("OpenRouter__ApiKey");
+    public static string? GoogleAiApiKey { get; } = Environment.GetEnvironmentVariable("GoogleAi__ApiKey");
 }
 
 /// <summary>
-/// Marks a test that calls a real external service (e.g. the OpenRouter API)
+/// Marks a test that calls a real external service (e.g. the Gemini API)
 /// and asserts on the actual response. These tests are skipped unless
-/// RUN_EXTERNAL_INTEGRATION_TESTS is enabled AND the OpenRouter API key is set
-/// via the OpenRouter__ApiKey environment variable.
+/// RUN_EXTERNAL_INTEGRATION_TESTS is enabled AND the Google AI API key is set
+/// via the GoogleAi__ApiKey environment variable.
 /// </summary>
 [XunitTestCaseDiscoverer("CebuUpskilling.Backend.Tests.LiveExternalIntegrationFactDiscoverer", "CebuUpskilling.Backend.Tests")]
 [AttributeUsage(AttributeTargets.Method)]
@@ -113,8 +113,8 @@ public sealed class LiveExternalIntegrationTestCase : ExternalIntegrationTestCas
         if (!ExternalIntegrationSettings.IsEnabled)
             return "External integration tests are disabled. Set the RUN_EXTERNAL_INTEGRATION_TESTS environment variable to 1 or true to enable them.";
 
-        if (string.IsNullOrWhiteSpace(ExternalIntegrationSettings.OpenRouterApiKey))
-            return "OpenRouter API key not set. Set the OpenRouter__ApiKey environment variable to run live OpenRouter tests.";
+        if (string.IsNullOrWhiteSpace(ExternalIntegrationSettings.GoogleAiApiKey))
+            return "Google AI API key not set. Set the GoogleAi__ApiKey environment variable to run live Google AI tests.";
 
         return factAttribute is null ? string.Empty : base.GetSkipReason(factAttribute);
     }

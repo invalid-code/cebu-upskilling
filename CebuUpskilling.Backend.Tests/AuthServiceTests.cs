@@ -1,4 +1,5 @@
 using CebuUpskilling.Backend.DTOs;
+using CebuUpskilling.Backend.Repositories;
 using CebuUpskilling.Backend.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -8,6 +9,19 @@ namespace CebuUpskilling.Backend.Tests;
 
 public class AuthServiceTests
 {
+    private class FakeSkillParsingService : ISkillParsingService
+    {
+        private readonly ParseSkillsResult _result;
+
+        public FakeSkillParsingService(ParseSkillsResult? result = null)
+        {
+            _result = result ?? new ParseSkillsResult(new List<ParsedSkillResult>());
+        }
+
+        public Task<ParseSkillsResult> ParseAndCreateAssessmentsAsync(int userId, string resumeText, CancellationToken ct = default)
+            => Task.FromResult(_result);
+    }
+
     private static IConfiguration CreateConfig() => new ConfigurationBuilder()
         .AddInMemoryCollection(new Dictionary<string, string?>
         {
@@ -17,8 +31,13 @@ public class AuthServiceTests
         })
         .Build();
 
-    private static AuthService CreateService(Data.ApplicationDbContext context) => new(
+    private static AuthService CreateService(Data.ApplicationDbContext context, ISkillParsingService? skillParsingService = null) => new(
         context,
+        new AppUserRepository(context),
+        new LearnerRepository(context),
+        new RoleSkillRepository(context),
+        new LearnerSkillRepository(context),
+        skillParsingService ?? new FakeSkillParsingService(),
         new JwtTokenService(CreateConfig(), NullLogger<JwtTokenService>.Instance),
         NullLogger<AuthService>.Instance
     );
@@ -107,6 +126,53 @@ public class AuthServiceTests
 
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => service.RegisterAsync(NewRegisterRequest()));
+    }
+
+    [Fact]
+    public async Task RegisterAsync_WithResume_ReturnsParsedSkillCount()
+    {
+        var context = TestDbContextFactory.Create();
+        var skillParsingService = new FakeSkillParsingService(new ParseSkillsResult(new List<ParsedSkillResult>
+        {
+            new("JavaScript", 1, null),
+            new("React", 2, null),
+        }));
+        var service = CreateService(context, skillParsingService);
+
+        var result = await service.RegisterAsync(NewRegisterRequest());
+
+        Assert.Equal(2, result.ParsedSkillCount);
+        Assert.Equal(0, result.AssessmentCount);
+    }
+
+    [Fact]
+    public async Task RegisterAsync_WithResume_ReturnsAssessmentCount()
+    {
+        var context = TestDbContextFactory.Create();
+        var skillParsingService = new FakeSkillParsingService(new ParseSkillsResult(new List<ParsedSkillResult>
+        {
+            new("JavaScript", 1, 10),
+            new("React", 2, 11),
+        }));
+        var service = CreateService(context, skillParsingService);
+
+        var result = await service.RegisterAsync(NewRegisterRequest());
+
+        Assert.Equal(2, result.ParsedSkillCount);
+        Assert.Equal(2, result.AssessmentCount);
+    }
+
+    [Fact]
+    public async Task RegisterAsync_LearnerWithoutResume_Throws()
+    {
+        var context = TestDbContextFactory.Create();
+        var service = CreateService(context);
+
+        var request = NewRegisterRequest() with { Resume = null };
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.RegisterAsync(request));
+        Assert.Equal("Resume is required for learners", ex.Message);
     }
 
     [Fact]
