@@ -41,6 +41,8 @@ services:
       Cors__AllowedOrigins: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173,https://cebu-upskilling.vercel.app}
     ports:
       - "8080:8080"
+    volumes:
+      - api-logs:/app/logs
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
       interval: 30s
@@ -50,3 +52,4 @@ services:
 
 volumes:
   pgdata:
+  api-logs:

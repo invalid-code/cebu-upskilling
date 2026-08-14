@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using CebuUpskilling.Backend.DTOs;
 using CebuUpskilling.Backend.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -24,7 +25,8 @@ public class MediaController : ControllerBase
     [RequestSizeLimit(524_288_000)]
     public async Task<ActionResult<MediaDto>> UploadLessonVideo(int lessonId, IFormFile file)
     {
-        _logger.LogInformation("POST /api/Media/lessons/{LessonId}/video called", lessonId);
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        _logger.LogInformation("HTTP POST /api/media/lessons/{LessonId}/video called by user {UserId}", lessonId, userId);
 
         if (file is null || file.Length == 0)
             return BadRequest(new { error = "A video file must be provided" });

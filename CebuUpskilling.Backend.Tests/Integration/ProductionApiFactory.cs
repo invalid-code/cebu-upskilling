@@ -1,4 +1,5 @@
 using CebuUpskilling.Backend.Data;
+using CebuUpskilling.Backend.Services;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -72,6 +73,14 @@ public class ProductionApiFactory : WebApplicationFactory<Program>
             logging.ClearProviders();
             logging.AddConsole();
         });
+
+        // The media endpoint talks to R2 storage; tests must not require R2
+        // credentials, so swap in an in-memory fake. This registration is
+        // applied after Program.cs services, so it wins.
+        builder.ConfigureServices(services =>
+        {
+            services.AddScoped<IObjectStorageService, FakeObjectStorageService>();
+        });
     }
 
     public async Task EnsureMigratedAsync()
@@ -123,3 +132,14 @@ public class ProductionApiFactory : WebApplicationFactory<Program>
         }
     }
 }
+</｜DSML｜>
+<task_progress>
+- [x] Fetch latest refs
+- [x] Checkout feat/learner-side-webapp branch
+- [x] Create safety backup ref
+- [x] Rebase onto origin/main (started)
+- [ ] Resolve all merge conflicts
+- [ ] Verify the result build/tests
+- [ ] Report final state
+</task_progress>
+</｜DSML｜>

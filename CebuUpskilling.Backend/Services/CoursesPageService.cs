@@ -42,7 +42,7 @@ public class CoursesPageService : ICoursesPageService
         var learner = await _learners.GetByUserIdAsync(userId);
         if (learner == null)
         {
-            _logger.LogInformation("No learner profile for user {UserId}", userId);
+            _logger.LogInformation("No learner profile found for user {UserId}", userId);
             return null;
         }
 

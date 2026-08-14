@@ -12,10 +12,14 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using Serilog;
 
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Host.UseSerilog((context, configuration) =>
+    configuration.ReadFrom.Configuration(context.Configuration));
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -29,7 +33,8 @@ builder.Services.Configure<OpenRouterOptions>(builder.Configuration.GetSection(O
 var openRouterOptions = builder.Configuration.GetSection(OpenRouterOptions.SectionName).Get<OpenRouterOptions>();
 builder.Services.AddHttpClient<IOpenRouterService, OpenRouterService>(client =>
 {
-    client.BaseAddress = new Uri(openRouterOptions?.BaseUrl ?? "https://openrouter.ai/api/v1");
+    var baseUrl = openRouterOptions?.BaseUrl ?? "https://openrouter.ai/api/v1";
+    client.BaseAddress = new Uri(baseUrl.EndsWith('/') ? baseUrl : baseUrl + "/");
 });
 
 var myAllowSpecificOrigins = "_myAllowSpecificOrigins";
@@ -48,7 +53,6 @@ builder.Services.AddCors(options =>
                 .WithMethods("GET", "POST", "PATCH");
         });
 });
-
 
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
@@ -69,7 +73,6 @@ builder.Services.AddScoped<IApplicationRepository, ApplicationRepository>();
 builder.Services.AddScoped<IMediaRepository, MediaRepository>();
 
 builder.Services.AddScoped<IEntityService<Course>, CourseService>();
-
 builder.Services.AddScoped<IEntityService<Post>, PostService>();
 builder.Services.AddScoped<IEntityService<AppUser>, AppUserService>();
 builder.Services.AddScoped<IEntityService<LearnerAssessment>, LearnerAssessmentService>();
@@ -140,11 +143,24 @@ app.MapControllers();
 app.MapHealthChecks("/health");
 
 app.Lifetime.ApplicationStarted.Register(() =>
-    app.Services.GetRequiredService<ILogger<Program>>().LogInformation("Application started"));
+    Log.Information("Application started"));
 
 app.Lifetime.ApplicationStopping.Register(() =>
-    app.Services.GetRequiredService<ILogger<Program>>().LogInformation("Application is shutting down"));
+    Log.Information("Application is shutting down"));
 
 app.Run();
 
+Log.CloseAndFlush();
+
 public partial class Program { }
+</｜DSML｜>
+<task_progress>
+- [x] Fetch latest refs
+- [x] Checkout feat/learner-side-webapp branch
+- [x] Create safety backup ref
+- [x] Rebase onto origin/main (started)
+- [ ] Resolve all merge conflicts
+- [ ] Verify the result build/tests
+- [ ] Report final state
+</task_progress>
+</｜DSML｜>

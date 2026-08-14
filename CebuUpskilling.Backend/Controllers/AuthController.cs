@@ -23,7 +23,7 @@ public class AuthController : BaseEntityController<AppUser>
     [HttpPost("register")]
     public async Task<ActionResult<AuthResponse>> Register(RegisterRequest request)
     {
-        _logger.LogInformation("POST /api/auth/register called for {Email}", request.EmailAddress);
+        _logger.LogInformation("HTTP POST /api/auth/register called for {Email}", request.EmailAddress);
         try
         {
             var result = await _authService.RegisterAsync(request);
@@ -59,7 +59,7 @@ public class AuthController : BaseEntityController<AppUser>
     [HttpPost("login")]
     public async Task<ActionResult<AuthResponse>> Login(LoginRequest request)
     {
-        _logger.LogInformation("POST /api/auth/login called for {Email}", request.EmailAddress);
+        _logger.LogInformation("HTTP POST /api/auth/login called for {Email}", request.EmailAddress);
         try
         {
             var result = await _authService.LoginAsync(request);
@@ -77,7 +77,7 @@ public class AuthController : BaseEntityController<AppUser>
     public async Task<ActionResult<AuthResponse>> UpdateProfile(UpdateProfileRequest request)
     {
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        _logger.LogInformation("PATCH /api/auth/profile called for UserId: {UserId}", userId);
+        _logger.LogInformation("HTTP PATCH /api/auth/profile called by user {UserId}", userId);
         try
         {
             var result = await _authService.UpdateProfileAsync(userId, request);

@@ -24,7 +24,7 @@ public class SkillGapsController : ControllerBase
     public async Task<ActionResult<List<SkillGapResponse>>> GetMySkillGaps()
     {
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        _logger.LogInformation("GET /api/skillgaps called by user {UserId}", userId);
+        _logger.LogInformation("HTTP GET /api/skillgaps called by user {UserId}", userId);
 
         var gaps = await _skillGapService.GetSkillGapsAsync(userId);
         return Ok(gaps);

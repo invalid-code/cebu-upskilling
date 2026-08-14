@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace CebuUpskilling.Backend.Controllers;
 
 [ApiController]
-[Route("api/applications")]
+[Route("api/[controller]")]
 [Authorize]
 public class ApplicationsController : ControllerBase
 {
@@ -25,6 +25,7 @@ public class ApplicationsController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<List<ApplicationSummary>>> GetMine()
     {
+        _logger.LogInformation("HTTP GET /api/applications called by user {UserId}", UserId);
         var applications = await _service.GetMyApplicationsAsync(UserId);
         return Ok(applications);
     }
@@ -32,6 +33,7 @@ public class ApplicationsController : ControllerBase
     [HttpPost]
     public async Task<ActionResult> Apply([FromBody] ApplyRequest request)
     {
+        _logger.LogInformation("HTTP POST /api/applications called by user {UserId} for post {PostId}", UserId, request.PostId);
         var outcome = await _service.ApplyAsync(UserId, request.PostId);
 
         if (outcome.Failure == ApplyFailure.NoLearnerProfile)
@@ -47,6 +49,7 @@ public class ApplicationsController : ControllerBase
     [HttpPatch("{postId}")]
     public async Task<ActionResult> UpdateStatus(int postId, [FromBody] UpdateApplicationStatusRequest request)
     {
+        _logger.LogInformation("HTTP PATCH /api/applications/{PostId} called by user {UserId}", postId, UserId);
         var updated = await _service.UpdateStatusAsync(UserId, postId, request.Status);
         if (!updated) return NotFound(new { error = "Application not found" });
         return Ok(new { message = "updated" });

@@ -19,6 +19,11 @@ public class OpenRouterService : IOpenRouterService
         "Python", "SQL", "Git", "REST APIs", "Vue.js", "Angular", "Docker", "AWS", "Figma",
     };
 
+    private static readonly JsonSerializerOptions QuestionJsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+    };
+
     public OpenRouterService(HttpClient httpClient, IOptions<OpenRouterOptions> options, ILogger<OpenRouterService> logger)
     {
         _httpClient = httpClient;
@@ -42,8 +47,19 @@ public class OpenRouterService : IOpenRouterService
 
         try
         {
-            var skillNames = JsonSerializer.Deserialize<List<string>>(messageContent);
-            return skillNames ?? new List<string>();
+            var rawSkillNames = JsonSerializer.Deserialize<List<string>>(messageContent) ?? new List<string>();
+
+            var skillNames = rawSkillNames
+                .Select(name => name?.Trim())
+                .Where(name => !string.IsNullOrEmpty(name))
+                .Select(name => KnownSkills.FirstOrDefault(k => string.Equals(k, name, StringComparison.OrdinalIgnoreCase)))
+                .Where(name => name is not null)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Select(name => name!)
+                .ToList();
+
+            _logger.LogInformation("Parsed {Count} skills from resume: {Skills}", skillNames.Count, string.Join(", ", skillNames));
+            return skillNames;
         }
         catch (JsonException)
         {
@@ -68,7 +84,7 @@ public class OpenRouterService : IOpenRouterService
 
         try
         {
-            var questions = JsonSerializer.Deserialize<List<GeneratedAssessmentQuestion>>(messageContent);
+            var questions = JsonSerializer.Deserialize<List<GeneratedAssessmentQuestion>>(messageContent, QuestionJsonOptions);
             return questions?.Where(IsValid).Take(count).ToList() ?? new List<GeneratedAssessmentQuestion>();
         }
         catch (JsonException)
@@ -100,7 +116,7 @@ public class OpenRouterService : IOpenRouterService
 
         try
         {
-            var response = await _httpClient.PostAsync("", content, ct);
+            var response = await _httpClient.PostAsync("chat/completions", content, ct);
             if (!response.IsSuccessStatusCode)
             {
                 _logger.LogWarning("OpenRouter API returned {StatusCode}: {Body}", response.StatusCode, await response.Content.ReadAsStringAsync(ct));
