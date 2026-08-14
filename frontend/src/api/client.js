@@ -3,12 +3,19 @@ const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5179/api';
 async function request(path, options = {}) {
   const token = localStorage.getItem('token');
   const headers = {
-    'Content-Type': 'application/json',
     ...(token && { Authorization: `Bearer ${token}` }),
     ...options.headers,
   };
 
-  const res = await fetch(`${API_BASE}${path}`, { ...options, headers, signal: options.signal });
+  let body = options.body;
+  if (!(body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+    if (body != null) {
+      body = JSON.stringify(body);
+    }
+  }
+
+  const res = await fetch(`${API_BASE}${path}`, { ...options, headers, body, signal: options.signal });
 
   if (res.status === 401) {
     localStorage.removeItem('token');
@@ -28,8 +35,9 @@ async function request(path, options = {}) {
 
 export const api = {
   get: (path, { signal } = {}) => request(path, { signal }),
-  post: (path, body) => request(path, { method: 'POST', body: JSON.stringify(body) }),
-  put: (path, body) => request(path, { method: 'PUT', body: JSON.stringify(body) }),
-  patch: (path, body) => request(path, { method: 'PATCH', body: JSON.stringify(body) }),
+  post: (path, body) => request(path, { method: 'POST', body }),
+  postMultipart: (path, formData) => request(path, { method: 'POST', body: formData }),
+  put: (path, body) => request(path, { method: 'PUT', body }),
+  patch: (path, body) => request(path, { method: 'PATCH', body }),
   delete: (path) => request(path, { method: 'DELETE' }),
 };

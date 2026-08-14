@@ -52,6 +52,7 @@ public class SecurityApiTests : ProductionApiTestBase
             password = "P@ssw0rd!",
             role,
             targetRole,
+            resume = role == "Learner" ? "Experienced software developer." : null,
         });
         response.EnsureSuccessStatusCode();
         var body = await ReadJsonAsync(response);
@@ -246,6 +247,7 @@ public class SecurityApiTests : ProductionApiTestBase
             emailAddress = "sec.nohash@example.com",
             password = "P@ssw0rd!",
             role = "Learner",
+            resume = "Experienced software developer.",
         });
 
         var body = await response.Content.ReadAsStringAsync();
@@ -366,10 +368,11 @@ public class SecurityApiTests : ProductionApiTestBase
         {
             firstName = "Jose",
             lastName = "Rizal",
-            emailAddress = literal,
-            password = "P@ssw0rd!",
-            role = "Learner",
-        });
+             emailAddress = literal,
+             password = "P@ssw0rd!",
+             role = "Learner",
+             resume = "Experienced software developer.",
+         });
         response.EnsureSuccessStatusCode();
 
         var login = await LoginAsync(new { emailAddress = literal, password = "P@ssw0rd!" });

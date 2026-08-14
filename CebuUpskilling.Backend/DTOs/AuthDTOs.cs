@@ -11,7 +11,8 @@ public record RegisterRequest(
     [Required, MinLength(6)] string Password,
     string Role = "Learner",
     string? TargetRole = null,
-    string? Address = null
+    string? Address = null,
+    string? Resume = null
 );
 
 public record UpdateProfileRequest(

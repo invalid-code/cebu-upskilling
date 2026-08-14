@@ -1,6 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using System.Threading;
 using CebuUpskilling.Backend.DTOs;
 using CebuUpskilling.Backend.Entities;
 using CebuUpskilling.Backend.Repositories;
@@ -64,6 +65,9 @@ public class AuthService : IAuthService
     private readonly ILearnerRepository _learners;
     private readonly IRoleSkillRepository _roleSkills;
     private readonly ILearnerSkillRepository _learnerSkills;
+    private readonly ISkillRepository _skills;
+    private readonly IAssessmentQuestionRepository _assessmentQuestions;
+    private readonly IOpenRouterService _openRouterService;
     private readonly IJwtTokenService _tokenService;
     private readonly ILogger<AuthService> _logger;
 
@@ -72,6 +76,9 @@ public class AuthService : IAuthService
         ILearnerRepository learners,
         IRoleSkillRepository roleSkills,
         ILearnerSkillRepository learnerSkills,
+        ISkillRepository skills,
+        IAssessmentQuestionRepository assessmentQuestions,
+        IOpenRouterService openRouterService,
         IJwtTokenService tokenService,
         ILogger<AuthService> logger)
     {
@@ -79,6 +86,9 @@ public class AuthService : IAuthService
         _learners = learners;
         _roleSkills = roleSkills;
         _learnerSkills = learnerSkills;
+        _skills = skills;
+        _assessmentQuestions = assessmentQuestions;
+        _openRouterService = openRouterService;
         _tokenService = tokenService;
         _logger = logger;
     }
@@ -99,12 +109,20 @@ public class AuthService : IAuthService
             throw new InvalidOperationException("Email already registered");
         }
 
+        if (request.Role == "Learner" && string.IsNullOrWhiteSpace(request.Resume))
+        {
+            _logger.LogWarning("Registration failed: resume required for learner {Email}", request.EmailAddress);
+            throw new InvalidOperationException("Resume is required for learners");
+        }
+
         var user = new AppUser
         {
             FirstName = request.FirstName,
             LastName = request.LastName,
             MiddleName = request.MiddleName,
-            Birthday = request.Birthday,
+            Birthday = request.Birthday.HasValue
+    ? DateTime.SpecifyKind(request.Birthday.Value, DateTimeKind.Utc)
+    : null,
             EmailAddress = request.EmailAddress,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
             Role = request.Role,
@@ -143,6 +161,38 @@ public class AuthService : IAuthService
                         learnerSkills.Count, user.UserId, request.TargetRole);
                 }
             }
+
+            var resumeText = request.Resume ?? string.Empty;
+            var extractedSkillNames = await _openRouterService.ParseSkillsFromResumeAsync(resumeText);
+            var matchedSkills = extractedSkillNames.Count > 0
+                ? await _skills.GetByNamesAsync(extractedSkillNames)
+                : new List<Skill>();
+
+            if (matchedSkills.Count > 0)
+            {
+                var existingSkillIds = (await _learnerSkills.GetByLearnerIdWithSkillAsync(learner.LearnerId))
+                    .Select(ls => ls.SkillId).ToHashSet();
+
+                var newLearnerSkills = matchedSkills
+                    .Where(s => !existingSkillIds.Contains(s.SkillId))
+                    .Select(s => new LearnerSkill
+                    {
+                        LearnerId = learner.LearnerId,
+                        SkillId = s.SkillId,
+                        CurrentLevel = 0,
+                        Verified = false,
+                    }).ToList();
+
+                if (newLearnerSkills.Any())
+                {
+                    _learnerSkills.AddRange(newLearnerSkills);
+                    await _learnerSkills.SaveChangesAsync();
+                    _logger.LogInformation("Added {Count} resume-parsed skills for user {UserId}",
+                        newLearnerSkills.Count, user.UserId);
+                }
+
+                await GenerateAssessmentsForSkillsAsync(matchedSkills, CancellationToken.None);
+            }
         }
 
         var token = _tokenService.GenerateToken(user);
@@ -171,7 +221,7 @@ public class AuthService : IAuthService
 
         var token = _tokenService.GenerateToken(user);
 
-        return new AuthResponse(user.UserId, user.FirstName, user.LastName, user.EmailAddress, user.Role, user.TargetRole, user.Address, user.RemoteFriendly, token);  
+        return new AuthResponse(user.UserId, user.FirstName, user.LastName, user.EmailAddress, user.Role, user.TargetRole, user.Address, user.RemoteFriendly, token);
     }
 
     public async Task<AuthResponse> UpdateProfileAsync(int userId, UpdateProfileRequest request)
@@ -202,5 +252,43 @@ public class AuthService : IAuthService
 
         var token = _tokenService.GenerateToken(user);
         return new AuthResponse(user.UserId, user.FirstName, user.LastName, user.EmailAddress, user.Role, user.TargetRole, user.Address, user.RemoteFriendly, token);
+    }
+
+    private async Task GenerateAssessmentsForSkillsAsync(List<Skill> skills, CancellationToken ct)
+    {
+        foreach (var skill in skills)
+        {
+            try
+            {
+                var generated = await _openRouterService.GenerateAssessmentQuestionsAsync(skill.Name, 5, ct);
+                if (generated.Count == 0)
+                {
+                    _logger.LogDebug("No AI assessment questions generated for skill {Skill}", skill.Name);
+                    continue;
+                }
+
+                var questions = generated.Select(q => new AssessmentQuestion
+                {
+                    SkillId = skill.SkillId,
+                    Text = q.Text.Trim(),
+                    OptionA = q.OptionA.Trim(),
+                    OptionB = q.OptionB.Trim(),
+                    OptionC = q.OptionC.Trim(),
+                    OptionD = q.OptionD.Trim(),
+                    CorrectOption = q.CorrectOption,
+                    Source = AssessmentSource.AI,
+                }).ToList();
+
+                _assessmentQuestions.AddRange(questions);
+                await _assessmentQuestions.SaveChangesAsync(ct);
+
+                _logger.LogInformation("Generated {Count} AI assessment questions for skill {Skill} during registration",
+                    questions.Count, skill.Name);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to generate assessment questions for skill {Skill} during registration", skill.Name);
+            }
+        }
     }
 }

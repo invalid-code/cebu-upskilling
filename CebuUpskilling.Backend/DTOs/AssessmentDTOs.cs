@@ -33,14 +33,19 @@ public record StartAssessmentResponse(
 public record AssessmentQuestionDto(
     int QuestionId,
     string Text,
-    List<string> Options
+    List<string> Options,
+    string Source,
+    string? CompanyName
 );
 
 public record AssessmentQuestionsResponse(
     int AssessmentId,
     string SkillName,
     int TimeLimitMinutes,
-    List<AssessmentQuestionDto> Questions
+    List<AssessmentQuestionDto> Questions,
+    string Source,
+    string? CompanyName,
+    bool Proctored
 );
 
 public record SubmitAnswerRequest(int QuestionId, int SelectedOption);
@@ -73,7 +78,10 @@ public record AvailableAssessmentDto(
     int Gap,
     bool HasAssessment,
     int QuestionCount,
-    int TimeLimitMinutes
+    int TimeLimitMinutes,
+    string SourceLabel,
+    string? CompanyName,
+    bool Proctored
 );
 
 public record AvailableAssessmentsResponse(
@@ -81,4 +89,31 @@ public record AvailableAssessmentsResponse(
     int MatchPercent,
     int VerifiedSkillsCount,
     int RecommendedCount
+);
+
+public record GeneratedAssessmentQuestion(
+    string Text,
+    string OptionA,
+    string OptionB,
+    string OptionC,
+    string OptionD,
+    int CorrectOption
+);
+
+public record CreateCompanyQuestionRequest(
+    int SkillId,
+    string Text,
+    string OptionA,
+    string OptionB,
+    string OptionC,
+    string OptionD,
+    int CorrectOption
+);
+
+public record CreatedCompanyQuestionResponse(
+    int QuestionId,
+    int SkillId,
+    string Text,
+    string Source,
+    string CompanyName
 );

@@ -45,6 +45,14 @@ const styles = {
     fontWeight: 700,
     color: 'var(--ink)',
   },
+  sourceText: {
+    fontSize: 11,
+    color: 'var(--muted)',
+    marginTop: 2,
+    textTransform: 'uppercase',
+    letterSpacing: '0.08em',
+    fontWeight: 600,
+  },
   timer: {
     display: 'flex',
     alignItems: 'center',
@@ -219,6 +227,8 @@ const LETTERS = ['A', 'B', 'C', 'D'];
 export default function AssessmentModal({ open, onClose, assessmentId, skillName: initialSkillName }) {
   const [questions, setQuestions] = useState([]);
   const [skillName, setSkillName] = useState(initialSkillName || 'Assessment');
+  const [source, setSource] = useState('');
+  const [companyName, setCompanyName] = useState(null);
   const [timeLimit, setTimeLimit] = useState(45 * 60);
   const [current, setCurrent] = useState(0);
   const [answers, setAnswers] = useState({});
@@ -244,6 +254,8 @@ export default function AssessmentModal({ open, onClose, assessmentId, skillName
       .then((data) => {
         setQuestions(data.questions || []);
         setSkillName(data.skillName || initialSkillName || 'Assessment');
+        setSource(data.source || '');
+        setCompanyName(data.companyName || null);
         setTimeLimit(data.timeLimitMinutes * 60);
         setTimeLeft(data.timeLimitMinutes * 60);
       })
@@ -301,6 +313,11 @@ export default function AssessmentModal({ open, onClose, assessmentId, skillName
   }, [timeLimit]);
 
   const answeredCount = Object.keys(answers).length;
+  const sourceLine = companyName
+    ? `${companyName} · Company assessment`
+    : source
+      ? `${source} assessment`
+      : '';
 
   if (!open) return null;
 
@@ -310,7 +327,7 @@ export default function AssessmentModal({ open, onClose, assessmentId, skillName
         {loading ? (
           <div style={styles.loading}>
             <div style={styles.loadingSpinner}><Loader2 size={24} /></div>
-            <div style={styles.loadingText}>Loading questions...</div>
+            <div style={styles.loadingText}>Preparing your assessment...</div>
           </div>
         ) : error && !completed ? (
           <>
@@ -334,6 +351,7 @@ export default function AssessmentModal({ open, onClose, assessmentId, skillName
               <div>
                 <div style={styles.questionLabel}>Question {current + 1} of {questions.length}</div>
                 <div style={styles.skillTitle}>{skillName}</div>
+                {sourceLine && <div style={styles.sourceText}>{sourceLine}</div>}
               </div>
               <div style={styles.timer}>
                 <Clock size={16} />

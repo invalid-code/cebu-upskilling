@@ -13,5 +13,15 @@ export default defineConfig({
         url: 'http://localhost:5173',
       },
     },
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json-summary'],
+      thresholds: {
+        statements: 50,
+        branches: 45,
+        functions: 40,
+        lines: 50,
+      },
+    },
   },
 })

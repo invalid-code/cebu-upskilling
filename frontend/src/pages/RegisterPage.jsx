@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Button from '../components/ui/Button';
+import { extractResumeText } from '../utils/resumeText';
 
 const styles = {
   container: {
@@ -62,6 +63,18 @@ const styles = {
     marginBottom: 12,
     fontSize: 14,
   },
+  fileInput: {
+    width: '100%',
+    background: 'var(--surface)',
+    border: '1px solid var(--line)',
+    borderRadius: 10,
+    minHeight: 42,
+    padding: '9px 12px',
+    color: 'var(--ink)',
+    marginBottom: 12,
+    fontSize: 14,
+    cursor: 'pointer',
+  },
   row: {
     display: 'grid',
     gridTemplateColumns: '1fr 1fr',
@@ -84,28 +97,58 @@ const styles = {
 };
 
 export default function RegisterPage() {
-   const [form, setForm] = useState({
-     firstName: '',
-     lastName: '',
-     emailAddress: '',
-     password: '',
-     targetRole: '',
-     address: '',
-     birthday: '',
-   });
+  const [form, setForm] = useState({
+    firstName: '',
+    lastName: '',
+    emailAddress: '',
+    password: '',
+    address: '',
+    birthday: '',
+    resume: '',
+  });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resumeFile, setResumeFile] = useState(null);
   const { register } = useAuth();
   const navigate = useNavigate();
 
   const update = (field) => (e) => setForm({ ...form, [field]: e.target.value });
 
+  const handleResumeFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const allowed = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    const isDocx = file.name.toLowerCase().endsWith('.docx');
+    if (!allowed.includes(file.type) && !isDocx) {
+      setResumeFile(null);
+      setError('Resume must be a PDF or DOCX file only');
+      e.target.value = '';
+      return;
+    }
+    setError('');
+    setResumeFile(file);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!resumeFile) {
+      setError('Resume is required');
+      return;
+    }
     setError('');
     setLoading(true);
     try {
-      await register(form);
+      const payload = { ...form };
+      if (resumeFile) {
+        const resumeText = await extractResumeText(resumeFile);
+        if (!resumeText) {
+          setError('Could not read the resume. Ensure it contains selectable text.');
+          setLoading(false);
+          return;
+        }
+        payload.resume = resumeText;
+      }
+      await register(payload);
       navigate('/');
     } catch (err) {
       setError(err.message || 'Registration failed');
@@ -153,15 +196,15 @@ export default function RegisterPage() {
             onChange={update('emailAddress')}
             required
           />
-           <input
-             style={styles.field}
-             type="password"
-             placeholder="Password"
-             value={form.password}
-             onChange={update('password')}
-             required
-             minLength={6}
-           />
+          <input
+            style={styles.field}
+            type="password"
+            placeholder="Password"
+            value={form.password}
+            onChange={update('password')}
+            required
+            minLength={6}
+          />
           <input
             style={styles.field}
             type="date"
@@ -175,25 +218,14 @@ export default function RegisterPage() {
             value={form.address}
             onChange={update('address')}
           />
-           <select
-             style={styles.field}
-             aria-label="Target role"
-             value={form.targetRole}
-             onChange={update('targetRole')}
-           >
-             <option value="">Target role (optional)</option>
-             <option value="Frontend Developer">Frontend Developer</option>
-             <option value="Backend Developer">Backend Developer</option>
-             <option value="Full Stack Developer">Full Stack Developer</option>
-             <option value="Data Analyst">Data Analyst</option>
-             <option value="Data Scientist">Data Scientist</option>
-             <option value="UI/UX Designer">UI/UX Designer</option>
-             <option value="DevOps Engineer">DevOps Engineer</option>
-             <option value="Quality Assurance">Quality Assurance</option>
-             <option value="Project Manager">Project Manager</option>
-             <option value="Other">Other</option>
-           </select>
-           <Button
+          <input
+            style={styles.fileInput}
+            type="file"
+            accept=".pdf,.docx"
+            aria-label="Resume"
+            onChange={handleResumeFile}
+          />
+          <Button
             variant="primary"
             style={{ width: '100%', marginTop: 4 }}
             disabled={loading}

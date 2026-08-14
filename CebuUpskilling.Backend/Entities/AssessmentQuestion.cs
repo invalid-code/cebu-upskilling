@@ -27,8 +27,13 @@ public class AssessmentQuestion
 
     public int CorrectOption { get; set; }
 
+    public AssessmentSource Source { get; set; } = AssessmentSource.AI;
+
+    public int? CompanyId { get; set; }
+
     [NotMapped]
     public List<string> Options => new() { OptionA, OptionB, OptionC, OptionD };
 
     public Skill Skill { get; set; } = null!;
+    public Company? Company { get; set; }
 }

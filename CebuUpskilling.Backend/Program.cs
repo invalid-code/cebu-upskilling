@@ -15,17 +15,32 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<ApplicationDbContext>();
+
 builder.Services.Configure<R2Options>(builder.Configuration.GetSection(R2Options.SectionName));
+builder.Services.Configure<OpenRouterOptions>(builder.Configuration.GetSection(OpenRouterOptions.SectionName));
+
+var openRouterOptions = builder.Configuration.GetSection(OpenRouterOptions.SectionName).Get<OpenRouterOptions>();
+builder.Services.AddHttpClient<IOpenRouterService, OpenRouterService>(client =>
+{
+    client.BaseAddress = new Uri(openRouterOptions?.BaseUrl ?? "https://openrouter.ai/api/v1");
+});
 
 var myAllowSpecificOrigins = "_myAllowSpecificOrigins";
+
+var corsOriginsValue = builder.Configuration["Cors:AllowedOrigins"];
+var allowedOrigins = string.IsNullOrWhiteSpace(corsOriginsValue)
+    ? new[] { "http://localhost:5173" }
+    : corsOriginsValue.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(name: myAllowSpecificOrigins, policy =>
         {
-            policy.WithOrigins("http://localhost:5173")
-                .AllowAnyHeader()
-                .AllowAnyMethod();
+            policy.WithOrigins(allowedOrigins)
+                .WithHeaders("Authorization", "Content-Type")
+                .WithMethods("GET", "POST", "PATCH");
         });
 });
 
@@ -43,7 +58,9 @@ builder.Services.AddScoped<IRoleSkillRepository, RoleSkillRepository>();
 builder.Services.AddScoped<ILearnerSkillRepository, LearnerSkillRepository>();
 builder.Services.AddScoped<ILearnerAssessmentRepository, LearnerAssessmentRepository>();
 builder.Services.AddScoped<IAssessmentQuestionRepository, AssessmentQuestionRepository>();
+builder.Services.AddScoped<IRecruiterRepository, RecruiterRepository>();
 builder.Services.AddScoped<ILearnerStudyCourseRepository, LearnerStudyCourseRepository>();
+builder.Services.AddScoped<IApplicationRepository, ApplicationRepository>();
 builder.Services.AddScoped<IMediaRepository, MediaRepository>();
 
 builder.Services.AddScoped<IEntityService<Course>, CourseService>();
@@ -54,6 +71,7 @@ builder.Services.AddScoped<IEntityService<LearnerStudyCourse>, LearnerStudyCours
 builder.Services.AddScoped<ISkillGapService, SkillGapService>();
 builder.Services.AddScoped<IAssessmentService, AssessmentService>();
 builder.Services.AddScoped<IEnrollmentsService, EnrollmentsService>();
+builder.Services.AddScoped<IApplicationsService, ApplicationsService>();
 builder.Services.AddScoped<IStatsService, StatsService>();
 builder.Services.AddScoped<ICoursesPageService, CoursesPageService>();
 builder.Services.AddScoped<ICourseContentService, CourseContentService>();
@@ -104,6 +122,7 @@ app.UseCors(myAllowSpecificOrigins);
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHealthChecks("/health");
 
 app.Lifetime.ApplicationStarted.Register(() =>
     app.Services.GetRequiredService<ILogger<Program>>().LogInformation("Application started"));

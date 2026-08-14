@@ -28,6 +28,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<LearnerSkill> LearnerSkills => Set<LearnerSkill>();
     public DbSet<LearnerAssessment> LearnerAssessments => Set<LearnerAssessment>();
     public DbSet<AssessmentQuestion> AssessmentQuestions => Set<AssessmentQuestion>();
+    public DbSet<Application> Applications => Set<Application>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -161,5 +162,10 @@ public class ApplicationDbContext : DbContext
             .HasOne(q => q.Skill)
             .WithMany()
             .HasForeignKey(q => q.SkillId);
+
+        modelBuilder.Entity<AssessmentQuestion>()
+            .HasOne(q => q.Company)
+            .WithMany()
+            .HasForeignKey(q => q.CompanyId);
     }
 }

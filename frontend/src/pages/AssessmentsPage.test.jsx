@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { AuthProvider } from '../context/AuthContext';
@@ -29,6 +30,9 @@ const mockAvailable = {
       hasAssessment: false,
       questionCount: 25,
       timeLimitMinutes: 40,
+      sourceLabel: 'AI-generated',
+      companyName: null,
+      proctored: true,
     },
     {
       skillId: 2,
@@ -42,6 +46,9 @@ const mockAvailable = {
       hasAssessment: true,
       questionCount: 30,
       timeLimitMinutes: 45,
+      sourceLabel: 'Company',
+      companyName: 'Acme Corp',
+      proctored: false,
     },
   ],
   matchPercent: 78,
@@ -86,6 +93,7 @@ function renderAssessments(user = { targetRole: 'Frontend Developer' }) {
 describe('AssessmentsPage', () => {
   beforeEach(() => {
     api.get.mockReset();
+    api.post.mockReset();
     api.get.mockImplementation((path) => {
       if (path === '/assessments/available') return Promise.resolve(mockAvailable);
       if (path === '/assessments/results') return Promise.resolve(mockResults);
@@ -142,9 +150,40 @@ describe('AssessmentsPage', () => {
   it('shows how verification works section', async () => {
     renderAssessments();
     await screen.findByText('How verification works');
-    expect(screen.getByText(/Consent to proctoring/)).toBeInTheDocument();
-    expect(screen.getByText(/Pass a quick device check/)).toBeInTheDocument();
+    expect(screen.getByText(/Proctored assessments request camera, mic, and focus up front/)).toBeInTheDocument();
+    expect(screen.getByText(/Pass a quick device check before a proctored timer starts/)).toBeInTheDocument();
     expect(screen.getByText(/Your verified level is added/)).toBeInTheDocument();
+  });
+
+  it('distinguishes company and AI assessment sources on cards', async () => {
+    renderAssessments();
+    await screen.findByText('TypeScript');
+    expect(screen.getByText('AI-generated')).toBeInTheDocument();
+    expect(screen.getByText('Proctored')).toBeInTheDocument();
+    expect(screen.getByText('Acme Corp')).toBeInTheDocument();
+    expect(screen.getByText('Not proctored')).toBeInTheDocument();
+  });
+
+  it('starts non-proctored company assessments directly without device check', async () => {
+    renderAssessments();
+    await screen.findByText('TypeScript');
+
+    await userEvent.click(screen.getByText('Retake'));
+
+    await waitFor(() => {
+      expect(api.post).toHaveBeenCalledWith('/assessments/start', { skillId: 2 });
+    });
+    expect(screen.queryByText('Before the timer starts')).not.toBeInTheDocument();
+  });
+
+  it('opens the device check modal for proctored assessments', async () => {
+    renderAssessments();
+    await screen.findByText('TypeScript');
+
+    await userEvent.click(screen.getByText('Start'));
+
+    expect(await screen.findByText('Before the timer starts')).toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
   });
 
   it('shows empty state for assessments when no target role is set', async () => {

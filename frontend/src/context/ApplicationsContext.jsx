@@ -1,34 +1,84 @@
 /* eslint-disable react/only-export-components */
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useAuth } from './AuthContext';
+import { api } from '../api/client';
 
 const ApplicationsContext = createContext(null);
-const STORAGE_KEY = 'job_applications';
+
+function normalize(summary) {
+  return {
+    id: summary.postId,
+    title: summary.title,
+    company: summary.company,
+    status: summary.status,
+    appliedAt: summary.appliedAt,
+    savedAt: summary.savedAt,
+  };
+}
 
 export function ApplicationsProvider({ children }) {
-  const [applications, setApplications] = useState(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
+  const { user } = useAuth();
+  const userId = user?.UserId ?? user?.userId ?? null;
+  const [applications, setApplications] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const load = useCallback(async () => {
+    if (!userId) {
+      setApplications([]);
+      return;
     }
-  });
+    setLoading(true);
+    try {
+      const data = await api.get('/applications');
+      setApplications((data || []).map(normalize));
+    } catch {
+      setApplications([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [userId]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(applications));
-  }, [applications]);
+    load();
+  }, [load]);
 
-  const applyToJob = useCallback((job) => {
-    setApplications((prev) => {
-      if (prev.some((a) => a.id === job.id)) return prev;
-      return [...prev, { ...job, appliedAt: new Date().toISOString(), status: 'applied' }];
-    });
-  }, []);
+  const applyToJob = useCallback(async (job) => {
+    if (!userId) return;
+    if (applications.some((a) => a.id === job.id)) return;
+    try {
+      const created = await api.post('/applications', { postId: job.id });
+      setApplications((prev) => [
+        ...prev,
+        normalize(created) || {
+          id: job.id,
+          title: job.title,
+          company: job.company,
+          status: 'applied',
+          appliedAt: new Date().toISOString(),
+        },
+      ]);
+    } catch {
+      /* ignore network errors */
+    }
+  }, [userId, applications]);
 
-  const updateStatus = useCallback((jobId, status) => {
+  const updateStatus = useCallback(async (jobId, status) => {
     setApplications((prev) =>
-      prev.map((app) => (app.id === jobId ? { ...app, status } : app))
+      prev.map((app) =>
+        app.id === jobId
+          ? {
+              ...app,
+              status,
+              savedAt: status === 'saved' ? app.savedAt || new Date().toISOString() : app.savedAt,
+            }
+          : app,
+      ),
     );
+    try {
+      await api.patch(`/applications/${jobId}`, { status });
+    } catch {
+      /* ignore network errors */
+    }
   }, []);
 
   const isApplied = useCallback(
@@ -37,7 +87,7 @@ export function ApplicationsProvider({ children }) {
   );
 
   return (
-    <ApplicationsContext.Provider value={{ applications, applyToJob, isApplied, updateStatus }}>
+    <ApplicationsContext.Provider value={{ applications, applyToJob, isApplied, updateStatus, loading }}>
       {children}
     </ApplicationsContext.Provider>
   );

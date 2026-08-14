@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { AuthProvider } from '../context/AuthContext';
 import { EnrollmentsProvider } from '../context/EnrollmentsContext';
+import { ApplicationsProvider } from '../context/ApplicationsContext';
 import { ToastProvider } from '../context/ToastContext';
 import OverviewPage from './OverviewPage';
 
@@ -45,14 +46,18 @@ const mockSkillGaps = [
   { skillId: 3, skillName: 'React', category: 'Framework', requiredLevel: 4, currentLevel: 0, gap: 4, verified: false },
 ];
 
+const USER_ID = 1;
+
 function renderOverview() {
   return render(
     <MemoryRouter>
       <AuthProvider>
         <EnrollmentsProvider>
-          <ToastProvider>
-            <OverviewPage />
-          </ToastProvider>
+          <ApplicationsProvider>
+            <ToastProvider>
+              <OverviewPage />
+            </ToastProvider>
+          </ApplicationsProvider>
         </EnrollmentsProvider>
       </AuthProvider>
     </MemoryRouter>,
@@ -61,8 +66,9 @@ function renderOverview() {
 
 describe('OverviewPage', () => {
   beforeEach(() => {
-    localStorage.setItem('user', JSON.stringify({ firstName: 'Test', role: 'Learner' }));
+    localStorage.setItem('user', JSON.stringify({ UserId: USER_ID, firstName: 'Test', role: 'Learner' }));
     localStorage.setItem('token', 'abc');
+    localStorage.removeItem(`job_applications_${USER_ID}`);
     api.get.mockReset();
     api.post.mockReset();
     api.get.mockImplementation((path) => {
@@ -70,6 +76,7 @@ describe('OverviewPage', () => {
       if (path === '/enrollments') return Promise.resolve([]);
       if (path === '/skillgaps') return Promise.resolve([]);
       if (path === '/assessments/recommended') return Promise.resolve(null);
+      if (path === '/applications') return Promise.resolve([]);
       return Promise.resolve([]);
     });
   });
@@ -85,30 +92,47 @@ describe('OverviewPage', () => {
       if (path === '/enrollments') return Promise.resolve([]);
       if (path === '/skillgaps') return Promise.resolve([]);
       if (path === '/assessments/recommended') return Promise.resolve(null);
+      if (path === '/applications') return Promise.resolve([]);
       return Promise.resolve([]);
     });
     renderOverview();
-    expect(await screen.findByText('Set a target role to see your gaps')).toBeInTheDocument();
-    expect(screen.getByText('No score yet')).toBeInTheDocument();
+    expect(await screen.findByText('Apply for a job to see your gaps')).toBeInTheDocument();
+    expect(screen.getByText('Apply for a job first')).toBeInTheDocument();
     expect(screen.getByText('Pathway rail')).toBeInTheDocument();
     expect(screen.getByText('1 of 5 steps')).toBeInTheDocument();
   });
 
   it('displays the target role in the pathway rail when the user has one', async () => {
-    localStorage.setItem('user', JSON.stringify({ firstName: 'Test', role: 'Learner', targetRole: 'Frontend Developer' }));
+    localStorage.setItem('user', JSON.stringify({ UserId: USER_ID, firstName: 'Test', role: 'Learner', targetRole: 'Frontend Developer' }));
     renderOverview();
     expect(await screen.findByText('Frontend Developer · Cebu / Remote')).toBeInTheDocument();
     expect(screen.getByText('2 of 5 steps')).toBeInTheDocument();
     expect(screen.queryByText('Your pathway will appear here')).not.toBeInTheDocument();
   });
 
-  it('displays skill gaps when the user has a target role', async () => {
-    localStorage.setItem('user', JSON.stringify({ firstName: 'Test', role: 'Learner', targetRole: 'Frontend Developer' }));
+  it('does not display skill gaps when the learner has not applied for a job', async () => {
+    localStorage.setItem('user', JSON.stringify({ UserId: USER_ID, firstName: 'Test', role: 'Learner', targetRole: 'Frontend Developer' }));
     api.get.mockImplementation((path) => {
       if (path === '/courses') return Promise.resolve(mockCourses);
       if (path === '/enrollments') return Promise.resolve([]);
       if (path === '/skillgaps') return Promise.resolve(mockSkillGaps);
       if (path === '/assessments/recommended') return Promise.resolve({ skillName: 'JavaScript' });
+      return Promise.resolve([]);
+    });
+    renderOverview();
+    expect(await screen.findByText('Apply for a job to see your gaps')).toBeInTheDocument();
+    expect(screen.queryByText('JavaScript')).not.toBeInTheDocument();
+    expect(api.get).not.toHaveBeenCalledWith('/skillgaps');
+  });
+
+  it('displays skill gaps when the learner has a target role and has applied for a job', async () => {
+    localStorage.setItem('user', JSON.stringify({ UserId: USER_ID, firstName: 'Test', role: 'Learner', targetRole: 'Frontend Developer' }));
+    api.get.mockImplementation((path) => {
+      if (path === '/courses') return Promise.resolve(mockCourses);
+      if (path === '/enrollments') return Promise.resolve([]);
+      if (path === '/skillgaps') return Promise.resolve(mockSkillGaps);
+      if (path === '/assessments/recommended') return Promise.resolve({ skillName: 'JavaScript' });
+      if (path === '/applications') return Promise.resolve([{ postId: 1 }]);
       return Promise.resolve([]);
     });
     renderOverview();

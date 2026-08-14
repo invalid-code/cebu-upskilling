@@ -8,6 +8,7 @@ import StatCard from '../components/shared/StatCard';
 import CourseCard from '../components/shared/CourseCard';
 import SkillGapItem from '../components/shared/SkillGapItem';
 import { useAuth } from '../context/AuthContext';
+import { useApplications } from '../context/ApplicationsContext';
 import { api } from '../api/client';
 import { ArrowUpRight, Check, Clock, BookOpen, Send } from 'lucide-react';
 
@@ -218,6 +219,8 @@ const styles = {
 export default function OverviewPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { applications } = useApplications();
+  const hasApplied = applications.length > 0;
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [skillGaps, setSkillGaps] = useState([]);
@@ -247,7 +250,8 @@ export default function OverviewPage() {
   }, []);
 
   useEffect(() => {
-    if (!targetRole) {
+    if (!targetRole || !hasApplied) {
+      setSkillGaps([]);
       setSkillGapsLoading(false);
       return;
     }
@@ -257,7 +261,7 @@ export default function OverviewPage() {
       .catch(() => setSkillGaps([]))
       .finally(() => setSkillGapsLoading(false));
     return () => controller.abort();
-  }, [targetRole]);
+  }, [targetRole, hasApplied]);
 
   useEffect(() => {
     if (!targetRole) return;
@@ -326,8 +330,10 @@ export default function OverviewPage() {
                 <div style={styles.loading}>Calculating...</div>
               ) : skillGaps.length === 0 ? (
                 <EmptyState
-                  title="No score yet"
-                  description="Set a target role and add skills to generate your match score."
+                  title={hasApplied ? 'No score yet' : 'Apply for a job first'}
+                  description={hasApplied
+                    ? 'Set a target role and add skills to generate your match score.'
+                    : 'Your match score and skill gaps unlock once you apply for a job.'}
                 />
               ) : (() => {
                 const totalRequired = skillGaps.reduce((s, g) => s + g.requiredLevel, 0);
@@ -505,10 +511,14 @@ export default function OverviewPage() {
           <div style={styles.loading}>Loading skill gaps...</div>
         ) : skillGaps.length === 0 ? (
           <EmptyState
-            title={targetRole ? 'No skill gaps yet' : 'Set a target role to see your gaps'}
-            description={targetRole
-              ? 'Your profile is complete for this role.'
-              : 'Choose a target role to compare your skills against.'}
+            title={!hasApplied
+              ? 'Apply for a job to see your gaps'
+              : targetRole ? 'No skill gaps yet' : 'Set a target role to see your gaps'}
+            description={!hasApplied
+              ? 'Skill gaps appear once you apply for a role.'
+              : targetRole
+                ? 'Your profile is complete for this role.'
+                : 'Choose a target role to compare your skills against.'}
           />
         ) : (
           skillGaps.map((gap) => (

@@ -342,6 +342,13 @@ export default function AssessmentsPage() {
   async function handleStartAssessment(skillId, skillName) {
     setCurrentSkillName(skillName);
     setDeviceCheck('idle');
+
+    const assessment = available?.assessments?.find((a) => a.skillId === skillId);
+    if (assessment && assessment.proctored === false) {
+      await confirmStartAssessment(skillId);
+      return;
+    }
+
     setModalOpen(true);
   }
 
@@ -364,8 +371,8 @@ export default function AssessmentsPage() {
       <div style={styles.heading}>
         <h1 style={styles.h1}>Assessments</h1>
         <p style={styles.subtitle}>
-          Verified results strengthen your skill profile and your job match. Take a proctored
-          assessment to move a self-declared skill into your applications.
+          Verified results strengthen your skill profile and your job match. Take an
+          assessment — proctored or company-authored — to verify your skills.
         </p>
       </div>
 
@@ -437,6 +444,9 @@ export default function AssessmentsPage() {
                   hasAssessment={assessment.hasAssessment}
                   questionCount={assessment.questionCount}
                   timeLimitMinutes={assessment.timeLimitMinutes}
+                  sourceLabel={assessment.sourceLabel}
+                  companyName={assessment.companyName}
+                  proctored={assessment.proctored}
                   isRecommended={assessment === recommendedSkill}
                   onStart={handleStartAssessment}
                 />
@@ -484,13 +494,13 @@ export default function AssessmentsPage() {
             <div style={styles.step}>
               <div style={styles.stepNumber}>1</div>
               <div style={styles.stepText}>
-                Consent to proctoring — camera, mic, and focus, requested up front.
+                Proctored assessments request camera, mic, and focus up front; company assessments run without them.
               </div>
             </div>
             <div style={styles.step}>
               <div style={styles.stepNumber}>2</div>
               <div style={styles.stepText}>
-                Pass a quick device check before the timer starts.
+                Pass a quick device check before a proctored timer starts.
               </div>
             </div>
             <div style={styles.step}>

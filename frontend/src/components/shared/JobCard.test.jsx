@@ -1,8 +1,17 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { ToastProvider } from '../../context/ToastContext';
+import { AuthProvider } from '../../context/AuthContext';
 import { ApplicationsProvider } from '../../context/ApplicationsContext';
 import JobCard from './JobCard';
+
+vi.mock('../../api/client', () => ({
+  api: {
+    get: vi.fn().mockResolvedValue([]),
+    post: vi.fn().mockResolvedValue({}),
+    patch: vi.fn().mockResolvedValue({}),
+  },
+}));
 
 const job = {
   id: 1,
@@ -17,12 +26,15 @@ const job = {
 };
 
 function renderJobCard() {
+  localStorage.setItem('user', JSON.stringify({ UserId: 1, firstName: 'Test', role: 'Learner' }));
   return render(
-    <ApplicationsProvider>
-      <ToastProvider>
-        <JobCard job={job} />
-      </ToastProvider>
-    </ApplicationsProvider>,
+    <AuthProvider>
+      <ApplicationsProvider>
+        <ToastProvider>
+          <JobCard job={job} />
+        </ToastProvider>
+      </ApplicationsProvider>
+    </AuthProvider>,
   );
 }
 

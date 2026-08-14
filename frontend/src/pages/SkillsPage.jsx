@@ -6,6 +6,7 @@ import TargetRoleCard from '../components/shared/TargetRoleCard';
 import SkillGapItem from '../components/shared/SkillGapItem';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
+import { useApplications } from '../context/ApplicationsContext';
 import { api } from '../api/client';
 import { useState, useEffect } from 'react';
 
@@ -119,6 +120,8 @@ const styles = {
 export default function SkillsPage() {
   const { showToast } = useToast();
   const { user, setUser } = useAuth();
+  const { applications } = useApplications();
+  const hasApplied = applications.length > 0;
   const [selectedRole, setSelectedRole] = useState(user?.targetRole || '');
   const [saving, setSaving] = useState(false);
   const [skillGaps, setSkillGaps] = useState([]);
@@ -137,7 +140,8 @@ export default function SkillsPage() {
   };
 
   useEffect(() => {
-    if (!hasRole) {
+    if (!hasRole || !hasApplied) {
+      setSkillGaps([]);
       setSkillGapsLoading(false);
       return;
     }
@@ -147,7 +151,7 @@ export default function SkillsPage() {
       .catch(() => setSkillGaps([]))
       .finally(() => setSkillGapsLoading(false));
     return () => controller.abort();
-  }, [hasRole]);
+  }, [hasRole, hasApplied]);
 
   const handleSelect = (role) => {
     setSelectedRole(role);
@@ -289,10 +293,14 @@ export default function SkillsPage() {
             </div>
           ) : skillGaps.length === 0 ? (
             <EmptyState
-              title={hasRole ? 'No assessed skills yet' : 'Set a target role to see required skills'}
-              description={hasRole
-                ? 'Take an assessment to verify your skills.'
-                : 'Choose a target role to compare your skills against.'}
+              title={!hasApplied
+                ? 'Apply for a job to see required skills'
+                : hasRole ? 'No assessed skills yet' : 'Set a target role to see required skills'}
+              description={!hasApplied
+                ? 'Required skills appear once you apply for a role.'
+                : hasRole
+                  ? 'Take an assessment to verify your skills.'
+                  : 'Choose a target role to compare your skills against.'}
             />
           ) : (
             skillGaps.map((gap) => (

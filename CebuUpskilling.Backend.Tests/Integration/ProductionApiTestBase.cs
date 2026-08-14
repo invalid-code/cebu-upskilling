@@ -25,6 +25,8 @@ public abstract class ProductionApiTestBase : IClassFixture<ProductionApiFactory
     {
         await Factory.EnsureMigratedAsync();
         await Factory.ResetDatabaseAsync();
+        using var context = Factory.CreateDbContext();
+        TestDataSeeder.Seed(context);
     }
 
     public Task DisposeAsync() => Task.CompletedTask;
@@ -56,6 +58,7 @@ public abstract class ProductionApiTestBase : IClassFixture<ProductionApiFactory
             password = "P@ssw0rd!",
             role = "Learner",
             targetRole,
+            resume = "Experienced software developer with 5+ years in web development.",
         });
         response.EnsureSuccessStatusCode();
 

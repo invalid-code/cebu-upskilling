@@ -12,6 +12,7 @@ public interface IAssessmentService
     Task<StartAssessmentResponse?> StartAssessmentAsync(int userId, StartAssessmentRequest request);
     Task<AssessmentQuestionsResponse?> GetQuestionsAsync(int userId, int assessmentId);
     Task<SubmitAssessmentResponse?> SubmitAssessmentAsync(int userId, int assessmentId, SubmitAssessmentRequest request);
+    Task<CreatedCompanyQuestionResponse?> CreateCompanyQuestionAsync(int userId, CreateCompanyQuestionRequest request);
 }
 
 public class AssessmentService : IAssessmentService
@@ -23,6 +24,8 @@ public class AssessmentService : IAssessmentService
     private readonly ILearnerAssessmentRepository _learnerAssessments;
     private readonly IAssessmentQuestionRepository _assessmentQuestions;
     private readonly ISkillRepository _skills;
+    private readonly IRecruiterRepository _recruiters;
+    private readonly IOpenRouterService _openRouterService;
     private readonly ILogger<AssessmentService> _logger;
 
     private static readonly Dictionary<int, string> LevelLabels = new()
@@ -42,6 +45,8 @@ public class AssessmentService : IAssessmentService
         ILearnerAssessmentRepository learnerAssessments,
         IAssessmentQuestionRepository assessmentQuestions,
         ISkillRepository skills,
+        IRecruiterRepository recruiters,
+        IOpenRouterService openRouterService,
         ILogger<AssessmentService> logger)
     {
         _users = users;
@@ -51,6 +56,8 @@ public class AssessmentService : IAssessmentService
         _learnerAssessments = learnerAssessments;
         _assessmentQuestions = assessmentQuestions;
         _skills = skills;
+        _recruiters = recruiters;
+        _openRouterService = openRouterService;
         _logger = logger;
     }
 
@@ -159,6 +166,11 @@ public class AssessmentService : IAssessmentService
         var skillIds = roleSkills.Select(rs => rs.SkillId).ToList();
         var questionCounts = await _assessmentQuestions.GetQuestionCountsBySkillIdsAsync(skillIds);
 
+        var companyQuestions = await _assessmentQuestions.GetBySkillIdsAndSourceAsync(skillIds, AssessmentSource.Company);
+        var companyBySkill = companyQuestions
+            .GroupBy(q => q.SkillId)
+            .ToDictionary(g => g.Key, g => g.First().Company?.Name ?? "Company");
+
         var assessments = roleSkills
             .Select(rs =>
             {
@@ -166,6 +178,7 @@ public class AssessmentService : IAssessmentService
                 var currentLevel = hasSkill ? ls!.CurrentLevel : 0;
                 var gap = Math.Max(0, rs.RequiredLevel - currentLevel);
                 var hasAssessment = assessmentsBySkill.ContainsKey(rs.SkillId);
+                var isCompanyAssessment = companyBySkill.ContainsKey(rs.SkillId);
 
                 return new AvailableAssessmentDto(
                     SkillId: rs.Skill.SkillId,
@@ -178,7 +191,10 @@ public class AssessmentService : IAssessmentService
                     Gap: gap,
                     HasAssessment: hasAssessment,
                     QuestionCount: questionCounts.GetValueOrDefault(rs.SkillId, 0),
-                    TimeLimitMinutes: 45
+                    TimeLimitMinutes: 45,
+                    SourceLabel: isCompanyAssessment ? "Company" : "AI-generated",
+                    CompanyName: isCompanyAssessment ? companyBySkill[rs.SkillId] : null,
+                    Proctored: !isCompanyAssessment
                 );
             })
             .OrderByDescending(a => a.Gap)
@@ -257,18 +273,34 @@ public class AssessmentService : IAssessmentService
             return null;
         }
 
-        var questions = await _assessmentQuestions.GetBySkillIdAsync(assessment.SkillId);
+        var companyQuestions = await _assessmentQuestions.GetBySkillIdAndSourceAsync(assessment.SkillId, AssessmentSource.Company);
+        var aiQuestions = companyQuestions.Count > 0
+            ? new List<AssessmentQuestion>()
+            : await _assessmentQuestions.GetBySkillIdAndSourceAsync(assessment.SkillId, AssessmentSource.AI);
+
+        var questions = companyQuestions.Count > 0 ? companyQuestions : aiQuestions;
 
         if (questions.Count == 0)
         {
-            _logger.LogWarning("No questions found for skill {SkillId}", assessment.SkillId);
-            return new AssessmentQuestionsResponse(
-                assessmentId,
-                assessment.Skill.Name,
-                45,
-                new List<AssessmentQuestionDto>()
-            );
+            questions = await GenerateQuestionsForSkillAsync(assessment.Skill, ct: CancellationToken.None);
+
+            if (questions.Count == 0)
+            {
+                _logger.LogWarning("No questions found or generated for skill {SkillId}", assessment.SkillId);
+                return new AssessmentQuestionsResponse(
+                    assessmentId,
+                    assessment.Skill.Name,
+                    45,
+                    new List<AssessmentQuestionDto>(),
+                    "AI-generated",
+                    null,
+                    true
+                );
+            }
         }
+
+        var source = questions[0].Source == AssessmentSource.Company ? "Company" : "AI-generated";
+        var companyName = questions[0].Company?.Name;
 
         var random = new Random();
         var selectedQuestions = questions.OrderBy(_ => random.Next()).Take(5).ToList();
@@ -276,14 +308,19 @@ public class AssessmentService : IAssessmentService
         var questionDtos = selectedQuestions.Select(q => new AssessmentQuestionDto(
             QuestionId: q.AssessmentQuestionId,
             Text: q.Text,
-            Options: q.Options
+            Options: q.Options,
+            Source: q.Source == AssessmentSource.Company ? "Company" : "AI-generated",
+            CompanyName: q.Company?.Name
         )).ToList();
 
         return new AssessmentQuestionsResponse(
             AssessmentId: assessment.LearnerAssessmentId,
             SkillName: assessment.Skill.Name,
             TimeLimitMinutes: 45,
-            Questions: questionDtos
+            Questions: questionDtos,
+            Source: source,
+            CompanyName: companyName,
+            Proctored: source == "AI-generated"
         );
     }
 
@@ -362,6 +399,95 @@ public class AssessmentService : IAssessmentService
             Verified: true,
             CompletedAt: assessment.CompletedAt
         );
+    }
+
+    public async Task<CreatedCompanyQuestionResponse?> CreateCompanyQuestionAsync(int userId, CreateCompanyQuestionRequest request)
+    {
+        var recruiter = await _recruiters.GetByUserIdAsync(userId);
+        if (recruiter?.Company == null)
+        {
+            _logger.LogWarning("User {UserId} is not a recruiter; company question rejected", userId);
+            return null;
+        }
+
+        var skill = await _skills.GetByIdAsync(request.SkillId);
+        if (skill == null)
+        {
+            _logger.LogWarning("Skill {SkillId} not found for company question", request.SkillId);
+            return null;
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Text)
+            || string.IsNullOrWhiteSpace(request.OptionA)
+            || string.IsNullOrWhiteSpace(request.OptionB)
+            || string.IsNullOrWhiteSpace(request.OptionC)
+            || string.IsNullOrWhiteSpace(request.OptionD)
+            || request.CorrectOption is < 0 or > 3)
+        {
+            _logger.LogWarning("Invalid company question payload from user {UserId}", userId);
+            return null;
+        }
+
+        var question = new AssessmentQuestion
+        {
+            SkillId = skill.SkillId,
+            Text = request.Text.Trim(),
+            OptionA = request.OptionA.Trim(),
+            OptionB = request.OptionB.Trim(),
+            OptionC = request.OptionC.Trim(),
+            OptionD = request.OptionD.Trim(),
+            CorrectOption = request.CorrectOption,
+            Source = AssessmentSource.Company,
+            CompanyId = recruiter.CompanyId,
+        };
+
+        await _assessmentQuestions.AddAsync(question);
+        await _assessmentQuestions.SaveChangesAsync();
+
+        _logger.LogInformation("Company {Company} added assessment question for skill {Skill}",
+            recruiter.Company.Name, skill.Name);
+
+        return new CreatedCompanyQuestionResponse(
+            QuestionId: question.AssessmentQuestionId,
+            SkillId: skill.SkillId,
+            Text: question.Text,
+            Source: "Company",
+            CompanyName: recruiter.Company.Name
+        );
+    }
+
+    private async Task<List<AssessmentQuestion>> GenerateQuestionsForSkillAsync(Skill skill, int count = 5, CancellationToken ct = default)
+    {
+        _logger.LogInformation("Generating {Count} AI assessment questions for skill {Skill}",
+            count, skill.Name);
+
+        var generated = await _openRouterService.GenerateAssessmentQuestionsAsync(skill.Name, count, ct);
+
+        if (generated.Count == 0)
+        {
+            _logger.LogWarning("AI generated no questions for skill {Skill}", skill.Name);
+            return new List<AssessmentQuestion>();
+        }
+
+        var questions = generated.Select(q => new AssessmentQuestion
+        {
+            SkillId = skill.SkillId,
+            Text = q.Text.Trim(),
+            OptionA = q.OptionA.Trim(),
+            OptionB = q.OptionB.Trim(),
+            OptionC = q.OptionC.Trim(),
+            OptionD = q.OptionD.Trim(),
+            CorrectOption = q.CorrectOption,
+            Source = AssessmentSource.AI,
+        }).ToList();
+
+        _assessmentQuestions.AddRange(questions);
+        await _assessmentQuestions.SaveChangesAsync(ct);
+
+        _logger.LogInformation("Saved {Count} AI-generated questions for skill {Skill}",
+            questions.Count, skill.Name);
+
+        return questions;
     }
 
     private static int CalculateLevel(int scorePercent)

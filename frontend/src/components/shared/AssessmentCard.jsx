@@ -109,6 +109,9 @@ export default function AssessmentCard({
   hasAssessment,
   questionCount,
   timeLimitMinutes,
+  sourceLabel,
+  companyName,
+  proctored,
   isRecommended,
   onStart,
 }) {
@@ -118,7 +121,16 @@ export default function AssessmentCard({
     <div style={{ ...styles.card, ...(isRecommended ? styles.cardRecommended : {}) }}>
       <div style={styles.tags}>
         {isRecommended && <Tag variant="coral">Recommended next</Tag>}
-        <Tag variant="default">Proctored</Tag>
+        {companyName ? (
+          <Tag variant="sand">{companyName}</Tag>
+        ) : (
+          <Tag variant="default">{sourceLabel || 'AI-generated'}</Tag>
+        )}
+        {proctored ? (
+          <Tag variant="default">Proctored</Tag>
+        ) : (
+          <Tag variant="sand">Not proctored</Tag>
+        )}
       </div>
 
       <div style={styles.title}>{skillName}</div>

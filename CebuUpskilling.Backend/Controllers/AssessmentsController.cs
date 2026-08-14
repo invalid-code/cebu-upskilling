@@ -2,6 +2,7 @@ using System.Security.Claims;
 using CebuUpskilling.Backend.DTOs;
 using CebuUpskilling.Backend.Entities;
 using CebuUpskilling.Backend.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CebuUpskilling.Backend.Controllers;
@@ -92,6 +93,20 @@ public class AssessmentsController : BaseEntityController<LearnerAssessment>
         var result = await _assessmentService.SubmitAssessmentAsync(userId, assessmentId, request);
         if (result == null)
             return BadRequest(new { error = "Unable to submit assessment" });
+
+        return Ok(result);
+    }
+
+    [Authorize(Roles = "Recruiter")]
+    [HttpPost("company/questions")]
+    public async Task<ActionResult<CreatedCompanyQuestionResponse>> CreateCompanyQuestion([FromBody] CreateCompanyQuestionRequest request)
+    {
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        _logger.LogInformation("POST /api/assessments/company/questions called by user {UserId} for skill {SkillId}", userId, request.SkillId);
+
+        var result = await _assessmentService.CreateCompanyQuestionAsync(userId, request);
+        if (result == null)
+            return BadRequest(new { error = "Unable to create company question" });
 
         return Ok(result);
     }
