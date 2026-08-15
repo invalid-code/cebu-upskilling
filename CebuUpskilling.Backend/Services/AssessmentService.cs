@@ -147,19 +147,22 @@ public class AssessmentService : IAssessmentService
     public async Task<AvailableAssessmentsResponse?> GetAvailableAssessmentsAsync(int userId)
     {
         var user = await _users.GetByIdAsync(userId);
-        if (user?.TargetRole == null)
-        {
-            _logger.LogInformation("User {UserId} has no target role set", userId);
-            return null;
-        }
-
-        var roleSkills = await _roleSkills.GetByTargetRoleWithSkillAsync(user.TargetRole);
 
         var learner = await _learners.GetByUserIdAsync(userId);
         if (learner == null)
         {
             _logger.LogInformation("No learner profile found for user {UserId}", userId);
             return null;
+        }
+
+        var hasTargetRole = user?.TargetRole != null;
+        var roleSkills = hasTargetRole
+            ? await _roleSkills.GetByTargetRoleWithSkillAsync(user!.TargetRole!)
+            : new List<RoleSkill>();
+
+        if (!hasTargetRole)
+        {
+            _logger.LogInformation("User {UserId} has no target role set; returning parsed-skill assessments only", userId);
         }
 
         var learnerSkills = await _learnerSkills.GetByLearnerIdWithSkillAsync(learner.LearnerId);
@@ -170,7 +173,6 @@ public class AssessmentService : IAssessmentService
             .Where(a => a.Verified)
             .GroupBy(a => a.SkillId)
             .ToDictionary(g => g.Key, g => g.First());
-        var assessmentSkillIds = new HashSet<int>(learnerAssessments.Select(a => a.SkillId));
 
         var roleSkillIds = roleSkills.Select(rs => rs.SkillId).ToList();
         var parsedSkills = learnerSkills
@@ -209,7 +211,8 @@ public class AssessmentService : IAssessmentService
                     TimeLimitMinutes: 45,
                     SourceLabel: isCompanyAssessment ? "Company" : "AI-generated",
                     CompanyName: isCompanyAssessment ? companyBySkill[rs.Skill.SkillId] : null,
-                    Proctored: !isCompanyAssessment
+                    Proctored: !isCompanyAssessment,
+                    IsSkillAssessment: false
                 );
             })
             .ToList();
@@ -228,12 +231,13 @@ public class AssessmentService : IAssessmentService
                 TargetLevel: currentLevel,
                 TargetLevelLabel: LevelLabels.GetValueOrDefault(currentLevel, $"Level {currentLevel}"),
                 Gap: 0,
-                HasAssessment: assessmentSkillIds.Contains(skill.SkillId),
+                HasAssessment: verifiedBySkill.ContainsKey(skill.SkillId),
                 QuestionCount: questionCounts.GetValueOrDefault(skill.SkillId, 0),
                 TimeLimitMinutes: 45,
                 SourceLabel: isCompanyAssessment ? "Company" : "AI-generated",
                 CompanyName: isCompanyAssessment ? companyBySkill[skill.SkillId] : null,
-                Proctored: !isCompanyAssessment
+                Proctored: !isCompanyAssessment,
+                IsSkillAssessment: true
             ));
         }
 

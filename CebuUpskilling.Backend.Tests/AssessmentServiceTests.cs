@@ -175,6 +175,159 @@ public class AssessmentServiceTests
     }
 
     [Fact]
+    public async Task GetAvailableAssessmentsAsync_WithNoTargetRole_ReturnsParsedSkillAssessments()
+    {
+        var context = TestDbContextFactory.Create();
+        var aiService = new FakeGoogleAiService();
+        var service = CreateService(context, aiService);
+
+        var user = new AppUser
+        {
+            FirstName = "Jose",
+            LastName = "Rizal",
+            EmailAddress = $"learner-{Guid.NewGuid():N}@example.com",
+            PasswordHash = "hash",
+            Role = "Learner",
+            TargetRole = null,
+        };
+        context.Users.Add(user);
+
+        var learner = new Learner { UserId = user.UserId, IsPremium = false };
+        context.Learners.Add(learner);
+
+        var skill = new Skill { Name = "TypeScript", Category = "Frontend" };
+        context.Skills.Add(skill);
+        await context.SaveChangesAsync();
+
+        context.LearnerSkills.Add(new LearnerSkill
+        {
+            LearnerId = learner.LearnerId,
+            SkillId = skill.SkillId,
+            CurrentLevel = 0,
+            Verified = false,
+        });
+        context.LearnerAssessments.Add(new LearnerAssessment
+        {
+            LearnerId = learner.LearnerId,
+            SkillId = skill.SkillId,
+            ScoredLevel = 0,
+            Verified = false,
+            CompletedAt = DateTime.UtcNow,
+        });
+        await context.SaveChangesAsync();
+
+        var result = await service.GetAvailableAssessmentsAsync(user.UserId);
+
+        Assert.NotNull(result);
+        var assessment = Assert.Single(result!.Assessments);
+        Assert.Equal("TypeScript", assessment.SkillName);
+        Assert.False(assessment.HasAssessment);
+        Assert.Equal(0, result.MatchPercent);
+        Assert.Equal(0, result.RecommendedCount);
+    }
+
+    [Fact]
+    public async Task GetAvailableAssessmentsAsync_WithNoTargetRole_VerifiedAssessmentShowsRetake()
+    {
+        var context = TestDbContextFactory.Create();
+        var aiService = new FakeGoogleAiService();
+        var service = CreateService(context, aiService);
+
+        var user = new AppUser
+        {
+            FirstName = "Jose",
+            LastName = "Rizal",
+            EmailAddress = $"learner-{Guid.NewGuid():N}@example.com",
+            PasswordHash = "hash",
+            Role = "Learner",
+            TargetRole = null,
+        };
+        context.Users.Add(user);
+
+        var learner = new Learner { UserId = user.UserId, IsPremium = false };
+        context.Learners.Add(learner);
+
+        var skill = new Skill { Name = "TypeScript", Category = "Frontend" };
+        context.Skills.Add(skill);
+        await context.SaveChangesAsync();
+
+        context.LearnerSkills.Add(new LearnerSkill
+        {
+            LearnerId = learner.LearnerId,
+            SkillId = skill.SkillId,
+            CurrentLevel = 0,
+            Verified = false,
+        });
+        context.LearnerAssessments.Add(new LearnerAssessment
+        {
+            LearnerId = learner.LearnerId,
+            SkillId = skill.SkillId,
+            ScoredLevel = 0,
+            Verified = true,
+            CompletedAt = DateTime.UtcNow,
+        });
+        await context.SaveChangesAsync();
+
+        var result = await service.GetAvailableAssessmentsAsync(user.UserId);
+
+        Assert.NotNull(result);
+        var assessment = Assert.Single(result!.Assessments);
+        Assert.Equal("TypeScript", assessment.SkillName);
+        Assert.True(assessment.HasAssessment);
+    }
+
+    [Fact]
+    public async Task GetAvailableAssessmentsAsync_WithTargetRole_ReturnsRoleAndParsedSkillAssessments()
+    {
+        var context = TestDbContextFactory.Create();
+        var aiService = new FakeGoogleAiService();
+        var service = CreateService(context, aiService);
+
+        var roleSkill = new Skill { Name = "JavaScript", Category = "Frontend" };
+        var parsedSkill = new Skill { Name = "TypeScript", Category = "Frontend" };
+        context.Skills.Add(roleSkill);
+        context.Skills.Add(parsedSkill);
+        await context.SaveChangesAsync();
+
+        var user = new AppUser
+        {
+            FirstName = "Jose",
+            LastName = "Rizal",
+            EmailAddress = $"learner-{Guid.NewGuid():N}@example.com",
+            PasswordHash = "hash",
+            Role = "Learner",
+            TargetRole = "Frontend Developer",
+        };
+        context.Users.Add(user);
+
+        var learner = new Learner { UserId = user.UserId, IsPremium = false };
+        context.Learners.Add(learner);
+        await context.SaveChangesAsync();
+
+        context.RoleSkills.Add(new RoleSkill
+        {
+            TargetRole = "Frontend Developer",
+            SkillId = roleSkill.SkillId,
+            RequiredLevel = 3,
+        });
+        context.LearnerSkills.Add(new LearnerSkill
+        {
+            LearnerId = learner.LearnerId,
+            SkillId = parsedSkill.SkillId,
+            CurrentLevel = 0,
+            Verified = false,
+        });
+        await context.SaveChangesAsync();
+
+        var result = await service.GetAvailableAssessmentsAsync(user.UserId);
+
+        Assert.NotNull(result);
+        Assert.Equal(2, result!.Assessments.Count);
+        Assert.Contains(result.Assessments, a => a.SkillName == "JavaScript" && a.TargetLevel == 3 && a.Gap == 3);
+        Assert.Contains(result.Assessments, a => a.SkillName == "TypeScript" && a.Gap == 0);
+    }
+
+    [Fact]
     public async Task GetQuestionsAsync_WhenCompanyQuestionsExist_PrefersCompanyQuestions()
     {
         var context = TestDbContextFactory.Create();

@@ -104,7 +104,7 @@ private static AuthService CreateService(Data.ApplicationDbContext context, IGoo
     }
 
     [Fact]
-    public async Task RegisterAsync_WithTargetRole_CreatesLearnerSkills()
+    public async Task RegisterAsync_WithTargetRole_DoesNotCreateRoleLearnerSkills()
     {
         var context = TestDbContextFactory.Create();
         TestDataSeeder.Seed(context);
@@ -115,12 +115,7 @@ private static AuthService CreateService(Data.ApplicationDbContext context, IGoo
 
         var learner = await context.Learners.SingleAsync(l => l.UserId == result.UserId);
         var learnerSkills = await context.LearnerSkills.Where(ls => ls.LearnerId == learner.LearnerId).ToListAsync();
-        Assert.NotEmpty(learnerSkills);
-        Assert.All(learnerSkills, ls =>
-        {
-            Assert.Equal(0, ls.CurrentLevel);
-            Assert.False(ls.Verified);
-        });
+        Assert.Empty(learnerSkills);
     }
 
     [Fact]
@@ -136,7 +131,7 @@ private static AuthService CreateService(Data.ApplicationDbContext context, IGoo
     }
 
     [Fact]
-    public async Task RegisterAsync_WithResumeParsesAndCreatesLearnerSkills()
+    public async Task RegisterAsync_WithResumeParsesAndSavesAllLearnerSkills()
     {
         var context = TestDbContextFactory.Create();
 
@@ -155,16 +150,18 @@ private static AuthService CreateService(Data.ApplicationDbContext context, IGoo
             .Where(ls => ls.LearnerId == learner.LearnerId)
             .ToListAsync();
 
-        Assert.Equal(2, learnerSkills.Count);
+        Assert.Equal(3, learnerSkills.Count);
         var skillIds = learnerSkills.Select(ls => ls.SkillId).ToHashSet();
         var jsSkill = await context.Skills.SingleAsync(s => s.Name == "JavaScript");
         var reactSkill = await context.Skills.SingleAsync(s => s.Name == "React");
+        var newSkill = await context.Skills.SingleAsync(s => s.Name == "NonExistent");
         Assert.Contains(jsSkill.SkillId, skillIds);
         Assert.Contains(reactSkill.SkillId, skillIds);
+        Assert.Contains(newSkill.SkillId, skillIds);
     }
 
     [Fact]
-    public async Task RegisterAsync_WithResume_GeneratesAssessmentQuestionsForParsedSkills()
+    public async Task RegisterAsync_WithResume_CreatesAssessmentsForParsedSkills()
     {
         var context = TestDbContextFactory.Create();
 
@@ -172,26 +169,22 @@ private static AuthService CreateService(Data.ApplicationDbContext context, IGoo
         context.Skills.Add(new Skill { Name = "React" });
         await context.SaveChangesAsync();
 
-        var generatedQuestions = new List<GeneratedAssessmentQuestion>
-        {
-            new("What is a closure?", "A", "B", "C", "D", 0),
-            new("What is JSX?", "A", "B", "C", "D", 1),
-        };
-        var aiService = new FakeGoogleAiService(
-            new List<string> { "JavaScript", "React" },
-            generatedQuestions);
-
+        var aiService = new FakeGoogleAiService(new List<string> { "JavaScript", "React" });
         var service = CreateService(context, aiService);
 
-        await service.RegisterAsync(NewRegisterRequest());
+        var result = await service.RegisterAsync(NewRegisterRequest());
 
-        var saved = await context.AssessmentQuestions.ToListAsync();
-        Assert.Equal(4, saved.Count);
-        Assert.All(saved, q => Assert.Equal(AssessmentSource.AI, q.Source));
-        var jsSkillId = (await context.Skills.SingleAsync(s => s.Name == "JavaScript")).SkillId;
-        var reactSkillId = (await context.Skills.SingleAsync(s => s.Name == "React")).SkillId;
-        Assert.Contains(saved, q => q.SkillId == jsSkillId);
-        Assert.Contains(saved, q => q.SkillId == reactSkillId);
+        var learner = await context.Learners.SingleAsync(l => l.UserId == result.UserId);
+        var assessments = await context.LearnerAssessments
+            .Where(a => a.LearnerId == learner.LearnerId)
+            .ToListAsync();
+
+        Assert.Equal(2, assessments.Count);
+        Assert.All(assessments, a =>
+        {
+            Assert.Equal(0, a.ScoredLevel);
+            Assert.False(a.Verified);
+        });
     }
 
     [Fact]

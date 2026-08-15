@@ -33,6 +33,7 @@ const mockAvailable = {
       sourceLabel: 'AI-generated',
       companyName: null,
       proctored: true,
+      isSkillAssessment: false,
     },
     {
       skillId: 2,
@@ -49,6 +50,7 @@ const mockAvailable = {
       sourceLabel: 'Company',
       companyName: 'Acme Corp',
       proctored: false,
+      isSkillAssessment: false,
     },
   ],
   matchPercent: 78,
@@ -162,6 +164,47 @@ describe('AssessmentsPage', () => {
     expect(screen.getByText('Proctored')).toBeInTheDocument();
     expect(screen.getByText('Acme Corp')).toBeInTheDocument();
     expect(screen.getByText('Not proctored')).toBeInTheDocument();
+  });
+
+  it('shows skill assessment tag for parsed-skill assessments', async () => {
+    api.get.mockImplementationOnce((path) => {
+      if (path === '/assessments/available') return Promise.resolve({
+        assessments: [{
+          skillId: 3,
+          skillName: 'GraphQL',
+          category: undefined,
+          currentLevel: 0,
+          currentLevelLabel: 'No Knowledge',
+          targetLevel: 0,
+          targetLevelLabel: 'No Knowledge',
+          gap: 0,
+          hasAssessment: false,
+          questionCount: 5,
+          timeLimitMinutes: 45,
+          sourceLabel: 'AI-generated',
+          companyName: null,
+          proctored: true,
+          isSkillAssessment: true,
+        }],
+        matchPercent: 0,
+        verifiedSkillsCount: 0,
+        recommendedCount: 0,
+      });
+      if (path === '/assessments/results') return Promise.resolve([]);
+      return Promise.resolve(null);
+    });
+
+    renderAssessments();
+
+    expect(await screen.findByText('GraphQL')).toBeInTheDocument();
+    expect(screen.getByText('Skill verifier')).toBeInTheDocument();
+  });
+
+  it('marks every gapped assessment as recommended next', async () => {
+    renderAssessments();
+    await screen.findByText('TypeScript');
+    const recommendedNext = screen.getAllByText('Recommended next');
+    expect(recommendedNext.length).toBe(2);
   });
 
   it('starts non-proctored company assessments directly without device check', async () => {

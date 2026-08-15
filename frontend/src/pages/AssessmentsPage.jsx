@@ -364,7 +364,9 @@ export default function AssessmentsPage() {
     }
   }
 
-  const recommendedSkill = available?.assessments?.find(a => a.gap > 0);
+  const recommendedSkillIds = new Set(
+    (available?.assessments || []).filter(a => a.gap > 0).map(a => a.skillId)
+  );
 
   return (
     <div className="view-enter">
@@ -447,7 +449,8 @@ export default function AssessmentsPage() {
                   sourceLabel={assessment.sourceLabel}
                   companyName={assessment.companyName}
                   proctored={assessment.proctored}
-                  isRecommended={assessment === recommendedSkill}
+                  isSkillAssessment={assessment.isSkillAssessment}
+                  isRecommended={recommendedSkillIds.has(assessment.skillId)}
                   onStart={handleStartAssessment}
                 />
               ))}
