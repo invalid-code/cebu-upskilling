@@ -12,12 +12,6 @@ public class GoogleAiService : IGoogleAiService
     private readonly GoogleAiOptions _options;
     private readonly ILogger<GoogleAiService> _logger;
 
-    private static readonly string[] KnownSkills = new[]
-    {
-        "JavaScript", "TypeScript", "React", "CSS", "HTML", "Node.js",
-        "Python", "SQL", "Git", "REST APIs", "Vue.js", "Angular", "Docker", "AWS", "Figma",
-    };
-
     private static readonly JsonSerializerOptions QuestionJsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
@@ -38,7 +32,30 @@ public class GoogleAiService : IGoogleAiService
             return new List<string>();
         }
 
-        var prompt = $"Given the following resume text, identify which of these skills are mentioned: {string.Join(", ", KnownSkills)}. Return your answer as a JSON array of skill names exactly as they appear in the list. Do not include any other text.\n\nResume:\n{resumeText}";
+        var prompt = $"""
+            Extract skills from the provided resume text.
+
+            Categories:
+            - Programming languages
+            - Frameworks
+            - Libraries
+            - Tools
+            - Technologies
+            - Professional skills
+
+            Format requirements:
+            - Standard, recognizable names (e.g. "JavaScript" not "JS").
+
+            Output format:
+            - JSON array of strings, nothing else.
+
+            Example:
+            Resume: "Frontend developer with 5+ years building React apps. Skilled in JavaScript, TypeScript, HTML, CSS, Git and REST APIs."
+            Output: ["React", "JavaScript", "TypeScript", "HTML", "CSS", "Git", "REST APIs"]
+
+            Resume:
+            {resumeText}
+            """;
 
         var messageContent = await SendPromptAsync(prompt, ct);
         if (string.IsNullOrWhiteSpace(messageContent))
@@ -46,13 +63,11 @@ public class GoogleAiService : IGoogleAiService
 
         try
         {
-            var rawSkillNames = JsonSerializer.Deserialize<List<string>>(messageContent) ?? new List<string>();
+            var rawSkillNames = JsonSerializer.Deserialize<List<string>>(ExtractJsonArray(messageContent)) ?? new List<string>();
 
             var skillNames = rawSkillNames
                 .Select(name => name?.Trim())
-                .Where(name => !string.IsNullOrEmpty(name))
-                .Select(name => KnownSkills.FirstOrDefault(k => string.Equals(k, name, StringComparison.OrdinalIgnoreCase)))
-                .Where(name => name is not null)
+                .Where(name => !string.IsNullOrWhiteSpace(name) && name.Length <= 100)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .Select(name => name!)
                 .ToList();
@@ -101,6 +116,11 @@ public class GoogleAiService : IGoogleAiService
             {
                 new { parts = new[] { new { text = prompt } } },
             },
+            generationConfig = new
+            {
+                responseMimeType = "application/json",
+                temperature = 0,
+            },
         };
 
         var json = JsonSerializer.Serialize(request);
@@ -145,4 +165,23 @@ public class GoogleAiService : IGoogleAiService
            && !string.IsNullOrWhiteSpace(q.OptionC)
            && !string.IsNullOrWhiteSpace(q.OptionD)
            && q.CorrectOption is >= 0 and <= 3;
+
+    private static string ExtractJsonArray(string content)
+    {
+        const string fence = "```";
+
+        var trimmed = content.Trim();
+
+        if (trimmed.StartsWith(fence, StringComparison.Ordinal))
+        {
+            var end = trimmed.LastIndexOf(fence, StringComparison.Ordinal);
+            if (end > fence.Length)
+            {
+                var start = trimmed.IndexOf('\n') + 1;
+                trimmed = trimmed[start..end].Trim();
+            }
+        }
+
+        return trimmed;
+    }
 }

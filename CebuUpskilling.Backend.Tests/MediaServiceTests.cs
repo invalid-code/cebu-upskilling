@@ -90,7 +90,7 @@ public class MediaServiceTests
         return lesson.LessonId;
     }
 
-    [ExternalIntegrationFact]
+    [Fact]
     public async Task UploadLessonVideoAsync_UploadsToStorageWithLessonKey_AndPersistsMedia()
     {
         var context = TestDbContextFactory.Create();
@@ -118,7 +118,7 @@ public class MediaServiceTests
         Assert.Equal(result.MbSize, stored.MbSize);
     }
 
-    [ExternalIntegrationFact]
+    [Fact]
     public async Task UploadLessonVideoAsync_GeneratesUniqueKeyPerUpload()
     {
         var context = TestDbContextFactory.Create();
@@ -137,7 +137,7 @@ public class MediaServiceTests
         Assert.Equal(2, await context.Media.CountAsync(m => m.LessonId == lessonId));
     }
 
-    [ExternalIntegrationFact]
+    [Fact]
     public async Task UploadLessonVideoAsync_UnknownLesson_ThrowsKeyNotFound_WithoutUpload()
     {
         var context = TestDbContextFactory.Create();

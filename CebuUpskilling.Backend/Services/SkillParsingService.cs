@@ -46,12 +46,8 @@ public class SkillParsingService : ISkillParsingService
             return new ParseSkillsResult(new List<ParsedSkillResult>());
         }
 
-        var skills = await _skills.GetByNamesAsync(names);
-        if (skills.Count == 0)
-        {
-            _logger.LogInformation("Parsed {Count} skills but none matched the skill catalog for user {UserId}", names.Count, userId);
-            return new ParseSkillsResult(new List<ParsedSkillResult>());
-        }
+        var skills = await UpsertSkillsAsync(names);
+        await _skills.SaveChangesAsync(ct);
 
         var learner = await _learners.GetByUserIdAsync(userId);
         if (learner == null)
@@ -113,5 +109,35 @@ public class SkillParsingService : ISkillParsingService
             parsed.Count, createdAssessments.Count, userId);
 
         return new ParseSkillsResult(parsed);
+    }
+
+    private async Task<List<Skill>> UpsertSkillsAsync(IEnumerable<string> names)
+    {
+        var normalizedNames = names
+            .Select(n => n?.Trim())
+            .Where(n => !string.IsNullOrWhiteSpace(n) && n.Length <= 100)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Select(n => n!)
+            .ToList();
+
+        var existing = await _skills.GetByNamesAsync(normalizedNames);
+        var existingByNormalized = existing.ToDictionary(s => s.Name, StringComparer.OrdinalIgnoreCase);
+
+        var skills = new List<Skill>();
+        foreach (var name in normalizedNames)
+        {
+            if (existingByNormalized.TryGetValue(name, out var skill))
+            {
+                skills.Add(skill);
+            }
+            else
+            {
+                var created = new Skill { Name = name, Category = null };
+                await _skills.AddAsync(created);
+                skills.Add(created);
+            }
+        }
+
+        return skills;
     }
 }

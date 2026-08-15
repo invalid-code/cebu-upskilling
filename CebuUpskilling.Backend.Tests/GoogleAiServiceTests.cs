@@ -67,7 +67,7 @@ public class GoogleAiServiceTests
     // Request construction
     // ------------------------------------------------------------------ //
 
-    [ExternalIntegrationFact]
+    [Fact]
     public async Task ParseSkillsFromResumeAsync_SendsGenerateContentRequest_WithApiKeyAndPrompt()
     {
         var handler = new StubHttpMessageHandler { Responder = _ => GenerateContentResponse("[\"JavaScript\",\"React\"]") };
@@ -87,7 +87,7 @@ public class GoogleAiServiceTests
         Assert.Contains("I am a React developer.", prompt);
     }
 
-    [ExternalIntegrationFact]
+    [Fact]
     public async Task GenerateAssessmentQuestionsAsync_SendsRequest_ContainingSkillAndCount()
     {
         var handler = new StubHttpMessageHandler { Responder = _ => QuestionsResponse($"[{QuestionJson("Q1", 0)}]") };
@@ -105,8 +105,8 @@ public class GoogleAiServiceTests
     // Skill parsing
     // ------------------------------------------------------------------ //
 
-    [ExternalIntegrationFact]
-    public async Task ParseSkillsFromResumeAsync_DeduplicatesAndFiltersToKnownSkills()
+    [Fact]
+    public async Task ParseSkillsFromResumeAsync_DeduplicatesAndTrimsSkills()
     {
         var handler = new StubHttpMessageHandler
         {
@@ -116,10 +116,24 @@ public class GoogleAiServiceTests
 
         var skills = await service.ParseSkillsFromResumeAsync("resume");
 
-        Assert.Equal(new[] { "JavaScript", "React" }, skills);
+        Assert.Equal(new[] { "JavaScript", "react", "NonsenseSkill" }, skills);
     }
 
-    [ExternalIntegrationFact]
+    [Fact]
+    public async Task ParseSkillsFromResumeAsync_FencedJsonOutput_ParsesSkills()
+    {
+        var handler = new StubHttpMessageHandler
+        {
+            Responder = _ => GenerateContentResponse("```json\n[\n  \"React\",\n  \"JavaScript\",\n  \"HTML\"\n]\n```"),
+        };
+        var service = CreateService(handler);
+
+        var skills = await service.ParseSkillsFromResumeAsync("resume");
+
+        Assert.Equal(new[] { "React", "JavaScript", "HTML" }, skills);
+    }
+
+    [Fact]
     public async Task ParseSkillsFromResumeAsync_NonJsonOutput_ReturnsEmpty()
     {
         var handler = new StubHttpMessageHandler { Responder = _ => GenerateContentResponse("this is not json") };
@@ -130,7 +144,7 @@ public class GoogleAiServiceTests
         Assert.Empty(skills);
     }
 
-    [ExternalIntegrationFact]
+    [Fact]
     public async Task ParseSkillsFromResumeAsync_ApiError_ReturnsEmpty()
     {
         var handler = new StubHttpMessageHandler
@@ -145,7 +159,7 @@ public class GoogleAiServiceTests
         Assert.Equal(1, handler.CallCount);
     }
 
-    [ExternalIntegrationFact]
+    [Fact]
     public async Task ParseSkillsFromResumeAsync_NoCandidates_ReturnsEmpty()
     {
         var handler = new StubHttpMessageHandler
@@ -162,7 +176,7 @@ public class GoogleAiServiceTests
         Assert.Empty(skills);
     }
 
-    [ExternalIntegrationFact]
+    [Fact]
     public async Task ParseSkillsFromResumeAsync_HttpRequestFailure_ReturnsEmpty()
     {
         var handler = new StubHttpMessageHandler { Responder = _ => throw new HttpRequestException("connection refused") };
@@ -173,7 +187,7 @@ public class GoogleAiServiceTests
         Assert.Empty(skills);
     }
 
-    [ExternalIntegrationFact]
+    [Fact]
     public async Task ParseSkillsFromResumeAsync_MissingApiKey_ReturnsEmpty_WithoutHttpCall()
     {
         var handler = new StubHttpMessageHandler { Responder = _ => GenerateContentResponse("[\"JavaScript\"]") };
@@ -185,7 +199,7 @@ public class GoogleAiServiceTests
         Assert.Equal(0, handler.CallCount);
     }
 
-    [ExternalIntegrationFact]
+    [Fact]
     public async Task ParseSkillsFromResumeAsync_EmptyResume_ReturnsEmpty_WithoutHttpCall()
     {
         var handler = new StubHttpMessageHandler { Responder = _ => GenerateContentResponse("[\"JavaScript\"]") };
@@ -201,7 +215,7 @@ public class GoogleAiServiceTests
     // Question generation
     // ------------------------------------------------------------------ //
 
-    [ExternalIntegrationFact]
+    [Fact]
     public async Task GenerateAssessmentQuestionsAsync_ReturnsValidQuestions()
     {
         var handler = new StubHttpMessageHandler
@@ -219,7 +233,7 @@ public class GoogleAiServiceTests
         Assert.Equal(3, questions[1].CorrectOption);
     }
 
-    [ExternalIntegrationFact]
+    [Fact]
     public async Task GenerateAssessmentQuestionsAsync_InvalidQuestions_AreFiltered()
     {
         var handler = new StubHttpMessageHandler
@@ -234,7 +248,7 @@ public class GoogleAiServiceTests
         Assert.Equal("Q1", questions[0].Text);
     }
 
-    [ExternalIntegrationFact]
+    [Fact]
     public async Task GenerateAssessmentQuestionsAsync_IsLimitedToRequestedCount()
     {
         var handler = new StubHttpMessageHandler
@@ -248,7 +262,7 @@ public class GoogleAiServiceTests
         Assert.Equal(2, questions.Count);
     }
 
-    [ExternalIntegrationFact]
+    [Fact]
     public async Task GenerateAssessmentQuestionsAsync_NonJsonOutput_ReturnsEmpty()
     {
         var handler = new StubHttpMessageHandler { Responder = _ => GenerateContentResponse("not an array") };
@@ -259,7 +273,7 @@ public class GoogleAiServiceTests
         Assert.Empty(questions);
     }
 
-    [ExternalIntegrationFact]
+    [Fact]
     public async Task GenerateAssessmentQuestionsAsync_MissingApiKey_ReturnsEmpty_WithoutHttpCall()
     {
         var handler = new StubHttpMessageHandler { Responder = _ => QuestionsResponse($"[{QuestionJson("Q1", 0)}]") };

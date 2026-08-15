@@ -66,13 +66,17 @@ public class CoursesPageService : ICoursesPageService
         var allCourses = await _courses.GetAllWithLessonsAsync();
 
         var learnerSkills = await _learnerSkills.GetByLearnerIdWithSkillAsync(learner.LearnerId);
-        var learnerSkillMap = learnerSkills.ToDictionary(ls => ls.SkillId, ls => ls.CurrentLevel);
+        var learnerSkillNames = learnerSkills
+            .Select(ls => ls.Skill.Name?.Trim())
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Select(n => n!)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         var enrolledCourseIds = enrollments.Select(e => e.CourseId).ToHashSet();
 
         var recommendedCourses = allCourses
             .Where(c => !enrolledCourseIds.Contains(c.CourseId))
-            .Select(c => MapToRecommendedDto(c, learnerSkillMap, user?.TargetRole))
+            .Select(c => MapToRecommendedDto(c, learnerSkillNames, user?.TargetRole))
             .Where(c => category == null || c.Category == category || category == "All")
             .OrderByDescending(c => c.IsRecommended)
             .ThenByDescending(c => c.UnlocksJobsCount ?? 0)
@@ -112,11 +116,12 @@ public class CoursesPageService : ICoursesPageService
 
     private static RecommendedCourseDto MapToRecommendedDto(
         Entities.Course course,
-        Dictionary<int, int> learnerSkillMap,
+        HashSet<string> learnerSkillNames,
         string? targetRole)
     {
-        var isRecommended = targetRole != null;
-        var reason = isRecommended ? "Recommended" : null;
+        var matchedSkill = MatchSkill(course, learnerSkillNames);
+        var isRecommended = targetRole != null || matchedSkill != null;
+        var reason = targetRole != null ? "Recommended" : matchedSkill != null ? $"Matches {matchedSkill}" : null;
         var unlocksJobs = isRecommended ? (int?)null : null;
 
         return new RecommendedCourseDto(
@@ -137,6 +142,18 @@ public class CoursesPageService : ICoursesPageService
             RecommendedReason: reason,
             UnlocksJobsCount: unlocksJobs
         );
+    }
+
+    private static string? MatchSkill(Entities.Course course, HashSet<string> learnerSkillNames)
+    {
+        var haystack = new[] { course.Name, course.Genre?.Name }
+            .Where(t => !string.IsNullOrWhiteSpace(t))
+            .Select(t => t!.ToLowerInvariant())
+            .ToList();
+
+        return learnerSkillNames
+            .OrderByDescending(s => s.Length)
+            .FirstOrDefault(s => haystack.Any(h => h.Contains(s.ToLowerInvariant())));
     }
 
     public async Task<CourseDetailDto?> GetCourseDetailAsync(int userId, int courseId)

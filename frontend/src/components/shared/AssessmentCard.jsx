@@ -113,6 +113,7 @@ export default function AssessmentCard({
   companyName,
   proctored,
   isRecommended,
+  isSkillAssessment,
   onStart,
 }) {
   const progressPercent = targetLevel > 0 ? Math.round((currentLevel / targetLevel) * 100) : 0;
@@ -121,6 +122,7 @@ export default function AssessmentCard({
     <div style={{ ...styles.card, ...(isRecommended ? styles.cardRecommended : {}) }}>
       <div style={styles.tags}>
         {isRecommended && <Tag variant="coral">Recommended next</Tag>}
+        {isSkillAssessment && <Tag variant="default">Skill verifier</Tag>}
         {companyName ? (
           <Tag variant="sand">{companyName}</Tag>
         ) : (

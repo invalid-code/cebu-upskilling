@@ -39,18 +39,10 @@ describe('SkillsPage', () => {
     expect(screen.getByText('Target role')).toBeInTheDocument();
   });
 
-  it('shows radio options when no target role is set', () => {
+  it('shows the target role prompt when no target role is set', () => {
     renderSkills();
-    expect(screen.getByRole('radio', { name: 'Frontend Developer' })).toBeInTheDocument();
-    expect(screen.getByRole('radio', { name: 'Backend Developer' })).toBeInTheDocument();
-    expect(screen.getByRole('radio', { name: 'Other' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
-  });
-
-  it('allows selecting a target role', () => {
-    renderSkills();
-    fireEvent.click(screen.getByRole('radio', { name: 'Data Analyst' }));
-    expect(screen.getByRole('radio', { name: 'Data Analyst' })).toBeChecked();
+    expect(screen.getByText('Target role')).toBeInTheDocument();
+    expect(screen.getByText(/Choose a target role so we can show the skills you need/)).toBeInTheDocument();
   });
 
   it('shows the proficiency scale legend', () => {

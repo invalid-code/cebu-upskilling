@@ -10,19 +10,6 @@ import { useApplications } from '../context/ApplicationsContext';
 import { api } from '../api/client';
 import { useState, useEffect } from 'react';
 
-const targetRoles = [
-  'Frontend Developer',
-  'Backend Developer',
-  'Full Stack Developer',
-  'Data Analyst',
-  'Data Scientist',
-  'UI/UX Designer',
-  'DevOps Engineer',
-  'Quality Assurance',
-  'Project Manager',
-  'Other',
-];
-
 const styles = {
   heading: {
     display: 'flex',
@@ -71,63 +58,15 @@ const styles = {
     gap: 7,
     flexWrap: 'wrap',
   },
-  radioGroup: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 8,
-  },
-  radioOption: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    padding: '8px 12px',
-    borderRadius: 10,
-    border: '1px solid var(--line)',
-    background: 'transparent',
-    cursor: 'pointer',
-    fontSize: 13,
-    color: 'var(--ink)',
-    transition: 'background 0.15s, border-color 0.15s',
-  },
-  radioOptionSelected: {
-    background: 'var(--teal-soft)',
-    borderColor: 'var(--teal)',
-  },
-  radioInput: {
-    accentColor: 'var(--teal)',
-    width: 16,
-    height: 16,
-    flexShrink: 0,
-  },
-  saveRow: {
-    display: 'flex',
-    justifyContent: 'flex-end',
-    marginTop: 16,
-  },
-  roleTag: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 6,
-    padding: '5px 10px',
-    borderRadius: 999,
-    background: 'var(--teal-soft)',
-    color: 'var(--teal)',
-    fontSize: 12,
-    fontWeight: 700,
-  },
 };
 
 export default function SkillsPage() {
   const { showToast } = useToast();
-  const { user, setUser } = useAuth();
+  const { user } = useAuth();
   const { applications } = useApplications();
   const hasApplied = applications.length > 0;
-  const [selectedRole, setSelectedRole] = useState(user?.targetRole || '');
-  const [saving, setSaving] = useState(false);
   const [skillGaps, setSkillGaps] = useState([]);
   const [skillGapsLoading, setSkillGapsLoading] = useState(true);
-  const [address, setAddress] = useState(user?.address || '');
-  const [remoteFriendly, setRemoteFriendly] = useState(user?.remoteFriendly ?? true);
   const hasRole = user?.targetRole != null && user.targetRole !== '';
 
   const getProfileStats = () => {
@@ -152,24 +91,6 @@ export default function SkillsPage() {
       .finally(() => setSkillGapsLoading(false));
     return () => controller.abort();
   }, [hasRole, hasApplied]);
-
-  const handleSelect = (role) => {
-    setSelectedRole(role);
-  };
-
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      const updatedUser = await api.patch('/auth/profile', { targetRole: selectedRole, address, remoteFriendly });
-      localStorage.setItem('user', JSON.stringify(updatedUser));
-      setUser(updatedUser);
-      showToast('Target role saved');
-    } catch {
-      showToast('Failed to save target role');
-    } finally {
-      setSaving(false);
-    }
-  };
 
   return (
     <div className="view-enter">
@@ -201,62 +122,10 @@ export default function SkillsPage() {
           ) : (
             <>
               <div style={styles.eyebrow}>Target role</div>
-              <div style={styles.radioGroup}>
-                {targetRoles.map((role) => (
-                  <label
-                    key={role}
-                    style={{
-                      ...styles.radioOption,
-                      ...(selectedRole === role ? styles.radioOptionSelected : {}),
-                    }}
-                  >
-                    <input
-                      type="radio"
-                      name="targetRole"
-                      value={role}
-                      checked={selectedRole === role}
-                      onChange={() => handleSelect(role)}
-                      style={styles.radioInput}
-                    />
-                    {role}
-                  </label>
-                ))}
-              </div>
-              <div style={{ marginTop: 12 }}>
-                <label style={{ fontSize: 12, color: 'var(--muted)', display: 'block', marginBottom: 4 }}>Address</label>
-                <input
-                  type="text"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  placeholder="e.g. 123 Main St"
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    borderRadius: 8,
-                    border: '1px solid var(--line)',
-                    fontSize: 13,
-                    boxSizing: 'border-box',
-                  }}
-                />
-              </div>
-              <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <input
-                  type="checkbox"
-                  checked={remoteFriendly}
-                  onChange={(e) => setRemoteFriendly(e.target.checked)}
-                  style={{ accentColor: 'var(--teal)', width: 16, height: 16 }}
-                />
-                <span style={{ fontSize: 13 }}>Remote friendly</span>
-              </div>
-              <div style={styles.saveRow}>
-                <Button
-                  variant="primary"
-                  disabled={!selectedRole || saving}
-                  onClick={handleSave}
-                >
-                  {saving ? 'Saving...' : 'Save'}
-                </Button>
-              </div>
+              <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.5, margin: '0 0 14px' }}>
+                Choose a target role so we can show the skills you need, your match, and which
+                assessments to take.
+              </p>
             </>
           )}
         </Panel>

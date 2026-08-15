@@ -2,6 +2,7 @@ using CebuUpskilling.Backend.Data;
 using CebuUpskilling.Backend.Entities;
 using CebuUpskilling.Backend.Repositories;
 using CebuUpskilling.Backend.Services;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace CebuUpskilling.Backend.Tests;
@@ -51,6 +52,25 @@ public class CoursesPageServiceTests
         context.Genres.Add(genre);
         await context.SaveChangesAsync();
         return genre;
+    }
+
+    private static async Task<(AppUser User, Learner Learner)> CreateLearnerNoRoleAsync(ApplicationDbContext context)
+    {
+        var user = new AppUser
+        {
+            FirstName = "Jose",
+            LastName = "Rizal",
+            EmailAddress = $"learner-norole-{Guid.NewGuid():N}@example.com",
+            PasswordHash = "hash",
+            Role = "Learner",
+            TargetRole = null,
+        };
+        context.Users.Add(user);
+
+        var learner = new Learner { UserId = user.UserId, IsPremium = false };
+        context.Learners.Add(learner);
+        await context.SaveChangesAsync();
+        return (user, learner);
     }
 
     private static async Task<Course> CreateCourseAsync(
@@ -169,6 +189,66 @@ public class CoursesPageServiceTests
         Assert.False(recommended.IsEnrolled);
         Assert.True(recommended.IsFree);
         Assert.Equal("Frontend", recommended.Category);
+    }
+
+    [Fact]
+    public async Task GetCoursesPageAsync_WithUnverifiedParsedSkill_RecommendsMatchingCourse()
+    {
+        var context = TestDbContextFactory.Create();
+        var (user, learner) = await CreateLearnerNoRoleAsync(context);
+        var genre = await CreateGenreAsync(context, "React", "Frontend");
+        var course = await CreateCourseAsync(context, "React Basics", genre, lessonCount: 1);
+
+        context.Skills.Add(new Skill { Name = "React", Category = "Framework" });
+        await context.SaveChangesAsync();
+
+        var reactSkill = await context.Skills.SingleAsync<Entities.Skill>(s => s.Name == "React");
+        context.LearnerSkills.Add(new LearnerSkill
+        {
+            LearnerId = learner.LearnerId,
+            SkillId = reactSkill.SkillId,
+            CurrentLevel = 0,
+            Verified = false,
+        });
+        await context.SaveChangesAsync();
+
+        var result = await CreateService(context).GetCoursesPageAsync(user.UserId);
+
+        Assert.NotNull(result);
+        var recommended = Assert.Single(result!.RecommendedCourses);
+        Assert.Equal(course.CourseId, recommended.CourseId);
+        Assert.True(recommended.IsRecommended);
+        Assert.Equal("Matches React", recommended.RecommendedReason);
+    }
+
+    [Fact]
+    public async Task GetCoursesPageAsync_WithoutMatchingSkillsOrRole_DoesNotRecommend()
+    {
+        var context = TestDbContextFactory.Create();
+        var (user, learner) = await CreateLearnerNoRoleAsync(context);
+        var genre = await CreateGenreAsync(context, "Backend", "Backend");
+        var course = await CreateCourseAsync(context, "C# Fundamentals", genre, lessonCount: 1);
+
+        context.Skills.Add(new Skill { Name = "React", Category = "Framework" });
+        await context.SaveChangesAsync();
+
+        var reactSkill = await context.Skills.SingleAsync<Entities.Skill>(s => s.Name == "React");
+        context.LearnerSkills.Add(new LearnerSkill
+        {
+            LearnerId = learner.LearnerId,
+            SkillId = reactSkill.SkillId,
+            CurrentLevel = 0,
+            Verified = true,
+        });
+        await context.SaveChangesAsync();
+
+        var result = await CreateService(context).GetCoursesPageAsync(user.UserId);
+
+        Assert.NotNull(result);
+        var recommended = Assert.Single(result!.RecommendedCourses);
+        Assert.Equal(course.CourseId, recommended.CourseId);
+        Assert.False(recommended.IsRecommended);
+        Assert.Null(recommended.RecommendedReason);
     }
 
     [Fact]

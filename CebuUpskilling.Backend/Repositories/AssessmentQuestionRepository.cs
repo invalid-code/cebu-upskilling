@@ -43,14 +43,18 @@ public class AssessmentQuestionRepository : Repository<AssessmentQuestion>, IAss
         => await _dbSet.Where(q => q.SkillId == skillId).ToDictionaryAsync(q => q.AssessmentQuestionId);
 
     public async Task<Dictionary<int, int>> GetQuestionCountsBySkillIdsAsync(List<int> skillIds)
-        => await _dbSet
+        => (await _dbSet
             .Where(q => skillIds.Contains(q.SkillId))
+            .Select(q => new { q.SkillId })
+            .ToListAsync())
             .GroupBy(q => q.SkillId)
-            .ToDictionaryAsync(g => g.Key, g => g.Count());
+            .ToDictionary(g => g.Key, g => g.Count());
 
     public async Task<Dictionary<int, int>> GetCompanyQuestionCountsBySkillIdsAsync(List<int> skillIds)
-        => await _dbSet
+        => (await _dbSet
             .Where(q => skillIds.Contains(q.SkillId) && q.Source == AssessmentSource.Company)
+            .Select(q => new { q.SkillId })
+            .ToListAsync())
             .GroupBy(q => q.SkillId)
-            .ToDictionaryAsync(g => g.Key, g => g.Count());
+            .ToDictionary(g => g.Key, g => g.Count());
 }

@@ -68,8 +68,6 @@ public class AuthService : IAuthService
     private readonly ApplicationDbContext _context;
     private readonly IAppUserRepository _users;
     private readonly ILearnerRepository _learners;
-    private readonly IRoleSkillRepository _roleSkills;
-    private readonly ILearnerSkillRepository _learnerSkills;
     private readonly ISkillParsingService _skillParsingService;
     private readonly IJwtTokenService _tokenService;
     private readonly ILogger<AuthService> _logger;
@@ -78,8 +76,6 @@ public class AuthService : IAuthService
         ApplicationDbContext context,
         IAppUserRepository users,
         ILearnerRepository learners,
-        IRoleSkillRepository roleSkills,
-        ILearnerSkillRepository learnerSkills,
         ISkillParsingService skillParsingService,
         IJwtTokenService tokenService,
         ILogger<AuthService> logger)
@@ -87,8 +83,6 @@ public class AuthService : IAuthService
         _context = context;
         _users = users;
         _learners = learners;
-        _roleSkills = roleSkills;
-        _learnerSkills = learnerSkills;
         _skillParsingService = skillParsingService;
         _tokenService = tokenService;
         _logger = logger;
@@ -141,27 +135,6 @@ public class AuthService : IAuthService
             await _learners.AddAsync(learner);
             await _learners.SaveChangesAsync();
             _logger.LogInformation("Learner profile created for user {UserId}", user.UserId);
-
-            if (!string.IsNullOrWhiteSpace(request.TargetRole))
-            {
-                var roleSkills = await _roleSkills.GetByTargetRoleAsync(request.TargetRole);
-
-                if (roleSkills.Count > 0)
-                {
-                    var learnerSkills = roleSkills.Select(rs => new LearnerSkill
-                    {
-                        LearnerId = learner.LearnerId,
-                        SkillId = rs.SkillId,
-                        CurrentLevel = 0,
-                        Verified = false,
-                    }).ToList();
-
-                    _learnerSkills.AddRange(learnerSkills);
-                    await _learnerSkills.SaveChangesAsync();
-                    _logger.LogInformation("Created {Count} learner skills for user {UserId} (role: {Role})",
-                        learnerSkills.Count, user.UserId, request.TargetRole);
-                }
-            }
 
             var resumeText = request.Resume ?? string.Empty;
             try

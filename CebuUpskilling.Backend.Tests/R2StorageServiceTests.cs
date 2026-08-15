@@ -20,7 +20,7 @@ public class R2StorageServiceTests
         NullLogger<R2StorageService>.Instance
     );
 
-    [ExternalIntegrationFact]
+    [Fact]
     public void GetPublicUrl_JoinsBaseUrlAndKey_WithTrailingSlash()
     {
         var service = CreateService("https://media.example.com/");
@@ -30,7 +30,7 @@ public class R2StorageServiceTests
         Assert.Equal("https://media.example.com/course-content/7/video.mp4", url);
     }
 
-    [ExternalIntegrationFact]
+    [Fact]
     public void GetPublicUrl_JoinsBaseUrlAndKey_WithoutTrailingSlash()
     {
         var service = CreateService("https://media.example.com");
