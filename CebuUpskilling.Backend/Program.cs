@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text;
 using CebuUpskilling.Backend.Data;
 using CebuUpskilling.Backend.Entities;
@@ -5,6 +6,8 @@ using CebuUpskilling.Backend.Handlers;
 using CebuUpskilling.Backend.Options;
 using CebuUpskilling.Backend.Repositories;
 using CebuUpskilling.Backend.Services;
+using FluentValidation;
+using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -100,6 +103,9 @@ builder.Services.AddAuthentication(options =>
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
     };
 });
+
+builder.Services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
+builder.Services.AddFluentValidationAutoValidation();
 
 builder.Services.AddAuthorization();
 builder.Services.AddControllers(options =>
