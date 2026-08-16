@@ -2,12 +2,17 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from '../context/AuthContext';
+import { ToastProvider } from '../context/ToastContext';
 import RegisterPage from './RegisterPage';
 
 vi.mock('../api/client', () => ({
   api: {
     post: vi.fn(),
   },
+}));
+
+vi.mock('../utils/resumeText', () => ({
+  extractResumeText: vi.fn().mockResolvedValue('Parsed resume text'),
 }));
 
 import { api } from '../api/client';
@@ -30,18 +35,20 @@ const companyFormData = {
   emailAddress: 'maria@tech.com',
   password: 'secret123',
   address: '',
-  birthday: '',
+  birthday: null,
 };
 
 function renderRegister() {
   return render(
     <MemoryRouter initialEntries={['/register']}>
       <AuthProvider>
-        <Routes>
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/" element={<div>Learner home</div>} />
-          <Route path="/business-dashboard" element={<div>Business dashboard</div>} />
-        </Routes>
+        <ToastProvider>
+          <Routes>
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/" element={<div>Learner home</div>} />
+            <Route path="/business-dashboard" element={<div>Business dashboard</div>} />
+          </Routes>
+        </ToastProvider>
       </AuthProvider>
     </MemoryRouter>,
   );
@@ -68,6 +75,11 @@ function fillForm() {
   });
   fireEvent.change(screen.getByLabelText('Birthday'), {
     target: { value: formData.birthday },
+  });
+  fireEvent.change(screen.getByLabelText('Resume'), {
+    target: {
+      files: [new File(['resume'], 'resume.pdf', { type: 'application/pdf' })],
+    },
   });
 }
 
@@ -99,7 +111,11 @@ describe('RegisterPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
 
     await waitFor(() => {
-      expect(api.post).toHaveBeenCalledWith('/auth/register', formData);
+      expect(api.post).toHaveBeenCalledWith('/auth/register', {
+        ...formData,
+        birthday: formData.birthday,
+        resume: 'Parsed resume text',
+      });
     });
     expect(localStorage.getItem('token')).toBe('abc');
   });

@@ -22,6 +22,7 @@ public class AssessmentsController : BaseEntityController<LearnerAssessment>
 
     protected override int GetId(LearnerAssessment entity) => entity.LearnerAssessmentId;
 
+    [Authorize(Roles = "Learner")]
     [HttpGet("results")]
     public async Task<ActionResult<List<AssessmentResultResponse>>> GetRecentResults()
     {
@@ -32,6 +33,7 @@ public class AssessmentsController : BaseEntityController<LearnerAssessment>
         return Ok(results);
     }
 
+    [Authorize(Roles = "Learner")]
     [HttpGet("available")]
     public async Task<ActionResult<AvailableAssessmentsResponse>> GetAvailableAssessments()
     {
@@ -45,6 +47,7 @@ public class AssessmentsController : BaseEntityController<LearnerAssessment>
         return Ok(result);
     }
 
+    [Authorize(Roles = "Learner")]
     [HttpGet("recommended")]
     public async Task<ActionResult<RecommendedAssessmentResponse>> GetRecommended()
     {
@@ -58,6 +61,7 @@ public class AssessmentsController : BaseEntityController<LearnerAssessment>
         return Ok(result);
     }
 
+    [Authorize(Roles = "Learner")]
     [HttpPost("start")]
     public async Task<ActionResult<StartAssessmentResponse>> StartAssessment([FromBody] StartAssessmentRequest request)
     {
@@ -71,6 +75,7 @@ public class AssessmentsController : BaseEntityController<LearnerAssessment>
         return Ok(result);
     }
 
+    [Authorize(Roles = "Learner")]
     [HttpGet("{assessmentId}/questions")]
     public async Task<ActionResult<AssessmentQuestionsResponse>> GetQuestions(int assessmentId)
     {
@@ -84,6 +89,7 @@ public class AssessmentsController : BaseEntityController<LearnerAssessment>
         return Ok(result);
     }
 
+    [Authorize(Roles = "Learner")]
     [HttpPost("{assessmentId}/submit")]
     public async Task<ActionResult<SubmitAssessmentResponse>> SubmitAssessment(int assessmentId, [FromBody] SubmitAssessmentRequest request)
     {
