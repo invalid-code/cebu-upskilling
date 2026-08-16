@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { validateEmail, validatePassword, validateRequired, validateBirthday } from '../utils/validation';
 import Button from '../components/ui/Button';
 
 const styles = {
@@ -59,13 +60,19 @@ const styles = {
     minHeight: 42,
     padding: '9px 12px',
     color: 'var(--ink)',
-    marginBottom: 12,
+    marginBottom: 4,
     fontSize: 14,
   },
   row: {
     display: 'grid',
     gridTemplateColumns: '1fr 1fr',
     gap: 12,
+  },
+  fieldError: {
+    color: 'rgb(190, 60, 50)',
+    fontSize: 12,
+    marginBottom: 12,
+    marginTop: 2,
   },
   error: {
     background: 'var(--coral-soft)',
@@ -104,6 +111,15 @@ const styles = {
   },
 };
 
+const initialFieldErrors = {
+  firstName: '',
+  lastName: '',
+  emailAddress: '',
+  password: '',
+  companyName: '',
+  birthday: '',
+};
+
 export default function RegisterPage() {
   const [form, setForm] = useState({
     firstName: '',
@@ -116,22 +132,39 @@ export default function RegisterPage() {
     companyName: '',
   });
   const [role, setRole] = useState('learner');
+  const [fieldErrors, setFieldErrors] = useState(initialFieldErrors);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { register, registerCompany } = useAuth();
   const navigate = useNavigate();
 
-  const update = (field) => (e) => setForm({ ...form, [field]: e.target.value });
+  const update = (field) => (e) => {
+    setForm({ ...form, [field]: e.target.value });
+    if (fieldErrors[field]) {
+      setFieldErrors((prev) => ({ ...prev, [field]: '' }));
+    }
+  };
+
+  const validateForm = () => {
+    const errors = {
+      firstName: validateRequired(form.firstName, 'First name') || '',
+      lastName: validateRequired(form.lastName, 'Last name') || '',
+      emailAddress: validateEmail(form.emailAddress) || '',
+      password: validatePassword(form.password) || '',
+      companyName: role === 'recruiter' ? validateRequired(form.companyName, 'Company name') || '' : '',
+      birthday: role === 'learner' ? validateBirthday(form.birthday) || '' : '',
+    };
+    setFieldErrors(errors);
+    return !Object.values(errors).some(Boolean);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    if (!validateForm()) return;
     setLoading(true);
     try {
       if (role === 'recruiter') {
-        if (!form.companyName.trim()) {
-          throw new Error('Company name is required');
-        }
         await registerCompany({
           companyName: form.companyName,
           firstName: form.firstName,
@@ -193,29 +226,44 @@ export default function RegisterPage() {
 
         <form onSubmit={handleSubmit} noValidate>
           {role === 'recruiter' && (
-            <input
-              style={styles.field}
-              placeholder="Company name"
-              value={form.companyName}
-              onChange={update('companyName')}
-              required
-            />
+            <>
+              <input
+                style={styles.field}
+                placeholder="Company name"
+                value={form.companyName}
+                onChange={update('companyName')}
+                aria-invalid={!!fieldErrors.companyName}
+              />
+              {fieldErrors.companyName && (
+                <div style={styles.fieldError}>{fieldErrors.companyName}</div>
+              )}
+            </>
           )}
           <div style={styles.row}>
-            <input
-              style={styles.field}
-              placeholder="First name"
-              value={form.firstName}
-              onChange={update('firstName')}
-              required
-            />
-            <input
-              style={styles.field}
-              placeholder="Last name"
-              value={form.lastName}
-              onChange={update('lastName')}
-              required
-            />
+            <div>
+              <input
+                style={styles.field}
+                placeholder="First name"
+                value={form.firstName}
+                onChange={update('firstName')}
+                aria-invalid={!!fieldErrors.firstName}
+              />
+              {fieldErrors.firstName && (
+                <div style={styles.fieldError}>{fieldErrors.firstName}</div>
+              )}
+            </div>
+            <div>
+              <input
+                style={styles.field}
+                placeholder="Last name"
+                value={form.lastName}
+                onChange={update('lastName')}
+                aria-invalid={!!fieldErrors.lastName}
+              />
+              {fieldErrors.lastName && (
+                <div style={styles.fieldError}>{fieldErrors.lastName}</div>
+              )}
+            </div>
           </div>
           <input
             style={styles.field}
@@ -223,17 +271,20 @@ export default function RegisterPage() {
             placeholder="Email address"
             value={form.emailAddress}
             onChange={update('emailAddress')}
-            required
+            aria-invalid={!!fieldErrors.emailAddress}
           />
+          {fieldErrors.emailAddress && (
+            <div style={styles.fieldError}>{fieldErrors.emailAddress}</div>
+          )}
           <input
             style={styles.field}
             type="password"
             placeholder="Password"
             value={form.password}
             onChange={update('password')}
-            required
-            minLength={6}
+            aria-invalid={!!fieldErrors.password}
           />
+          {fieldErrors.password && <div style={styles.fieldError}>{fieldErrors.password}</div>}
           {role === 'learner' && (
             <>
               <input
@@ -242,7 +293,11 @@ export default function RegisterPage() {
                 aria-label="Birthday"
                 value={form.birthday}
                 onChange={update('birthday')}
+                aria-invalid={!!fieldErrors.birthday}
               />
+              {fieldErrors.birthday && (
+                <div style={styles.fieldError}>{fieldErrors.birthday}</div>
+              )}
               <input
                 style={styles.field}
                 placeholder="Address (optional)"
@@ -271,7 +326,7 @@ export default function RegisterPage() {
           )}
           <Button
             variant="primary"
-            style={{ width: '100%', marginTop: 4 }}
+            style={{ width: '100%', marginTop: 8 }}
             disabled={loading}
           >
             {loading ? 'Creating account...' : 'Create account'}

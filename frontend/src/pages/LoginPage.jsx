@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth, isRecruiter } from '../context/AuthContext';
+import { validateEmail, validatePassword } from '../utils/validation';
 import Button from '../components/ui/Button';
 
 const styles = {
@@ -59,8 +60,14 @@ const styles = {
     minHeight: 42,
     padding: '9px 12px',
     color: 'var(--ink)',
-    marginBottom: 12,
+    marginBottom: 4,
     fontSize: 14,
+  },
+  fieldError: {
+    color: 'rgb(190, 60, 50)',
+    fontSize: 12,
+    marginBottom: 12,
+    marginTop: 2,
   },
   error: {
     background: 'var(--coral-soft)',
@@ -81,14 +88,25 @@ const styles = {
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
+  const validateForm = () => {
+    const errors = {
+      email: validateEmail(email) || '',
+      password: validatePassword(password) || '',
+    };
+    setFieldErrors(errors);
+    return !errors.email && !errors.password;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    if (!validateForm()) return;
     setLoading(true);
     try {
       const user = await login(email, password);
@@ -97,6 +115,20 @@ export default function LoginPage() {
       setError(err.message || 'Login failed');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleEmailChange = (e) => {
+    setEmail(e.target.value);
+    if (fieldErrors.email) {
+      setFieldErrors((prev) => ({ ...prev, email: '' }));
+    }
+  };
+
+  const handlePasswordChange = (e) => {
+    setPassword(e.target.value);
+    if (fieldErrors.password) {
+      setFieldErrors((prev) => ({ ...prev, password: '' }));
     }
   };
 
@@ -114,26 +146,28 @@ export default function LoginPage() {
 
         {error && <div style={styles.error}>{error}</div>}
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} noValidate>
           <input
             style={styles.field}
             type="email"
             placeholder="Email address"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
+            onChange={handleEmailChange}
+            aria-invalid={!!fieldErrors.email}
           />
+          {fieldErrors.email && <div style={styles.fieldError}>{fieldErrors.email}</div>}
           <input
             style={styles.field}
             type="password"
             placeholder="Password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
+            onChange={handlePasswordChange}
+            aria-invalid={!!fieldErrors.password}
           />
+          {fieldErrors.password && <div style={styles.fieldError}>{fieldErrors.password}</div>}
           <Button
             variant="primary"
-            style={{ width: '100%', marginTop: 4 }}
+            style={{ width: '100%', marginTop: 8 }}
             disabled={loading}
           >
             {loading ? 'Signing in...' : 'Sign in'}

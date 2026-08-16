@@ -28,7 +28,9 @@ public class JwtTokenService : IJwtTokenService
 
     public string GenerateToken(AppUser user)
     {
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
+        var jwtKey = _config["Jwt:Key"] ?? throw new InvalidOperationException(
+            "Jwt:Key is not configured. Set Jwt:Key in appsettings.json or the Jwt__Key environment variable.");
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
         var claims = new[]

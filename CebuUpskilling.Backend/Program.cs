@@ -84,7 +84,13 @@ builder.Services.AddScoped<ICourseContentService, CourseContentService>();
 builder.Services.AddScoped<IObjectStorageService, R2StorageService>();
 builder.Services.AddScoped<IMediaService, MediaService>();
 
-var jwtKey = builder.Configuration["Jwt:Key"]!;
+var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException(
+    "Jwt:Key is not configured. Set Jwt:Key in appsettings.json or the Jwt__Key environment variable.");
+
+if (jwtKey.Length < 32)
+{
+    throw new InvalidOperationException("Jwt:Key must be at least 32 characters long for HMAC-SHA256.");
+}
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;

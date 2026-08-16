@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from '../context/AuthContext';
 import RegisterPage from './RegisterPage';
@@ -72,6 +72,11 @@ function fillForm() {
 }
 
 describe('RegisterPage', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    api.post.mockReset();
+  });
+
   it('renders the registration form', () => {
     renderRegister();
     expect(screen.getByRole('heading', { name: 'Create your account' })).toBeInTheDocument();
@@ -115,6 +120,71 @@ describe('RegisterPage', () => {
     expect(screen.getByPlaceholderText('Company name')).toBeInTheDocument();
   });
 
+  it('shows a field error for an invalid email and does not call the API', async () => {
+    renderRegister();
+
+    fireEvent.change(screen.getByPlaceholderText('First name'), {
+      target: { value: 'Jose' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Last name'), {
+      target: { value: 'Rizal' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Email address'), {
+      target: { value: 'not-an-email' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Password'), {
+      target: { value: 'secret123' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+
+    expect(await screen.findByText('Please enter a valid email address')).toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('shows a field error for a short password and does not call the API', async () => {
+    renderRegister();
+
+    fireEvent.change(screen.getByPlaceholderText('First name'), {
+      target: { value: 'Jose' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Last name'), {
+      target: { value: 'Rizal' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Email address'), {
+      target: { value: 'jose@example.com' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Password'), {
+      target: { value: 'abc' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+
+    expect(await screen.findByText('Password must be at least 6 characters')).toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('shows a field error for a missing company name on employer registration and does not call the API', async () => {
+    renderRegister();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Employer' }));
+    fireEvent.change(screen.getByPlaceholderText('First name'), {
+      target: { value: 'Maria' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Last name'), {
+      target: { value: 'Santos' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Email address'), {
+      target: { value: 'maria@tech.com' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Password'), {
+      target: { value: 'secret123' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+
+    expect(await screen.findByText('Company name is required')).toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
   it('submits company registration data to register-company and navigates to the business dashboard', async () => {
     api.post.mockResolvedValue({ token: 'xyz', firstName: 'Maria', companyId: 1, role: 'Recruiter' });
     renderRegister();
@@ -145,26 +215,29 @@ describe('RegisterPage', () => {
     expect(await screen.findByText('Business dashboard')).toBeInTheDocument();
   });
 
-  it('shows an error when company name is missing for employer registration', async () => {
-    api.post.mockResolvedValue({ token: 'xyz' });
+  it('clears the password field error as the user types', async () => {
     renderRegister();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Employer' }));
     fireEvent.change(screen.getByPlaceholderText('First name'), {
-      target: { value: 'Maria' },
+      target: { value: 'Jose' },
     });
     fireEvent.change(screen.getByPlaceholderText('Last name'), {
-      target: { value: 'Santos' },
+      target: { value: 'Rizal' },
     });
     fireEvent.change(screen.getByPlaceholderText('Email address'), {
-      target: { value: 'maria@tech.com' },
+      target: { value: 'jose@example.com' },
     });
+    fireEvent.change(screen.getByPlaceholderText('Password'), {
+      target: { value: 'abc' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+
+    expect(await screen.findByText('Password must be at least 6 characters')).toBeInTheDocument();
+
     fireEvent.change(screen.getByPlaceholderText('Password'), {
       target: { value: 'secret123' },
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
-
-    expect(await screen.findByText('Company name is required')).toBeInTheDocument();
+    expect(screen.queryByText('Password must be at least 6 characters')).not.toBeInTheDocument();
   });
 });
