@@ -21,11 +21,16 @@ function request(path, options = {}) {
 
     xhr.onload = () => {
       if (xhr.status === 401) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        window.location.href = '/login';
-        resolve(null);
-        return;
+        // If a token exists, the session expired/invalidated → clear and redirect.
+        // If no token exists, this is a failed login attempt (e.g. wrong password) →
+        // fall through to the normal error path so the error message can display.
+        if (localStorage.getItem('token')) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          window.location.href = '/login';
+          resolve(null);
+          return;
+        }
       }
 
       if (xhr.status < 200 || xhr.status >= 300) {

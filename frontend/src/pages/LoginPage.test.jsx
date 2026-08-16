@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from '../context/AuthContext';
 import LoginPage from './LoginPage';
@@ -32,6 +32,11 @@ function renderLogin() {
 }
 
 describe('LoginPage', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    api.post.mockReset();
+  });
+
   it('renders the sign in form', () => {
     renderLogin();
     expect(screen.getByRole('heading', { name: 'Welcome back' })).toBeInTheDocument();
@@ -92,7 +97,7 @@ describe('LoginPage', () => {
     expect(await screen.findByText('Business dashboard')).toBeInTheDocument();
   });
 
-  it('shows an error message when login fails', async () => {
+  it('shows an error message and does not redirect when login returns 401', async () => {
     api.post.mockRejectedValue(new Error('Invalid credentials'));
     renderLogin();
 
@@ -100,10 +105,63 @@ describe('LoginPage', () => {
       target: { value: 'jose@example.com' },
     });
     fireEvent.change(screen.getByPlaceholderText('Password'), {
-      target: { value: 'wrong' },
+      target: { value: 'wrong123' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
 
     expect(await screen.findByText('Invalid credentials')).toBeInTheDocument();
+
+    // The error persists and the page does not navigate away.
+    expect(screen.getByRole('heading', { name: 'Welcome back' })).toBeInTheDocument();
+    expect(screen.queryByText('Learner home')).not.toBeInTheDocument();
+    expect(screen.queryByText('Business dashboard')).not.toBeInTheDocument();
+    expect(screen.queryByText('Mock destination page')).not.toBeInTheDocument();
+  });
+
+  it('shows a field error for an invalid email and does not call the API', async () => {
+    renderLogin();
+
+    fireEvent.change(screen.getByPlaceholderText('Email address'), {
+      target: { value: 'not-an-email' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Password'), {
+      target: { value: 'secret123' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+
+    expect(await screen.findByText('Please enter a valid email address')).toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('shows a field error for an empty password and does not call the API', async () => {
+    renderLogin();
+
+    fireEvent.change(screen.getByPlaceholderText('Email address'), {
+      target: { value: 'jose@example.com' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+
+    expect(await screen.findByText('Password is required')).toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('clears the email field error as the user types', async () => {
+    renderLogin();
+
+    fireEvent.change(screen.getByPlaceholderText('Email address'), {
+      target: { value: 'not-an-email' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Password'), {
+      target: { value: 'secret123' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+
+    expect(await screen.findByText('Please enter a valid email address')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText('Email address'), {
+      target: { value: 'jose@example.com' },
+    });
+
+    expect(screen.queryByText('Please enter a valid email address')).not.toBeInTheDocument();
   });
 });
