@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, isRecruiter } from '../context/AuthContext';
 import Button from '../components/ui/Button';
 
 const styles = {
@@ -91,8 +91,8 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      await login(email, password);
-      navigate('/');
+      const user = await login(email, password);
+      navigate(isRecruiter(user) ? '/business-dashboard' : '/');
     } catch (err) {
       setError(err.message || 'Login failed');
     } finally {

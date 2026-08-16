@@ -1,10 +1,11 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using System.Threading;
+using CebuUpskilling.Backend.Data;
 using CebuUpskilling.Backend.DTOs;
 using CebuUpskilling.Backend.Entities;
-using CebuUpskilling.Backend.Repositories;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.IdentityModel.Tokens;
 
 namespace CebuUpskilling.Backend.Services;
@@ -55,40 +56,20 @@ public class JwtTokenService : IJwtTokenService
 public interface IAuthService
 {
     Task<AuthResponse> RegisterAsync(RegisterRequest request);
+    Task<CompanyRegisterResponse> CompanyRegisterAsync(CompanyRegisterRequest request);
     Task<AuthResponse> LoginAsync(LoginRequest request);
     Task<AuthResponse> UpdateProfileAsync(int userId, UpdateProfileRequest request);
 }
 
 public class AuthService : IAuthService
 {
-    private readonly IAppUserRepository _users;
-    private readonly ILearnerRepository _learners;
-    private readonly IRoleSkillRepository _roleSkills;
-    private readonly ILearnerSkillRepository _learnerSkills;
-    private readonly ISkillRepository _skills;
-    private readonly IAssessmentQuestionRepository _assessmentQuestions;
-    private readonly IOpenRouterService _openRouterService;
+    private readonly ApplicationDbContext _context;
     private readonly IJwtTokenService _tokenService;
     private readonly ILogger<AuthService> _logger;
 
-    public AuthService(
-        IAppUserRepository users,
-        ILearnerRepository learners,
-        IRoleSkillRepository roleSkills,
-        ILearnerSkillRepository learnerSkills,
-        ISkillRepository skills,
-        IAssessmentQuestionRepository assessmentQuestions,
-        IOpenRouterService openRouterService,
-        IJwtTokenService tokenService,
-        ILogger<AuthService> logger)
+    public AuthService(ApplicationDbContext context, IJwtTokenService tokenService, ILogger<AuthService> logger)
     {
-        _users = users;
-        _learners = learners;
-        _roleSkills = roleSkills;
-        _learnerSkills = learnerSkills;
-        _skills = skills;
-        _assessmentQuestions = assessmentQuestions;
-        _openRouterService = openRouterService;
+        _context = context;
         _tokenService = tokenService;
         _logger = logger;
     }
@@ -97,22 +78,28 @@ public class AuthService : IAuthService
     {
         _logger.LogInformation("Registration attempt for email {Email}", request.EmailAddress);
 
+        if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 6)
+        {
+            _logger.LogWarning("Registration failed: weak password for email {Email}", request.EmailAddress);
+            throw new InvalidOperationException("Password must be at least 6 characters long");
+        }
+
         if (request.Role != "Learner" && request.Role != "Recruiter")
         {
             _logger.LogWarning("Registration failed: role '{Role}' is not allowed", request.Role);
             throw new InvalidOperationException($"Role '{request.Role}' is not allowed");
         }
 
-        if (await _users.ExistsByEmailAsync(request.EmailAddress))
+        if (request.Role == "Learner" && string.IsNullOrWhiteSpace(request.Resume))
+        {
+            _logger.LogWarning("Registration failed: learner resume is required for email {Email}", request.EmailAddress);
+            throw new InvalidOperationException("Resume is required for learners");
+        }
+
+        if (await _context.Users.AnyAsync(u => u.EmailAddress == request.EmailAddress))
         {
             _logger.LogWarning("Registration failed: email {Email} already exists", request.EmailAddress);
             throw new InvalidOperationException("Email already registered");
-        }
-
-        if (request.Role == "Learner" && string.IsNullOrWhiteSpace(request.Resume))
-        {
-            _logger.LogWarning("Registration failed: resume required for learner {Email}", request.EmailAddress);
-            throw new InvalidOperationException("Resume is required for learners");
         }
 
         var user = new AppUser
@@ -120,9 +107,7 @@ public class AuthService : IAuthService
             FirstName = request.FirstName,
             LastName = request.LastName,
             MiddleName = request.MiddleName,
-            Birthday = request.Birthday.HasValue
-    ? DateTime.SpecifyKind(request.Birthday.Value, DateTimeKind.Utc)
-    : null,
+            Birthday = ParseBirthday(request.Birthday),
             EmailAddress = request.EmailAddress,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
             Role = request.Role,
@@ -130,20 +115,22 @@ public class AuthService : IAuthService
             Address = request.Address,
         };
 
-        await _users.AddAsync(user);
-        await _users.SaveChangesAsync();
+        _context.Users.Add(user);
+        await _context.SaveChangesAsync();
         _logger.LogInformation("User registered successfully: {UserId} ({Email}), Role: {Role}", user.UserId, user.EmailAddress, user.Role);
 
         if (request.Role == "Learner")
         {
             var learner = new Learner { UserId = user.UserId, IsPremium = false };
-            await _learners.AddAsync(learner);
-            await _learners.SaveChangesAsync();
+            _context.Learners.Add(learner);
+            await _context.SaveChangesAsync();
             _logger.LogInformation("Learner profile created for user {UserId}", user.UserId);
 
             if (!string.IsNullOrWhiteSpace(request.TargetRole))
             {
-                var roleSkills = await _roleSkills.GetByTargetRoleAsync(request.TargetRole);
+                var roleSkills = await _context.RoleSkills
+                    .Where(rs => rs.TargetRole == request.TargetRole)
+                    .ToListAsync();
 
                 if (roleSkills.Count > 0)
                 {
@@ -155,43 +142,11 @@ public class AuthService : IAuthService
                         Verified = false,
                     }).ToList();
 
-                    _learnerSkills.AddRange(learnerSkills);
-                    await _learnerSkills.SaveChangesAsync();
+                    _context.LearnerSkills.AddRange(learnerSkills);
+                    await _context.SaveChangesAsync();
                     _logger.LogInformation("Created {Count} learner skills for user {UserId} (role: {Role})",
                         learnerSkills.Count, user.UserId, request.TargetRole);
                 }
-            }
-
-            var resumeText = request.Resume ?? string.Empty;
-            var extractedSkillNames = await _openRouterService.ParseSkillsFromResumeAsync(resumeText);
-            var matchedSkills = extractedSkillNames.Count > 0
-                ? await _skills.GetByNamesAsync(extractedSkillNames)
-                : new List<Skill>();
-
-            if (matchedSkills.Count > 0)
-            {
-                var existingSkillIds = (await _learnerSkills.GetByLearnerIdWithSkillAsync(learner.LearnerId))
-                    .Select(ls => ls.SkillId).ToHashSet();
-
-                var newLearnerSkills = matchedSkills
-                    .Where(s => !existingSkillIds.Contains(s.SkillId))
-                    .Select(s => new LearnerSkill
-                    {
-                        LearnerId = learner.LearnerId,
-                        SkillId = s.SkillId,
-                        CurrentLevel = 0,
-                        Verified = false,
-                    }).ToList();
-
-                if (newLearnerSkills.Any())
-                {
-                    _learnerSkills.AddRange(newLearnerSkills);
-                    await _learnerSkills.SaveChangesAsync();
-                    _logger.LogInformation("Added {Count} resume-parsed skills for user {UserId}",
-                        newLearnerSkills.Count, user.UserId);
-                }
-
-                await GenerateAssessmentsForSkillsAsync(matchedSkills, CancellationToken.None);
             }
         }
 
@@ -200,11 +155,105 @@ public class AuthService : IAuthService
         return new AuthResponse(user.UserId, user.FirstName, user.LastName, user.EmailAddress, user.Role, user.TargetRole, user.Address, user.RemoteFriendly, token);
     }
 
+    public async Task<CompanyRegisterResponse> CompanyRegisterAsync(CompanyRegisterRequest request)
+    {
+        _logger.LogInformation("Company registration attempt for email {Email}, company {CompanyName}", request.EmailAddress, request.CompanyName);
+
+        if (await _context.Users.AnyAsync(u => u.EmailAddress == request.EmailAddress))
+        {
+            _logger.LogWarning("Company registration failed: email {Email} already exists", request.EmailAddress);
+            throw new InvalidOperationException("Email already registered");
+        }
+
+        if (await _context.Companies.AnyAsync(c => c.Name == request.CompanyName))
+        {
+            _logger.LogWarning("Company registration failed: company name {CompanyName} already exists", request.CompanyName);
+            throw new InvalidOperationException("Company name already registered");
+        }
+
+        // Transactions are only supported by relational databases (e.g. PostgreSQL).
+        // Skip the transaction for non-relational providers like the in-memory test database.
+        IDbContextTransaction? transaction = null;
+        if (_context.Database.ProviderName != "Microsoft.EntityFrameworkCore.InMemory")
+        {
+            transaction = await _context.Database.BeginTransactionAsync();
+        }
+
+        try
+        {
+            var company = new Company { Name = request.CompanyName };
+            _context.Companies.Add(company);
+            await _context.SaveChangesAsync();
+            _logger.LogInformation("Company created: {CompanyId} ({CompanyName})", company.CompanyId, company.Name);
+
+            var user = new AppUser
+            {
+                FirstName = request.FirstName,
+                LastName = request.LastName,
+                MiddleName = request.MiddleName,
+                Birthday = ParseBirthday(request.Birthday),
+                EmailAddress = request.EmailAddress,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
+                Role = "Recruiter",
+                Address = request.Address,
+            };
+
+            _context.Users.Add(user);
+            await _context.SaveChangesAsync();
+            _logger.LogInformation("Recruiter user registered: {UserId} ({Email})", user.UserId, user.EmailAddress);
+
+            var recruiter = new Recruiter
+            {
+                UserId = user.UserId,
+                CompanyId = company.CompanyId,
+            };
+            _context.Recruiters.Add(recruiter);
+            await _context.SaveChangesAsync();
+            _logger.LogInformation("Recruiter profile created: {RecruiterId} for user {UserId}, company {CompanyId}", recruiter.RecruiterId, user.UserId, company.CompanyId);
+
+            if (transaction != null)
+                await transaction.CommitAsync();
+
+            var token = _tokenService.GenerateToken(user);
+
+            return new CompanyRegisterResponse(
+                user.UserId,
+                user.FirstName,
+                user.LastName,
+                user.EmailAddress,
+                user.Role,
+                company.CompanyId,
+                company.Name,
+                token
+            );
+        }
+        catch
+        {
+            if (transaction != null)
+                await transaction.RollbackAsync();
+            throw;
+        }
+        finally
+        {
+            transaction?.Dispose();
+        }
+    }
+
+    private static DateTime? ParseBirthday(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        return DateTime.TryParse(value, out var parsed) ? parsed : null;
+    }
+
     public async Task<AuthResponse> LoginAsync(LoginRequest request)
     {
         _logger.LogInformation("Login attempt for email {Email}", request.EmailAddress);
 
-        var user = await _users.GetByEmailAsync(request.EmailAddress);
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.EmailAddress == request.EmailAddress);
         if (user == null)
         {
             _logger.LogWarning("Login failed: user not found for email {Email}", request.EmailAddress);
@@ -221,12 +270,12 @@ public class AuthService : IAuthService
 
         var token = _tokenService.GenerateToken(user);
 
-        return new AuthResponse(user.UserId, user.FirstName, user.LastName, user.EmailAddress, user.Role, user.TargetRole, user.Address, user.RemoteFriendly, token);
+        return new AuthResponse(user.UserId, user.FirstName, user.LastName, user.EmailAddress, user.Role, user.TargetRole, user.Address, user.RemoteFriendly, token);  
     }
 
     public async Task<AuthResponse> UpdateProfileAsync(int userId, UpdateProfileRequest request)
     {
-        var user = await _users.GetByIdAsync(userId);
+        var user = await _context.Users.FindAsync(userId);
         if (user == null)
         {
             throw new InvalidOperationException("User not found");
@@ -247,48 +296,10 @@ public class AuthService : IAuthService
             user.RemoteFriendly = request.RemoteFriendly.Value;
         }
 
-        await _users.SaveChangesAsync();
+        await _context.SaveChangesAsync();
         _logger.LogInformation("Profile updated for user {UserId}", userId);
 
         var token = _tokenService.GenerateToken(user);
         return new AuthResponse(user.UserId, user.FirstName, user.LastName, user.EmailAddress, user.Role, user.TargetRole, user.Address, user.RemoteFriendly, token);
-    }
-
-    private async Task GenerateAssessmentsForSkillsAsync(List<Skill> skills, CancellationToken ct)
-    {
-        foreach (var skill in skills)
-        {
-            try
-            {
-                var generated = await _openRouterService.GenerateAssessmentQuestionsAsync(skill.Name, 5, ct);
-                if (generated.Count == 0)
-                {
-                    _logger.LogDebug("No AI assessment questions generated for skill {Skill}", skill.Name);
-                    continue;
-                }
-
-                var questions = generated.Select(q => new AssessmentQuestion
-                {
-                    SkillId = skill.SkillId,
-                    Text = q.Text.Trim(),
-                    OptionA = q.OptionA.Trim(),
-                    OptionB = q.OptionB.Trim(),
-                    OptionC = q.OptionC.Trim(),
-                    OptionD = q.OptionD.Trim(),
-                    CorrectOption = q.CorrectOption,
-                    Source = AssessmentSource.AI,
-                }).ToList();
-
-                _assessmentQuestions.AddRange(questions);
-                await _assessmentQuestions.SaveChangesAsync(ct);
-
-                _logger.LogInformation("Generated {Count} AI assessment questions for skill {Skill} during registration",
-                    questions.Count, skill.Name);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to generate assessment questions for skill {Skill} during registration", skill.Name);
-            }
-        }
     }
 }

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Npgsql;
 
 namespace CebuUpskilling.Backend.Tests.Integration;
@@ -24,6 +25,7 @@ public class ProductionApiFactory : WebApplicationFactory<Program>
             "LearnerSkills",
             "LearnerAssessments",
             "PostCourseRequireds",
+            "Applications",
             "Posts",
             "Recruiters",
             "Learners",
@@ -59,6 +61,12 @@ public class ProductionApiFactory : WebApplicationFactory<Program>
             {
                 ["ConnectionStrings:DefaultConnection"] = TestConnectionString,
             });
+        });
+
+        builder.ConfigureLogging(logging =>
+        {
+            logging.ClearProviders();
+            logging.AddConsole();
         });
     }
 

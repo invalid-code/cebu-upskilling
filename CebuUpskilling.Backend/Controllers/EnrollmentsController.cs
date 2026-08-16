@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using CebuUpskilling.Backend.Entities;
 using CebuUpskilling.Backend.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CebuUpskilling.Backend.Controllers;
@@ -21,6 +22,7 @@ public class EnrollmentsController : BaseEntityController<LearnerStudyCourse>
     protected override int GetId(LearnerStudyCourse entity) => entity.CourseId;
 
     [HttpGet]
+    [Authorize(Roles = "Learner")]
     public override async Task<ActionResult<List<LearnerStudyCourse>>> GetAll()
     {
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
@@ -33,6 +35,7 @@ public class EnrollmentsController : BaseEntityController<LearnerStudyCourse>
     }
 
     [HttpPost]
+    [Authorize(Roles = "Learner")]
     public override async Task<ActionResult<LearnerStudyCourse>> Create(LearnerStudyCourse entity)
     {
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);

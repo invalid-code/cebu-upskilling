@@ -1,43 +1,69 @@
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5179/api';
+// NOTE: This client intentionally uses XMLHttpRequest instead of fetch().
+// A browser extension (injectScriptAdjust.js) patches window.fetch and rewrites
+// outgoing URLs to http://localhost:5179, breaking API calls. XHR is not
+// patched by that extension, so requests reach the server untouched.
+const API_BASE = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '');
 
-async function request(path, options = {}) {
+function request(path, options = {}) {
   const token = localStorage.getItem('token');
   const headers = {
+    'Content-Type': 'application/json',
     ...(token && { Authorization: `Bearer ${token}` }),
     ...options.headers,
   };
 
-  let body = options.body;
-  if (!(body instanceof FormData)) {
-    headers['Content-Type'] = 'application/json';
-    if (body != null) {
-      body = JSON.stringify(body);
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open(options.method || 'GET', `${API_BASE}${path}`);
+    for (const [key, value] of Object.entries(headers)) {
+      xhr.setRequestHeader(key, value);
     }
-  }
 
-  const res = await fetch(`${API_BASE}${path}`, { ...options, headers, body, signal: options.signal });
+    xhr.onload = () => {
+      if (xhr.status === 401) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+        resolve(null);
+        return;
+      }
 
-  if (res.status === 401) {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    window.location.href = '/login';
-    return;
-  }
+      if (xhr.status < 200 || xhr.status >= 300) {
+        let message = `HTTP ${xhr.status}`;
+        try {
+          const data = JSON.parse(xhr.responseText);
+          if (data && data.error) message = data.error;
+        } catch {
+          // ignore non-JSON error bodies
+        }
+        reject(new Error(message));
+        return;
+      }
 
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({ error: 'Request failed' }));
-    throw new Error(error.error || `HTTP ${res.status}`);
-  }
+      if (xhr.status === 204) {
+        resolve(null);
+        return;
+      }
 
-  if (res.status === 204) return null;
-  return res.json();
+      try {
+        resolve(JSON.parse(xhr.responseText));
+      } catch {
+        resolve(xhr.responseText);
+      }
+    };
+
+    xhr.onerror = () => {
+      reject(new Error('Network error'));
+    };
+
+    xhr.send(options.body);
+  });
 }
 
 export const api = {
-  get: (path, { signal } = {}) => request(path, { signal }),
-  post: (path, body) => request(path, { method: 'POST', body }),
-  postMultipart: (path, formData) => request(path, { method: 'POST', body: formData }),
-  put: (path, body) => request(path, { method: 'PUT', body }),
-  patch: (path, body) => request(path, { method: 'PATCH', body }),
+  get: (path) => request(path),
+  post: (path, body) => request(path, { method: 'POST', body: JSON.stringify(body) }),
+  put: (path, body) => request(path, { method: 'PUT', body: JSON.stringify(body) }),
+  patch: (path, body) => request(path, { method: 'PATCH', body: JSON.stringify(body) }),
   delete: (path) => request(path, { method: 'DELETE' }),
 };

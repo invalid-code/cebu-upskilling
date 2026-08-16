@@ -1,5 +1,4 @@
-/* eslint-disable react/only-export-components */
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 import { api } from '../api/client';
 
 const AuthContext = createContext(null);
@@ -9,6 +8,8 @@ export function AuthProvider({ children }) {
     const saved = localStorage.getItem('user');
     return saved ? JSON.parse(saved) : null;
   });
+  const [loading, setLoading] = useState(false);
+
   const login = async (email, password) => {
     const res = await api.post('/auth/login', { emailAddress: email, password });
     localStorage.setItem('token', res.token);
@@ -25,6 +26,14 @@ export function AuthProvider({ children }) {
     return res;
   };
 
+  const registerCompany = async (data) => {
+    const res = await api.post('/auth/register-company', data);
+    localStorage.setItem('token', res.token);
+    localStorage.setItem('user', JSON.stringify(res));
+    setUser(res);
+    return res;
+  };
+
   const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
@@ -32,7 +41,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, setUser, login, register, logout }}>
+    <AuthContext.Provider value={{ user, setUser, loading, login, register, registerCompany, logout }}>
       {children}
     </AuthContext.Provider>
   );
@@ -42,4 +51,12 @@ export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error('useAuth must be used within AuthProvider');
   return ctx;
+}
+
+export function isLearner(user) {
+  return user?.role?.toLowerCase() === 'learner';
+}
+
+export function isRecruiter(user) {
+  return user?.role?.toLowerCase() === 'recruiter';
 }

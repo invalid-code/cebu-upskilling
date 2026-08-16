@@ -446,7 +446,11 @@ public class SecurityApiTests : ProductionApiTestBase
         var token = handler.WriteToken(new JwtSecurityToken(
             issuer: issuer,
             audience: audience,
-            claims: new[] { new Claim(ClaimTypes.Email, "sec.err@example.com") },
+            claims: new[]
+            {
+                new Claim(ClaimTypes.Email, "sec.err@example.com"),
+                new Claim(ClaimTypes.Role, "Learner"),
+            },
             expires: DateTime.UtcNow.AddDays(1),
             signingCredentials: new SigningCredentials(
                 new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)),
