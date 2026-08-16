@@ -29,4 +29,14 @@ public class SkillGapsController : ControllerBase
         var gaps = await _skillGapService.GetSkillGapsAsync(userId);
         return Ok(gaps);
     }
+
+    [HttpGet("groups")]
+    public async Task<ActionResult<List<SkillGapGroupDto>>> GetMySkillGapGroups()
+    {
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        _logger.LogInformation("HTTP GET /api/skillgaps/groups called by user {UserId}", userId);
+
+        var groups = await _skillGapService.GetSkillGapGroupsAsync(userId);
+        return Ok(groups);
+    }
 }

@@ -90,4 +90,42 @@ describe('SkillsPage', () => {
     expect(screen.getByText('Frontend Developer')).toBeInTheDocument();
     expect(screen.getByText('123 Main St · On-site')).toBeInTheDocument();
   });
+
+  it('renders grouped skill gaps by applied role and expands on click', async () => {
+    localStorage.setItem('user', JSON.stringify({
+      UserId: 1,
+      firstName: 'Test',
+      role: 'Learner',
+      targetRole: 'Frontend Developer',
+    }));
+    localStorage.setItem('token', 'abc');
+    api.get.mockImplementation((path) => {
+      if (path === '/applications') return Promise.resolve([{ postId: 1 }]);
+      if (path === '/skillgaps/groups') return Promise.resolve([{
+        role: 'Backend Developer',
+        companyName: 'Serbisyo Digital',
+        postId: 1,
+        matchPercent: 40,
+        gaps: [{
+          skillId: 1,
+          skillName: 'C#',
+          category: 'Backend',
+          requiredLevel: 3,
+          currentLevel: 0,
+          gap: 3,
+          verified: false,
+        }],
+      }]);
+      return Promise.resolve([]);
+    });
+    renderSkills();
+    expect(await screen.findByText('Backend Developer')).toBeInTheDocument();
+    expect(screen.getByText('40%')).toBeInTheDocument();
+    expect(screen.getByText('Serbisyo Digital · job applied')).toBeInTheDocument();
+    expect(screen.getByText('Required 3 · Current 0')).toBeInTheDocument();
+    expect(screen.getByText('Gap 3')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Backend Developer'));
+    expect(screen.queryByText('Required 3 · Current 0')).not.toBeInTheDocument();
+  });
 });

@@ -182,6 +182,7 @@ public class AssessmentService : IAssessmentService
 
         var allSkillIds = roleSkillIds.Concat(parsedSkills.Select(s => s.SkillId)).Distinct().ToList();
         var questionCounts = await _assessmentQuestions.GetQuestionCountsBySkillIdsAsync(allSkillIds);
+        var companyQuestionCounts = await _assessmentQuestions.GetCompanyQuestionCountsBySkillIdsAsync(allSkillIds);
 
         var companyQuestions = await _assessmentQuestions.GetBySkillIdsAndSourceAsync(allSkillIds, AssessmentSource.Company);
         var companyBySkill = companyQuestions
@@ -207,7 +208,7 @@ public class AssessmentService : IAssessmentService
                     TargetLevelLabel: LevelLabels.GetValueOrDefault(rs.RequiredLevel, $"Level {rs.RequiredLevel}"),
                     Gap: gap,
                     HasAssessment: hasAssessment,
-                    QuestionCount: questionCounts.GetValueOrDefault(rs.Skill.SkillId, 0),
+                    QuestionCount: ResolveDisplayQuestionCount(questionCounts, companyQuestionCounts, rs.Skill.SkillId),
                     TimeLimitMinutes: 45,
                     SourceLabel: isCompanyAssessment ? "Company" : "AI-generated",
                     CompanyName: isCompanyAssessment ? companyBySkill[rs.Skill.SkillId] : null,
@@ -220,6 +221,7 @@ public class AssessmentService : IAssessmentService
         foreach (var skill in parsedSkills)
         {
             var currentLevel = learnerSkillMap.TryGetValue(skill.SkillId, out var ls) ? ls!.CurrentLevel : 0;
+            var targetLevel = Math.Max(currentLevel, 3);
             var isCompanyAssessment = companyBySkill.ContainsKey(skill.SkillId);
 
             assessments.Add(new AvailableAssessmentDto(
@@ -228,11 +230,11 @@ public class AssessmentService : IAssessmentService
                 Category: skill.Category,
                 CurrentLevel: currentLevel,
                 CurrentLevelLabel: LevelLabels.GetValueOrDefault(currentLevel, $"Level {currentLevel}"),
-                TargetLevel: currentLevel,
-                TargetLevelLabel: LevelLabels.GetValueOrDefault(currentLevel, $"Level {currentLevel}"),
-                Gap: 0,
+                TargetLevel: targetLevel,
+                TargetLevelLabel: LevelLabels.GetValueOrDefault(targetLevel, $"Level {targetLevel}"),
+                Gap: Math.Max(0, targetLevel - currentLevel),
                 HasAssessment: verifiedBySkill.ContainsKey(skill.SkillId),
-                QuestionCount: questionCounts.GetValueOrDefault(skill.SkillId, 0),
+                QuestionCount: ResolveDisplayQuestionCount(questionCounts, companyQuestionCounts, skill.SkillId),
                 TimeLimitMinutes: 45,
                 SourceLabel: isCompanyAssessment ? "Company" : "AI-generated",
                 CompanyName: isCompanyAssessment ? companyBySkill[skill.SkillId] : null,
@@ -563,5 +565,18 @@ public class AssessmentService : IAssessmentService
             >= 30 => 2,
             _ => 1,
         };
+    }
+
+    private static int ResolveDisplayQuestionCount(
+        Dictionary<int, int> questionCounts,
+        Dictionary<int, int> companyQuestionCounts,
+        int skillId)
+    {
+        var companyCount = companyQuestionCounts.GetValueOrDefault(skillId, 0);
+        if (companyCount > 0)
+            return Math.Min(companyCount, 5);
+
+        var existing = questionCounts.GetValueOrDefault(skillId, 0);
+        return existing == 0 ? 5 : Math.Min(existing, 5);
     }
 }

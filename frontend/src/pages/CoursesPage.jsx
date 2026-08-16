@@ -274,7 +274,7 @@ export default function CoursesPage() {
                     course={{
                       courseId: enrollment.courseId,
                       name: enrollment.courseName,
-                      technicalLevel: 0,
+                      technicalLevel: enrollment.technicalLevel,
                       lessonCount: enrollment.totalModules,
                     }}
                     variant="enrolled"
@@ -286,6 +286,7 @@ export default function CoursesPage() {
                     progressPercent={enrollment.progressPercent}
                     currentModule={enrollment.currentModule}
                     totalModules={enrollment.totalModules}
+                    onStart={() => handleOpenCourseDetail(enrollment.courseId)}
                     onResume={() => handleOpenCourseDetail(enrollment.courseId)}
                   />
                 ))}

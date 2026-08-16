@@ -19,7 +19,8 @@ public record EnrollmentDto(
     DateTime? Started,
     int ProgressPercent,
     string? CurrentModule,
-    int TotalModules
+    int TotalModules,
+    int TechnicalLevel
 );
 
 public record RecommendedCourseDto(

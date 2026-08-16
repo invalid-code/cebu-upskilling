@@ -223,7 +223,7 @@ public class AssessmentServiceTests
         Assert.Equal("TypeScript", assessment.SkillName);
         Assert.False(assessment.HasAssessment);
         Assert.Equal(0, result.MatchPercent);
-        Assert.Equal(0, result.RecommendedCount);
+        Assert.Equal(1, result.RecommendedCount);
     }
 
     [Fact]
@@ -324,7 +324,99 @@ public class AssessmentServiceTests
         Assert.NotNull(result);
         Assert.Equal(2, result!.Assessments.Count);
         Assert.Contains(result.Assessments, a => a.SkillName == "JavaScript" && a.TargetLevel == 3 && a.Gap == 3);
-        Assert.Contains(result.Assessments, a => a.SkillName == "TypeScript" && a.Gap == 0);
+        Assert.Contains(result.Assessments, a => a.SkillName == "TypeScript" && a.TargetLevel == 3 && a.Gap == 3);
+    }
+
+    [Fact]
+    public async Task GetAvailableAssessmentsAsync_WhenNoQuestionsExist_ReportsOnDemandQuestionCount()
+    {
+        var context = TestDbContextFactory.Create();
+        var aiService = new FakeGoogleAiService();
+        var service = CreateService(context, aiService);
+
+        var user = new AppUser
+        {
+            FirstName = "Jose",
+            LastName = "Rizal",
+            EmailAddress = $"learner-{Guid.NewGuid():N}@example.com",
+            PasswordHash = "hash",
+            Role = "Learner",
+            TargetRole = "Frontend Developer",
+        };
+        context.Users.Add(user);
+
+        var learner = new Learner { UserId = user.UserId, IsPremium = false };
+        context.Learners.Add(learner);
+        await context.SaveChangesAsync();
+
+        context.RoleSkills.Add(new RoleSkill
+        {
+            TargetRole = "Frontend Developer",
+            SkillId = context.Skills.Add(new Skill { Name = "JavaScript", Category = "Frontend" }).Entity.SkillId,
+            RequiredLevel = 3,
+        });
+        await context.SaveChangesAsync();
+
+        var result = await service.GetAvailableAssessmentsAsync(user.UserId);
+
+        Assert.NotNull(result);
+        var assessment = Assert.Single(result!.Assessments);
+        Assert.Equal("JavaScript", assessment.SkillName);
+        Assert.Equal(5, assessment.QuestionCount);
+    }
+
+    [Fact]
+    public async Task GetAvailableAssessmentsAsync_CompanyQuestions_ReportColumnCount()
+    {
+        var context = TestDbContextFactory.Create();
+        var aiService = new FakeGoogleAiService();
+        var service = CreateService(context, aiService);
+
+        var user = new AppUser
+        {
+            FirstName = "Jose",
+            LastName = "Rizal",
+            EmailAddress = $"learner-{Guid.NewGuid():N}@example.com",
+            PasswordHash = "hash",
+            Role = "Learner",
+            TargetRole = "Frontend Developer",
+        };
+        context.Users.Add(user);
+
+        var learner = new Learner { UserId = user.UserId, IsPremium = false };
+        context.Learners.Add(learner);
+
+        var skill = new Skill { Name = "JavaScript", Category = "Frontend" };
+        context.Skills.Add(skill);
+        var company = new Company { Name = "Acme Corp" };
+        context.Companies.Add(company);
+        await context.SaveChangesAsync();
+
+        context.RoleSkills.Add(new RoleSkill
+        {
+            TargetRole = "Frontend Developer",
+            SkillId = skill.SkillId,
+            RequiredLevel = 3,
+        });
+        for (var i = 0; i < 3; i++)
+        {
+            context.AssessmentQuestions.Add(new AssessmentQuestion
+            {
+                SkillId = skill.SkillId,
+                Text = $"Company question {i}?",
+                OptionA = "A", OptionB = "B", OptionC = "C", OptionD = "D",
+                CorrectOption = 0,
+                Source = AssessmentSource.Company,
+                CompanyId = company.CompanyId,
+            });
+        }
+        await context.SaveChangesAsync();
+
+        var result = await service.GetAvailableAssessmentsAsync(user.UserId);
+
+        Assert.NotNull(result);
+        var assessment = Assert.Single(result!.Assessments);
+        Assert.Equal(3, assessment.QuestionCount);
     }
 
     [Fact]

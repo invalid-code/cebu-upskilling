@@ -70,9 +70,14 @@ describe('CourseCard', () => {
     expect(await screen.findByText('Course not found')).toBeInTheDocument();
   });
 
-  it('shows Resume when enrolled', () => {
+  it('shows Resume when enrolled and has progress', () => {
     renderCourse({ isEnrolled: true, progressPercent: 50 });
     expect(screen.getByText('Resume')).toBeInTheDocument();
+  });
+
+  it('shows Start when enrolled without progress', () => {
+    renderCourse({ isEnrolled: true, progressPercent: 0 });
+    expect(screen.getByText('Start')).toBeInTheDocument();
   });
 
   it('shows View certificate when completed', () => {

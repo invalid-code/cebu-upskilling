@@ -84,7 +84,7 @@ public class CoursesPageServiceTests
             GenreId = genre.GenreId,
             Name = name,
             Price = 0,
-            TechnicalLevel = 1,
+            TechnicalLevel = 3,
         };
         context.Courses.Add(course);
         await context.SaveChangesAsync();
@@ -132,6 +132,7 @@ public class CoursesPageServiceTests
         Assert.Equal(50, result.EnrolledCourses[0].ProgressPercent);
         Assert.Equal("Module 1", result.EnrolledCourses[0].CurrentModule);
         Assert.Equal(2, result.EnrolledCourses[0].TotalModules);
+        Assert.Equal(3, result.EnrolledCourses[0].TechnicalLevel);
         Assert.Equal(1, result.CoursesInProgress);
         Assert.Equal(0, result.CertificatesEarned);
         Assert.Equal(7, result.DayStreak);
