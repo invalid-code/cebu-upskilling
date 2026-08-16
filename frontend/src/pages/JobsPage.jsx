@@ -126,10 +126,12 @@ export default function JobsPage() {
   const { showToast } = useToast();
 
   useEffect(() => {
-    api.get('/posts')
+    const controller = new AbortController();
+    api.get('/posts', { signal: controller.signal })
       .then((data) => setJobs((data || []).map(parsePost)))
       .catch((err) => setError(err.message || 'Could not load jobs'))
       .finally(() => setLoading(false));
+    return () => controller.abort();
   }, []);
 
   const filteredJobs = jobs.filter((job) => {

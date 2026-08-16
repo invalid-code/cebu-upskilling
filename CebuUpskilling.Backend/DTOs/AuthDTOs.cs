@@ -11,6 +11,18 @@ public record RegisterRequest(
     [Required, MinLength(6)] string Password,
     string Role = "Learner",
     string? TargetRole = null,
+    string? Address = null,
+    string? Resume = null
+);
+
+public record CompanyRegisterRequest(
+    [Required] string CompanyName,
+    [Required] string FirstName,
+    [Required] string LastName,
+    string? MiddleName,
+    string? Birthday,
+    [Required] string EmailAddress,
+    [Required, MinLength(6)] string Password,
     string? Address = null
 );
 

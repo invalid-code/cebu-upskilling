@@ -30,7 +30,19 @@ public class AuthServiceTests
         Birthday: null,
         EmailAddress: "jose@example.com",
         Password: "P@ssw0rd!",
-        Role: "Learner"
+        Role: "Learner",
+        Resume: "Experienced software developer."
+    );
+
+    private static CompanyRegisterRequest NewCompanyRegisterRequest() => new(
+        CompanyName: "Tech Solutions Inc",
+        FirstName: "Maria",
+        LastName: "Santos",
+        MiddleName: null,
+        Birthday: null,
+        EmailAddress: "maria@tech.com",
+        Password: "P@ssw0rd!",
+        Address: null
     );
 
     private static CompanyRegisterRequest NewCompanyRegisterRequest() => new(
@@ -80,6 +92,7 @@ public class AuthServiceTests
     public async Task RegisterAsync_WithTargetRole_CreatesLearnerSkills()
     {
         var context = TestDbContextFactory.Create();
+        TestDataSeeder.Seed(context);
         var service = CreateService(context);
 
         var request = NewRegisterRequest() with { TargetRole = "Frontend Developer" };

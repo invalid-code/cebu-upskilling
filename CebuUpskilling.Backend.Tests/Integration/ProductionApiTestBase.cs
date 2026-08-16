@@ -1,6 +1,8 @@
 using System.Net.Http.Json;
 using System.Net.Http.Headers;
 using System.Text.Json;
+using CebuUpskilling.Backend.Data;
+using CebuUpskilling.Backend.Entities;
 
 namespace CebuUpskilling.Backend.Tests.Integration;
 
@@ -23,6 +25,8 @@ public abstract class ProductionApiTestBase : IClassFixture<ProductionApiFactory
     {
         await Factory.EnsureMigratedAsync();
         await Factory.ResetDatabaseAsync();
+        using var context = Factory.CreateDbContext();
+        TestDataSeeder.Seed(context);
     }
 
     public Task DisposeAsync() => Task.CompletedTask;
@@ -54,6 +58,7 @@ public abstract class ProductionApiTestBase : IClassFixture<ProductionApiFactory
             password = "P@ssw0rd!",
             role = "Learner",
             targetRole,
+            resume = "Experienced software developer with 5+ years in web development.",
         });
         response.EnsureSuccessStatusCode();
 
@@ -63,39 +68,38 @@ public abstract class ProductionApiTestBase : IClassFixture<ProductionApiFactory
 
     protected async Task<int> CreateCourseAsync(string token)
     {
-        var authorized = AuthorizedClient(token);
+        using var context = Factory.CreateDbContext();
 
-        var subDisciplineResponse = await authorized.PostAsJsonAsync("/api/subdisciplines", new
+        var subDiscipline = new SubDiscipline
         {
-            disciplineId = 1,
-            name = "Computer Science",
-            description = "CS",
-        });
-        await EnsureSuccessAsync(subDisciplineResponse);
-        var subDiscipline = await ReadJsonAsync(subDisciplineResponse);
-        var subDisciplineId = subDiscipline.GetProperty("subDisciplineId").GetInt32();
+            DisciplineId = 1,
+            Name = "Computer Science",
+            Description = "CS",
+        };
+        context.SubDisciplines.Add(subDiscipline);
+        await context.SaveChangesAsync();
 
-        var genreResponse = await authorized.PostAsJsonAsync("/api/genres", new
+        var genre = new Genre
         {
-            subDisciplineId,
-            name = "Web Development",
-            description = "Web",
-        });
-        await EnsureSuccessAsync(genreResponse);
-        var genre = await ReadJsonAsync(genreResponse);
-        var genreId = genre.GetProperty("genreId").GetInt32();
+            SubDisciplineId = subDiscipline.SubDisciplineId,
+            Name = "Web Development",
+            Description = "Web",
+        };
+        context.Genres.Add(genre);
+        await context.SaveChangesAsync();
 
-        var courseResponse = await authorized.PostAsJsonAsync("/api/courses", new
+        var course = new Course
         {
-            genreId,
-            name = "Modern Web Development",
-            technicalLevel = 3,
-            description = "Build production-ready web apps",
-            price = 5000,
-        });
-        await EnsureSuccessAsync(courseResponse);
-        var course = await ReadJsonAsync(courseResponse);
-        return course.GetProperty("courseId").GetInt32();
+            GenreId = genre.GenreId,
+            Name = "Modern Web Development",
+            TechnicalLevel = 3,
+            Description = "Build production-ready web apps",
+            Price = 5000,
+        };
+        context.Courses.Add(course);
+        await context.SaveChangesAsync();
+
+        return course.CourseId;
     }
 
     private static async Task EnsureSuccessAsync(HttpResponseMessage response)

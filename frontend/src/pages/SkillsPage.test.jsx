@@ -1,7 +1,8 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ToastProvider } from '../context/ToastContext';
 import { AuthProvider } from '../context/AuthContext';
+import { ApplicationsProvider } from '../context/ApplicationsContext';
 import SkillsPage from './SkillsPage';
 import { api } from '../api/client';
 
@@ -19,13 +20,19 @@ function renderSkills() {
   return render(
     <ToastProvider>
       <AuthProvider>
-        <SkillsPage />
+        <ApplicationsProvider>
+          <SkillsPage />
+        </ApplicationsProvider>
       </AuthProvider>
     </ToastProvider>
   );
 }
 
 describe('SkillsPage', () => {
+  beforeEach(() => {
+    localStorage.removeItem('job_applications_1');
+  });
+
   it('renders the skill profile', () => {
     renderSkills();
     expect(screen.getByRole('heading', { name: 'Skill profile' })).toBeInTheDocument();
@@ -54,7 +61,21 @@ describe('SkillsPage', () => {
 
   it('shows an empty state when no skills are assessed', () => {
     renderSkills();
-    expect(screen.getByText('Set a target role to see required skills')).toBeInTheDocument();
+    expect(screen.getByText('Apply for a job to see required skills')).toBeInTheDocument();
+  });
+
+  it('shows the assessed skills empty state once the learner has applied for a job', async () => {
+    localStorage.setItem('user', JSON.stringify({
+      UserId: 1,
+      firstName: 'Test',
+      role: 'Learner',
+      targetRole: 'Frontend Developer',
+    }));
+    localStorage.setItem('token', 'abc');
+    api.get.mockImplementation((path) =>
+      path === '/applications' ? Promise.resolve([{ postId: 1 }]) : Promise.resolve([]));
+    renderSkills();
+    expect(await screen.findByText('No assessed skills yet')).toBeInTheDocument();
   });
 
   it('shows a toast when Assess a skill is clicked', () => {
@@ -65,6 +86,7 @@ describe('SkillsPage', () => {
 
   it('displays the learner address in the target role card', () => {
     localStorage.setItem('user', JSON.stringify({
+      UserId: 1,
       firstName: 'Test',
       role: 'Learner',
       targetRole: 'Frontend Developer',

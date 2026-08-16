@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { AuthProvider } from '../context/AuthContext';
@@ -9,42 +9,88 @@ import CoursesPage from './CoursesPage';
 vi.mock('../api/client', () => ({
   api: {
     get: vi.fn(),
+    post: vi.fn(),
   },
 }));
 
 import { api } from '../api/client';
 
-const mockCourses = [
-  {
-    courseId: 1,
-    name: 'Modern JavaScript for Frontend Work',
-    genre: { name: 'CodeChum Learning' },
-    mode: 'Online',
-    technicalLevel: 18,
-    description: 'Closes your largest current gap.',
-    price: 0,
-  },
-  {
-    courseId: 2,
-    name: 'TypeScript from Zero to Confident',
-    genre: { name: 'DevCon Cebu Academy' },
-    mode: 'Hybrid',
-    technicalLevel: 12,
-    description: 'Build toward Intermediate.',
-    price: 2500,
-  },
-  {
-    courseId: 3,
-    name: 'Frontend Portfolio Sprint',
-    genre: { name: 'Serbisyo Digital' },
-    mode: 'In-person',
-    technicalLevel: 6,
-    description: 'Ship one portfolio project.',
-    price: 5000,
-  },
-];
+const mockCoursesPageData = {
+  enrolledCourses: [
+    {
+      courseId: 1,
+      courseName: 'Modern JavaScript Deep Dive',
+      started: '2026-01-15T10:00:00Z',
+      progressPercent: 69,
+      currentModule: 'Module 6',
+      totalModules: 8,
+    },
+  ],
+  recommendedCourses: [
+    {
+      courseId: 2,
+      name: 'TypeScript from Zero',
+      provider: 'DevCon Cebu Academy',
+      description: 'The types skills employers filter for.',
+      price: null,
+      isFree: true,
+      mode: 'Online',
+      technicalLevel: 8,
+      lessonCount: 6,
+      category: 'Languages',
+      isEnrolled: false,
+      progressPercent: 0,
+      isCompleted: false,
+      isRecommended: true,
+      recommendedReason: 'Recommended',
+      unlocksJobsCount: 3,
+    },
+    {
+      courseId: 3,
+      name: 'Responsive Layout with CSS Grid',
+      provider: 'Serbisyo Digital',
+      description: 'Flexbox, grid, and container queries.',
+      price: null,
+      isFree: true,
+      mode: 'Online',
+      technicalLevel: 6,
+      lessonCount: 5,
+      category: 'Frontend',
+      isEnrolled: false,
+      progressPercent: 0,
+      isCompleted: false,
+      isRecommended: true,
+      recommendedReason: 'Recommended',
+      unlocksJobsCount: null,
+    },
+    {
+      courseId: 4,
+      name: 'Git & Team Workflows',
+      provider: 'TESDA Partner Lab',
+      description: 'Branches, merges, and pull requests.',
+      price: null,
+      isFree: true,
+      mode: 'Online',
+      technicalLevel: 4,
+      lessonCount: 4,
+      category: 'Tooling',
+      isEnrolled: false,
+      progressPercent: 0,
+      isCompleted: false,
+      isRecommended: true,
+      recommendedReason: 'Recommended',
+      unlocksJobsCount: null,
+    },
+  ],
+  dayStreak: 6,
+  coursesInProgress: 2,
+  certificatesEarned: 1,
+};
 
 function renderCourses() {
+  localStorage.setItem('user', JSON.stringify({ firstName: 'Test', role: 'Learner', targetRole: 'Frontend Developer' }));
+  localStorage.setItem('token', 'abc');
+
   return render(
     <MemoryRouter>
       <AuthProvider>
@@ -60,123 +106,124 @@ function renderCourses() {
 
 describe('CoursesPage', () => {
   beforeEach(() => {
-    localStorage.setItem('user', JSON.stringify({ firstName: 'Test', role: 'Learner' }));
+    localStorage.setItem('user', JSON.stringify({ firstName: 'Test', role: 'Learner', targetRole: 'Frontend Developer' }));
     localStorage.setItem('token', 'abc');
     api.get.mockReset();
-    api.get.mockResolvedValue(mockCourses);
+    api.get.mockResolvedValue(mockCoursesPageData);
   });
 
   it('renders the courses page heading', async () => {
     renderCourses();
-    expect(await screen.findByRole('heading', { name: 'Courses for the gap you have.' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Courses' })).toBeInTheDocument();
   });
 
-  it('renders search and filter inputs', async () => {
+  it('renders the subtitle', async () => {
     renderCourses();
-    expect(await screen.findByPlaceholderText('Search courses or skills')).toBeInTheDocument();
-    const selects = screen.getAllByRole('combobox');
-    expect(selects).toHaveLength(2);
-    expect(selects[0]).toHaveValue('');
-    expect(selects[1]).toHaveValue('');
+    expect(await screen.findByText(/Every course is picked to close a real gap/)).toBeInTheDocument();
   });
 
-  it('displays course cards when data loads', async () => {
+  it('displays stat cards when data loads', async () => {
     renderCourses();
-    expect(await screen.findByText('Modern JavaScript for Frontend Work')).toBeInTheDocument();
-    expect(screen.getByText('TypeScript from Zero to Confident')).toBeInTheDocument();
-    expect(screen.getByText('Frontend Portfolio Sprint')).toBeInTheDocument();
+    await screen.findByText('6');
+    expect(screen.getByText('Day learning streak')).toBeInTheDocument();
+    expect(screen.getByText('Courses in progress')).toBeInTheDocument();
+    expect(screen.getByText('Certificates earned')).toBeInTheDocument();
   });
 
-  it('renders the delivery mode filter with Online, Hybrid, and In-person options', async () => {
+  it('displays enrolled courses in Continue learning section', async () => {
     renderCourses();
-    await screen.findByText('Modern JavaScript for Frontend Work');
-
-    const modeSelect = screen.getAllByRole('combobox')[0];
-    expect(modeSelect).toHaveValue('');
-    expect(screen.getByRole('option', { name: 'Online' })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: 'Hybrid' })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: 'In-person' })).toBeInTheDocument();
+    expect(await screen.findByText('Continue learning')).toBeInTheDocument();
+    expect(screen.getByText('Modern JavaScript Deep Dive')).toBeInTheDocument();
+    expect(screen.getByText('Resume')).toBeInTheDocument();
   });
 
-  it('filters courses by search term', async () => {
+  it('displays recommended courses', async () => {
     renderCourses();
-    await screen.findByText('Modern JavaScript for Frontend Work');
-
-    const searchInput = screen.getByPlaceholderText('Search courses or skills');
-    fireEvent.change(searchInput, { target: { value: 'TypeScript' } });
-
-    expect(screen.getByText('TypeScript from Zero to Confident')).toBeInTheDocument();
-    expect(screen.queryByText('Modern JavaScript for Frontend Work')).not.toBeInTheDocument();
-    expect(screen.queryByText('Frontend Portfolio Sprint')).not.toBeInTheDocument();
+    expect(await screen.findByText('Recommended for your pathway')).toBeInTheDocument();
+    expect(screen.getByText('TypeScript from Zero')).toBeInTheDocument();
+    expect(screen.getByText('Responsive Layout with CSS Grid')).toBeInTheDocument();
+    expect(screen.getByText('Git & Team Workflows')).toBeInTheDocument();
   });
 
-  it('filters courses by delivery mode', async () => {
+  it('shows filter tabs', async () => {
     renderCourses();
-    await screen.findByText('Modern JavaScript for Frontend Work');
-
-    fireEvent.change(screen.getAllByRole('combobox')[0], {
-      target: { value: 'Hybrid' },
-    });
-
-    expect(screen.getByText('TypeScript from Zero to Confident')).toBeInTheDocument();
-    expect(screen.queryByText('Modern JavaScript for Frontend Work')).not.toBeInTheDocument();
-    expect(screen.queryByText('Frontend Portfolio Sprint')).not.toBeInTheDocument();
+    await screen.findByText('Recommended for your pathway');
+    expect(screen.getByRole('button', { name: 'All' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Frontend' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Languages' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Tooling' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Career' })).toBeInTheDocument();
   });
 
-  it('filters courses by price - free', async () => {
+  it('filters courses by category', async () => {
     renderCourses();
-    await screen.findByText('Modern JavaScript for Frontend Work');
+    await screen.findByText('Recommended for your pathway');
 
-    fireEvent.change(screen.getAllByRole('combobox')[1], {
-      target: { value: 'free' },
-    });
+    fireEvent.click(screen.getByRole('button', { name: 'Frontend' }));
 
-    expect(screen.getByText('Modern JavaScript for Frontend Work')).toBeInTheDocument();
-    expect(screen.queryByText('TypeScript from Zero to Confident')).not.toBeInTheDocument();
-    expect(screen.queryByText('Frontend Portfolio Sprint')).not.toBeInTheDocument();
+    expect(screen.getByText('Responsive Layout with CSS Grid')).toBeInTheDocument();
+    expect(screen.queryByText('TypeScript from Zero')).not.toBeInTheDocument();
+    expect(screen.queryByText('Git & Team Workflows')).not.toBeInTheDocument();
   });
 
-  it('filters courses by price - paid', async () => {
+  it('shows enroll button for recommended courses', async () => {
     renderCourses();
-    await screen.findByText('Modern JavaScript for Frontend Work');
-
-    fireEvent.change(screen.getAllByRole('combobox')[1], {
-      target: { value: 'paid' },
-    });
-
-    expect(screen.queryByText('Modern JavaScript for Frontend Work')).not.toBeInTheDocument();
-    expect(screen.getByText('TypeScript from Zero to Confident')).toBeInTheDocument();
-    expect(screen.getByText('Frontend Portfolio Sprint')).toBeInTheDocument();
-  });
-
-  it('shows empty state when no courses match filter', async () => {
-    renderCourses();
-    await screen.findByText('Modern JavaScript for Frontend Work');
-
-    const searchInput = screen.getByPlaceholderText('Search courses or skills');
-    fireEvent.change(searchInput, { target: { value: 'NonExistentCourse' } });
-
-    expect(await screen.findByText('No courses match your search.')).toBeInTheDocument();
+    await screen.findByText('TypeScript from Zero');
+    const enrollButtons = screen.getAllByText('→ Enroll free');
+    expect(enrollButtons.length).toBeGreaterThan(0);
   });
 
   it('shows loading state initially', async () => {
-    const resolveFns = [];
-    api.get.mockImplementation(() => new Promise((resolve) => { resolveFns.push(resolve); }));
+    let resolveFn;
+    api.get.mockReset();
+    api.get.mockImplementation((path) => {
+      if (path === '/coursespage') {
+        return new Promise((resolve) => { resolveFn = resolve; });
+      }
+      if (path === '/enrollments') return Promise.resolve([]);
+      return Promise.resolve(null);
+    });
 
     renderCourses();
 
     expect(screen.getByText('Loading courses...')).toBeInTheDocument();
 
-    resolveFns.forEach((resolve) => resolve(mockCourses));
-    await waitFor(() => expect(screen.queryByText('Loading courses...')).not.toBeInTheDocument());
-    await waitFor(() => expect(screen.getByText('Modern JavaScript for Frontend Work')).toBeInTheDocument());
+    resolveFn(mockCoursesPageData);
+    await screen.findByText('Continue learning');
+    expect(screen.queryByText('Loading courses...')).not.toBeInTheDocument();
   });
 
   it('shows error state when API fails', async () => {
-    api.get.mockRejectedValue(new Error('Network error'));
+    api.get.mockReset();
+    api.get.mockImplementation((path) => {
+      if (path === '/coursespage') return Promise.reject(new Error('Network error'));
+      if (path === '/enrollments') return Promise.resolve([]);
+      return Promise.resolve(null);
+    });
 
     renderCourses();
 
     expect(await screen.findByText("Couldn't load courses. Check back later.")).toBeInTheDocument();
+  });
+
+  it('shows empty state when no courses available', async () => {
+    api.get.mockReset();
+    api.get.mockImplementation((path) => {
+      if (path === '/coursespage') {
+        return Promise.resolve({
+          enrolledCourses: [],
+          recommendedCourses: [],
+          dayStreak: 0,
+          coursesInProgress: 0,
+          certificatesEarned: 0,
+        });
+      }
+      if (path === '/enrollments') return Promise.resolve([]);
+      return Promise.resolve(null);
+    });
+
+    renderCourses();
+
+    expect(await screen.findByText('No courses available yet. Enroll in courses to start learning.')).toBeInTheDocument();
   });
 });

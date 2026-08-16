@@ -93,6 +93,89 @@ namespace CebuUpskilling.Backend.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("CebuUpskilling.Backend.Entities.Application", b =>
+                {
+                    b.Property<int>("ApplicationId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("ApplicationId"));
+
+                    b.Property<DateTime>("AppliedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("LearnerId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("PostId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("SavedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.HasKey("ApplicationId");
+
+                    b.HasIndex("LearnerId");
+
+                    b.HasIndex("PostId");
+
+                    b.ToTable("Applications");
+                });
+
+            modelBuilder.Entity("CebuUpskilling.Backend.Entities.AssessmentQuestion", b =>
+                {
+                    b.Property<int>("AssessmentQuestionId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("AssessmentQuestionId"));
+
+                    b.Property<int?>("CompanyId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("CorrectOption")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("OptionA")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("OptionB")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("OptionC")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("OptionD")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("SkillId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Source")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("AssessmentQuestionId");
+
+                    b.HasIndex("CompanyId");
+
+                    b.HasIndex("SkillId");
+
+                    b.ToTable("AssessmentQuestions");
+                });
+
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.Company", b =>
                 {
                     b.Property<int>("CompanyId")
@@ -193,36 +276,6 @@ namespace CebuUpskilling.Backend.Migrations
                     b.HasKey("DomainId");
 
                     b.ToTable("Disciplines");
-
-                    b.HasData(
-                        new
-                        {
-                            DomainId = 1,
-                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Description = "Natural and applied sciences",
-                            Name = "Science"
-                        },
-                        new
-                        {
-                            DomainId = 2,
-                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Description = "Liberal arts and humanities",
-                            Name = "Arts"
-                        },
-                        new
-                        {
-                            DomainId = 3,
-                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Description = "Computer Science, Information Systems, Engineering",
-                            Name = "Technology"
-                        },
-                        new
-                        {
-                            DomainId = 4,
-                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Description = "Business and management",
-                            Name = "Business"
-                        });
                 });
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.Exercise", b =>
@@ -631,253 +684,6 @@ namespace CebuUpskilling.Backend.Migrations
                     b.HasIndex("SkillId");
 
                     b.ToTable("RoleSkills");
-
-                    b.HasData(
-                        new
-                        {
-                            RoleSkillId = 1,
-                            RequiredLevel = 4,
-                            SkillId = 1,
-                            TargetRole = "Frontend Developer"
-                        },
-                        new
-                        {
-                            RoleSkillId = 2,
-                            RequiredLevel = 3,
-                            SkillId = 2,
-                            TargetRole = "Frontend Developer"
-                        },
-                        new
-                        {
-                            RoleSkillId = 3,
-                            RequiredLevel = 4,
-                            SkillId = 3,
-                            TargetRole = "Frontend Developer"
-                        },
-                        new
-                        {
-                            RoleSkillId = 4,
-                            RequiredLevel = 3,
-                            SkillId = 4,
-                            TargetRole = "Frontend Developer"
-                        },
-                        new
-                        {
-                            RoleSkillId = 5,
-                            RequiredLevel = 4,
-                            SkillId = 5,
-                            TargetRole = "Frontend Developer"
-                        },
-                        new
-                        {
-                            RoleSkillId = 6,
-                            RequiredLevel = 3,
-                            SkillId = 9,
-                            TargetRole = "Frontend Developer"
-                        },
-                        new
-                        {
-                            RoleSkillId = 7,
-                            RequiredLevel = 3,
-                            SkillId = 10,
-                            TargetRole = "Frontend Developer"
-                        },
-                        new
-                        {
-                            RoleSkillId = 8,
-                            RequiredLevel = 3,
-                            SkillId = 1,
-                            TargetRole = "Backend Developer"
-                        },
-                        new
-                        {
-                            RoleSkillId = 9,
-                            RequiredLevel = 4,
-                            SkillId = 6,
-                            TargetRole = "Backend Developer"
-                        },
-                        new
-                        {
-                            RoleSkillId = 10,
-                            RequiredLevel = 4,
-                            SkillId = 7,
-                            TargetRole = "Backend Developer"
-                        },
-                        new
-                        {
-                            RoleSkillId = 11,
-                            RequiredLevel = 4,
-                            SkillId = 8,
-                            TargetRole = "Backend Developer"
-                        },
-                        new
-                        {
-                            RoleSkillId = 12,
-                            RequiredLevel = 3,
-                            SkillId = 9,
-                            TargetRole = "Backend Developer"
-                        },
-                        new
-                        {
-                            RoleSkillId = 13,
-                            RequiredLevel = 4,
-                            SkillId = 10,
-                            TargetRole = "Backend Developer"
-                        },
-                        new
-                        {
-                            RoleSkillId = 14,
-                            RequiredLevel = 4,
-                            SkillId = 1,
-                            TargetRole = "Full Stack Developer"
-                        },
-                        new
-                        {
-                            RoleSkillId = 15,
-                            RequiredLevel = 3,
-                            SkillId = 2,
-                            TargetRole = "Full Stack Developer"
-                        },
-                        new
-                        {
-                            RoleSkillId = 16,
-                            RequiredLevel = 3,
-                            SkillId = 3,
-                            TargetRole = "Full Stack Developer"
-                        },
-                        new
-                        {
-                            RoleSkillId = 17,
-                            RequiredLevel = 4,
-                            SkillId = 6,
-                            TargetRole = "Full Stack Developer"
-                        },
-                        new
-                        {
-                            RoleSkillId = 18,
-                            RequiredLevel = 3,
-                            SkillId = 8,
-                            TargetRole = "Full Stack Developer"
-                        },
-                        new
-                        {
-                            RoleSkillId = 19,
-                            RequiredLevel = 3,
-                            SkillId = 9,
-                            TargetRole = "Full Stack Developer"
-                        },
-                        new
-                        {
-                            RoleSkillId = 20,
-                            RequiredLevel = 4,
-                            SkillId = 10,
-                            TargetRole = "Full Stack Developer"
-                        },
-                        new
-                        {
-                            RoleSkillId = 21,
-                            RequiredLevel = 4,
-                            SkillId = 7,
-                            TargetRole = "Data Analyst"
-                        },
-                        new
-                        {
-                            RoleSkillId = 22,
-                            RequiredLevel = 5,
-                            SkillId = 8,
-                            TargetRole = "Data Analyst"
-                        },
-                        new
-                        {
-                            RoleSkillId = 23,
-                            RequiredLevel = 2,
-                            SkillId = 1,
-                            TargetRole = "Data Analyst"
-                        },
-                        new
-                        {
-                            RoleSkillId = 24,
-                            RequiredLevel = 5,
-                            SkillId = 7,
-                            TargetRole = "Data Scientist"
-                        },
-                        new
-                        {
-                            RoleSkillId = 25,
-                            RequiredLevel = 4,
-                            SkillId = 8,
-                            TargetRole = "Data Scientist"
-                        },
-                        new
-                        {
-                            RoleSkillId = 26,
-                            RequiredLevel = 3,
-                            SkillId = 1,
-                            TargetRole = "Data Scientist"
-                        },
-                        new
-                        {
-                            RoleSkillId = 27,
-                            RequiredLevel = 5,
-                            SkillId = 15,
-                            TargetRole = "UI/UX Designer"
-                        },
-                        new
-                        {
-                            RoleSkillId = 28,
-                            RequiredLevel = 4,
-                            SkillId = 4,
-                            TargetRole = "UI/UX Designer"
-                        },
-                        new
-                        {
-                            RoleSkillId = 29,
-                            RequiredLevel = 4,
-                            SkillId = 5,
-                            TargetRole = "UI/UX Designer"
-                        },
-                        new
-                        {
-                            RoleSkillId = 30,
-                            RequiredLevel = 5,
-                            SkillId = 13,
-                            TargetRole = "DevOps Engineer"
-                        },
-                        new
-                        {
-                            RoleSkillId = 31,
-                            RequiredLevel = 4,
-                            SkillId = 14,
-                            TargetRole = "DevOps Engineer"
-                        },
-                        new
-                        {
-                            RoleSkillId = 32,
-                            RequiredLevel = 4,
-                            SkillId = 9,
-                            TargetRole = "DevOps Engineer"
-                        },
-                        new
-                        {
-                            RoleSkillId = 33,
-                            RequiredLevel = 3,
-                            SkillId = 1,
-                            TargetRole = "Quality Assurance"
-                        },
-                        new
-                        {
-                            RoleSkillId = 34,
-                            RequiredLevel = 3,
-                            SkillId = 9,
-                            TargetRole = "Quality Assurance"
-                        },
-                        new
-                        {
-                            RoleSkillId = 35,
-                            RequiredLevel = 2,
-                            SkillId = 8,
-                            TargetRole = "Quality Assurance"
-                        });
                 });
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.Skill", b =>
@@ -900,98 +706,6 @@ namespace CebuUpskilling.Backend.Migrations
                     b.HasKey("SkillId");
 
                     b.ToTable("Skills");
-
-                    b.HasData(
-                        new
-                        {
-                            SkillId = 1,
-                            Category = "Language",
-                            Name = "JavaScript"
-                        },
-                        new
-                        {
-                            SkillId = 2,
-                            Category = "Language",
-                            Name = "TypeScript"
-                        },
-                        new
-                        {
-                            SkillId = 3,
-                            Category = "Framework",
-                            Name = "React"
-                        },
-                        new
-                        {
-                            SkillId = 4,
-                            Category = "Language",
-                            Name = "CSS"
-                        },
-                        new
-                        {
-                            SkillId = 5,
-                            Category = "Language",
-                            Name = "HTML"
-                        },
-                        new
-                        {
-                            SkillId = 6,
-                            Category = "Runtime",
-                            Name = "Node.js"
-                        },
-                        new
-                        {
-                            SkillId = 7,
-                            Category = "Language",
-                            Name = "Python"
-                        },
-                        new
-                        {
-                            SkillId = 8,
-                            Category = "Language",
-                            Name = "SQL"
-                        },
-                        new
-                        {
-                            SkillId = 9,
-                            Category = "Tool",
-                            Name = "Git"
-                        },
-                        new
-                        {
-                            SkillId = 10,
-                            Category = "Concept",
-                            Name = "REST APIs"
-                        },
-                        new
-                        {
-                            SkillId = 11,
-                            Category = "Framework",
-                            Name = "Vue.js"
-                        },
-                        new
-                        {
-                            SkillId = 12,
-                            Category = "Framework",
-                            Name = "Angular"
-                        },
-                        new
-                        {
-                            SkillId = 13,
-                            Category = "Tool",
-                            Name = "Docker"
-                        },
-                        new
-                        {
-                            SkillId = 14,
-                            Category = "Platform",
-                            Name = "AWS"
-                        },
-                        new
-                        {
-                            SkillId = 15,
-                            Category = "Tool",
-                            Name = "Figma"
-                        });
                 });
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.SubDiscipline", b =>
@@ -1031,6 +745,42 @@ namespace CebuUpskilling.Backend.Migrations
                     b.HasIndex("DisciplineId");
 
                     b.ToTable("SubDisciplines");
+                });
+
+            modelBuilder.Entity("CebuUpskilling.Backend.Entities.Application", b =>
+                {
+                    b.HasOne("CebuUpskilling.Backend.Entities.Learner", "Learner")
+                        .WithMany()
+                        .HasForeignKey("LearnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CebuUpskilling.Backend.Entities.Post", "Post")
+                        .WithMany()
+                        .HasForeignKey("PostId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Learner");
+
+                    b.Navigation("Post");
+                });
+
+            modelBuilder.Entity("CebuUpskilling.Backend.Entities.AssessmentQuestion", b =>
+                {
+                    b.HasOne("CebuUpskilling.Backend.Entities.Company", "Company")
+                        .WithMany()
+                        .HasForeignKey("CompanyId");
+
+                    b.HasOne("CebuUpskilling.Backend.Entities.Skill", "Skill")
+                        .WithMany()
+                        .HasForeignKey("SkillId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Company");
+
+                    b.Navigation("Skill");
                 });
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.Course", b =>

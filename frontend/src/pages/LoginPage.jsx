@@ -1,8 +1,7 @@
+import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth, isRecruiter } from '../context/AuthContext';
 import Button from '../components/ui/Button';
-import { useForm } from 'react-hook-form';
-import { validateEmail, validatePassword } from '../utils/validation';
 
 const styles = {
   container: {
@@ -60,20 +59,10 @@ const styles = {
     minHeight: 42,
     padding: '9px 12px',
     color: 'var(--ink)',
-    marginBottom: 4,
+    marginBottom: 12,
     fontSize: 14,
-    boxSizing: 'border-box',
   },
-  fieldError: {
-    borderColor: 'var(--coral)',
-  },
-  errorMsg: {
-    color: 'var(--coral)',
-    fontSize: 11,
-    marginBottom: 8,
-    marginTop: 0,
-  },
-  serverError: {
+  error: {
     background: 'var(--coral-soft)',
     color: 'rgb(110, 65, 45)',
     padding: '10px 12px',
@@ -90,28 +79,24 @@ const styles = {
 };
 
 export default function LoginPage() {
-  const [serverError, setServerError] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm({
-    defaultValues: {
-      email: '',
-      password: '',
-    },
-  });
-
-  const onSubmit = async (data) => {
-    setServerError('');
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
     try {
-      const user = await login(data.email, data.password);
+      const user = await login(email, password);
       navigate(isRecruiter(user) ? '/business-dashboard' : '/');
     } catch (err) {
-      setServerError(err.message || 'Login failed');
+      setError(err.message || 'Login failed');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -127,41 +112,31 @@ export default function LoginPage() {
         <h2 style={styles.title}>Welcome back</h2>
         <p style={styles.subtitle}>Sign in to your career pathway</p>
 
-        {serverError && <div style={styles.serverError}>{serverError}</div>}
+        {error && <div style={styles.error}>{error}</div>}
 
         <form onSubmit={handleSubmit}>
           <input
-            style={{
-              ...styles.field,
-              ...(errors.email ? styles.fieldError : {}),
-            }}
+            style={styles.field}
             type="email"
             placeholder="Email address"
-            {...register('email', {
-              validate: (value) => validateEmail(value),
-            })}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
           />
-          {errors.email && <p style={styles.errorMsg}>{errors.email.message}</p>}
-
           <input
-            style={{
-              ...styles.field,
-              ...(errors.password ? styles.fieldError : {}),
-            }}
+            style={styles.field}
             type="password"
             placeholder="Password"
-            {...register('password', {
-              validate: (value) => validatePassword(value),
-            })}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
           />
-          {errors.password && <p style={styles.errorMsg}>{errors.password.message}</p>}
-
           <Button
             variant="primary"
-            style={{ width: '100%', marginTop: 8 }}
-            disabled={isSubmitting}
+            style={{ width: '100%', marginTop: 4 }}
+            disabled={loading}
           >
-            {isSubmitting ? 'Signing in...' : 'Sign in'}
+            {loading ? 'Signing in...' : 'Sign in'}
           </Button>
         </form>
 
@@ -172,5 +147,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
-import { useState } from 'react';

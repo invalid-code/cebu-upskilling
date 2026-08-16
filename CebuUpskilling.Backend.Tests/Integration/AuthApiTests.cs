@@ -18,6 +18,7 @@ public class AuthApiTests : ProductionApiTestBase
             emailAddress = "auth.register@example.com",
             password = "P@ssw0rd!",
             role = "Learner",
+            resume = "Experienced software developer.",
         });
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -41,6 +42,7 @@ public class AuthApiTests : ProductionApiTestBase
             emailAddress = "auth.duplicate@example.com",
             password = "P@ssw0rd!",
             role = "Learner",
+            resume = "Experienced software developer.",
         };
 
         var first = await RegisterAsync(request);
@@ -64,6 +66,23 @@ public class AuthApiTests : ProductionApiTestBase
         var login = await ReadJsonAsync(body);
         Assert.Equal("Frontend Developer", login.GetProperty("targetRole").GetString());
         Assert.False(string.IsNullOrWhiteSpace(token));
+    }
+
+    [Fact]
+    public async Task Register_LearnerWithoutResume_ReturnsBadRequest()
+    {
+        var response = await RegisterAsync(new
+        {
+            firstName = "Jose",
+            lastName = "Rizal",
+            emailAddress = "auth.noresume@example.com",
+            password = "P@ssw0rd!",
+            role = "Learner",
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var body = await ReadJsonAsync(response);
+        Assert.Equal("Resume is required for learners", body.GetProperty("error").GetString());
     }
 
     [Fact]
@@ -125,7 +144,7 @@ public class AuthApiTests : ProductionApiTestBase
     [Fact]
     public async Task ProtectedEndpoint_WithoutToken_ReturnsUnauthorized()
     {
-        var response = await Client.GetAsync("/api/disciplines");
+        var response = await Client.GetAsync("/api/courses");
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }

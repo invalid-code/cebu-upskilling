@@ -18,11 +18,9 @@ const course = {
   courseId: 1,
   name: 'Modern JavaScript',
   provider: 'CodeChum Learning',
-  mode: 'Online',
-  duration: '18 hours',
-  price: 0,
-  isFree: true,
   description: 'Learn the essentials',
+  technicalLevel: 18,
+  lessonCount: 8,
 };
 
 function renderCourse(props) {
@@ -48,21 +46,19 @@ describe('CourseCard', () => {
   it('renders course details', () => {
     renderCourse();
     expect(screen.getByText('Modern JavaScript')).toBeInTheDocument();
-    expect(screen.getByText('CodeChum Learning · Online')).toBeInTheDocument();
-    expect(screen.getByText('18 hours')).toBeInTheDocument();
-    expect(screen.getByText('Free')).toBeInTheDocument();
+    expect(screen.getByText('CodeChum Learning')).toBeInTheDocument();
     expect(screen.getByText('Learn the essentials')).toBeInTheDocument();
   });
 
-  it('uses the provided tag label', () => {
-    renderCourse({ tagLabel: 'Best next step' });
-    expect(screen.getByText('Best next step')).toBeInTheDocument();
+  it('uses the provided tags', () => {
+    renderCourse({ tags: [{ label: 'Recommended', variant: 'coral' }] });
+    expect(screen.getByText('Recommended')).toBeInTheDocument();
   });
 
   it('calls the enroll API and shows a toast on success', async () => {
     api.post.mockResolvedValue({ message: 'Enrolled' });
     renderCourse();
-    fireEvent.click(screen.getByRole('button', { name: 'Enroll' }));
+    fireEvent.click(screen.getByRole('button', { name: /enroll free/i }));
     expect(await screen.findByText('Course added to your pathway')).toBeInTheDocument();
     expect(api.post).toHaveBeenCalledWith('/enrollments', { courseId: 1 });
   });
@@ -70,22 +66,17 @@ describe('CourseCard', () => {
   it('shows an error toast when enrollment fails', async () => {
     api.post.mockRejectedValue(new Error('Course not found'));
     renderCourse();
-    fireEvent.click(screen.getByRole('button', { name: 'Enroll' }));
+    fireEvent.click(screen.getByRole('button', { name: /enroll free/i }));
     expect(await screen.findByText('Course not found')).toBeInTheDocument();
   });
 
-  it('shows Enrolled after successful enrollment', async () => {
-    api.get.mockResolvedValueOnce([]);
-    api.get.mockResolvedValueOnce([{ courseId: 1, started: '2026-01-01T00:00:00Z' }]);
-    api.post.mockResolvedValue({ courseId: 1, started: '2026-01-01T00:00:00Z' });
-    renderCourse();
-    fireEvent.click(screen.getByRole('button', { name: 'Enroll' }));
-    expect(await screen.findByRole('button', { name: 'Enrolled' })).toBeInTheDocument();
+  it('shows Resume when enrolled', () => {
+    renderCourse({ isEnrolled: true, progressPercent: 50 });
+    expect(screen.getByText('Resume')).toBeInTheDocument();
   });
 
-  it('shows Enrolled when already enrolled from the backend', async () => {
-    api.get.mockResolvedValue([{ courseId: 1, started: '2026-01-01T00:00:00Z' }]);
-    renderCourse();
-    expect(await screen.findByRole('button', { name: 'Enrolled' })).toBeInTheDocument();
+  it('shows View certificate when completed', () => {
+    renderCourse({ isEnrolled: true, isCompleted: true, progressPercent: 100 });
+    expect(screen.getByText('View certificate')).toBeInTheDocument();
   });
 });
