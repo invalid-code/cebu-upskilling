@@ -44,6 +44,10 @@ public class ProductionApiFactory : WebApplicationFactory<Program>
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        builder.UseSetting("Jwt:Key", "test-signing-key-that-is-at-least-32-characters-long");
+        builder.UseSetting("Jwt:Issuer", "CebuUpskilling");
+        builder.UseSetting("Jwt:Audience", "CebuUpskillingClient");
+
         builder.ConfigureAppConfiguration((_, config) =>
         {
             var original = config.Build().GetConnectionString("DefaultConnection");
