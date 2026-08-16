@@ -14,6 +14,7 @@ public class SkillGapServiceTests
         new RoleSkillRepository(context),
         new LearnerRepository(context),
         new LearnerSkillRepository(context),
+        new ApplicationRepository(context),
         NullLogger<SkillGapService>.Instance
     );
 
@@ -178,5 +179,170 @@ public class SkillGapServiceTests
         Assert.Equal(0, gap.CurrentLevel);
         Assert.Equal(4, gap.Gap);
         Assert.False(gap.Verified);
+    }
+
+    [Fact]
+    public async Task GetSkillGapGroupsAsync_WhenNoTargetRoleOrApplications_ReturnsEmpty()
+    {
+        var context = TestDbContextFactory.Create();
+        var (user, _) = await CreateLearnerAsync(context, targetRole: null);
+
+        var result = await CreateService(context).GetSkillGapGroupsAsync(user.UserId);
+
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public async Task GetSkillGapGroupsAsync_FallsBackToProfileTargetRole_WhenNoRoleLinkedApplications()
+    {
+        var context = TestDbContextFactory.Create();
+        var (user, learner) = await CreateLearnerAsync(context);
+
+        var skill = new Skill { Name = "JavaScript", Category = "Frontend" };
+        context.Skills.Add(skill);
+        await context.SaveChangesAsync();
+
+        context.RoleSkills.Add(new RoleSkill { TargetRole = user.TargetRole!, SkillId = skill.SkillId, RequiredLevel = 4 });
+        context.LearnerSkills.Add(new LearnerSkill
+        {
+            LearnerId = learner!.LearnerId,
+            SkillId = skill.SkillId,
+            CurrentLevel = 2,
+            Verified = true,
+        });
+        await context.SaveChangesAsync();
+
+        var result = await CreateService(context).GetSkillGapGroupsAsync(user.UserId);
+
+        var group = Assert.Single(result);
+        Assert.Equal(user.TargetRole, group.Role);
+        Assert.Null(group.CompanyName);
+        Assert.Null(group.PostId);
+        Assert.Equal(50, group.MatchPercent);
+        var gap = Assert.Single(group.Gaps);
+        Assert.Equal(2, gap.Gap);
+        Assert.True(gap.Verified);
+    }
+
+    [Fact]
+    public async Task GetSkillGapGroupsAsync_DerivesGroupsFromAppliedJobsTargetRoles()
+    {
+        var context = TestDbContextFactory.Create();
+        var (user, learner) = await CreateLearnerAsync(context);
+
+        var frontend = new Skill { Name = "JavaScript", Category = "Frontend" };
+        var backend = new Skill { Name = "C#", Category = "Backend" };
+        context.Skills.AddRange(frontend, backend);
+        await context.SaveChangesAsync();
+
+        context.RoleSkills.AddRange(
+            new RoleSkill { TargetRole = "Frontend Developer", SkillId = frontend.SkillId, RequiredLevel = 4 },
+            new RoleSkill { TargetRole = "Backend Developer", SkillId = backend.SkillId, RequiredLevel = 3 }
+        );
+        context.LearnerSkills.Add(new LearnerSkill
+        {
+            LearnerId = learner!.LearnerId,
+            SkillId = frontend.SkillId,
+            CurrentLevel = 2,
+            Verified = true,
+        });
+        await context.SaveChangesAsync();
+
+        var company = new Company { Name = "Serbisyo Digital" };
+        context.Companies.Add(company);
+        await context.SaveChangesAsync();
+
+        var recruiter = new Recruiter { CompanyId = company.CompanyId, UserId = user.UserId };
+        context.Recruiters.Add(recruiter);
+        await context.SaveChangesAsync();
+
+        var frontendPost = new Post
+        {
+            RecruiterId = recruiter.RecruiterId,
+            CompanyId = company.CompanyId,
+            Title = "Frontend Developer (React)",
+            TargetRole = "Frontend Developer",
+        };
+        var backendPost = new Post
+        {
+            RecruiterId = recruiter.RecruiterId,
+            CompanyId = company.CompanyId,
+            Title = "Backend Developer (C#)",
+            TargetRole = "Backend Developer",
+        };
+        context.Posts.AddRange(frontendPost, backendPost);
+        await context.SaveChangesAsync();
+
+        context.Applications.AddRange(
+            new Application { LearnerId = learner.LearnerId, PostId = frontendPost.PostId, Status = "applied", AppliedAt = DateTime.UtcNow.AddDays(-1) },
+            new Application { LearnerId = learner.LearnerId, PostId = backendPost.PostId, Status = "applied", AppliedAt = DateTime.UtcNow }
+        );
+        await context.SaveChangesAsync();
+
+        var result = await CreateService(context).GetSkillGapGroupsAsync(user.UserId);
+
+        Assert.Equal(2, result.Count);
+
+        var feRole = Assert.Single(result.Where(g => g.Role == "Frontend Developer"));
+        Assert.Equal("Serbisyo Digital", feRole.CompanyName);
+        Assert.Equal(frontendPost.PostId, feRole.PostId);
+        Assert.Equal(50, feRole.MatchPercent);
+
+        var beRole = Assert.Single(result.Where(g => g.Role == "Backend Developer"));
+        Assert.Equal("Serbisyo Digital", beRole.CompanyName);
+        Assert.Equal(backendPost.PostId, beRole.PostId);
+        Assert.Equal(0, beRole.MatchPercent);
+        Assert.Equal(3, Assert.Single(beRole.Gaps).Gap);
+    }
+
+    [Fact]
+    public async Task GetSkillGapsAsync_WhenApplicationHasRole_PrefersItOverProfileRole()
+    {
+        var context = TestDbContextFactory.Create();
+        var (user, learner) = await CreateLearnerAsync(context);
+
+        var frontendSkill = new Skill { Name = "JavaScript", Category = "Frontend" };
+        var backendSkill = new Skill { Name = "C#", Category = "Backend" };
+        context.Skills.AddRange(frontendSkill, backendSkill);
+        await context.SaveChangesAsync();
+
+        context.RoleSkills.AddRange(
+            new RoleSkill { TargetRole = "Frontend Developer", SkillId = frontendSkill.SkillId, RequiredLevel = 4 },
+            new RoleSkill { TargetRole = "Backend Developer", SkillId = backendSkill.SkillId, RequiredLevel = 3 }
+        );
+        await context.SaveChangesAsync();
+
+        var company = new Company { Name = "Acme" };
+        context.Companies.Add(company);
+        await context.SaveChangesAsync();
+
+        var recruiter = new Recruiter { CompanyId = company.CompanyId, UserId = user.UserId };
+        context.Recruiters.Add(recruiter);
+        await context.SaveChangesAsync();
+
+        var post = new Post
+        {
+            RecruiterId = recruiter.RecruiterId,
+            CompanyId = company.CompanyId,
+            Title = "Backend Developer",
+            TargetRole = "Backend Developer",
+        };
+        context.Posts.Add(post);
+        await context.SaveChangesAsync();
+
+        context.Applications.Add(new Application
+        {
+            LearnerId = learner!.LearnerId,
+            PostId = post.PostId,
+            Status = "applied",
+            AppliedAt = DateTime.UtcNow,
+        });
+        await context.SaveChangesAsync();
+
+        var result = await CreateService(context).GetSkillGapsAsync(user.UserId);
+
+        var gap = Assert.Single(result);
+        Assert.Equal("C#", gap.SkillName);
+        Assert.Equal("Frontend Developer", user.TargetRole);
     }
 }

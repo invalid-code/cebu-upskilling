@@ -104,6 +104,7 @@ public class PostService : BaseEntityService<Post>
     {
         existing.Title = entity.Title;
         existing.Description = entity.Description;
+        existing.TargetRole = entity.TargetRole;
         existing.RecruiterId = entity.RecruiterId;
         existing.CompanyId = entity.CompanyId;
     }

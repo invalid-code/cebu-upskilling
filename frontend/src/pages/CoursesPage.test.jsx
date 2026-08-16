@@ -24,6 +24,7 @@ const mockCoursesPageData = {
       progressPercent: 69,
       currentModule: 'Module 6',
       totalModules: 8,
+      technicalLevel: 9,
     },
   ],
   recommendedCourses: [
@@ -135,6 +136,7 @@ describe('CoursesPage', () => {
     expect(await screen.findByText('Continue learning')).toBeInTheDocument();
     expect(screen.getByText('Modern JavaScript Deep Dive')).toBeInTheDocument();
     expect(screen.getByText('Resume')).toBeInTheDocument();
+    expect(screen.getByText('9h')).toBeInTheDocument();
   });
 
   it('displays recommended courses', async () => {

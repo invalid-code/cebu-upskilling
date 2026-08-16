@@ -214,6 +214,8 @@ export default function CourseDetailPanel({ course, onClose, onResume }) {
     if (onResume) onResume(course.courseId);
   };
 
+  const hasStarted = (course.completedModules || 0) > 0;
+
   return (
     <div style={styles.backdrop} onClick={onClose}>
       <div style={styles.panel} onClick={(e) => e.stopPropagation()}>
@@ -328,7 +330,7 @@ export default function CourseDetailPanel({ course, onClose, onResume }) {
             style={styles.resumeButton}
             onClick={handleResume}
           >
-            Resume course
+            {hasStarted ? 'Resume course' : 'Start course'}
           </Button>
         </div>
       </div>

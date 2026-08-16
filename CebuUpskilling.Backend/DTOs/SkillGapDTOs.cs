@@ -9,3 +9,11 @@ public record SkillGapResponse(
     int Gap,
     bool Verified
 );
+
+public record SkillGapGroupDto(
+    string Role,
+    string? CompanyName,
+    int? PostId,
+    int MatchPercent,
+    List<SkillGapResponse> Gaps
+);

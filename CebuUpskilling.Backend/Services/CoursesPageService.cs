@@ -56,7 +56,8 @@ public class CoursesPageService : ICoursesPageService
             Started: e.Started,
             ProgressPercent: e.LastTotalProgressPercent,
             CurrentModule: GetCurrentModule(e.Course.Lessons.Count, e.LastTotalProgressPercent),
-            TotalModules: e.Course.Lessons.Count
+            TotalModules: e.Course.Lessons.Count,
+            TechnicalLevel: e.Course.TechnicalLevel
         )).ToList();
 
         var coursesInProgress = enrolledCourses.Count(e => e.ProgressPercent < 100);
