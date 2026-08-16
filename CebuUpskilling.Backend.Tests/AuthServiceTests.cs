@@ -45,17 +45,6 @@ public class AuthServiceTests
         Address: null
     );
 
-    private static CompanyRegisterRequest NewCompanyRegisterRequest() => new(
-        CompanyName: "Tech Solutions Inc",
-        FirstName: "Maria",
-        LastName: "Santos",
-        MiddleName: null,
-        Birthday: null,
-        EmailAddress: "maria@tech.com",
-        Password: "P@ssw0rd!",
-        Address: null
-    );
-
     [Fact]
     public async Task RegisterAsync_CreatesUser_ReturnsTokenAndProfile()
     {
