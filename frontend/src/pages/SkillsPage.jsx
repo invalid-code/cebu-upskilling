@@ -140,12 +140,14 @@ export default function SkillsPage() {
   const [gapGroups, setGapGroups] = useState([]);
   const [skillGapsLoading, setSkillGapsLoading] = useState(true);
   const [expandedKey, setExpandedKey] = useState(null);
-  const hasRole = user?.targetRole != null && user.targetRole !== '';
-
-  const shouldLoad = hasApplied || hasRole;
-
   const groupKey = (group) => (group.postId != null ? `post-${group.postId}` : `role-${group.role}`);
   const primaryGroup = gapGroups.find((g) => g.postId == null) || gapGroups[0];
+
+  const profileTargetRole = user?.targetRole?.trim() || '';
+  const resolvedTargetRole = profileTargetRole || primaryGroup?.role || null;
+  const hasRole = resolvedTargetRole != null && resolvedTargetRole !== '';
+
+  const shouldLoad = hasApplied || hasRole;
 
   const getProfileStats = () => {
     if (!primaryGroup || primaryGroup.gaps.length === 0) return { completeness: null, topGap: null };
@@ -199,7 +201,7 @@ export default function SkillsPage() {
         <Panel style={styles.col5}>
           {hasRole ? (
             <TargetRoleCard
-              targetRole={user.targetRole}
+              targetRole={resolvedTargetRole}
               address={user.address}
               remoteFriendly={user.remoteFriendly}
               profileCompleteness={getProfileStats().completeness}

@@ -18,7 +18,7 @@ public class Post
     public string? Description { get; set; }
 
     [MaxLength(100)]
-    public string? TargetRole { get; set; }
+    public string TargetRole { get; set; } = string.Empty;
 
     public Recruiter Recruiter { get; set; } = null!;
     public Company? Company { get; set; }

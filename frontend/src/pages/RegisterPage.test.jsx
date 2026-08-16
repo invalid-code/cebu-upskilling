@@ -2,6 +2,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from '../context/AuthContext';
+import { ToastProvider } from '../context/ToastContext';
 import RegisterPage from './RegisterPage';
 
 vi.mock('../api/client', () => ({
@@ -36,13 +37,15 @@ const companyFormData = {
 function renderRegister() {
   return render(
     <MemoryRouter initialEntries={['/register']}>
-      <AuthProvider>
-        <Routes>
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/" element={<div>Learner home</div>} />
-          <Route path="/business-dashboard" element={<div>Business dashboard</div>} />
-        </Routes>
-      </AuthProvider>
+      <ToastProvider>
+        <AuthProvider>
+          <Routes>
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/" element={<div>Learner home</div>} />
+            <Route path="/business-dashboard" element={<div>Business dashboard</div>} />
+          </Routes>
+        </AuthProvider>
+      </ToastProvider>
     </MemoryRouter>,
   );
 }
