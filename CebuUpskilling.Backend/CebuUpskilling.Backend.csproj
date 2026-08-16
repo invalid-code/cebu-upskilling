@@ -1,10 +1,10 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <UserSecretsId>cfb798cf-6e1b-4369-a0cb-c55a8c97a380</UserSecretsId>
+    <UserSecretsId>cebu-upskilling-backend-local</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>

@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from '../context/AuthContext';
 import LoginPage from './LoginPage';
 
@@ -12,11 +12,20 @@ vi.mock('../api/client', () => ({
 
 import { api } from '../api/client';
 
+function MockDestination() {
+  return <div>Mock destination page</div>;
+}
+
 function renderLogin() {
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={['/login']}>
       <AuthProvider>
-        <LoginPage />
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/" element={<div>Learner home</div>} />
+          <Route path="/business-dashboard" element={<div>Business dashboard</div>} />
+          <Route path="*" element={<MockDestination />} />
+        </Routes>
       </AuthProvider>
     </MemoryRouter>,
   );
@@ -51,6 +60,36 @@ describe('LoginPage', () => {
       });
     });
     expect(localStorage.getItem('token')).toBe('abc');
+  });
+
+  it('navigates learners to the learner home after login', async () => {
+    api.post.mockResolvedValue({ token: 'abc', firstName: 'Jose', role: 'Learner' });
+    renderLogin();
+
+    fireEvent.change(screen.getByPlaceholderText('Email address'), {
+      target: { value: 'jose@example.com' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Password'), {
+      target: { value: 'secret123' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+
+    expect(await screen.findByText('Learner home')).toBeInTheDocument();
+  });
+
+  it('navigates recruiters to the business dashboard after login', async () => {
+    api.post.mockResolvedValue({ token: 'abc', firstName: 'Maria', role: 'Recruiter' });
+    renderLogin();
+
+    fireEvent.change(screen.getByPlaceholderText('Email address'), {
+      target: { value: 'maria@example.com' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Password'), {
+      target: { value: 'secret123' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+
+    expect(await screen.findByText('Business dashboard')).toBeInTheDocument();
   });
 
   it('shows an error message when login fails', async () => {
