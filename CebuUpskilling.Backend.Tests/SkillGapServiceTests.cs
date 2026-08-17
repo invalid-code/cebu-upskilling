@@ -100,25 +100,27 @@ public class SkillGapServiceTests
 
         var result = await CreateService(context).GetSkillGapsAsync(user.UserId);
 
-        Assert.Equal(3, result.Count);
+        var group = Assert.Single(result);
+        Assert.Equal("Frontend Developer", group.Role);
+        Assert.Equal(3, group.Gaps.Count);
 
-        Assert.Equal("CSS", result[0].SkillName);
-        Assert.Equal(3, result[0].RequiredLevel);
-        Assert.Equal(0, result[0].CurrentLevel);
-        Assert.Equal(3, result[0].Gap);
-        Assert.False(result[0].Verified);
+        Assert.Equal("CSS", group.Gaps[0].SkillName);
+        Assert.Equal(3, group.Gaps[0].RequiredLevel);
+        Assert.Equal(0, group.Gaps[0].CurrentLevel);
+        Assert.Equal(3, group.Gaps[0].Gap);
+        Assert.False(group.Gaps[0].Verified);
 
-        Assert.Equal("JavaScript", result[1].SkillName);
-        Assert.Equal(4, result[1].RequiredLevel);
-        Assert.Equal(1, result[1].CurrentLevel);
-        Assert.Equal(3, result[1].Gap);
-        Assert.False(result[1].Verified);
+        Assert.Equal("JavaScript", group.Gaps[1].SkillName);
+        Assert.Equal(4, group.Gaps[1].RequiredLevel);
+        Assert.Equal(1, group.Gaps[1].CurrentLevel);
+        Assert.Equal(3, group.Gaps[1].Gap);
+        Assert.False(group.Gaps[1].Verified);
 
-        Assert.Equal("HTML", result[2].SkillName);
-        Assert.Equal(2, result[2].RequiredLevel);
-        Assert.Equal(2, result[2].CurrentLevel);
-        Assert.Equal(0, result[2].Gap);
-        Assert.True(result[2].Verified);
+        Assert.Equal("HTML", group.Gaps[2].SkillName);
+        Assert.Equal(2, group.Gaps[2].RequiredLevel);
+        Assert.Equal(2, group.Gaps[2].CurrentLevel);
+        Assert.Equal(0, group.Gaps[2].Gap);
+        Assert.True(group.Gaps[2].Verified);
     }
 
     [Fact]
@@ -143,7 +145,8 @@ public class SkillGapServiceTests
 
         var result = await CreateService(context).GetSkillGapsAsync(user.UserId);
 
-        var gap = Assert.Single(result);
+        var group = Assert.Single(result);
+        var gap = Assert.Single(group.Gaps);
         Assert.Equal(0, gap.Gap);
         Assert.Equal(5, gap.CurrentLevel);
         Assert.True(gap.Verified);
@@ -174,7 +177,8 @@ public class SkillGapServiceTests
 
         var result = await CreateService(context).GetSkillGapsAsync(user.UserId);
 
-        var gap = Assert.Single(result);
+        var group = Assert.Single(result);
+        var gap = Assert.Single(group.Gaps);
         Assert.Equal(4, gap.RequiredLevel);
         Assert.Equal(0, gap.CurrentLevel);
         Assert.Equal(4, gap.Gap);
@@ -341,7 +345,9 @@ public class SkillGapServiceTests
 
         var result = await CreateService(context).GetSkillGapsAsync(user.UserId);
 
-        var gap = Assert.Single(result);
+        var group = Assert.Single(result);
+        Assert.Equal("Backend Developer", group.Role);
+        var gap = Assert.Single(group.Gaps);
         Assert.Equal("C#", gap.SkillName);
         Assert.Equal("Frontend Developer", user.TargetRole);
     }

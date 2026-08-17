@@ -144,7 +144,8 @@ export default function SkillsPage() {
   const primaryGroup = gapGroups.find((g) => g.postId == null) || gapGroups[0];
 
   const profileTargetRole = user?.targetRole?.trim() || '';
-  const resolvedTargetRole = profileTargetRole || primaryGroup?.role || null;
+  const appliedTargetRole = applications.find((a) => a.targetRole?.trim())?.targetRole?.trim() || '';
+  const resolvedTargetRole = profileTargetRole || appliedTargetRole || primaryGroup?.role || null;
   const hasRole = resolvedTargetRole != null && resolvedTargetRole !== '';
 
   const shouldLoad = hasApplied || hasRole;

@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { AuthProvider } from '../context/AuthContext';
 import { ToastProvider } from '../context/ToastContext';
 import { EnrollmentsProvider } from '../context/EnrollmentsContext';
+import { ApplicationsProvider } from '../context/ApplicationsContext';
 import AssessmentsPage from './AssessmentsPage';
 
 vi.mock('../api/client', () => ({
@@ -83,9 +84,11 @@ function renderAssessments(user = { targetRole: 'Frontend Developer' }) {
     <MemoryRouter>
       <AuthProvider>
         <EnrollmentsProvider>
-          <ToastProvider>
-            <AssessmentsPage />
-          </ToastProvider>
+          <ApplicationsProvider>
+            <ToastProvider>
+              <AssessmentsPage />
+            </ToastProvider>
+          </ApplicationsProvider>
         </EnrollmentsProvider>
       </AuthProvider>
     </MemoryRouter>,

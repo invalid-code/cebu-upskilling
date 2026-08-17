@@ -236,8 +236,9 @@ public class AuthService : IAuthService
                 token
             );
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogError(ex, "Company registration transaction failed for email {Email}, company {CompanyName}", request.EmailAddress, request.CompanyName);
             if (transaction != null)
                 await transaction.RollbackAsync();
             throw;
@@ -284,9 +285,12 @@ public class AuthService : IAuthService
 
     public async Task<AuthResponse> UpdateProfileAsync(int userId, UpdateProfileRequest request)
     {
+        _logger.LogInformation("Profile update attempt for user {UserId}", userId);
+
         var user = await _context.Users.FindAsync(userId);
         if (user == null)
         {
+            _logger.LogWarning("Profile update failed: user {UserId} not found", userId);
             throw new InvalidOperationException("User not found");
         }
 

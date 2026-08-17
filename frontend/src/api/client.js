@@ -12,9 +12,12 @@ function request(path, options = {}) {
     ...options.headers,
   };
 
+  const method = options.method || 'GET';
+  console.debug(`[API] ${method} ${path}`);
+
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open(options.method || 'GET', `${API_BASE}${path}`);
+    xhr.open(method, `${API_BASE}${path}`);
     for (const [key, value] of Object.entries(headers)) {
       xhr.setRequestHeader(key, value);
     }
@@ -25,6 +28,7 @@ function request(path, options = {}) {
         // If no token exists, this is a failed login attempt (e.g. wrong password) →
         // fall through to the normal error path so the error message can display.
         if (localStorage.getItem('token')) {
+          console.warn(`[API] ${method} ${path} → 401: session expired, clearing token`);
           localStorage.removeItem('token');
           localStorage.removeItem('user');
           window.location.href = '/login';
@@ -41,15 +45,18 @@ function request(path, options = {}) {
         } catch {
           // ignore non-JSON error bodies
         }
+        console.warn(`[API] ${method} ${path} → ${xhr.status}: ${message}`);
         reject(new Error(message));
         return;
       }
 
       if (xhr.status === 204) {
+        console.debug(`[API] ${method} ${path} → 204 No Content`);
         resolve(null);
         return;
       }
 
+      console.debug(`[API] ${method} ${path} → ${xhr.status}`);
       try {
         resolve(JSON.parse(xhr.responseText));
       } catch {
@@ -58,6 +65,7 @@ function request(path, options = {}) {
     };
 
     xhr.onerror = () => {
+      console.error(`[API] ${method} ${path} → network error`);
       reject(new Error('Network error'));
     };
 
@@ -66,7 +74,7 @@ function request(path, options = {}) {
 }
 
 export const api = {
-  get: (path) => request(path),
+  get: (path, options) => request(path, options),
   post: (path, body) => request(path, { method: 'POST', body: JSON.stringify(body) }),
   put: (path, body) => request(path, { method: 'PUT', body: JSON.stringify(body) }),
   patch: (path, body) => request(path, { method: 'PATCH', body: JSON.stringify(body) }),

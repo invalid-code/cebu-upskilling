@@ -29,9 +29,16 @@ public class MediaController : ControllerBase
         _logger.LogInformation("HTTP POST /api/media/lessons/{LessonId}/video called by user {UserId}", lessonId, userId);
 
         if (file is null || file.Length == 0)
+        {
+            _logger.LogWarning("Video upload rejected: no file provided for lesson {LessonId} by user {UserId}", lessonId, userId);
             return BadRequest(new { error = "A video file must be provided" });
+        }
+
+        _logger.LogInformation("Uploading video for lesson {LessonId}: {FileName} ({FileSize} bytes)", lessonId, file.Name, file.Length);
 
         var result = await _mediaService.UploadLessonVideoAsync(lessonId, file);
+        _logger.LogInformation("Video upload completed for lesson {LessonId}: {MediaId}", lessonId, result.MediaId);
+
         return CreatedAtAction(nameof(UploadLessonVideo), new { lessonId }, result);
     }
 }

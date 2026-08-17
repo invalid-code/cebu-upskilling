@@ -10,6 +10,7 @@ function normalize(summary) {
     id: summary.postId,
     title: summary.title,
     company: summary.company,
+    targetRole: summary.targetRole,
     status: summary.status,
     appliedAt: summary.appliedAt,
     savedAt: summary.savedAt,
@@ -22,27 +23,17 @@ export function ApplicationsProvider({ children }) {
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const load = useCallback(async (signal) => {
+  useEffect(() => {
     if (!userId) {
       setApplications([]);
       return;
     }
     setLoading(true);
-    try {
-      const data = await api.get('/applications', { signal });
-      setApplications((data || []).map(normalize));
-    } catch {
-      setApplications([]);
-    } finally {
-      setLoading(false);
-    }
+    api.get('/applications')
+      .then((data) => setApplications((data || []).map(normalize)))
+      .catch(() => setApplications([]))
+      .finally(() => setLoading(false));
   }, [userId]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    load(controller.signal);
-    return () => controller.abort();
-  }, [load]);
 
   const applyToJob = useCallback(async (job) => {
     if (!userId) return;
@@ -55,12 +46,13 @@ export function ApplicationsProvider({ children }) {
           id: job.id,
           title: job.title,
           company: job.company,
+          targetRole: job.targetRole || job.title,
           status: 'applied',
           appliedAt: new Date().toISOString(),
         },
       ]);
-    } catch {
-      /* ignore network errors */
+    } catch (err) {
+      console.warn('[Applications] Failed to apply to job:', job.id, err?.message || err);
     }
   }, [userId, applications]);
 
@@ -78,8 +70,8 @@ export function ApplicationsProvider({ children }) {
     );
     try {
       await api.patch(`/applications/${jobId}`, { status });
-    } catch {
-      /* ignore network errors */
+    } catch (err) {
+      console.warn('[Applications] Failed to update status for job:', jobId, err?.message || err);
     }
   }, []);
 

@@ -11,19 +11,23 @@ namespace CebuUpskilling.Backend.Controllers;
 public class LearnersController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
+    private readonly ILogger<LearnersController> _logger;
 
-    public LearnersController(ApplicationDbContext context)
+    public LearnersController(ApplicationDbContext context, ILogger<LearnersController> logger)
     {
         _context = context;
+        _logger = logger;
     }
 
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
+        _logger.LogInformation("HTTP GET /api/learners requested");
         var learners = await _context.Learners
             .Include(l => l.User)
             .ToListAsync();
 
+        _logger.LogInformation("Returning {Count} learners", learners.Count);
         return Ok(learners);
     }
 }

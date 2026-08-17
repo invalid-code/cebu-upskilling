@@ -4,6 +4,7 @@ public record ApplicationSummary(
     int PostId,
     string Title,
     string Company,
+    string? TargetRole,
     string Status,
     DateTime AppliedAt,
     DateTime? SavedAt

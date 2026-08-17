@@ -18,7 +18,6 @@ const formData = {
   lastName: 'Rizal',
   emailAddress: 'jose@example.com',
   password: 'secret123',
-  targetRole: 'Frontend Developer',
   address: 'Kalayaan Ave, Laguna',
   birthday: '1996-06-19',
   companyName: '',
@@ -63,9 +62,6 @@ function fillForm() {
   fireEvent.change(screen.getByPlaceholderText('Password'), {
     target: { value: formData.password },
   });
-  fireEvent.change(screen.getByRole('combobox', { name: /target role/i }), {
-    target: { value: formData.targetRole },
-  });
   fireEvent.change(screen.getByPlaceholderText('Address (optional)'), {
     target: { value: formData.address },
   });
@@ -87,7 +83,6 @@ describe('RegisterPage', () => {
     expect(screen.getByPlaceholderText('Last name')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Email address')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Password')).toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: /target role/i })).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Address (optional)')).toBeInTheDocument();
     expect(screen.getByLabelText('Birthday')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Create account' })).toBeInTheDocument();

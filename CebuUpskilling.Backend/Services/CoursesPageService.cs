@@ -39,6 +39,8 @@ public class CoursesPageService : ICoursesPageService
 
     public async Task<CoursesPageResponse?> GetCoursesPageAsync(int userId, string? category = null)
     {
+        _logger.LogDebug("Getting courses page for user {UserId}, category {Category}", userId, category);
+
         var learner = await _learners.GetByUserIdAsync(userId);
         if (learner == null)
         {
@@ -83,6 +85,9 @@ public class CoursesPageService : ICoursesPageService
             .ThenByDescending(c => c.UnlocksJobsCount ?? 0)
             .ThenBy(c => c.Name)
             .ToList();
+
+        _logger.LogInformation("Courses page for user {UserId}: {EnrolledCount} enrolled, {RecommendedCount} recommended, {CoursesInProgress} in progress, {CertificatesEarned} certificates",
+            userId, enrolledCourses.Count, recommendedCourses.Count, coursesInProgress, certificatesEarned);
 
         return new CoursesPageResponse(
             EnrolledCourses: enrolledCourses,
@@ -159,11 +164,21 @@ public class CoursesPageService : ICoursesPageService
 
     public async Task<CourseDetailDto?> GetCourseDetailAsync(int userId, int courseId)
     {
+        _logger.LogDebug("Getting course detail for user {UserId}, course {CourseId}", userId, courseId);
+
         var learner = await _learners.GetByUserIdAsync(userId);
-        if (learner == null) return null;
+        if (learner == null)
+        {
+            _logger.LogWarning("No learner profile found for user {UserId} when viewing course {CourseId}", userId, courseId);
+            return null;
+        }
 
         var course = await _courses.GetWithLessonsAsync(courseId);
-        if (course == null) return null;
+        if (course == null)
+        {
+            _logger.LogWarning("Course {CourseId} not found", courseId);
+            return null;
+        }
 
         var enrollment = await _learnerStudyCourses.GetByLearnerAndCourseAsync(learner.LearnerId, courseId);
         var isEnrolled = enrollment != null;

@@ -91,6 +91,26 @@ describe('SkillsPage', () => {
     expect(screen.getByText('123 Main St · On-site')).toBeInTheDocument();
   });
 
+  it('derives the target role card from an applied job when the profile has none', async () => {
+    localStorage.setItem('user', JSON.stringify({
+      UserId: 1,
+      firstName: 'Test',
+      role: 'Learner',
+      address: '123 Main St',
+    }));
+    localStorage.setItem('token', 'abc');
+    api.get.mockImplementation((path) => {
+      if (path === '/applications') return Promise.resolve([
+        { postId: 1, title: 'Backend Developer', company: 'Acme Corp', targetRole: 'Backend Developer' },
+      ]);
+      if (path === '/skillgaps/groups') return Promise.resolve([]);
+      return Promise.resolve([]);
+    });
+    renderSkills();
+    expect(await screen.findByText('Backend Developer')).toBeInTheDocument();
+    expect(screen.getByText('123 Main St · On-site')).toBeInTheDocument();
+  });
+
   it('renders grouped skill gaps by applied role and expands on click', async () => {
     localStorage.setItem('user', JSON.stringify({
       UserId: 1,

@@ -30,8 +30,10 @@ public class LearnerFlowApiTests : ProductionApiTestBase
         var response = await AuthorizedClient(token).GetAsync("/api/skillgaps");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var gaps = (await ReadJsonAsync(response)).EnumerateArray().ToList();
+        var groups = (await ReadJsonAsync(response)).EnumerateArray().ToList();
 
+        var group = Assert.Single(groups);
+        var gaps = group.GetProperty("gaps").EnumerateArray().ToList();
         Assert.Equal(7, gaps.Count);
         var javascript = gaps.Single(g => g.GetProperty("skillName").GetString() == "JavaScript");
         Assert.Equal(4, javascript.GetProperty("requiredLevel").GetInt32());
@@ -64,7 +66,9 @@ public class LearnerFlowApiTests : ProductionApiTestBase
         var response = await AuthorizedClient(token).GetAsync("/api/skillgaps");
         response.EnsureSuccessStatusCode();
 
-        var gaps = (await ReadJsonAsync(response)).EnumerateArray().ToList();
+        var groups = (await ReadJsonAsync(response)).EnumerateArray().ToList();
+        var group = Assert.Single(groups);
+        var gaps = group.GetProperty("gaps").EnumerateArray().ToList();
         Assert.All(gaps, g => Assert.Equal(0, g.GetProperty("gap").GetInt32()));
     }
 

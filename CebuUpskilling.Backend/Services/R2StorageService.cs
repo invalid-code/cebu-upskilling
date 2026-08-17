@@ -36,27 +36,43 @@ public class R2StorageService : IObjectStorageService
     {
         _logger.LogDebug("Uploading {Key} ({ContentType}) to R2", key, contentType);
 
-        var request = new PutObjectRequest
+        try
         {
-            BucketName = _options.BucketName,
-            Key = key,
-            InputStream = content,
-            ContentType = contentType
-        };
+            var request = new PutObjectRequest
+            {
+                BucketName = _options.BucketName,
+                Key = key,
+                InputStream = content,
+                ContentType = contentType
+            };
 
-        await _client.PutObjectAsync(request, cancellationToken);
-        var publicUrl = GetPublicUrl(key);
+            await _client.PutObjectAsync(request, cancellationToken);
+            var publicUrl = GetPublicUrl(key);
 
-        _logger.LogInformation("Uploaded {Key} to R2 at {PublicUrl}", key, publicUrl);
+            _logger.LogInformation("Uploaded {Key} to R2 at {PublicUrl}", key, publicUrl);
 
-        return publicUrl;
+            return publicUrl;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to upload {Key} to R2 bucket {Bucket}", key, _options.BucketName);
+            throw;
+        }
     }
 
     public async Task DeleteAsync(string key, CancellationToken cancellationToken = default)
     {
         _logger.LogDebug("Deleting {Key} from R2", key);
-        await _client.DeleteObjectAsync(_options.BucketName, key, cancellationToken);
-        _logger.LogInformation("Deleted {Key} from R2", key);
+        try
+        {
+            await _client.DeleteObjectAsync(_options.BucketName, key, cancellationToken);
+            _logger.LogInformation("Deleted {Key} from R2", key);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to delete {Key} from R2 bucket {Bucket}", key, _options.BucketName);
+            throw;
+        }
     }
 
     public string GetPublicUrl(string key) => $"{_options.PublicBaseUrl.TrimEnd('/')}/{key}";

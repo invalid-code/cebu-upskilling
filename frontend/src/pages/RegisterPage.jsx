@@ -140,7 +140,6 @@ export default function RegisterPage() {
     lastName: '',
     emailAddress: '',
     password: '',
-    targetRole: '',
     address: '',
     birthday: '',
     companyName: '',
@@ -362,24 +361,6 @@ const { register, registerCompany } = useAuth();
                 aria-label="Resume"
                 onChange={handleResumeFile}
               />
-              <select
-                style={styles.field}
-                aria-label="Target role"
-                value={form.targetRole}
-                onChange={update('targetRole')}
-              >
-                <option value="">Target role (optional)</option>
-                <option value="Frontend Developer">Frontend Developer</option>
-                <option value="Backend Developer">Backend Developer</option>
-                <option value="Full Stack Developer">Full Stack Developer</option>
-                <option value="Data Analyst">Data Analyst</option>
-                <option value="Data Scientist">Data Scientist</option>
-                <option value="UI/UX Designer">UI/UX Designer</option>
-                <option value="DevOps Engineer">DevOps Engineer</option>
-                <option value="Quality Assurance">Quality Assurance</option>
-                <option value="Project Manager">Project Manager</option>
-                <option value="Other">Other</option>
-              </select>
             </>
           )}
           <Button

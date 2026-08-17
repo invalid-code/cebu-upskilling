@@ -128,12 +128,17 @@ public class GoogleAiService : IGoogleAiService
 
         var url = $"{_options.BaseUrl.TrimEnd('/')}/models/{_options.Model}:generateContent?key={Uri.EscapeDataString(_options.ApiKey)}";
 
+        var sw = System.Diagnostics.Stopwatch.StartNew();
         try
         {
+            _logger.LogDebug("Sending prompt to Gemini API (model: {Model}, prompt length: {Length})", _options.Model, prompt.Length);
+
             var response = await _httpClient.PostAsync(url, content, ct);
+            sw.Stop();
+
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogWarning("Gemini API returned {StatusCode}: {Body}", response.StatusCode, await response.Content.ReadAsStringAsync(ct));
+                _logger.LogWarning("Gemini API returned {StatusCode} after {ElapsedMs}ms: {Body}", response.StatusCode, sw.ElapsedMilliseconds, await response.Content.ReadAsStringAsync(ct));
                 return null;
             }
 
@@ -143,17 +148,19 @@ public class GoogleAiService : IGoogleAiService
             if (!doc.RootElement.TryGetProperty("candidates", out var candidates)
                 || candidates.GetArrayLength() == 0)
             {
-                _logger.LogWarning("Gemini API returned no candidates");
+                _logger.LogWarning("Gemini API returned no candidates after {ElapsedMs}ms", sw.ElapsedMilliseconds);
                 return null;
             }
 
             var parts = candidates[0].GetProperty("content").GetProperty("parts").EnumerateArray();
             var text = string.Concat(parts.Select(p => p.GetProperty("text").GetString()));
+            _logger.LogDebug("Gemini API responded in {ElapsedMs}ms", sw.ElapsedMilliseconds);
             return string.IsNullOrWhiteSpace(text) ? null : text.Trim();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to call Gemini API");
+            sw.Stop();
+            _logger.LogError(ex, "Failed to call Gemini API after {ElapsedMs}ms", sw.ElapsedMilliseconds);
             return null;
         }
     }

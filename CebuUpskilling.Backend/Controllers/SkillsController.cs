@@ -30,6 +30,9 @@ public class SkillsController : ControllerBase
 
         var result = await _skillParsingService.ParseAndCreateAssessmentsAsync(userId, request.ResumeText ?? string.Empty, ct);
 
+        _logger.LogInformation("Skill parsing completed for user {UserId}: {SkillCount} skills found, {AssessmentCount} assessments created",
+            userId, result.Skills.Count, result.Skills.Count(s => s.AssessmentId != null));
+
         return Ok(result);
     }
 }

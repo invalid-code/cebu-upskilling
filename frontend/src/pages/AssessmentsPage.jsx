@@ -7,6 +7,7 @@ import AssessmentCard from '../components/shared/AssessmentCard';
 import Modal from '../components/ui/Modal';
 import AssessmentModal from '../components/ui/AssessmentModal';
 import { useAuth } from '../context/AuthContext';
+import { useApplications } from '../context/ApplicationsContext';
 import { api } from '../api/client';
 import { TrendingUp, Shield, Target, Camera, Mic, Maximize, Check, AlertCircle, Loader2 } from 'lucide-react';
 
@@ -297,6 +298,7 @@ function formatDate(iso) {
 
 export default function AssessmentsPage() {
   const { user } = useAuth();
+  const { applications } = useApplications();
   const [available, setAvailable] = useState(null);
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -326,7 +328,8 @@ export default function AssessmentsPage() {
     return () => controller.abort();
   }, []);
 
-  const targetRole = user?.targetRole?.trim();
+  const targetRole = user?.targetRole?.trim()
+    || applications.find((a) => a.targetRole?.trim())?.targetRole?.trim();
 
   async function handleDeviceCheck() {
     setDeviceCheck('checking');

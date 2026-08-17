@@ -4,6 +4,7 @@ using CebuUpskilling.Backend.Entities;
 using CebuUpskilling.Backend.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace CebuUpskilling.Backend.Controllers;
 
@@ -20,6 +21,7 @@ public class AuthController : BaseEntityController<AppUser>
     protected override int GetId(AppUser entity) => entity.UserId;
 
     [AllowAnonymous]
+    [EnableRateLimiting("auth")]
     [HttpPost("register")]
     public async Task<ActionResult<AuthResponse>> Register(RegisterRequest request)
     {
@@ -38,6 +40,7 @@ public class AuthController : BaseEntityController<AppUser>
     }
 
     [AllowAnonymous]
+    [EnableRateLimiting("auth")]
     [HttpPost("register-company")]
     public async Task<ActionResult<CompanyRegisterResponse>> RegisterCompany(CompanyRegisterRequest request)
     {
@@ -56,6 +59,7 @@ public class AuthController : BaseEntityController<AppUser>
     }
 
     [AllowAnonymous]
+    [EnableRateLimiting("auth")]
     [HttpPost("login")]
     public async Task<ActionResult<AuthResponse>> Login(LoginRequest request)
     {

@@ -113,12 +113,22 @@ public class ApplicationsService : IApplicationsService
         return true;
     }
 
-    private static ApplicationSummary ToSummary(Application application) => new(
-        application.PostId,
-        application.Post?.Title ?? string.Empty,
-        application.Post?.Company?.Name ?? "Unknown",
-        application.Status,
-        application.AppliedAt,
-        application.SavedAt
-    );
+    private static ApplicationSummary ToSummary(Application application)
+    {
+        var postTitle = application.Post?.Title ?? string.Empty;
+        var targetRole = application.Post?.TargetRole;
+
+        if (string.IsNullOrWhiteSpace(targetRole))
+            targetRole = postTitle;
+
+        return new ApplicationSummary(
+            application.PostId,
+            postTitle,
+            application.Post?.Company?.Name ?? "Unknown",
+            targetRole,
+            application.Status,
+            application.AppliedAt,
+            application.SavedAt
+        );
+    }
 }
