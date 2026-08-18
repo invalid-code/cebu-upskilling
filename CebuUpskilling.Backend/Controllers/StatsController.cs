@@ -26,11 +26,12 @@ public class StatsController : ControllerBase
     public async Task<IActionResult> GetWeeklyStats()
     {
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        _logger.LogInformation("GET /api/stats/week called by user {UserId}", userId);
+        _logger.LogInformation("HTTP GET /api/stats/week called by user {UserId}", userId);
 
         var learner = await _context.Learners.FirstOrDefaultAsync(l => l.UserId == userId);
         if (learner == null)
         {
+            _logger.LogWarning("No learner profile found for user {UserId} when requesting weekly stats", userId);
             return Ok(new
             {
                 learningTimeHours = 0,
@@ -48,6 +49,9 @@ public class StatsController : ControllerBase
             .SumAsync(lsc => lsc.LastTotalProgressPercent * 0.1);
 
         var jobsWorthApplying = await _context.Posts.CountAsync();
+
+        _logger.LogInformation("Weekly stats for user {UserId}: {LearningTimeHours}h, {CoursesActive} courses, {JobsWorthApplying} jobs",
+            userId, Math.Round(learningTimeHours, 1), coursesActive, jobsWorthApplying);
 
         return Ok(new
         {

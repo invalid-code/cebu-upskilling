@@ -25,7 +25,7 @@ public class CoursesController : BaseEntityController<Course>
     public async Task<ActionResult<CourseDetailDto>> GetCourseDetail(int id)
     {
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        _logger.LogInformation("GET /api/Courses/{Id}/detail called by user {UserId}", id, userId);
+        _logger.LogInformation("HTTP GET /api/courses/{Id}/detail called by user {UserId}", id, userId);
 
         var result = await _coursesPageService.GetCourseDetailAsync(userId, id);
         if (result == null)

@@ -294,7 +294,8 @@ public class SecurityApiTests : ProductionApiTestBase
         var gapsB = (await ReadJsonAsync(await AuthorizedClient(tokenB).GetAsync("/api/skillgaps"))).EnumerateArray().ToList();
 
         Assert.Empty(gapsA);
-        Assert.Equal(7, gapsB.Count);
+        var groupB = Assert.Single(gapsB);
+        Assert.Equal(7, groupB.GetProperty("gaps").GetArrayLength());
     }
 
     [Fact]

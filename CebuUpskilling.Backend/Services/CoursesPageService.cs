@@ -39,10 +39,12 @@ public class CoursesPageService : ICoursesPageService
 
     public async Task<CoursesPageResponse?> GetCoursesPageAsync(int userId, string? category = null)
     {
+        _logger.LogDebug("Getting courses page for user {UserId}, category {Category}", userId, category);
+
         var learner = await _learners.GetByUserIdAsync(userId);
         if (learner == null)
         {
-            _logger.LogInformation("No learner profile for user {UserId}", userId);
+            _logger.LogInformation("No learner profile found for user {UserId}", userId);
             return null;
         }
 
@@ -56,7 +58,8 @@ public class CoursesPageService : ICoursesPageService
             Started: e.Started,
             ProgressPercent: e.LastTotalProgressPercent,
             CurrentModule: GetCurrentModule(e.Course.Lessons.Count, e.LastTotalProgressPercent),
-            TotalModules: e.Course.Lessons.Count
+            TotalModules: e.Course.Lessons.Count,
+            TechnicalLevel: e.Course.TechnicalLevel
         )).ToList();
 
         var coursesInProgress = enrolledCourses.Count(e => e.ProgressPercent < 100);
@@ -66,18 +69,25 @@ public class CoursesPageService : ICoursesPageService
         var allCourses = await _courses.GetAllWithLessonsAsync();
 
         var learnerSkills = await _learnerSkills.GetByLearnerIdWithSkillAsync(learner.LearnerId);
-        var learnerSkillMap = learnerSkills.ToDictionary(ls => ls.SkillId, ls => ls.CurrentLevel);
+        var learnerSkillNames = learnerSkills
+            .Select(ls => ls.Skill.Name?.Trim())
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Select(n => n!)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         var enrolledCourseIds = enrollments.Select(e => e.CourseId).ToHashSet();
 
         var recommendedCourses = allCourses
             .Where(c => !enrolledCourseIds.Contains(c.CourseId))
-            .Select(c => MapToRecommendedDto(c, learnerSkillMap, user?.TargetRole))
+            .Select(c => MapToRecommendedDto(c, learnerSkillNames, user?.TargetRole))
             .Where(c => category == null || c.Category == category || category == "All")
             .OrderByDescending(c => c.IsRecommended)
             .ThenByDescending(c => c.UnlocksJobsCount ?? 0)
             .ThenBy(c => c.Name)
             .ToList();
+
+        _logger.LogInformation("Courses page for user {UserId}: {EnrolledCount} enrolled, {RecommendedCount} recommended, {CoursesInProgress} in progress, {CertificatesEarned} certificates",
+            userId, enrolledCourses.Count, recommendedCourses.Count, coursesInProgress, certificatesEarned);
 
         return new CoursesPageResponse(
             EnrolledCourses: enrolledCourses,
@@ -112,11 +122,12 @@ public class CoursesPageService : ICoursesPageService
 
     private static RecommendedCourseDto MapToRecommendedDto(
         Entities.Course course,
-        Dictionary<int, int> learnerSkillMap,
+        HashSet<string> learnerSkillNames,
         string? targetRole)
     {
-        var isRecommended = targetRole != null;
-        var reason = isRecommended ? "Recommended" : null;
+        var matchedSkill = MatchSkill(course, learnerSkillNames);
+        var isRecommended = targetRole != null || matchedSkill != null;
+        var reason = targetRole != null ? "Recommended" : matchedSkill != null ? $"Matches {matchedSkill}" : null;
         var unlocksJobs = isRecommended ? (int?)null : null;
 
         return new RecommendedCourseDto(
@@ -139,13 +150,35 @@ public class CoursesPageService : ICoursesPageService
         );
     }
 
+    private static string? MatchSkill(Entities.Course course, HashSet<string> learnerSkillNames)
+    {
+        var haystack = new[] { course.Name, course.Genre?.Name }
+            .Where(t => !string.IsNullOrWhiteSpace(t))
+            .Select(t => t!.ToLowerInvariant())
+            .ToList();
+
+        return learnerSkillNames
+            .OrderByDescending(s => s.Length)
+            .FirstOrDefault(s => haystack.Any(h => h.Contains(s.ToLowerInvariant())));
+    }
+
     public async Task<CourseDetailDto?> GetCourseDetailAsync(int userId, int courseId)
     {
+        _logger.LogDebug("Getting course detail for user {UserId}, course {CourseId}", userId, courseId);
+
         var learner = await _learners.GetByUserIdAsync(userId);
-        if (learner == null) return null;
+        if (learner == null)
+        {
+            _logger.LogWarning("No learner profile found for user {UserId} when viewing course {CourseId}", userId, courseId);
+            return null;
+        }
 
         var course = await _courses.GetWithLessonsAsync(courseId);
-        if (course == null) return null;
+        if (course == null)
+        {
+            _logger.LogWarning("Course {CourseId} not found", courseId);
+            return null;
+        }
 
         var enrollment = await _learnerStudyCourses.GetByLearnerAndCourseAsync(learner.LearnerId, courseId);
         var isEnrolled = enrollment != null;

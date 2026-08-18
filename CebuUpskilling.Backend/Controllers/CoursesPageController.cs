@@ -24,7 +24,7 @@ public class CoursesPageController : ControllerBase
     public async Task<ActionResult<CoursesPageResponse>> GetCoursesPage([FromQuery] string? category = null)
     {
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        _logger.LogInformation("GET /api/coursespage called by user {UserId}", userId);
+        _logger.LogInformation("HTTP GET /api/coursespage called by user {UserId}", userId);
 
         var result = await _coursesPageService.GetCoursesPageAsync(userId, category);
         if (result == null)

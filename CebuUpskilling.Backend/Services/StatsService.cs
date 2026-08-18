@@ -35,6 +35,7 @@ public class StatsService : IStatsService
         var learner = await _learners.GetByUserIdAsync(userId);
         if (learner == null)
         {
+            _logger.LogInformation("No learner profile found for user {UserId}; returning zero stats", userId);
             return new WeeklyStats(0, 0, 0);
         }
 
@@ -42,6 +43,10 @@ public class StatsService : IStatsService
         var learningTimeHours = await _learnerStudyCourses.SumProgressByLearnerIdAsync(learner.LearnerId);
         var jobsWorthApplying = await _posts.CountAsync();
 
-        return new WeeklyStats(Math.Round(learningTimeHours, 1), coursesActive, jobsWorthApplying);
+        var stats = new WeeklyStats(Math.Round(learningTimeHours, 1), coursesActive, jobsWorthApplying);
+        _logger.LogInformation("Weekly stats for user {UserId}: {LearningTimeHours}h, {CoursesActive} courses, {JobsWorthApplying} jobs",
+            userId, stats.LearningTimeHours, stats.CoursesActive, stats.JobsWorthApplying);
+
+        return stats;
     }
 }

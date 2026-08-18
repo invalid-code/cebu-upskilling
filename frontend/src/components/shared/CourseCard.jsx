@@ -234,9 +234,13 @@ export default function CourseCard({
           <Button variant="secondary" onClick={onViewCertificate} style={{ width: '100%' }}>
             <Check size={16} /> View certificate
           </Button>
-        ) : isEnrolled ? (
+        ) : isEnrolled && progressPercent > 0 ? (
           <Button variant="primary" onClick={onResume} style={{ width: '100%' }}>
             <Play size={16} /> Resume
+          </Button>
+        ) : isEnrolled ? (
+          <Button variant="primary" onClick={onStart} style={{ width: '100%' }}>
+            <Play size={16} /> Start
           </Button>
         ) : (
           <Button variant="primary" onClick={handleEnroll} disabled={enrolling} style={{ width: '100%' }}>

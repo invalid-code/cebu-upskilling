@@ -9,13 +9,19 @@ using CebuUpskilling.Backend.Services;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using Serilog;
+using System.Threading.RateLimiting;
 
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Host.UseSerilog((context, configuration) =>
+    configuration.ReadFrom.Configuration(context.Configuration));
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -24,12 +30,13 @@ builder.Services.AddHealthChecks()
     .AddDbContextCheck<ApplicationDbContext>();
 
 builder.Services.Configure<R2Options>(builder.Configuration.GetSection(R2Options.SectionName));
-builder.Services.Configure<OpenRouterOptions>(builder.Configuration.GetSection(OpenRouterOptions.SectionName));
+builder.Services.Configure<GoogleAiOptions>(builder.Configuration.GetSection(GoogleAiOptions.SectionName));
 
-var openRouterOptions = builder.Configuration.GetSection(OpenRouterOptions.SectionName).Get<OpenRouterOptions>();
-builder.Services.AddHttpClient<IOpenRouterService, OpenRouterService>(client =>
+var googleAiOptions = builder.Configuration.GetSection(GoogleAiOptions.SectionName).Get<GoogleAiOptions>();
+builder.Services.AddHttpClient<IGoogleAiService, GoogleAiService>(client =>
 {
-    client.BaseAddress = new Uri(openRouterOptions?.BaseUrl ?? "https://openrouter.ai/api/v1");
+    var baseUrl = googleAiOptions?.BaseUrl ?? "https://generativelanguage.googleapis.com/v1beta";
+    client.BaseAddress = new Uri(baseUrl.EndsWith('/') ? baseUrl : baseUrl + "/");
 });
 
 var myAllowSpecificOrigins = "_myAllowSpecificOrigins";
@@ -52,6 +59,20 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection(EmailOptions.SectionName));
+var emailOptions = builder.Configuration.GetSection(EmailOptions.SectionName).Get<EmailOptions>();
+if (!string.IsNullOrWhiteSpace(emailOptions?.ApiKey))
+{
+    builder.Services.AddHttpClient<IEmailService, ResendEmailService>(client =>
+    {
+        client.BaseAddress = new Uri(emailOptions!.BaseUrl);
+    });
+}
+else
+{
+    builder.Services.AddScoped<IEmailService, LoggingEmailService>();
+}
+builder.Services.AddSingleton<ITokenRevocationStore, InMemoryTokenRevocationStore>();
 
 builder.Services.AddScoped<ICourseRepository, CourseRepository>();
 builder.Services.AddScoped<ILessonRepository, LessonRepository>();
@@ -75,6 +96,7 @@ builder.Services.AddScoped<IEntityService<AppUser>, AppUserService>();
 builder.Services.AddScoped<IEntityService<LearnerAssessment>, LearnerAssessmentService>();
 builder.Services.AddScoped<IEntityService<LearnerStudyCourse>, LearnerStudyCourseService>();
 builder.Services.AddScoped<ISkillGapService, SkillGapService>();
+builder.Services.AddScoped<ISkillParsingService, SkillParsingService>();
 builder.Services.AddScoped<IAssessmentService, AssessmentService>();
 builder.Services.AddScoped<IEnrollmentsService, EnrollmentsService>();
 builder.Services.AddScoped<IApplicationsService, ApplicationsService>();
@@ -125,6 +147,55 @@ builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
 
+var rateLimitingOptions = builder.Configuration.GetSection(RateLimitingOptions.SectionName).Get<RateLimitingOptions>()
+    ?? new RateLimitingOptions();
+if (rateLimitingOptions.Enabled)
+{
+    // Rate limit per real client IP. Prefer X-Forwarded-For (set by a reverse proxy /
+    // load balancer) and fall back to the direct connection address.
+    static string GetClientIp(HttpContext httpContext)
+    {
+        var forwarded = httpContext.Request.Headers["X-Forwarded-For"].ToString();
+        if (!string.IsNullOrWhiteSpace(forwarded))
+        {
+            var first = forwarded.Split(',')[0].Trim();
+            if (!string.IsNullOrWhiteSpace(first))
+            {
+                return first;
+            }
+        }
+
+        return httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+    }
+
+    builder.Services.AddRateLimiter(options =>
+    {
+        options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+        options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+            RateLimitPartition.GetFixedWindowLimiter(
+                partitionKey: GetClientIp(httpContext),
+                factory: _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = rateLimitingOptions.Global.PermitLimit,
+                    Window = TimeSpan.FromSeconds(rateLimitingOptions.Global.WindowSeconds),
+                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                    QueueLimit = rateLimitingOptions.Global.QueueLimit,
+                }));
+
+        options.AddPolicy("auth", httpContext =>
+            RateLimitPartition.GetFixedWindowLimiter(
+                partitionKey: GetClientIp(httpContext),
+                factory: _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = rateLimitingOptions.Auth.PermitLimit,
+                    Window = TimeSpan.FromSeconds(rateLimitingOptions.Auth.WindowSeconds),
+                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                    QueueLimit = rateLimitingOptions.Auth.QueueLimit,
+                }));
+    });
+}
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -134,17 +205,24 @@ if (app.Environment.IsDevelopment())
 
 app.UseExceptionHandler();
 app.UseCors(myAllowSpecificOrigins);
+if (rateLimitingOptions.Enabled)
+{
+    app.UseRateLimiter();
+}
 app.UseAuthentication();
+app.UseMiddleware<CebuUpskilling.Backend.Middleware.RevokedTokenMiddleware>();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health");
 
 app.Lifetime.ApplicationStarted.Register(() =>
-    app.Services.GetRequiredService<ILogger<Program>>().LogInformation("Application started"));
+    Log.Information("Application started"));
 
 app.Lifetime.ApplicationStopping.Register(() =>
-    app.Services.GetRequiredService<ILogger<Program>>().LogInformation("Application is shutting down"));
+    Log.Information("Application is shutting down"));
 
 app.Run();
+
+Log.CloseAndFlush();
 
 public partial class Program { }

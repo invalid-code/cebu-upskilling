@@ -30,8 +30,10 @@ public class LearnerFlowApiTests : ProductionApiTestBase
         var response = await AuthorizedClient(token).GetAsync("/api/skillgaps");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var gaps = (await ReadJsonAsync(response)).EnumerateArray().ToList();
+        var groups = (await ReadJsonAsync(response)).EnumerateArray().ToList();
 
+        var group = Assert.Single(groups);
+        var gaps = group.GetProperty("gaps").EnumerateArray().ToList();
         Assert.Equal(7, gaps.Count);
         var javascript = gaps.Single(g => g.GetProperty("skillName").GetString() == "JavaScript");
         Assert.Equal(4, javascript.GetProperty("requiredLevel").GetInt32());
@@ -58,33 +60,15 @@ public class LearnerFlowApiTests : ProductionApiTestBase
         var email = "flow.matched@example.com";
         await RegisterLearnerAsync(email, "Frontend Developer");
         var (_, learnerId) = await GetLearnerIdsAsync(email);
-
-        using (var scope = Factory.Services.CreateScope())
-        {
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-
-            var roleSkillLevels = await db.RoleSkills
-                .Where(rs => rs.TargetRole == "Frontend Developer")
-                .ToDictionaryAsync(rs => rs.SkillId, rs => rs.RequiredLevel);
-
-            var learnerSkills = await db.LearnerSkills
-                .Where(ls => ls.LearnerId == learnerId)
-                .ToListAsync();
-
-            foreach (var ls in learnerSkills)
-            {
-                ls.CurrentLevel = roleSkillLevels[ls.SkillId];
-                ls.Verified = true;
-            }
-
-            await db.SaveChangesAsync();
-        }
+        await SetAllRoleSkillsToRequiredAsync(learnerId);
 
         var token = await LoginTokenAsync(email);
         var response = await AuthorizedClient(token).GetAsync("/api/skillgaps");
         response.EnsureSuccessStatusCode();
 
-        var gaps = (await ReadJsonAsync(response)).EnumerateArray().ToList();
+        var groups = (await ReadJsonAsync(response)).EnumerateArray().ToList();
+        var group = Assert.Single(groups);
+        var gaps = group.GetProperty("gaps").EnumerateArray().ToList();
         Assert.All(gaps, g => Assert.Equal(0, g.GetProperty("gap").GetInt32()));
     }
 
@@ -120,27 +104,7 @@ public class LearnerFlowApiTests : ProductionApiTestBase
         var email = "flow.nogaps@example.com";
         await RegisterLearnerAsync(email, "Frontend Developer");
         var (_, learnerId) = await GetLearnerIdsAsync(email);
-
-        using (var scope = Factory.Services.CreateScope())
-        {
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-
-            var roleSkillLevels = await db.RoleSkills
-                .Where(rs => rs.TargetRole == "Frontend Developer")
-                .ToDictionaryAsync(rs => rs.SkillId, rs => rs.RequiredLevel);
-
-            var learnerSkills = await db.LearnerSkills
-                .Where(ls => ls.LearnerId == learnerId)
-                .ToListAsync();
-
-            foreach (var ls in learnerSkills)
-            {
-                ls.CurrentLevel = roleSkillLevels[ls.SkillId];
-                ls.Verified = true;
-            }
-
-            await db.SaveChangesAsync();
-        }
+        await SetAllRoleSkillsToRequiredAsync(learnerId);
 
         var token = await LoginTokenAsync(email);
         var response = await AuthorizedClient(token).GetAsync("/api/assessments/recommended");
@@ -313,5 +277,41 @@ public class LearnerFlowApiTests : ProductionApiTestBase
         response.EnsureSuccessStatusCode();
         var body = await ReadJsonAsync(response);
         return body.GetProperty("token").GetString()!;
+    }
+
+    private async Task SetAllRoleSkillsToRequiredAsync(int learnerId)
+    {
+        using var scope = Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+        var roleSkills = await db.RoleSkills
+            .Where(rs => rs.TargetRole == "Frontend Developer")
+            .ToListAsync();
+
+        var existingBySkill = (await db.LearnerSkills
+            .Where(ls => ls.LearnerId == learnerId)
+            .ToListAsync())
+            .ToDictionary(ls => ls.SkillId);
+
+        foreach (var rs in roleSkills)
+        {
+            if (existingBySkill.TryGetValue(rs.SkillId, out var ls))
+            {
+                ls.CurrentLevel = rs.RequiredLevel;
+                ls.Verified = true;
+            }
+            else
+            {
+                db.LearnerSkills.Add(new LearnerSkill
+                {
+                    LearnerId = learnerId,
+                    SkillId = rs.SkillId,
+                    CurrentLevel = rs.RequiredLevel,
+                    Verified = true,
+                });
+            }
+        }
+
+        await db.SaveChangesAsync();
     }
 }

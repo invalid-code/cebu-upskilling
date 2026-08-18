@@ -100,10 +100,20 @@ public class PostService : BaseEntityService<Post>
     public PostService(IPostRepository repository, ILogger<PostService> logger)
         : base(repository, logger, "Post") { }
 
+    public override async Task<Post> CreateAsync(Post entity)
+    {
+        if (string.IsNullOrWhiteSpace(entity.TargetRole))
+        {
+            entity.TargetRole = entity.Title;
+        }
+        return await base.CreateAsync(entity);
+    }
+
     protected override void SaveUpdates(Post existing, Post entity)
     {
         existing.Title = entity.Title;
         existing.Description = entity.Description;
+        existing.TargetRole = string.IsNullOrWhiteSpace(entity.TargetRole) ? entity.Title : entity.TargetRole;
         existing.RecruiterId = entity.RecruiterId;
         existing.CompanyId = entity.CompanyId;
     }

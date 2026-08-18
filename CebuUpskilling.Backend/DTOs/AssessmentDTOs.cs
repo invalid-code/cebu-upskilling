@@ -81,7 +81,8 @@ public record AvailableAssessmentDto(
     int TimeLimitMinutes,
     string SourceLabel,
     string? CompanyName,
-    bool Proctored
+    bool Proctored,
+    bool IsSkillAssessment
 );
 
 public record AvailableAssessmentsResponse(

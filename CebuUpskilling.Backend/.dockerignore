@@ -1,7 +1,5 @@
 bin/
 obj/
+logs/
 *.user
-.vscode/
-.git/
-.gitignore
-appsettings.Development.json
+.github/

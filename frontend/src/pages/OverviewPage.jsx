@@ -8,6 +8,7 @@ import StatCard from '../components/shared/StatCard';
 import CourseCard from '../components/shared/CourseCard';
 import SkillGapItem from '../components/shared/SkillGapItem';
 import { useAuth, isRecruiter } from '../context/AuthContext';
+import { useApplications } from '../context/ApplicationsContext';
 import EmployerOverviewPage from './EmployerOverviewPage';
 import { api } from '../api/client';
 import { ArrowUpRight, Check, Clock, BookOpen, Send } from 'lucide-react';
@@ -225,6 +226,7 @@ export default function OverviewPage() {
 function LearnerOverview() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { applications } = useApplications();
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [skillGaps, setSkillGaps] = useState([]);
@@ -233,7 +235,8 @@ function LearnerOverview() {
   const [weeklyStats, setWeeklyStats] = useState({ learningTimeHours: 0, coursesActive: 0, jobsWorthApplying: 0 });
   const [weeklyStatsLoading, setWeeklyStatsLoading] = useState(true);
 
-  const targetRole = user?.targetRole?.trim();
+  const targetRole = user?.targetRole?.trim()
+    || applications.find((a) => a.targetRole?.trim())?.targetRole?.trim();
 
   useEffect(() => {
     api.get('/courses')

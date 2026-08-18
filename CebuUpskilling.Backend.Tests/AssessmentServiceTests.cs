@@ -10,7 +10,7 @@ namespace CebuUpskilling.Backend.Tests;
 
 public class AssessmentServiceTests
 {
-    private class FakeOpenRouterService : IOpenRouterService
+    private class FakeGoogleAiService : IGoogleAiService
     {
         public int GenerationCalls { get; private set; }
 
@@ -26,7 +26,7 @@ public class AssessmentServiceTests
         }
     }
 
-    private static AssessmentService CreateService(ApplicationDbContext context, FakeOpenRouterService openRouterService) => new(
+    private static AssessmentService CreateService(ApplicationDbContext context, FakeGoogleAiService aiService) => new(
         new AppUserRepository(context),
         new RoleSkillRepository(context),
         new LearnerRepository(context),
@@ -35,13 +35,13 @@ public class AssessmentServiceTests
         new AssessmentQuestionRepository(context),
         new SkillRepository(context),
         new RecruiterRepository(context),
-        openRouterService,
+        aiService,
         NullLogger<AssessmentService>.Instance
     );
 
     private static async Task<(AssessmentService Service, int UserId)> CreateLearnerWithSkillAsync(
         ApplicationDbContext context,
-        FakeOpenRouterService openRouterService)
+        FakeGoogleAiService aiService)
     {
         var user = new AppUser
         {
@@ -61,7 +61,7 @@ public class AssessmentServiceTests
         context.Skills.Add(skill);
         await context.SaveChangesAsync();
 
-        var service = CreateService(context, openRouterService);
+        var service = CreateService(context, aiService);
         var start = await service.StartAssessmentAsync(user.UserId, new StartAssessmentRequest(skill.SkillId));
         Assert.NotNull(start);
 
@@ -96,8 +96,8 @@ public class AssessmentServiceTests
     public async Task GetQuestionsAsync_WhenNoQuestionsExist_GeneratesAndPersistsAITargetedQuestions()
     {
         var context = TestDbContextFactory.Create();
-        var openRouter = new FakeOpenRouterService { Questions = SampleQuestions() };
-        var (service, userId) = await CreateLearnerWithSkillAsync(context, openRouter);
+        var aiService = new FakeGoogleAiService { Questions = SampleQuestions() };
+        var (service, userId) = await CreateLearnerWithSkillAsync(context, aiService);
 
         var skill = await context.Skills.SingleAsync(s => s.Name == "JavaScript");
         var assessment = await context.LearnerAssessments.SingleAsync(a => a.Learner.UserId == userId);
@@ -115,7 +115,7 @@ public class AssessmentServiceTests
             Assert.Equal("AI-generated", q.Source);
             Assert.Null(q.CompanyName);
         });
-        Assert.Equal(1, openRouter.GenerationCalls);
+        Assert.Equal(1, aiService.GenerationCalls);
 
         var saved = await context.AssessmentQuestions
             .Where(q => q.SkillId == skill.SkillId)
@@ -136,8 +136,8 @@ public class AssessmentServiceTests
     public async Task GetQuestionsAsync_WhenQuestionsExist_ReusesStoredQuestionsWithoutCallingAI()
     {
         var context = TestDbContextFactory.Create();
-        var openRouter = new FakeOpenRouterService { Questions = SampleQuestions() };
-        var (service, userId) = await CreateLearnerWithSkillAsync(context, openRouter);
+        var aiService = new FakeGoogleAiService { Questions = SampleQuestions() };
+        var (service, userId) = await CreateLearnerWithSkillAsync(context, aiService);
 
         var skill = await context.Skills.SingleAsync(s => s.Name == "JavaScript");
         context.AssessmentQuestions.Add(new AssessmentQuestion
@@ -155,15 +155,15 @@ public class AssessmentServiceTests
 
         Assert.NotNull(result);
         Assert.Single(result!.Questions);
-        Assert.Equal(0, openRouter.GenerationCalls);
+        Assert.Equal(0, aiService.GenerationCalls);
     }
 
     [Fact]
     public async Task GetQuestionsAsync_WhenAIGenerationReturnsNothing_ReturnsEmptyQuestions()
     {
         var context = TestDbContextFactory.Create();
-        var openRouter = new FakeOpenRouterService { Questions = new List<GeneratedAssessmentQuestion>() };
-        var (service, userId) = await CreateLearnerWithSkillAsync(context, openRouter);
+        var aiService = new FakeGoogleAiService { Questions = new List<GeneratedAssessmentQuestion>() };
+        var (service, userId) = await CreateLearnerWithSkillAsync(context, aiService);
 
         var assessment = await context.LearnerAssessments.SingleAsync(a => a.Learner.UserId == userId);
 
@@ -171,15 +171,260 @@ public class AssessmentServiceTests
 
         Assert.NotNull(result);
         Assert.Empty(result!.Questions);
-        Assert.Equal(1, openRouter.GenerationCalls);
+        Assert.Equal(1, aiService.GenerationCalls);
+    }
+
+    [Fact]
+    public async Task GetAvailableAssessmentsAsync_WithNoTargetRole_ReturnsParsedSkillAssessments()
+    {
+        var context = TestDbContextFactory.Create();
+        var aiService = new FakeGoogleAiService();
+        var service = CreateService(context, aiService);
+
+        var user = new AppUser
+        {
+            FirstName = "Jose",
+            LastName = "Rizal",
+            EmailAddress = $"learner-{Guid.NewGuid():N}@example.com",
+            PasswordHash = "hash",
+            Role = "Learner",
+            TargetRole = null,
+        };
+        context.Users.Add(user);
+
+        var learner = new Learner { UserId = user.UserId, IsPremium = false };
+        context.Learners.Add(learner);
+
+        var skill = new Skill { Name = "TypeScript", Category = "Frontend" };
+        context.Skills.Add(skill);
+        await context.SaveChangesAsync();
+
+        context.LearnerSkills.Add(new LearnerSkill
+        {
+            LearnerId = learner.LearnerId,
+            SkillId = skill.SkillId,
+            CurrentLevel = 0,
+            Verified = false,
+        });
+        context.LearnerAssessments.Add(new LearnerAssessment
+        {
+            LearnerId = learner.LearnerId,
+            SkillId = skill.SkillId,
+            ScoredLevel = 0,
+            Verified = false,
+            CompletedAt = DateTime.UtcNow,
+        });
+        await context.SaveChangesAsync();
+
+        var result = await service.GetAvailableAssessmentsAsync(user.UserId);
+
+        Assert.NotNull(result);
+        var assessment = Assert.Single(result!.Assessments);
+        Assert.Equal("TypeScript", assessment.SkillName);
+        Assert.False(assessment.HasAssessment);
+        Assert.Equal(0, result.MatchPercent);
+        Assert.Equal(1, result.RecommendedCount);
+    }
+
+    [Fact]
+    public async Task GetAvailableAssessmentsAsync_WithNoTargetRole_VerifiedAssessmentShowsRetake()
+    {
+        var context = TestDbContextFactory.Create();
+        var aiService = new FakeGoogleAiService();
+        var service = CreateService(context, aiService);
+
+        var user = new AppUser
+        {
+            FirstName = "Jose",
+            LastName = "Rizal",
+            EmailAddress = $"learner-{Guid.NewGuid():N}@example.com",
+            PasswordHash = "hash",
+            Role = "Learner",
+            TargetRole = null,
+        };
+        context.Users.Add(user);
+
+        var learner = new Learner { UserId = user.UserId, IsPremium = false };
+        context.Learners.Add(learner);
+
+        var skill = new Skill { Name = "TypeScript", Category = "Frontend" };
+        context.Skills.Add(skill);
+        await context.SaveChangesAsync();
+
+        context.LearnerSkills.Add(new LearnerSkill
+        {
+            LearnerId = learner.LearnerId,
+            SkillId = skill.SkillId,
+            CurrentLevel = 0,
+            Verified = false,
+        });
+        context.LearnerAssessments.Add(new LearnerAssessment
+        {
+            LearnerId = learner.LearnerId,
+            SkillId = skill.SkillId,
+            ScoredLevel = 0,
+            Verified = true,
+            CompletedAt = DateTime.UtcNow,
+        });
+        await context.SaveChangesAsync();
+
+        var result = await service.GetAvailableAssessmentsAsync(user.UserId);
+
+        Assert.NotNull(result);
+        var assessment = Assert.Single(result!.Assessments);
+        Assert.Equal("TypeScript", assessment.SkillName);
+        Assert.True(assessment.HasAssessment);
+    }
+
+    [Fact]
+    public async Task GetAvailableAssessmentsAsync_WithTargetRole_ReturnsRoleAndParsedSkillAssessments()
+    {
+        var context = TestDbContextFactory.Create();
+        var aiService = new FakeGoogleAiService();
+        var service = CreateService(context, aiService);
+
+        var roleSkill = new Skill { Name = "JavaScript", Category = "Frontend" };
+        var parsedSkill = new Skill { Name = "TypeScript", Category = "Frontend" };
+        context.Skills.Add(roleSkill);
+        context.Skills.Add(parsedSkill);
+        await context.SaveChangesAsync();
+
+        var user = new AppUser
+        {
+            FirstName = "Jose",
+            LastName = "Rizal",
+            EmailAddress = $"learner-{Guid.NewGuid():N}@example.com",
+            PasswordHash = "hash",
+            Role = "Learner",
+            TargetRole = "Frontend Developer",
+        };
+        context.Users.Add(user);
+
+        var learner = new Learner { UserId = user.UserId, IsPremium = false };
+        context.Learners.Add(learner);
+        await context.SaveChangesAsync();
+
+        context.RoleSkills.Add(new RoleSkill
+        {
+            TargetRole = "Frontend Developer",
+            SkillId = roleSkill.SkillId,
+            RequiredLevel = 3,
+        });
+        context.LearnerSkills.Add(new LearnerSkill
+        {
+            LearnerId = learner.LearnerId,
+            SkillId = parsedSkill.SkillId,
+            CurrentLevel = 0,
+            Verified = false,
+        });
+        await context.SaveChangesAsync();
+
+        var result = await service.GetAvailableAssessmentsAsync(user.UserId);
+
+        Assert.NotNull(result);
+        Assert.Equal(2, result!.Assessments.Count);
+        Assert.Contains(result.Assessments, a => a.SkillName == "JavaScript" && a.TargetLevel == 3 && a.Gap == 3);
+        Assert.Contains(result.Assessments, a => a.SkillName == "TypeScript" && a.TargetLevel == 3 && a.Gap == 3);
+    }
+
+    [Fact]
+    public async Task GetAvailableAssessmentsAsync_WhenNoQuestionsExist_ReportsOnDemandQuestionCount()
+    {
+        var context = TestDbContextFactory.Create();
+        var aiService = new FakeGoogleAiService();
+        var service = CreateService(context, aiService);
+
+        var user = new AppUser
+        {
+            FirstName = "Jose",
+            LastName = "Rizal",
+            EmailAddress = $"learner-{Guid.NewGuid():N}@example.com",
+            PasswordHash = "hash",
+            Role = "Learner",
+            TargetRole = "Frontend Developer",
+        };
+        context.Users.Add(user);
+
+        var learner = new Learner { UserId = user.UserId, IsPremium = false };
+        context.Learners.Add(learner);
+        await context.SaveChangesAsync();
+
+        context.RoleSkills.Add(new RoleSkill
+        {
+            TargetRole = "Frontend Developer",
+            SkillId = context.Skills.Add(new Skill { Name = "JavaScript", Category = "Frontend" }).Entity.SkillId,
+            RequiredLevel = 3,
+        });
+        await context.SaveChangesAsync();
+
+        var result = await service.GetAvailableAssessmentsAsync(user.UserId);
+
+        Assert.NotNull(result);
+        var assessment = Assert.Single(result!.Assessments);
+        Assert.Equal("JavaScript", assessment.SkillName);
+        Assert.Equal(5, assessment.QuestionCount);
+    }
+
+    [Fact]
+    public async Task GetAvailableAssessmentsAsync_CompanyQuestions_ReportColumnCount()
+    {
+        var context = TestDbContextFactory.Create();
+        var aiService = new FakeGoogleAiService();
+        var service = CreateService(context, aiService);
+
+        var user = new AppUser
+        {
+            FirstName = "Jose",
+            LastName = "Rizal",
+            EmailAddress = $"learner-{Guid.NewGuid():N}@example.com",
+            PasswordHash = "hash",
+            Role = "Learner",
+            TargetRole = "Frontend Developer",
+        };
+        context.Users.Add(user);
+
+        var learner = new Learner { UserId = user.UserId, IsPremium = false };
+        context.Learners.Add(learner);
+
+        var skill = new Skill { Name = "JavaScript", Category = "Frontend" };
+        context.Skills.Add(skill);
+        var company = new Company { Name = "Acme Corp" };
+        context.Companies.Add(company);
+        await context.SaveChangesAsync();
+
+        context.RoleSkills.Add(new RoleSkill
+        {
+            TargetRole = "Frontend Developer",
+            SkillId = skill.SkillId,
+            RequiredLevel = 3,
+        });
+        for (var i = 0; i < 3; i++)
+        {
+            context.AssessmentQuestions.Add(new AssessmentQuestion
+            {
+                SkillId = skill.SkillId,
+                Text = $"Company question {i}?",
+                OptionA = "A", OptionB = "B", OptionC = "C", OptionD = "D",
+                CorrectOption = 0,
+                Source = AssessmentSource.Company,
+                CompanyId = company.CompanyId,
+            });
+        }
+        await context.SaveChangesAsync();
+
+        var result = await service.GetAvailableAssessmentsAsync(user.UserId);
+
+        Assert.NotNull(result);
+        var assessment = Assert.Single(result!.Assessments);
+        Assert.Equal(3, assessment.QuestionCount);
     }
 
     [Fact]
     public async Task GetQuestionsAsync_WhenCompanyQuestionsExist_PrefersCompanyQuestions()
     {
         var context = TestDbContextFactory.Create();
-        var openRouter = new FakeOpenRouterService { Questions = SampleQuestions() };
-        var (service, userId) = await CreateLearnerWithSkillAsync(context, openRouter);
+        var aiService = new FakeGoogleAiService { Questions = SampleQuestions() };
+        var (service, userId) = await CreateLearnerWithSkillAsync(context, aiService);
 
         var skill = await context.Skills.SingleAsync(s => s.Name == "JavaScript");
         var company = new Company { Name = "Acme Corp" };
@@ -208,15 +453,15 @@ public class AssessmentServiceTests
         Assert.False(result.Proctored);
         Assert.Equal("Company", result.Questions[0].Source);
         Assert.Equal("Acme Corp", result.Questions[0].CompanyName);
-        Assert.Equal(0, openRouter.GenerationCalls);
+        Assert.Equal(0, aiService.GenerationCalls);
     }
 
     [Fact]
     public async Task CreateCompanyQuestionAsync_ByRecruiter_CreatesAndTagsCompanyQuestion()
     {
         var context = TestDbContextFactory.Create();
-        var openRouter = new FakeOpenRouterService();
-        var service = CreateService(context, openRouter);
+        var aiService = new FakeGoogleAiService();
+        var service = CreateService(context, aiService);
 
         var skill = new Skill { Name = "React", Category = "Frontend" };
         context.Skills.Add(skill);
@@ -257,8 +502,8 @@ public class AssessmentServiceTests
     public async Task CreateCompanyQuestionAsync_ByNonRecruiter_ReturnsNull()
     {
         var context = TestDbContextFactory.Create();
-        var openRouter = new FakeOpenRouterService();
-        var service = CreateService(context, openRouter);
+        var aiService = new FakeGoogleAiService();
+        var service = CreateService(context, aiService);
 
         var skill = new Skill { Name = "React", Category = "Frontend" };
         context.Skills.Add(skill);

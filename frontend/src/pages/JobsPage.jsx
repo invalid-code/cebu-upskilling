@@ -81,6 +81,7 @@ function parsePost(post) {
     id: post.postId,
     title: post.title,
     company: post.company?.name || 'Unknown',
+    targetRole: post.targetRole || post.title,
     location: '',
     salary: '',
     match: '',

@@ -46,7 +46,9 @@ public record AuthResponse(
     string? TargetRole,
     string? Address,
     bool RemoteFriendly,
-    string Token
+    string Token,
+    int ParsedSkillCount = 0,
+    int AssessmentCount = 0
 );
 
 public record CompanyRegisterResponse(
@@ -58,4 +60,19 @@ public record CompanyRegisterResponse(
     int CompanyId,
     string CompanyName,
     string Token
+);
+
+public record EmailRequest(
+    [Required] string Email
+);
+
+public record ConfirmEmailRequest(
+    [Required] string Email,
+    [Required] string Token
+);
+
+public record ResetPasswordRequest(
+    [Required] string Email,
+    [Required] string Token,
+    [Required, MinLength(6)] string NewPassword
 );

@@ -28,7 +28,7 @@ public class CourseContentController : ControllerBase
         [FromQuery] int? lessonId = null)
     {
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        _logger.LogInformation("GET /api/CourseContent/courses/{CourseId}/content called by user {UserId}", courseId, userId);
+        _logger.LogInformation("HTTP GET /api/coursecontent/courses/{CourseId}/content called by user {UserId}", courseId, userId);
 
         var result = await _courseContentService.GetCourseContentAsync(userId, courseId, lessonId);
         if (result == null)
@@ -41,7 +41,7 @@ public class CourseContentController : ControllerBase
     public async Task<ActionResult<LessonDetailDto>> GetLessonDetail(int lessonId)
     {
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        _logger.LogInformation("GET /api/CourseContent/lessons/{LessonId} called by user {UserId}", lessonId, userId);
+        _logger.LogInformation("HTTP GET /api/coursecontent/lessons/{LessonId} called by user {UserId}", lessonId, userId);
 
         var result = await _courseContentService.GetLessonDetailAsync(userId, lessonId);
         if (result == null)
@@ -56,7 +56,7 @@ public class CourseContentController : ControllerBase
         [FromBody] UpdateLessonProgressRequest request)
     {
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        _logger.LogInformation("PUT /api/CourseContent/lessons/{LessonId}/progress called by user {UserId}", lessonId, userId);
+        _logger.LogInformation("HTTP PUT /api/coursecontent/lessons/{LessonId}/progress called by user {UserId}", lessonId, userId);
 
         var result = await _courseContentService.UpdateLessonProgressAsync(userId, lessonId, request.ProgressPercent);
         if (result == null)

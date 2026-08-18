@@ -22,7 +22,8 @@ public class RoleSeparationApiTests : ProductionApiTestBase
         var (token, _) = await RegisterRecruiterAsync("separation.recruiter@example.com", "Acme Corp");
         var authorized = AuthorizedClient(token);
 
-        Assert.Equal(HttpStatusCode.Forbidden, (await authorized.GetAsync("/api/skillgaps")).StatusCode);
+        using var gapsResp = await authorized.GetAsync("/api/skillgaps");
+        Assert.Equal(HttpStatusCode.Forbidden, gapsResp.StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await authorized.GetAsync("/api/assessments/recommended")).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await authorized.GetAsync("/api/assessments/results")).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await authorized.GetAsync("/api/enrollments")).StatusCode);
@@ -108,7 +109,7 @@ public class RoleSeparationApiTests : ProductionApiTestBase
 
     private async Task<(string token, int companyId)> RegisterRecruiterAsync(string email, string companyName)
     {
-        var registration = await RegisterAsync(new
+        using var registration = await RegisterAsync(new
         {
             firstName = "Employer",
             lastName = "Corp",

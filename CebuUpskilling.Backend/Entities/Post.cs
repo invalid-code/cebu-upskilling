@@ -17,6 +17,9 @@ public class Post
     [MaxLength(5000)]
     public string? Description { get; set; }
 
+    [MaxLength(100)]
+    public string TargetRole { get; set; } = string.Empty;
+
     public Recruiter Recruiter { get; set; } = null!;
     public Company? Company { get; set; }
     public ICollection<PostCourseRequired> PostCourseRequireds { get; set; } = new List<PostCourseRequired>();

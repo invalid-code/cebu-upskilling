@@ -1,10 +1,12 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { api } from '../api/client';
+import { hasValidSession } from '../lib/jwt';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
+    if (!hasValidSession()) return null;
     const saved = localStorage.getItem('user');
     return saved ? JSON.parse(saved) : null;
   });
@@ -34,14 +36,54 @@ export function AuthProvider({ children }) {
     return res;
   };
 
-  const logout = () => {
+  const logout = async () => {
+    const token = localStorage.getItem('token');
+    // Discard the token from the client immediately so it can't be reused,
+    // even if the server revocation call below fails.
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setUser(null);
+
+    if (token) {
+      try {
+        // The token was just removed from storage, so pass it explicitly.
+        await api.post('/auth/logout', undefined, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } catch {
+        // Server-side revocation is best-effort; the client token is already gone.
+      }
+    }
   };
 
+  const confirmEmail = (email, token) =>
+    api.post('/auth/confirm-email', { email, token });
+
+  const resendConfirmation = (email) =>
+    api.post('/auth/resend-confirmation', { email });
+
+  const forgotPassword = (email) =>
+    api.post('/auth/forgot-password', { email });
+
+  const resetPassword = (email, token, newPassword) =>
+    api.post('/auth/reset-password', { email, token, newPassword });
+
   return (
-    <AuthContext.Provider value={{ user, setUser, loading, login, register, registerCompany, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        setUser,
+        loading,
+        login,
+        register,
+        registerCompany,
+        logout,
+        confirmEmail,
+        resendConfirmation,
+        forgotPassword,
+        resetPassword,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

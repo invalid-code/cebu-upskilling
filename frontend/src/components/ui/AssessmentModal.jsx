@@ -250,7 +250,9 @@ export default function AssessmentModal({ open, onClose, assessmentId, skillName
     setError(null);
     setLoading(true);
 
-    api.get(`/assessments/${assessmentId}/questions`)
+    const controller = new AbortController();
+
+    api.get(`/assessments/${assessmentId}/questions`, { signal: controller.signal })
       .then((data) => {
         setQuestions(data.questions || []);
         setSkillName(data.skillName || initialSkillName || 'Assessment');
@@ -263,6 +265,8 @@ export default function AssessmentModal({ open, onClose, assessmentId, skillName
         setError('Failed to load questions');
       })
       .finally(() => setLoading(false));
+
+    return () => controller.abort();
   }, [open, assessmentId, initialSkillName]);
 
   const select = useCallback((idx) => {

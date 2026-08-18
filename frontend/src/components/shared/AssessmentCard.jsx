@@ -113,14 +113,17 @@ export default function AssessmentCard({
   companyName,
   proctored,
   isRecommended,
+  isSkillAssessment,
   onStart,
 }) {
   const progressPercent = targetLevel > 0 ? Math.round((currentLevel / targetLevel) * 100) : 0;
+  const hasProgress = targetLevel > 0;
 
   return (
     <div style={{ ...styles.card, ...(isRecommended ? styles.cardRecommended : {}) }}>
       <div style={styles.tags}>
         {isRecommended && <Tag variant="coral">Recommended next</Tag>}
+        {isSkillAssessment && <Tag variant="default">Skill verifier</Tag>}
         {companyName ? (
           <Tag variant="sand">{companyName}</Tag>
         ) : (
@@ -145,24 +148,32 @@ export default function AssessmentCard({
       </div>
 
       <div style={styles.levelSection}>
-        <div style={styles.levelRow}>
-          <span style={styles.levelLabel}>
-            Current · <span style={styles.levelCurrent}>{currentLevelLabel}</span>
-          </span>
-          <span style={styles.levelLabel}>
-            Target · <span style={styles.levelTarget}>{targetLevelLabel}</span>
-          </span>
-        </div>
-        <div style={styles.progressRow}>
-          <ProgressBar
-            percent={progressPercent}
-            color={gap > 0 ? 'var(--coral)' : 'var(--teal)'}
-            style={{ flex: 1 }}
-          />
-          <span style={styles.progressScore}>
-            {currentLevel} / {targetLevel}
-          </span>
-        </div>
+        {hasProgress ? (
+          <>
+            <div style={styles.levelRow}>
+              <span style={styles.levelLabel}>
+                Current · <span style={styles.levelCurrent}>{currentLevelLabel}</span>
+              </span>
+              <span style={styles.levelLabel}>
+                Target · <span style={styles.levelTarget}>{targetLevelLabel}</span>
+              </span>
+            </div>
+            <div style={styles.progressRow}>
+              <ProgressBar
+                percent={progressPercent}
+                color={gap > 0 ? 'var(--coral)' : 'var(--teal)'}
+                style={{ flex: 1 }}
+              />
+              <span style={styles.progressScore}>
+                {currentLevel} / {targetLevel}
+              </span>
+            </div>
+          </>
+        ) : (
+          <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+            Take the assessment to establish your level.
+          </div>
+        )}
       </div>
 
       <div style={styles.footer}>

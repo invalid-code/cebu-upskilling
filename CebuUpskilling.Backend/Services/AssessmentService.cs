@@ -25,7 +25,7 @@ public class AssessmentService : IAssessmentService
     private readonly IAssessmentQuestionRepository _assessmentQuestions;
     private readonly ISkillRepository _skills;
     private readonly IRecruiterRepository _recruiters;
-    private readonly IOpenRouterService _openRouterService;
+    private readonly IGoogleAiService _aiService;
     private readonly ILogger<AssessmentService> _logger;
 
     private static readonly Dictionary<int, string> LevelLabels = new()
@@ -46,7 +46,7 @@ public class AssessmentService : IAssessmentService
         IAssessmentQuestionRepository assessmentQuestions,
         ISkillRepository skills,
         IRecruiterRepository recruiters,
-        IOpenRouterService openRouterService,
+        IGoogleAiService aiService,
         ILogger<AssessmentService> logger)
     {
         _users = users;
@@ -57,7 +57,7 @@ public class AssessmentService : IAssessmentService
         _assessmentQuestions = assessmentQuestions;
         _skills = skills;
         _recruiters = recruiters;
-        _openRouterService = openRouterService;
+        _aiService = aiService;
         _logger = logger;
     }
 
@@ -66,7 +66,7 @@ public class AssessmentService : IAssessmentService
         var learner = await _learners.GetByUserIdAsync(userId);
         if (learner == null)
         {
-            _logger.LogInformation("No learner profile for user {UserId}", userId);
+            _logger.LogInformation("No learner profile found for user {UserId}", userId);
             return new List<AssessmentResultResponse>();
         }
 
@@ -90,14 +90,18 @@ public class AssessmentService : IAssessmentService
         var user = await _users.GetByIdAsync(userId);
         if (user?.TargetRole == null)
         {
-            _logger.LogInformation("User {UserId} has no target role", userId);
+            _logger.LogInformation("User {UserId} has no target role set", userId);
             return null;
         }
 
         var roleSkills = await _roleSkills.GetByTargetRoleWithSkillAsync(user.TargetRole);
 
         var learner = await _learners.GetByUserIdAsync(userId);
-        if (learner == null) return null;
+        if (learner == null)
+        {
+            _logger.LogInformation("No learner profile found for user {UserId}", userId);
+            return null;
+        }
 
         var learnerSkills = await _learnerSkills.GetByLearnerIdWithSkillAsync(learner.LearnerId);
 
@@ -143,30 +147,44 @@ public class AssessmentService : IAssessmentService
     public async Task<AvailableAssessmentsResponse?> GetAvailableAssessmentsAsync(int userId)
     {
         var user = await _users.GetByIdAsync(userId);
-        if (user?.TargetRole == null)
+
+        var learner = await _learners.GetByUserIdAsync(userId);
+        if (learner == null)
         {
-            _logger.LogInformation("User {UserId} has no target role", userId);
+            _logger.LogInformation("No learner profile found for user {UserId}", userId);
             return null;
         }
 
-        var roleSkills = await _roleSkills.GetByTargetRoleWithSkillAsync(user.TargetRole);
+        var hasTargetRole = user?.TargetRole != null;
+        var roleSkills = hasTargetRole
+            ? await _roleSkills.GetByTargetRoleWithSkillAsync(user!.TargetRole!)
+            : new List<RoleSkill>();
 
-        var learner = await _learners.GetByUserIdAsync(userId);
-        if (learner == null) return null;
+        if (!hasTargetRole)
+        {
+            _logger.LogInformation("User {UserId} has no target role set; returning parsed-skill assessments only", userId);
+        }
 
         var learnerSkills = await _learnerSkills.GetByLearnerIdWithSkillAsync(learner.LearnerId);
         var learnerSkillMap = learnerSkills.ToDictionary(ls => ls.SkillId);
 
         var learnerAssessments = await _learnerAssessments.GetByLearnerIdAsync(learner.LearnerId);
-        var assessmentsBySkill = learnerAssessments
+        var verifiedBySkill = learnerAssessments
             .Where(a => a.Verified)
             .GroupBy(a => a.SkillId)
             .ToDictionary(g => g.Key, g => g.First());
 
-        var skillIds = roleSkills.Select(rs => rs.SkillId).ToList();
-        var questionCounts = await _assessmentQuestions.GetQuestionCountsBySkillIdsAsync(skillIds);
+        var roleSkillIds = roleSkills.Select(rs => rs.SkillId).ToList();
+        var parsedSkills = learnerSkills
+            .Where(ls => !roleSkillIds.Contains(ls.SkillId))
+            .Select(ls => ls.Skill)
+            .ToList();
 
-        var companyQuestions = await _assessmentQuestions.GetBySkillIdsAndSourceAsync(skillIds, AssessmentSource.Company);
+        var allSkillIds = roleSkillIds.Concat(parsedSkills.Select(s => s.SkillId)).Distinct().ToList();
+        var questionCounts = await _assessmentQuestions.GetQuestionCountsBySkillIdsAsync(allSkillIds);
+        var companyQuestionCounts = await _assessmentQuestions.GetCompanyQuestionCountsBySkillIdsAsync(allSkillIds);
+
+        var companyQuestions = await _assessmentQuestions.GetBySkillIdsAndSourceAsync(allSkillIds, AssessmentSource.Company);
         var companyBySkill = companyQuestions
             .GroupBy(q => q.SkillId)
             .ToDictionary(g => g.Key, g => g.First().Company?.Name ?? "Company");
@@ -177,7 +195,7 @@ public class AssessmentService : IAssessmentService
                 var hasSkill = learnerSkillMap.TryGetValue(rs.SkillId, out var ls);
                 var currentLevel = hasSkill ? ls!.CurrentLevel : 0;
                 var gap = Math.Max(0, rs.RequiredLevel - currentLevel);
-                var hasAssessment = assessmentsBySkill.ContainsKey(rs.SkillId);
+                var hasAssessment = verifiedBySkill.ContainsKey(rs.SkillId);
                 var isCompanyAssessment = companyBySkill.ContainsKey(rs.SkillId);
 
                 return new AvailableAssessmentDto(
@@ -190,13 +208,42 @@ public class AssessmentService : IAssessmentService
                     TargetLevelLabel: LevelLabels.GetValueOrDefault(rs.RequiredLevel, $"Level {rs.RequiredLevel}"),
                     Gap: gap,
                     HasAssessment: hasAssessment,
-                    QuestionCount: questionCounts.GetValueOrDefault(rs.SkillId, 0),
+                    QuestionCount: ResolveDisplayQuestionCount(questionCounts, companyQuestionCounts, rs.Skill.SkillId),
                     TimeLimitMinutes: 45,
                     SourceLabel: isCompanyAssessment ? "Company" : "AI-generated",
-                    CompanyName: isCompanyAssessment ? companyBySkill[rs.SkillId] : null,
-                    Proctored: !isCompanyAssessment
+                    CompanyName: isCompanyAssessment ? companyBySkill[rs.Skill.SkillId] : null,
+                    Proctored: !isCompanyAssessment,
+                    IsSkillAssessment: false
                 );
             })
+            .ToList();
+
+        foreach (var skill in parsedSkills)
+        {
+            var currentLevel = learnerSkillMap.TryGetValue(skill.SkillId, out var ls) ? ls!.CurrentLevel : 0;
+            var targetLevel = Math.Max(currentLevel, 3);
+            var isCompanyAssessment = companyBySkill.ContainsKey(skill.SkillId);
+
+            assessments.Add(new AvailableAssessmentDto(
+                SkillId: skill.SkillId,
+                SkillName: skill.Name,
+                Category: skill.Category,
+                CurrentLevel: currentLevel,
+                CurrentLevelLabel: LevelLabels.GetValueOrDefault(currentLevel, $"Level {currentLevel}"),
+                TargetLevel: targetLevel,
+                TargetLevelLabel: LevelLabels.GetValueOrDefault(targetLevel, $"Level {targetLevel}"),
+                Gap: Math.Max(0, targetLevel - currentLevel),
+                HasAssessment: verifiedBySkill.ContainsKey(skill.SkillId),
+                QuestionCount: ResolveDisplayQuestionCount(questionCounts, companyQuestionCounts, skill.SkillId),
+                TimeLimitMinutes: 45,
+                SourceLabel: isCompanyAssessment ? "Company" : "AI-generated",
+                CompanyName: isCompanyAssessment ? companyBySkill[skill.SkillId] : null,
+                Proctored: !isCompanyAssessment,
+                IsSkillAssessment: true
+            ));
+        }
+
+        assessments = assessments
             .OrderByDescending(a => a.Gap)
             .ThenBy(a => a.SkillName)
             .ToList();
@@ -226,7 +273,7 @@ public class AssessmentService : IAssessmentService
         var learner = await _learners.GetByUserIdAsync(userId);
         if (learner == null)
         {
-            _logger.LogWarning("No learner profile for user {UserId}", userId);
+            _logger.LogWarning("No learner profile found for user {UserId}", userId);
             return null;
         }
 
@@ -235,6 +282,24 @@ public class AssessmentService : IAssessmentService
         {
             _logger.LogWarning("Skill {SkillId} not found", request.SkillId);
             return null;
+        }
+
+        var existing = (await _learnerAssessments.GetByLearnerIdAsync(learner.LearnerId))
+            .Where(a => a.SkillId == request.SkillId && !a.Verified)
+            .OrderByDescending(a => a.CompletedAt)
+            .FirstOrDefault();
+
+        if (existing != null)
+        {
+            _logger.LogInformation("Resuming existing assessment {AssessmentId} for user {UserId} on skill {Skill}",
+                existing.LearnerAssessmentId, userId, skill.Name);
+
+            return new StartAssessmentResponse(
+                AssessmentId: existing.LearnerAssessmentId,
+                SkillId: skill.SkillId,
+                SkillName: skill.Name,
+                TimeLimitMinutes: 45
+            );
         }
 
         var assessment = new LearnerAssessment
@@ -461,7 +526,7 @@ public class AssessmentService : IAssessmentService
         _logger.LogInformation("Generating {Count} AI assessment questions for skill {Skill}",
             count, skill.Name);
 
-        var generated = await _openRouterService.GenerateAssessmentQuestionsAsync(skill.Name, count, ct);
+        var generated = await _aiService.GenerateAssessmentQuestionsAsync(skill.Name, count, ct);
 
         if (generated.Count == 0)
         {
@@ -500,5 +565,18 @@ public class AssessmentService : IAssessmentService
             >= 30 => 2,
             _ => 1,
         };
+    }
+
+    private static int ResolveDisplayQuestionCount(
+        Dictionary<int, int> questionCounts,
+        Dictionary<int, int> companyQuestionCounts,
+        int skillId)
+    {
+        var companyCount = companyQuestionCounts.GetValueOrDefault(skillId, 0);
+        if (companyCount > 0)
+            return Math.Min(companyCount, 5);
+
+        var existing = questionCounts.GetValueOrDefault(skillId, 0);
+        return existing == 0 ? 5 : Math.Min(existing, 5);
     }
 }

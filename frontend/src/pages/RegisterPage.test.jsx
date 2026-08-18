@@ -2,6 +2,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from '../context/AuthContext';
+import { ToastProvider } from '../context/ToastContext';
 import RegisterPage from './RegisterPage';
 
 vi.mock('../api/client', () => ({
@@ -17,7 +18,6 @@ const formData = {
   lastName: 'Rizal',
   emailAddress: 'jose@example.com',
   password: 'secret123',
-  targetRole: 'Frontend Developer',
   address: 'Kalayaan Ave, Laguna',
   birthday: '1996-06-19',
   companyName: '',
@@ -36,13 +36,15 @@ const companyFormData = {
 function renderRegister() {
   return render(
     <MemoryRouter initialEntries={['/register']}>
-      <AuthProvider>
-        <Routes>
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/" element={<div>Learner home</div>} />
-          <Route path="/business-dashboard" element={<div>Business dashboard</div>} />
-        </Routes>
-      </AuthProvider>
+      <ToastProvider>
+        <AuthProvider>
+          <Routes>
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/" element={<div>Learner home</div>} />
+            <Route path="/business-dashboard" element={<div>Business dashboard</div>} />
+          </Routes>
+        </AuthProvider>
+      </ToastProvider>
     </MemoryRouter>,
   );
 }
@@ -59,9 +61,6 @@ function fillForm() {
   });
   fireEvent.change(screen.getByPlaceholderText('Password'), {
     target: { value: formData.password },
-  });
-  fireEvent.change(screen.getByRole('combobox', { name: /target role/i }), {
-    target: { value: formData.targetRole },
   });
   fireEvent.change(screen.getByPlaceholderText('Address (optional)'), {
     target: { value: formData.address },
@@ -84,7 +83,6 @@ describe('RegisterPage', () => {
     expect(screen.getByPlaceholderText('Last name')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Email address')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Password')).toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: /target role/i })).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Address (optional)')).toBeInTheDocument();
     expect(screen.getByLabelText('Birthday')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Create account' })).toBeInTheDocument();

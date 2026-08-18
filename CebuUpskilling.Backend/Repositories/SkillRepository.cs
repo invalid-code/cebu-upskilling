@@ -17,5 +17,13 @@ public class SkillRepository : Repository<Skill>, ISkillRepository
     public async Task<Skill?> GetByIdAsync(int skillId) => await _dbSet.FindAsync(skillId);
 
     public async Task<List<Skill>> GetByNamesAsync(IEnumerable<string> names)
-        => await _dbSet.Where(s => names.Contains(s.Name)).ToListAsync();
+    {
+        var normalized = names
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Select(n => n.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return await _dbSet.Where(s => normalized.Contains(s.Name)).ToListAsync();
+    }
 }

@@ -39,18 +39,10 @@ describe('SkillsPage', () => {
     expect(screen.getByText('Target role')).toBeInTheDocument();
   });
 
-  it('shows radio options when no target role is set', () => {
+  it('shows the target role prompt when no target role is set', () => {
     renderSkills();
-    expect(screen.getByRole('radio', { name: 'Frontend Developer' })).toBeInTheDocument();
-    expect(screen.getByRole('radio', { name: 'Backend Developer' })).toBeInTheDocument();
-    expect(screen.getByRole('radio', { name: 'Other' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
-  });
-
-  it('allows selecting a target role', () => {
-    renderSkills();
-    fireEvent.click(screen.getByRole('radio', { name: 'Data Analyst' }));
-    expect(screen.getByRole('radio', { name: 'Data Analyst' })).toBeChecked();
+    expect(screen.getByText('Target role')).toBeInTheDocument();
+    expect(screen.getByText(/Choose a target role so we can show the skills you need/)).toBeInTheDocument();
   });
 
   it('shows the proficiency scale legend', () => {
@@ -97,5 +89,63 @@ describe('SkillsPage', () => {
     renderSkills();
     expect(screen.getByText('Frontend Developer')).toBeInTheDocument();
     expect(screen.getByText('123 Main St · On-site')).toBeInTheDocument();
+  });
+
+  it('derives the target role card from an applied job when the profile has none', async () => {
+    localStorage.setItem('user', JSON.stringify({
+      UserId: 1,
+      firstName: 'Test',
+      role: 'Learner',
+      address: '123 Main St',
+    }));
+    localStorage.setItem('token', 'abc');
+    api.get.mockImplementation((path) => {
+      if (path === '/applications') return Promise.resolve([
+        { postId: 1, title: 'Backend Developer', company: 'Acme Corp', targetRole: 'Backend Developer' },
+      ]);
+      if (path === '/skillgaps/groups') return Promise.resolve([]);
+      return Promise.resolve([]);
+    });
+    renderSkills();
+    expect(await screen.findByText('Backend Developer')).toBeInTheDocument();
+    expect(screen.getByText('123 Main St · On-site')).toBeInTheDocument();
+  });
+
+  it('renders grouped skill gaps by applied role and expands on click', async () => {
+    localStorage.setItem('user', JSON.stringify({
+      UserId: 1,
+      firstName: 'Test',
+      role: 'Learner',
+      targetRole: 'Frontend Developer',
+    }));
+    localStorage.setItem('token', 'abc');
+    api.get.mockImplementation((path) => {
+      if (path === '/applications') return Promise.resolve([{ postId: 1 }]);
+      if (path === '/skillgaps/groups') return Promise.resolve([{
+        role: 'Backend Developer',
+        companyName: 'Serbisyo Digital',
+        postId: 1,
+        matchPercent: 40,
+        gaps: [{
+          skillId: 1,
+          skillName: 'C#',
+          category: 'Backend',
+          requiredLevel: 3,
+          currentLevel: 0,
+          gap: 3,
+          verified: false,
+        }],
+      }]);
+      return Promise.resolve([]);
+    });
+    renderSkills();
+    expect(await screen.findByText('Backend Developer')).toBeInTheDocument();
+    expect(screen.getByText('40%')).toBeInTheDocument();
+    expect(screen.getByText('Serbisyo Digital · job applied')).toBeInTheDocument();
+    expect(screen.getByText('Required 3 · Current 0')).toBeInTheDocument();
+    expect(screen.getByText('Gap 3')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Backend Developer'));
+    expect(screen.queryByText('Required 3 · Current 0')).not.toBeInTheDocument();
   });
 });

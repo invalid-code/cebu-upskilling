@@ -7,6 +7,7 @@ import AssessmentCard from '../components/shared/AssessmentCard';
 import Modal from '../components/ui/Modal';
 import AssessmentModal from '../components/ui/AssessmentModal';
 import { useAuth } from '../context/AuthContext';
+import { useApplications } from '../context/ApplicationsContext';
 import { api } from '../api/client';
 import { TrendingUp, Shield, Target, Camera, Mic, Maximize, Check, AlertCircle, Loader2 } from 'lucide-react';
 
@@ -297,6 +298,7 @@ function formatDate(iso) {
 
 export default function AssessmentsPage() {
   const { user } = useAuth();
+  const { applications } = useApplications();
   const [available, setAvailable] = useState(null);
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -326,7 +328,8 @@ export default function AssessmentsPage() {
     return () => controller.abort();
   }, []);
 
-  const targetRole = user?.targetRole?.trim();
+  const targetRole = user?.targetRole?.trim()
+    || applications.find((a) => a.targetRole?.trim())?.targetRole?.trim();
 
   async function handleDeviceCheck() {
     setDeviceCheck('checking');
@@ -364,7 +367,9 @@ export default function AssessmentsPage() {
     }
   }
 
-  const recommendedSkill = available?.assessments?.find(a => a.gap > 0);
+  const recommendedSkillIds = new Set(
+    (available?.assessments || []).filter(a => a.gap > 0).map(a => a.skillId)
+  );
 
   return (
     <div className="view-enter">
@@ -447,7 +452,8 @@ export default function AssessmentsPage() {
                   sourceLabel={assessment.sourceLabel}
                   companyName={assessment.companyName}
                   proctored={assessment.proctored}
-                  isRecommended={assessment === recommendedSkill}
+                  isSkillAssessment={assessment.isSkillAssessment}
+                  isRecommended={recommendedSkillIds.has(assessment.skillId)}
                   onStart={handleStartAssessment}
                 />
               ))}

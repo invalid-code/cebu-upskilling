@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { AuthProvider } from '../context/AuthContext';
 import { EnrollmentsProvider } from '../context/EnrollmentsContext';
+import { ApplicationsProvider } from '../context/ApplicationsContext';
 import { ToastProvider } from '../context/ToastContext';
 import OverviewPage from './OverviewPage';
 
@@ -50,9 +51,11 @@ function renderOverview() {
     <MemoryRouter>
       <AuthProvider>
         <EnrollmentsProvider>
-          <ToastProvider>
-            <OverviewPage />
-          </ToastProvider>
+          <ApplicationsProvider>
+            <ToastProvider>
+              <OverviewPage />
+            </ToastProvider>
+          </ApplicationsProvider>
         </EnrollmentsProvider>
       </AuthProvider>
     </MemoryRouter>,
@@ -115,6 +118,23 @@ describe('OverviewPage', () => {
     expect(await screen.findByText('Frontend Developer · Cebu / Remote')).toBeInTheDocument();
     expect(screen.getByText('2 of 5 steps')).toBeInTheDocument();
     expect(screen.queryByText('Your pathway will appear here')).not.toBeInTheDocument();
+  });
+
+  it('derives the target role from an applied job when the profile has none', async () => {
+    localStorage.setItem('user', JSON.stringify({ UserId: 1, firstName: 'Test', role: 'Learner' }));
+    api.get.mockImplementation((path) => {
+      if (path === '/applications') return Promise.resolve([
+        { postId: 1, title: 'Backend Developer', company: 'Acme Corp', targetRole: 'Backend Developer' },
+      ]);
+      if (path === '/courses') return Promise.resolve(mockCourses);
+      if (path === '/enrollments') return Promise.resolve([]);
+      if (path === '/skillgaps') return Promise.resolve([]);
+      if (path === '/assessments/recommended') return Promise.resolve(null);
+      return Promise.resolve([]);
+    });
+    renderOverview();
+    expect(await screen.findByText('Backend Developer · Cebu / Remote')).toBeInTheDocument();
+    expect(screen.getByText('2 of 5 steps')).toBeInTheDocument();
   });
 
   it('displays skill gaps when the user has a target role', async () => {
