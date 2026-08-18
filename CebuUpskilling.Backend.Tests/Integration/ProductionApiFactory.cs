@@ -40,7 +40,6 @@ public class ProductionApiFactory : WebApplicationFactory<Program>
             "PostCourseRequireds",
             "Applications",
             "Posts",
-            "Recruiters",
             "Learners",
             "Users",
             "Companies",

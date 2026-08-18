@@ -83,6 +83,53 @@ function request(path, options = {}) {
   });
 }
 
+/** Uploads a file via multipart/form-data (XHR so the fetch patch does not interfere). */
+function upload(path, file) {
+  let token = localStorage.getItem('token');
+  if (token && isTokenExpired(token)) {
+    clearSession();
+    token = null;
+  }
+  const method = 'POST';
+  console.debug(`[API] ${method} ${path}`);
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open(method, `${API_BASE}${path}`);
+    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+
+    xhr.onload = () => {
+      if (xhr.status === 401 && localStorage.getItem('token')) {
+        clearSession();
+        window.location.href = '/login';
+        resolve(null);
+        return;
+      }
+      if (xhr.status < 200 || xhr.status >= 300) {
+        let message = `HTTP ${xhr.status}`;
+        try {
+          const data = JSON.parse(xhr.responseText);
+          if (data && data.error) message = data.error;
+        } catch {
+          // ignore non-JSON error bodies
+        }
+        reject(new Error(message));
+        return;
+      }
+      try {
+        resolve(JSON.parse(xhr.responseText));
+      } catch {
+        resolve(xhr.responseText);
+      }
+    };
+    xhr.onerror = () => reject(new Error('Network error'));
+
+    const form = new FormData();
+    form.append('file', file);
+    xhr.send(form);
+  });
+}
+
 export const api = {
   get: (path, options) => request(path, options),
   post: (path, body, options) =>
@@ -90,4 +137,5 @@ export const api = {
   put: (path, body) => request(path, { method: 'PUT', body: JSON.stringify(body) }),
   patch: (path, body) => request(path, { method: 'PATCH', body: JSON.stringify(body) }),
   delete: (path) => request(path, { method: 'DELETE' }),
+  upload: (path, file) => upload(path, file),
 };

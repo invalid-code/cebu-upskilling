@@ -49,6 +49,8 @@ public class AppUser : AuditableEntity
 
     public DateTime? PasswordResetTokenExpiry { get; set; }
 
+    public int? CompanyId { get; set; }
+
+    public Company? Company { get; set; }
     public Learner? Learner { get; set; }
-    public Recruiter? Recruiter { get; set; }
 }

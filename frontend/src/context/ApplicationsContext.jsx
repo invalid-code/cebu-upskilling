@@ -14,6 +14,8 @@ function normalize(summary) {
     status: summary.status,
     appliedAt: summary.appliedAt,
     savedAt: summary.savedAt,
+    resumeUrl: summary.resumeUrl || null,
+    coverLetterUrl: summary.coverLetterUrl || null,
   };
 }
 
@@ -35,24 +37,31 @@ export function ApplicationsProvider({ children }) {
       .finally(() => setLoading(false));
   }, [userId]);
 
-  const applyToJob = useCallback(async (job) => {
+  const applyToJob = useCallback(async (job, options = {}) => {
     if (!userId) return;
-    if (applications.some((a) => a.id === job.id)) return;
+    const id = job.postId ?? job.id;
+    if (applications.some((a) => a.id === id)) return;
+    const body = { postId: id };
+    if (options.resumeUrl) body.resumeUrl = options.resumeUrl;
+    if (options.coverLetterUrl) body.coverLetterUrl = options.coverLetterUrl;
     try {
-      const created = await api.post('/applications', { postId: job.id });
+      const created = await api.post('/applications', body);
       setApplications((prev) => [
         ...prev,
         normalize(created) || {
-          id: job.id,
+          id,
           title: job.title,
           company: job.company,
           targetRole: job.targetRole || job.title,
           status: 'applied',
           appliedAt: new Date().toISOString(),
+          resumeUrl: options.resumeUrl || null,
+          coverLetterUrl: options.coverLetterUrl || null,
         },
       ]);
     } catch (err) {
-      console.warn('[Applications] Failed to apply to job:', job.id, err?.message || err);
+      console.warn('[Applications] Failed to apply to job:', id, err?.message || err);
+      throw err;
     }
   }, [userId, applications]);
 

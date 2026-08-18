@@ -186,7 +186,9 @@ public class AuthService : IAuthService
             user.RemoteFriendly,
             token,
             parseResult?.Skills.Count ?? 0,
-            parseResult?.Skills.Count(s => s.AssessmentId != null) ?? 0);
+            parseResult?.Skills.Count(s => s.AssessmentId != null) ?? 0,
+            user.CompanyId,
+            user.Company?.Name);
     }
 
     public async Task<CompanyRegisterResponse> CompanyRegisterAsync(CompanyRegisterRequest request)
@@ -230,20 +232,12 @@ public class AuthService : IAuthService
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
                 Role = "Recruiter",
                 Address = request.Address,
+                CompanyId = company.CompanyId,
             };
 
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
             _logger.LogInformation("Recruiter user registered: {UserId} ({Email})", user.UserId, user.EmailAddress);
-
-            var recruiter = new Recruiter
-            {
-                UserId = user.UserId,
-                CompanyId = company.CompanyId,
-            };
-            _context.Recruiters.Add(recruiter);
-            await _context.SaveChangesAsync();
-            _logger.LogInformation("Recruiter profile created: {RecruiterId} for user {UserId}, company {CompanyId}", recruiter.RecruiterId, user.UserId, company.CompanyId);
 
             if (transaction != null)
                 await transaction.CommitAsync();
@@ -297,7 +291,9 @@ public class AuthService : IAuthService
     {
         _logger.LogInformation("Login attempt for email {Email}", request.EmailAddress);
 
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.EmailAddress == request.EmailAddress);
+        var user = await _context.Users
+            .Include(u => u.Company)
+            .FirstOrDefaultAsync(u => u.EmailAddress == request.EmailAddress);
         if (user == null)
         {
             _logger.LogWarning("Login failed: user not found for email {Email}", request.EmailAddress);
@@ -314,7 +310,7 @@ public class AuthService : IAuthService
 
         var token = _tokenService.GenerateToken(user);
 
-        return new AuthResponse(user.UserId, user.FirstName, user.LastName, user.EmailAddress, user.Role, user.TargetRole, user.Address, user.RemoteFriendly, token);  
+        return new AuthResponse(user.UserId, user.FirstName, user.LastName, user.EmailAddress, user.Role, user.TargetRole, user.Address, user.RemoteFriendly, token, CompanyId: user.CompanyId, CompanyName: user.Company?.Name);
     }
 
     public async Task<AuthResponse> UpdateProfileAsync(int userId, UpdateProfileRequest request)
@@ -347,7 +343,7 @@ public class AuthService : IAuthService
         _logger.LogInformation("Profile updated for user {UserId}", userId);
 
         var token = _tokenService.GenerateToken(user);
-        return new AuthResponse(user.UserId, user.FirstName, user.LastName, user.EmailAddress, user.Role, user.TargetRole, user.Address, user.RemoteFriendly, token);
+        return new AuthResponse(user.UserId, user.FirstName, user.LastName, user.EmailAddress, user.Role, user.TargetRole, user.Address, user.RemoteFriendly, token, CompanyId: user.CompanyId, CompanyName: user.Company?.Name);
     }
 
     public Task LogoutAsync(string? jti)

@@ -45,9 +45,9 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         var courseId = await CreateCourseAsync(token);
         await AuthorizedClient(token).PostAsJsonAsync("/api/enrollments", new { courseId });
 
-        var (recruiterToken, _, companyId, recruiterId) =
+        var (recruiterToken, _, companyId) =
             await RegisterRecruiterWithCompanyAsync("regr.stats.recruiter@example.com");
-        await CreatePostAsync(recruiterToken, recruiterId, companyId, "Open Role");
+        await CreatePostAsync(recruiterToken, companyId, "Open Role");
 
         var response = await AuthorizedClient(token).GetAsync("/api/stats/week");
 
@@ -109,7 +109,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
     [Fact]
     public async Task CoursesPage_RecruiterWithoutLearnerProfile_ReturnsBadRequest()
     {
-        var (token, _, _, _) = await RegisterRecruiterWithCompanyAsync("regr.courses.recruiter@example.com");
+        var (token, _, _) = await RegisterRecruiterWithCompanyAsync("regr.courses.recruiter@example.com");
 
         var response = await AuthorizedClient(token).GetAsync("/api/coursespage");
 
@@ -328,7 +328,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
     [Fact]
     public async Task Assessments_CompanyQuestion_RecruiterCreates()
     {
-        var (token, _, companyId, _) = await RegisterRecruiterWithCompanyAsync("regr.assess.recruiter@example.com");
+        var (token, _, companyId) = await RegisterRecruiterWithCompanyAsync("regr.assess.recruiter@example.com");
 
         var response = await AuthorizedClient(token).PostAsJsonAsync("/api/assessments/company/questions", new
         {
@@ -384,9 +384,9 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
     public async Task Applications_ApplyListAndUpdateStatus()
     {
         var learnerToken = await RegisterLearnerAsync("regr.apps.learner@example.com");
-        var (recruiterToken, _, companyId, recruiterId) =
+        var (recruiterToken, _, companyId) =
             await RegisterRecruiterWithCompanyAsync("regr.apps.recruiter@example.com");
-        var postId = await CreatePostAsync(recruiterToken, recruiterId, companyId, "Senior Developer");
+        var postId = await CreatePostAsync(recruiterToken, companyId, "Senior Developer");
         var authorized = AuthorizedClient(learnerToken);
 
         var emptyResponse = await authorized.GetAsync("/api/applications");
@@ -435,10 +435,10 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
     [Fact]
     public async Task Posts_BaseCrud_GetByIdUpdateDelete()
     {
-        var (token, _, companyId, recruiterId) =
+        var (token, _, companyId) =
             await RegisterRecruiterWithCompanyAsync("regr.posts.recruiter@example.com");
         var authorized = AuthorizedClient(token);
-        var postId = await CreatePostAsync(token, recruiterId, companyId, "Backend Engineer");
+        var postId = await CreatePostAsync(token, companyId, "Backend Engineer");
         var location = $"/api/posts/{postId}";
 
         var getResponse = await authorized.GetAsync(location);
@@ -448,8 +448,6 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         var updateResponse = await authorized.PutAsJsonAsync(location, new
         {
             postId,
-            recruiterId,
-            companyId,
             title = "Senior Backend Engineer",
             description = "Updated description",
         });
@@ -558,7 +556,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
     // Helpers
     // ------------------------------------------------------------------ //
 
-    private async Task<(string Token, int UserId, int CompanyId, int RecruiterId)> RegisterRecruiterWithCompanyAsync(string email)
+    private async Task<(string Token, int UserId, int CompanyId)> RegisterRecruiterWithCompanyAsync(string email)
     {
         var response = await RegisterAsync(new
         {
@@ -579,19 +577,17 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         db.Companies.Add(company);
         await db.SaveChangesAsync();
 
-        var recruiter = new Recruiter { CompanyId = company.CompanyId, UserId = userId };
-        db.Recruiters.Add(recruiter);
+        var user = await db.Users.FindAsync(userId);
+        user!.CompanyId = company.CompanyId;
         await db.SaveChangesAsync();
 
-        return (token, userId, company.CompanyId, recruiter.RecruiterId);
+        return (token, userId, company.CompanyId);
     }
 
-    private async Task<int> CreatePostAsync(string token, int recruiterId, int companyId, string title)
+    private async Task<int> CreatePostAsync(string token, int companyId, string title)
     {
         var response = await AuthorizedClient(token).PostAsJsonAsync("/api/posts", new
         {
-            recruiterId,
-            companyId,
             title,
             description = "Cebu City\nskills: Node.js\nmatch: 80%",
         });

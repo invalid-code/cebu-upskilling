@@ -20,7 +20,6 @@ public class ApplicationDbContext : DbContext
     public DbSet<Learner> Learners => Set<Learner>();
     public DbSet<LearnerStudyCourse> LearnerStudyCourses => Set<LearnerStudyCourse>();
     public DbSet<Company> Companies => Set<Company>();
-    public DbSet<Recruiter> Recruiters => Set<Recruiter>();
     public DbSet<Post> Posts => Set<Post>();
     public DbSet<PostCourseRequired> PostCourseRequireds => Set<PostCourseRequired>();
     public DbSet<Skill> Skills => Set<Skill>();
@@ -92,20 +91,11 @@ public class ApplicationDbContext : DbContext
             .WithMany(c => c.LearnerStudyCourses)
             .HasForeignKey(lsc => lsc.CourseId);
 
-        modelBuilder.Entity<Recruiter>()
-            .HasOne(r => r.Company)
-            .WithMany(c => c.Recruiters)
-            .HasForeignKey(r => r.CompanyId);
-
-        modelBuilder.Entity<Recruiter>()
-            .HasOne(r => r.User)
-            .WithOne(u => u.Recruiter)
-            .HasForeignKey<Recruiter>(r => r.UserId);
-
-        modelBuilder.Entity<Post>()
-            .HasOne(p => p.Recruiter)
-            .WithMany(r => r.Posts)
-            .HasForeignKey(p => p.RecruiterId);
+        modelBuilder.Entity<AppUser>()
+            .HasOne(u => u.Company)
+            .WithMany(c => c.Users)
+            .HasForeignKey(u => u.CompanyId)
+            .IsRequired(false);
 
         modelBuilder.Entity<Post>()
             .HasOne(p => p.Company)

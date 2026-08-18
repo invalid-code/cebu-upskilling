@@ -1,7 +1,6 @@
+import { Link } from 'react-router-dom';
 import Tag from '../ui/Tag';
 import Button from '../ui/Button';
-import { useToast } from '../../context/ToastContext';
-import { useApplications } from '../../context/ApplicationsContext';
 
 const styles = {
   card: {
@@ -12,6 +11,14 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     minHeight: 220,
+    textDecoration: 'none',
+    color: 'inherit',
+  },
+  topRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    gap: 8,
+    alignItems: 'center',
   },
   title: {
     fontSize: 16,
@@ -25,9 +32,6 @@ const styles = {
   salary: {
     fontFamily: "'Space Grotesk', sans-serif",
     fontWeight: 700,
-  },
-  match: {
-    marginTop: 5,
   },
   meta: {
     display: 'flex',
@@ -44,43 +48,41 @@ const styles = {
   },
 };
 
+function formatSalary(salaryRange) {
+  return salaryRange || 'Salary on application';
+}
+
 export default function JobCard({ job }) {
-  const { showToast } = useToast();
-  const { applyToJob, isApplied } = useApplications();
-
-  const applied = isApplied(job.id);
-
-  const handleApply = () => {
-    if (applied) return;
-    applyToJob(job);
-    showToast('Application saved to your tracker');
-  };
+  const remoteTag = job.isRemote ? (
+    <Tag variant="good">Remote</Tag>
+  ) : (
+    <Tag variant="sand">On-site</Tag>
+  );
 
   return (
-    <article className="job" style={styles.card} data-kind={job.kind}>
-      <Tag variant={job.kind === 'sme' ? 'sand' : 'default'}>
-        {job.kindLabel || 'Job'}
-      </Tag>
+    <Link to={`/jobs/${job.id}`} className="job" style={styles.card} data-kind={job.kind}>
+      <div style={styles.topRow}>
+        <Tag variant={job.kind === 'sme' ? 'sand' : 'default'}>
+          {job.kindLabel || job.jobType || 'Job'}
+        </Tag>
+        {remoteTag}
+      </div>
       <h4 style={styles.title}>{job.title}</h4>
-      <p style={styles.company}>{job.company} · {job.location}</p>
+      <p style={styles.company}>
+        {job.company}
+        {job.location ? ` · ${job.location}` : ''}
+      </p>
       <div>
-        <strong style={styles.salary}>{job.salary}</strong>
-        <p style={styles.match}>
-          Match: <b style={{ color: 'var(--coral)' }}>{job.match}</b>
-        </p>
+        <strong style={styles.salary}>{formatSalary(job.salaryRange)}</strong>
+        {job.experienceLevel && (
+          <p style={styles.metaText}>{job.experienceLevel} experience</p>
+        )}
       </div>
       <div className="meta" style={styles.meta}>
-        {job.skills?.map((skill) => (
-          <span key={skill} style={styles.metaText}>{skill}</span>
-        ))}
-        <Button
-          variant={applied ? 'primary' : 'secondary'}
-          style={{ marginLeft: 'auto', padding: '5px 8px', minHeight: 28 }}
-          onClick={handleApply}
-        >
-          {applied ? 'Applied' : 'Apply'}
+        <Button variant="secondary" style={{ marginLeft: 'auto', padding: '5px 8px', minHeight: 28 }}>
+          View & apply
         </Button>
       </div>
-    </article>
+    </Link>
   );
 }

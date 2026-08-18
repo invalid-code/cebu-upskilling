@@ -1,8 +1,6 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { ToastProvider } from '../../context/ToastContext';
-import { AuthProvider } from '../../context/AuthContext';
-import { ApplicationsProvider } from '../../context/ApplicationsContext';
+import { MemoryRouter } from 'react-router-dom';
 import JobCard from './JobCard';
 
 vi.mock('../../api/client', () => ({
@@ -18,41 +16,56 @@ const job = {
   title: 'Frontend Developer',
   company: 'Acme',
   location: 'Cebu City',
-  salary: '₱45,000',
-  match: '85%',
-  kind: 'sme',
-  kindLabel: 'SME',
-  skills: ['React', 'TypeScript'],
+  salaryRange: '₱45,000',
+  jobType: 'Full-time',
+  experienceLevel: 'Mid',
+  isRemote: true,
+  kind: 'corporate',
+  kindLabel: 'Corporate & Full-Time',
 };
-
-function renderJobCard() {
-  localStorage.setItem('user', JSON.stringify({ UserId: 1, firstName: 'Test', role: 'Learner' }));
-  return render(
-    <AuthProvider>
-      <ApplicationsProvider>
-        <ToastProvider>
-          <JobCard job={job} />
-        </ToastProvider>
-      </ApplicationsProvider>
-    </AuthProvider>,
-  );
-}
 
 describe('JobCard', () => {
   it('renders job details', () => {
-    renderJobCard();
+    render(
+      <MemoryRouter>
+        <JobCard job={job} />
+      </MemoryRouter>,
+    );
     expect(screen.getByText('Frontend Developer')).toBeInTheDocument();
     expect(screen.getByText('Acme · Cebu City')).toBeInTheDocument();
     expect(screen.getByText('₱45,000')).toBeInTheDocument();
-    expect(screen.getByText('85%')).toBeInTheDocument();
-    expect(screen.getByText('SME')).toBeInTheDocument();
-    expect(screen.getByText('React')).toBeInTheDocument();
-    expect(screen.getByText('TypeScript')).toBeInTheDocument();
+    expect(screen.getByText('Corporate & Full-Time')).toBeInTheDocument();
+    expect(screen.getByText('Remote')).toBeInTheDocument();
+    expect(screen.getByText('Mid experience')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /View & apply/ })).toBeInTheDocument();
   });
 
-  it('shows a toast when Apply is clicked', () => {
-    renderJobCard();
-    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
-    expect(screen.getByText('Application saved to your tracker')).toBeInTheDocument();
+  it('links to the job detail page', () => {
+    const { container } = render(
+      <MemoryRouter>
+        <JobCard job={job} />
+      </MemoryRouter>,
+    );
+    const link = container.querySelector('a');
+    expect(link).not.toBeNull();
+    expect(link.getAttribute('href')).toBe('/jobs/1');
+  });
+
+  it('shows on-site tag when not remote', () => {
+    render(
+      <MemoryRouter>
+        <JobCard job={{ ...job, isRemote: false }} />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText('On-site')).toBeInTheDocument();
+  });
+
+  it('shows salary fallback text when no range given', () => {
+    render(
+      <MemoryRouter>
+        <JobCard job={{ ...job, salaryRange: '' }} />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText('Salary on application')).toBeInTheDocument();
   });
 });

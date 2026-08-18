@@ -68,20 +68,22 @@ public class StatsController : ControllerBase
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
         _logger.LogInformation("GET /api/stats/business called by user {UserId}", userId);
 
-        var recruiter = await _context.Recruiters
-            .Include(r => r.Company)
-            .FirstOrDefaultAsync(r => r.UserId == userId);
+        var user = await _context.Users
+            .Include(u => u.Company)
+            .FirstOrDefaultAsync(u => u.UserId == userId);
 
-        if (recruiter == null)
+        if (user?.Company == null)
         {
             _logger.LogWarning("Recruiter {UserId} has no company association", userId);
             return BadRequest(new { error = "No company associated with this account" });
         }
 
+        var companyId = user.CompanyId!.Value;
+
         var company = new CompanySummary(
-            recruiter.Company.Name,
-            await _context.Posts.CountAsync(p => p.CompanyId == recruiter.CompanyId),
-            await _context.Recruiters.CountAsync(r => r.CompanyId == recruiter.CompanyId));
+            user.Company.Name,
+            await _context.Posts.CountAsync(p => p.CompanyId == companyId),
+            await _context.Users.CountAsync(u => u.CompanyId == companyId && u.Role == "Recruiter"));
 
         var trackedSkills = await _context.LearnerSkills
             .Where(ls => ls.CurrentLevel > 0)
@@ -92,12 +94,7 @@ public class StatsController : ControllerBase
             trackedSkills.Count > 0 ? Math.Round(trackedSkills.Average(ls => (double)ls.CurrentLevel), 1) : 0);
 
         var posts = await _context.Posts
-            .Where(p => p.CompanyId == recruiter.CompanyId)
-            .Include(p => p.PostCourseRequireds)
-                .ThenInclude(pcr => pcr.Course)
-                    .ThenInclude(c => c.Genre)
-                        .ThenInclude(g => g.SubDiscipline)
-                            .ThenInclude(sd => sd.Discipline)
+            .Where(p => p.CompanyId == companyId)
             .OrderByDescending(p => p.PostId)
             .ToListAsync();
 
@@ -105,12 +102,13 @@ public class StatsController : ControllerBase
             p.PostId,
             p.Title,
             p.Description,
-            p.PostCourseRequireds.Select(pcr => new RequiredCourseDto(
-                pcr.CourseId,
-                pcr.Course.Name,
-                pcr.Course.Genre.SubDiscipline.Discipline.Name,
-                pcr.Course.TechnicalLevel,
-                pcr.Course.Mode)).ToList())).ToList();
+            p.Location,
+            p.SalaryRange,
+            p.JobType,
+            p.ExperienceLevel,
+            p.IsRemote,
+            p.IsActive,
+            p.CreatedAt)).ToList();
 
         var demand = await _context.RoleSkills
             .Include(rs => rs.Skill)

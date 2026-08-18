@@ -76,7 +76,7 @@ public class RoleSeparationApiTests : ProductionApiTestBase
         var response = await AuthorizedClient(token).GetAsync("/api/posts");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Empty((await ReadJsonAsync(response)).EnumerateArray().ToList());
+        Assert.Empty((await ReadJsonAsync(response)).GetProperty("items").EnumerateArray().ToList());
     }
 
     [Fact]
@@ -88,12 +88,9 @@ public class RoleSeparationApiTests : ProductionApiTestBase
         using (var scope = Factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            var recruiterId = (await db.Recruiters.SingleAsync(r => r.CompanyId == companyId)).RecruiterId;
 
             var postResponse = await authorized.PostAsJsonAsync("/api/posts", new
             {
-                recruiterId,
-                companyId,
                 title = "Senior Backend Developer",
                 description = "Cebu City\nsalary: ₱120,000 - ₱180,000\nskills: Node.js, Python\nmatch: 85%",
             });
@@ -102,7 +99,7 @@ public class RoleSeparationApiTests : ProductionApiTestBase
 
         var listResponse = await authorized.GetAsync("/api/posts");
         Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
-        var posts = (await ReadJsonAsync(listResponse)).EnumerateArray().ToList();
+        var posts = (await ReadJsonAsync(listResponse)).GetProperty("items").EnumerateArray().ToList();
         Assert.Single(posts);
         Assert.Equal("Senior Backend Developer", posts[0].GetProperty("title").GetString());
     }
@@ -126,7 +123,8 @@ public class RoleSeparationApiTests : ProductionApiTestBase
         var company = new Company { Name = companyName };
         db.Companies.Add(company);
         await db.SaveChangesAsync();
-        db.Recruiters.Add(new Recruiter { UserId = userId, CompanyId = company.CompanyId });
+        var user = await db.Users.FindAsync(userId);
+        user!.CompanyId = company.CompanyId;
         await db.SaveChangesAsync();
 
         return (body.GetProperty("token").GetString()!, company.CompanyId);

@@ -41,4 +41,30 @@ public class MediaController : ControllerBase
 
         return CreatedAtAction(nameof(UploadLessonVideo), new { lessonId }, result);
     }
+
+    [HttpPost("documents")]
+    [RequestSizeLimit(10_485_760)]
+    public async Task<ActionResult<DocumentUploadDto>> UploadDocument(IFormFile file)
+    {
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        _logger.LogInformation("HTTP POST /api/media/documents called by user {UserId}", userId);
+
+        if (file is null || file.Length == 0)
+        {
+            _logger.LogWarning("Document upload rejected: no file provided by user {UserId}", userId);
+            return BadRequest(new { error = "A file must be provided" });
+        }
+
+        try
+        {
+            var result = await _mediaService.UploadDocumentAsync(file);
+            _logger.LogInformation("Document upload completed for user {UserId}: {FileName}", userId, result.FileName);
+            return StatusCode(201, result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning("Document upload rejected for user {UserId}: {Reason}", userId, ex.Message);
+            return BadRequest(new { error = ex.Message });
+        }
+    }
 }

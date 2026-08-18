@@ -14,12 +14,16 @@ import ResetPasswordPage from './pages/ResetPasswordPage';
 import OverviewPage from './pages/OverviewPage';
 import SkillsPage from './pages/SkillsPage';
 import JobsPage from './pages/JobsPage';
+import JobDetailPage from './pages/JobDetailPage';
 import CoursesPage from './pages/CoursesPage';
 import ApplicationsPage from './pages/ApplicationsPage';
 import AssessmentsPage from './pages/AssessmentsPage';
 import CredentialsPage from './pages/CredentialsPage';
 import HelpPage from './pages/HelpPage';
 import BusinessDashboardPage from './pages/BusinessDashboardPage';
+import PostJobPage from './pages/PostJobPage';
+import EditJobPage from './pages/EditJobPage';
+import JobApplicationsPage from './pages/JobApplicationsPage';
 
 const appStyles = {
   app: {
@@ -86,6 +90,7 @@ export default function App() {
                 <Route path="/" element={<OverviewPage />} />
                 <Route path="/skills" element={<SkillsPage />} />
                 <Route path="/jobs" element={<JobsPage />} />
+                <Route path="/jobs/:postId" element={<JobDetailPage />} />
                 <Route path="/courses" element={<CoursesPage />} />
                 <Route path="/applications" element={<ApplicationsPage />} />
                 <Route path="/assessments" element={<AssessmentsPage />} />
@@ -93,6 +98,9 @@ export default function App() {
               </Route>
               <Route element={<RecruiterRoute />}>
                 <Route path="/business-dashboard" element={<BusinessDashboardPage />} />
+                <Route path="/post-job" element={<PostJobPage />} />
+                <Route path="/edit-job/:postId" element={<EditJobPage />} />
+                <Route path="/job-applications" element={<JobApplicationsPage />} />
               </Route>
               <Route path="/help" element={<HelpPage />} />
             </Route>
