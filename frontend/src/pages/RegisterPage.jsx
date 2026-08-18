@@ -64,6 +64,18 @@ const styles = {
     color: 'var(--ink)',
     marginBottom: 4,
     fontSize: 14,
+    boxSizing: 'border-box',
+  },
+  fieldLabel: {
+    display: 'block',
+    fontSize: 12,
+    color: 'var(--muted)',
+    marginBottom: 6,
+  },
+  fieldHint: {
+    fontSize: 12,
+    color: 'var(--muted)',
+    marginBottom: 12,
   },
   fileInput: {
     width: '100%',
@@ -135,6 +147,7 @@ const initialFieldErrors = {
 };
 
 export default function RegisterPage() {
+  const todayIso = new Date().toISOString().slice(0, 10);
   const [form, setForm] = useState({
     firstName: '',
     lastName: '',
@@ -337,17 +350,28 @@ const { register, registerCompany } = useAuth();
           {fieldErrors.password && <div style={styles.fieldError}>{fieldErrors.password}</div>}
           {role === 'learner' && (
             <>
-              <input
-                style={styles.field}
-                type="date"
-                aria-label="Birthday"
-                value={form.birthday}
-                onChange={update('birthday')}
-                aria-invalid={!!fieldErrors.birthday}
-              />
-              {fieldErrors.birthday && (
-                <div style={styles.fieldError}>{fieldErrors.birthday}</div>
-              )}
+              <div>
+                <label style={styles.fieldLabel} htmlFor="birthday">
+                  Birthday
+                </label>
+                <input
+                  id="birthday"
+                  style={styles.field}
+                  type="date"
+                  min="1900-01-01"
+                  max={todayIso}
+                  value={form.birthday}
+                  onChange={update('birthday')}
+                  aria-invalid={!!fieldErrors.birthday}
+                  aria-describedby="birthday-hint"
+                />
+                <div style={styles.fieldHint} id="birthday-hint">
+                  Optional — used to match you with age-appropriate opportunities
+                </div>
+                {fieldErrors.birthday && (
+                  <div style={styles.fieldError}>{fieldErrors.birthday}</div>
+                )}
+              </div>
               <input
                 style={styles.field}
                 placeholder="Address (optional)"
