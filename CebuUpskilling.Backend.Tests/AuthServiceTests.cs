@@ -36,7 +36,7 @@ private class FakeGoogleAiService : IGoogleAiService
         })
         .Build();
 
-private static AuthService CreateService(Data.ApplicationDbContext context, IGoogleAiService? aiService = null) => new(
+    private static AuthService CreateService(Data.ApplicationDbContext context, IGoogleAiService? aiService = null) => new(
         context,
         new SkillParsingService(
             aiService ?? new FakeGoogleAiService(),
@@ -46,6 +46,8 @@ private static AuthService CreateService(Data.ApplicationDbContext context, IGoo
             new LearnerAssessmentRepository(context),
             NullLogger<SkillParsingService>.Instance),
         new JwtTokenService(CreateConfig(), NullLogger<JwtTokenService>.Instance),
+        new LoggingEmailService(NullLogger<LoggingEmailService>.Instance),
+        new InMemoryTokenRevocationStore(),
         NullLogger<AuthService>.Instance
     );
 

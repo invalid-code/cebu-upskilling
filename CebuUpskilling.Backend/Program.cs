@@ -59,6 +59,20 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection(EmailOptions.SectionName));
+var emailOptions = builder.Configuration.GetSection(EmailOptions.SectionName).Get<EmailOptions>();
+if (!string.IsNullOrWhiteSpace(emailOptions?.ApiKey))
+{
+    builder.Services.AddHttpClient<IEmailService, ResendEmailService>(client =>
+    {
+        client.BaseAddress = new Uri(emailOptions!.BaseUrl);
+    });
+}
+else
+{
+    builder.Services.AddScoped<IEmailService, LoggingEmailService>();
+}
+builder.Services.AddSingleton<ITokenRevocationStore, InMemoryTokenRevocationStore>();
 
 builder.Services.AddScoped<ICourseRepository, CourseRepository>();
 builder.Services.AddScoped<ILessonRepository, LessonRepository>();
@@ -196,6 +210,7 @@ if (rateLimitingOptions.Enabled)
     app.UseRateLimiter();
 }
 app.UseAuthentication();
+app.UseMiddleware<CebuUpskilling.Backend.Middleware.RevokedTokenMiddleware>();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health");

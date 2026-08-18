@@ -4,8 +4,19 @@
 // patched by that extension, so requests reach the server untouched.
 const API_BASE = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '');
 
+import { isTokenExpired } from '../lib/jwt';
+
+function clearSession() {
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+}
+
 function request(path, options = {}) {
-  const token = localStorage.getItem('token');
+  let token = localStorage.getItem('token');
+  if (token && isTokenExpired(token)) {
+    clearSession();
+    token = null;
+  }
   const headers = {
     'Content-Type': 'application/json',
     ...(token && { Authorization: `Bearer ${token}` }),
@@ -29,8 +40,7 @@ function request(path, options = {}) {
         // fall through to the normal error path so the error message can display.
         if (localStorage.getItem('token')) {
           console.warn(`[API] ${method} ${path} → 401: session expired, clearing token`);
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
+          clearSession();
           window.location.href = '/login';
           resolve(null);
           return;
@@ -75,7 +85,8 @@ function request(path, options = {}) {
 
 export const api = {
   get: (path, options) => request(path, options),
-  post: (path, body) => request(path, { method: 'POST', body: JSON.stringify(body) }),
+  post: (path, body, options) =>
+    request(path, { method: 'POST', body: body === undefined ? undefined : JSON.stringify(body), ...options }),
   put: (path, body) => request(path, { method: 'PUT', body: JSON.stringify(body) }),
   patch: (path, body) => request(path, { method: 'PATCH', body: JSON.stringify(body) }),
   delete: (path) => request(path, { method: 'DELETE' }),

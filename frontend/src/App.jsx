@@ -8,6 +8,9 @@ import Topbar from './components/Layout/Topbar';
 import { LearnerRoute, RecruiterRoute } from './components/RoleRoute';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import ConfirmEmailPage from './pages/ConfirmEmailPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import OverviewPage from './pages/OverviewPage';
 import SkillsPage from './pages/SkillsPage';
 import JobsPage from './pages/JobsPage';
@@ -74,6 +77,9 @@ export default function App() {
             <Route element={<PublicRoute />}>
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
+              <Route path="/confirm-email" element={<ConfirmEmailPage />} />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
             </Route>
             <Route element={<ProtectedRoute />}>
               <Route element={<LearnerRoute />}>

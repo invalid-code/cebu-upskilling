@@ -37,6 +37,18 @@ public class AppUser : AuditableEntity
 
     public bool RemoteFriendly { get; set; } = true;
 
+    public bool EmailConfirmed { get; set; }
+
+    [MaxLength(64)]
+    public string? EmailConfirmationTokenHash { get; set; }
+
+    public DateTime? EmailConfirmationTokenExpiry { get; set; }
+
+    [MaxLength(64)]
+    public string? PasswordResetTokenHash { get; set; }
+
+    public DateTime? PasswordResetTokenExpiry { get; set; }
+
     public Learner? Learner { get; set; }
     public Recruiter? Recruiter { get; set; }
 }

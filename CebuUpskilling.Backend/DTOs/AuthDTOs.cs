@@ -61,3 +61,18 @@ public record CompanyRegisterResponse(
     string CompanyName,
     string Token
 );
+
+public record EmailRequest(
+    [Required] string Email
+);
+
+public record ConfirmEmailRequest(
+    [Required] string Email,
+    [Required] string Token
+);
+
+public record ResetPasswordRequest(
+    [Required] string Email,
+    [Required] string Token,
+    [Required, MinLength(6)] string NewPassword
+);
