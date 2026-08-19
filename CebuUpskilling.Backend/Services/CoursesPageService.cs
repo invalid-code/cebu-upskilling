@@ -57,8 +57,8 @@ public class CoursesPageService : ICoursesPageService
             CourseName: e.Course.Name,
             Started: e.Started,
             ProgressPercent: e.LastTotalProgressPercent,
-            CurrentModule: GetCurrentModule(e.Course.Lessons.Count, e.LastTotalProgressPercent),
-            TotalModules: e.Course.Lessons.Count,
+            CurrentModule: GetCurrentModule(e.Course.Modules.Count, e.LastTotalProgressPercent),
+            TotalModules: e.Course.Modules.Count,
             TechnicalLevel: e.Course.TechnicalLevel
         )).ToList();
 
@@ -173,7 +173,7 @@ public class CoursesPageService : ICoursesPageService
             return null;
         }
 
-        var course = await _courses.GetWithLessonsAsync(courseId);
+        var course = await _courses.GetWithModulesAsync(courseId);
         if (course == null)
         {
             _logger.LogWarning("Course {CourseId} not found", courseId);
@@ -184,22 +184,21 @@ public class CoursesPageService : ICoursesPageService
         var isEnrolled = enrollment != null;
         var progressPercent = enrollment?.LastTotalProgressPercent ?? 0;
 
-        var totalModules = course.Lessons.Count;
+        var totalModules = course.Modules.Count;
         var completedModules = isEnrolled
             ? (int)Math.Ceiling(progressPercent / 100.0 * totalModules)
             : 0;
 
-        var modules = course.Lessons
-            .OrderBy(l => l.LessonId)
-            .Select((lesson, index) => new ModuleSummaryDto(
+        var modules = course.Modules
+            .Select((module, index) => new ModuleSummaryDto(
                 ModuleNumber: index + 1,
-                Name: lesson.Name,
-                Description: lesson.Description,
-                LessonCount: 1,
-                Lessons: new List<LessonSummaryDto>
-                {
-                    new LessonSummaryDto(lesson.LessonId, lesson.Name, lesson.Description)
-                }
+                Name: module.Name,
+                Description: module.Description,
+                LessonCount: module.Lessons.Count,
+                Lessons: module.Lessons
+                    .OrderBy(l => l.LessonId)
+                    .Select(l => new LessonSummaryDto(l.LessonId, l.Name, l.Description))
+                    .ToList()
             ))
             .ToList();
 

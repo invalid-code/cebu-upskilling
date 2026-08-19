@@ -2,11 +2,9 @@ using System.ComponentModel.DataAnnotations;
 
 namespace CebuUpskilling.Backend.Entities;
 
-public class Lesson : AuditableEntity
+public class CourseModule : AuditableEntity
 {
     [Key]
-    public int LessonId { get; set; }
-
     public int ModuleId { get; set; }
 
     public int CourseId { get; set; }
@@ -17,9 +15,8 @@ public class Lesson : AuditableEntity
     [MaxLength(2000)]
     public string? Description { get; set; }
 
-    public CourseModule Module { get; set; } = null!;
+    public int Order { get; set; }
+
     public Course Course { get; set; } = null!;
-    public ICollection<LessonContent> LessonContents { get; set; } = new List<LessonContent>();
-    public ICollection<Media> Media { get; set; } = new List<Media>();
-    public ICollection<Exercise> Exercises { get; set; } = new List<Exercise>();
+    public ICollection<Lesson> Lessons { get; set; } = new List<Lesson>();
 }

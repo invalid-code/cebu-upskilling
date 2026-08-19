@@ -31,7 +31,7 @@ public class LearnerStudyCourseRepository : EntityRepository<LearnerStudyCourse>
             .Include(lsc => lsc.Course)
                 .ThenInclude(c => c.Genre)
             .Include(lsc => lsc.Course)
-                .ThenInclude(c => c.Lessons)
+                .ThenInclude(c => c.Modules)
             .Where(lsc => lsc.LearnerId == learnerId)
             .ToListAsync();
 

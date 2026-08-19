@@ -83,7 +83,11 @@ public class MediaServiceTests
         context.Courses.Add(course);
         await context.SaveChangesAsync();
 
-        var lesson = new Lesson { CourseId = course.CourseId, Name = "React Basics" };
+        var module = new CourseModule { CourseId = course.CourseId, Name = "Module 1", Order = 1 };
+        context.CourseModules.Add(module);
+        await context.SaveChangesAsync();
+
+        var lesson = new Lesson { ModuleId = module.ModuleId, CourseId = course.CourseId, Name = "React Basics" };
         context.Lessons.Add(lesson);
         await context.SaveChangesAsync();
 

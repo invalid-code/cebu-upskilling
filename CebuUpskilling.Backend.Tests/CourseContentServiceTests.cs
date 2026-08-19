@@ -37,7 +37,8 @@ public class CourseContentServiceTests
     private static async Task<Course> CreateCourseWithLessonsAsync(
         ApplicationDbContext context,
         int lessonCount,
-        bool withContent = false)
+        bool withContent = false,
+        int? moduleCount = null)
     {
         var discipline = new Discipline { Name = "Technology" };
         context.Disciplines.Add(discipline);
@@ -55,9 +56,20 @@ public class CourseContentServiceTests
         context.Courses.Add(course);
         await context.SaveChangesAsync();
 
+        var moduleCountValue = moduleCount ?? lessonCount;
+        var modules = new List<CourseModule>();
+        for (var m = 0; m < moduleCountValue; m++)
+        {
+            var module = new CourseModule { CourseId = course.CourseId, Name = $"Module {m + 1}", Order = m + 1 };
+            context.CourseModules.Add(module);
+            await context.SaveChangesAsync();
+            modules.Add(module);
+        }
+
         for (var i = 0; i < lessonCount; i++)
         {
-            var lesson = new Lesson { CourseId = course.CourseId, Name = $"Lesson {i + 1}" };
+            var module = modules[Math.Min(i * moduleCountValue / lessonCount, modules.Count - 1)];
+            var lesson = new Lesson { ModuleId = module.ModuleId, CourseId = course.CourseId, Name = $"Lesson {i + 1}" };
             context.Lessons.Add(lesson);
             await context.SaveChangesAsync();
 
@@ -197,6 +209,29 @@ public class CourseContentServiceTests
         Assert.Equal(secondLessonId, result!.CurrentLesson.LessonId);
         Assert.True(result.Modules[1].Lessons[0].IsCurrent);
         Assert.False(result.Modules[0].Lessons[0].IsCurrent);
+    }
+
+    [Fact]
+    public async Task GetCourseContentAsync_GroupsLessonsUnderRealModules()
+    {
+        var context = TestDbContextFactory.Create();
+        var (user, learner) = await CreateLearnerAsync(context);
+        var course = await CreateCourseWithLessonsAsync(context, lessonCount: 4, moduleCount: 2);
+        await EnrollAsync(context, learner.LearnerId, course.CourseId, 0);
+
+        var result = await CreateService(context).GetCourseContentAsync(user.UserId, course.CourseId);
+
+        Assert.NotNull(result);
+        Assert.Equal(2, result!.Modules.Count);
+        Assert.Equal("Module 1", result.Modules[0].Name);
+        Assert.Equal("Module 2", result.Modules[1].Name);
+        Assert.Equal(2, result.Modules[0].LessonCount);
+        Assert.Equal(2, result.Modules[0].Lessons.Count);
+        Assert.Equal(2, result.Modules[1].LessonCount);
+        Assert.Equal("Lesson 1", result.Modules[0].Lessons[0].Name);
+        Assert.Equal("Lesson 2", result.Modules[0].Lessons[1].Name);
+        Assert.Equal("Lesson 3", result.Modules[1].Lessons[0].Name);
+        Assert.Equal("Lesson 4", result.Modules[1].Lessons[1].Name);
     }
 
     [Fact]
