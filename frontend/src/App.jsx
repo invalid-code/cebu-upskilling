@@ -5,6 +5,7 @@ import { ApplicationsProvider } from './context/ApplicationsContext';
 import { ToastProvider } from './context/ToastContext';
 import Sidebar from './components/Layout/Sidebar';
 import Topbar from './components/Layout/Topbar';
+import MobileNav from './components/Layout/MobileNav';
 import { LearnerRoute, RecruiterRoute } from './components/RoleRoute';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
@@ -44,14 +45,15 @@ function ProtectedRoute() {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
   return (
-    <div style={appStyles.app}>
+    <div className="app-shell" style={appStyles.app}>
       <Sidebar />
       <main style={appStyles.main}>
         <Topbar />
-        <div style={appStyles.content}>
+        <div className="page-content" style={appStyles.content}>
           <Outlet />
         </div>
       </main>
+      <MobileNav />
     </div>
   );
 }

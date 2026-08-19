@@ -1,0 +1,20 @@
+{
+  "expo": {
+    "name": "Cebu Upskilling",
+    "slug": "cebu-upskilling",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "scheme": "cebuupskilling",
+    "plugins": [
+      "expo-secure-store",
+      "expo-font"
+    ],
+    "android": {
+      "package": "com.cebuupskilling.mobile"
+    },
+    "ios": {
+      "bundleIdentifier": "com.cebuupskilling.mobile"
+    }
+  }
+}
