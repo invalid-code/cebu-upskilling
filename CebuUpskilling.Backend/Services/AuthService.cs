@@ -126,6 +126,8 @@ public class AuthService : IAuthService
             throw new InvalidOperationException("Email already registered");
         }
 
+        var addressParts = AddressParser.Parse(request.Address);
+
         var user = new AppUser
         {
             FirstName = request.FirstName,
@@ -137,6 +139,11 @@ public class AuthService : IAuthService
             Role = request.Role,
             TargetRole = request.TargetRole,
             Address = request.Address,
+            Street = addressParts.Street,
+            City = addressParts.City,
+            Province = addressParts.Province,
+            ZipCode = addressParts.ZipCode,
+            Country = addressParts.Country,
         };
 
         _context.Users.Add(user);
@@ -175,15 +182,8 @@ public class AuthService : IAuthService
 
         var token = _tokenService.GenerateToken(user);
 
-        return new AuthResponse(
-            user.UserId,
-            user.FirstName,
-            user.LastName,
-            user.EmailAddress,
-            user.Role,
-            user.TargetRole,
-            user.Address,
-            user.RemoteFriendly,
+return BuildAuthResponse(
+            user,
             token,
             parseResult?.Skills.Count ?? 0,
             parseResult?.Skills.Count(s => s.AssessmentId != null) ?? 0);
@@ -220,6 +220,8 @@ public class AuthService : IAuthService
             await _context.SaveChangesAsync();
             _logger.LogInformation("Company created: {CompanyId} ({CompanyName})", company.CompanyId, company.Name);
 
+            var addressParts = AddressParser.Parse(request.Address);
+
             var user = new AppUser
             {
                 FirstName = request.FirstName,
@@ -230,6 +232,11 @@ public class AuthService : IAuthService
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
                 Role = "Recruiter",
                 Address = request.Address,
+                Street = addressParts.Street,
+                City = addressParts.City,
+                Province = addressParts.Province,
+                ZipCode = addressParts.ZipCode,
+                Country = addressParts.Country,
             };
 
             _context.Users.Add(user);
@@ -314,7 +321,7 @@ public class AuthService : IAuthService
 
         var token = _tokenService.GenerateToken(user);
 
-        return new AuthResponse(user.UserId, user.FirstName, user.LastName, user.EmailAddress, user.Role, user.TargetRole, user.Address, user.RemoteFriendly, token);  
+        return BuildAuthResponse(user, token);
     }
 
     public async Task<AuthResponse> UpdateProfileAsync(int userId, UpdateProfileRequest request)
@@ -336,6 +343,12 @@ public class AuthService : IAuthService
         if (request.Address != null)
         {
             user.Address = request.Address;
+            var addressParts = AddressParser.Parse(request.Address);
+            user.Street = addressParts.Street;
+            user.City = addressParts.City;
+            user.Province = addressParts.Province;
+            user.ZipCode = addressParts.ZipCode;
+            user.Country = addressParts.Country;
         }
 
         if (request.RemoteFriendly.HasValue)
@@ -347,7 +360,7 @@ public class AuthService : IAuthService
         _logger.LogInformation("Profile updated for user {UserId}", userId);
 
         var token = _tokenService.GenerateToken(user);
-        return new AuthResponse(user.UserId, user.FirstName, user.LastName, user.EmailAddress, user.Role, user.TargetRole, user.Address, user.RemoteFriendly, token);
+        return BuildAuthResponse(user, token);
     }
 
     public Task LogoutAsync(string? jti)
@@ -499,4 +512,24 @@ public class AuthService : IAuthService
 
         return CryptographicOperations.FixedTimeEquals(rawBytes, storedBytes);
     }
+
+    private static AuthResponse BuildAuthResponse(AppUser user, string token, int parsedSkillCount = 0, int assessmentCount = 0) =>
+        new(
+            user.UserId,
+            user.FirstName,
+            user.LastName,
+            user.EmailAddress,
+            user.Role,
+            user.TargetRole,
+            user.Address,
+            user.Street,
+            user.City,
+            user.Province,
+            user.ZipCode,
+            user.Country,
+            user.RemoteFriendly,
+            token,
+            parsedSkillCount,
+            assessmentCount
+        );
 }

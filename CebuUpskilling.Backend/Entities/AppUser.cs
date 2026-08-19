@@ -35,6 +35,21 @@ public class AppUser : AuditableEntity
     [MaxLength(255)]
     public string? Address { get; set; }
 
+    [MaxLength(255)]
+    public string? Street { get; set; }
+
+    [MaxLength(255)]
+    public string? City { get; set; }
+
+    [MaxLength(255)]
+    public string? Province { get; set; }
+
+    [MaxLength(20)]
+    public string? ZipCode { get; set; }
+
+    [MaxLength(100)]
+    public string? Country { get; set; }
+
     public bool RemoteFriendly { get; set; } = true;
 
     public bool EmailConfirmed { get; set; }
