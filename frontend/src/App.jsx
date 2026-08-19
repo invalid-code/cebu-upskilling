@@ -20,6 +20,7 @@ import AssessmentsPage from './pages/AssessmentsPage';
 import CredentialsPage from './pages/CredentialsPage';
 import HelpPage from './pages/HelpPage';
 import BusinessDashboardPage from './pages/BusinessDashboardPage';
+import NotFoundPage from './pages/NotFoundPage';
 
 const appStyles = {
   app: {
@@ -61,11 +62,6 @@ function PublicRoute() {
   return <Outlet />;
 }
 
-function RoleRedirect() {
-  const { user } = useAuth();
-  return <Navigate to={isRecruiter(user) ? '/business-dashboard' : '/'} replace />;
-}
-
 export default function App() {
   return (
     <BrowserRouter>
@@ -96,7 +92,7 @@ export default function App() {
               </Route>
               <Route path="/help" element={<HelpPage />} />
             </Route>
-            <Route path="*" element={<RoleRedirect />} />
+            <Route path="*" element={<NotFoundPage />} />
           </Routes>
           </ToastProvider>
           </ApplicationsProvider>
