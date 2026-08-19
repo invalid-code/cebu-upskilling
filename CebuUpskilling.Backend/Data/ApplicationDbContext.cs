@@ -11,6 +11,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<SubDiscipline> SubDisciplines => Set<SubDiscipline>();
     public DbSet<Genre> Genres => Set<Genre>();
     public DbSet<Course> Courses => Set<Course>();
+    public DbSet<CourseModule> CourseModules => Set<CourseModule>();
     public DbSet<Lesson> Lessons => Set<Lesson>();
     public DbSet<LessonContent> LessonContents => Set<LessonContent>();
     public DbSet<Media> Media => Set<Media>();
@@ -48,6 +49,16 @@ public class ApplicationDbContext : DbContext
             .HasOne(c => c.Genre)
             .WithMany(g => g.Courses)
             .HasForeignKey(c => c.GenreId);
+
+        modelBuilder.Entity<CourseModule>()
+            .HasOne(m => m.Course)
+            .WithMany(c => c.Modules)
+            .HasForeignKey(m => m.CourseId);
+
+        modelBuilder.Entity<Lesson>()
+            .HasOne(l => l.Module)
+            .WithMany(m => m.Lessons)
+            .HasForeignKey(l => l.ModuleId);
 
         modelBuilder.Entity<Lesson>()
             .HasOne(l => l.Course)

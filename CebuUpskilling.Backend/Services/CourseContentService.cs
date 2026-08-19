@@ -50,7 +50,7 @@ public class CourseContentService : ICourseContentService
             return null;
         }
 
-        var course = await _courses.GetWithLessonsAsync(courseId);
+        var course = await _courses.GetWithModulesAsync(courseId);
         if (course == null)
         {
             _logger.LogWarning("Course {CourseId} not found", courseId);
@@ -70,7 +70,7 @@ public class CourseContentService : ICourseContentService
         var progressPercent = enrollment.LastTotalProgressPercent;
         var completedLessons = (int)Math.Ceiling(progressPercent / 100.0 * lessons.Count);
 
-        var modules = BuildModuleList(lessons, completedLessons, currentLessonId);
+        var modules = BuildModuleList(course.Modules, lessons, completedLessons, currentLessonId);
 
         var lessonDetail = MapToLessonDetailDto(currentLesson);
 
@@ -162,39 +162,43 @@ public class CourseContentService : ICourseContentService
     }
 
     private static List<CourseModuleDto> BuildModuleList(
+        ICollection<Entities.CourseModule> modules,
         List<Entities.Lesson> lessons,
         int completedLessons,
         int currentLessonId)
     {
-        var modules = new List<CourseModuleDto>();
-        var moduleNumber = 1;
+        var lessonIndexByLessonId = lessons
+            .Select((lesson, index) => (lesson.LessonId, Index: index))
+            .ToDictionary(x => x.LessonId, x => x.Index);
 
-        foreach (var lesson in lessons)
-        {
-            var lessonIndex = lessons.IndexOf(lesson);
-            var isCompleted = lessonIndex < completedLessons;
-            var isCurrent = lesson.LessonId == currentLessonId;
+        return modules
+            .OrderBy(m => m.Order)
+            .Select((module, index) =>
+            {
+                var moduleLessons = lessons
+                    .Where(l => l.ModuleId == module.ModuleId)
+                    .OrderBy(l => l.LessonId)
+                    .Select(l => new LessonOutlineDto(
+                        LessonId: l.LessonId,
+                        Name: l.Name,
+                        DurationMinutes: 10 + (lessonIndexByLessonId.GetValueOrDefault(l.LessonId) * 2),
+                        IsCompleted: lessonIndexByLessonId.GetValueOrDefault(l.LessonId) < completedLessons,
+                        IsCurrent: l.LessonId == currentLessonId
+                    ))
+                    .ToList();
 
-            modules.Add(new CourseModuleDto(
-                ModuleNumber: moduleNumber++,
-                Name: lesson.Name,
-                Description: lesson.Description,
-                LessonCount: 1,
-                CompletedLessonCount: isCompleted ? 1 : 0,
-                Lessons: new List<LessonOutlineDto>
-                {
-                    new LessonOutlineDto(
-                        LessonId: lesson.LessonId,
-                        Name: lesson.Name,
-                        DurationMinutes: 10 + (lessonIndex * 2),
-                        IsCompleted: isCompleted,
-                        IsCurrent: isCurrent
-                    )
-                }
-            ));
-        }
-
-        return modules;
+                return new CourseModuleDto(
+                    ModuleNumber: index + 1,
+                    Name: string.IsNullOrWhiteSpace(module.Name)
+                        ? $"Module {index + 1}"
+                        : module.Name,
+                    Description: module.Description,
+                    LessonCount: moduleLessons.Count,
+                    CompletedLessonCount: moduleLessons.Count(l => l.IsCompleted),
+                    Lessons: moduleLessons
+                );
+            })
+            .ToList();
     }
 
     private static LessonDetailDto MapToLessonDetailDto(Entities.Lesson lesson)

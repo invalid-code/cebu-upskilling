@@ -9,6 +9,7 @@ public interface ICourseRepository : IEntityRepository<Course>
     Task<List<Course>> GetAllWithLessonsAsync();
     Task<Dictionary<int, int>> GetLessonCountsByCourseIdsAsync(List<int> courseIds);
     Task<Course?> GetWithLessonsAsync(int courseId);
+    Task<Course?> GetWithModulesAsync(int courseId);
 }
 
 public class CourseRepository : EntityRepository<Course>, ICourseRepository
@@ -39,5 +40,13 @@ public class CourseRepository : EntityRepository<Course>, ICourseRepository
             .Include(c => c.Genre)
                 .ThenInclude(g => g.SubDiscipline)
             .Include(c => c.Lessons)
+            .FirstOrDefaultAsync(c => c.CourseId == courseId);
+
+    public async Task<Course?> GetWithModulesAsync(int courseId)
+        => await _dbSet
+            .Include(c => c.Genre)
+                .ThenInclude(g => g.SubDiscipline)
+            .Include(c => c.Modules.OrderBy(m => m.Order))
+                .ThenInclude(m => m.Lessons.OrderBy(l => l.LessonId))
             .FirstOrDefaultAsync(c => c.CourseId == courseId);
 }

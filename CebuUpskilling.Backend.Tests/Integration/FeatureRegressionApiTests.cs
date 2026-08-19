@@ -664,7 +664,11 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         var lessonSpecs = new[] { ("HTML Fundamentals", 1), ("CSS Styling", 2) };
         foreach (var (name, order) in lessonSpecs)
         {
-            var lesson = new Lesson { CourseId = course.CourseId, Name = name, Description = name };
+            var module = new CourseModule { CourseId = course.CourseId, Name = $"Module {order}", Order = order };
+            db.CourseModules.Add(module);
+            await db.SaveChangesAsync();
+
+            var lesson = new Lesson { ModuleId = module.ModuleId, CourseId = course.CourseId, Name = name, Description = name };
             db.Lessons.Add(lesson);
             await db.SaveChangesAsync();
 
