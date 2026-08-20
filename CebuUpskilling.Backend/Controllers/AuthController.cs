@@ -21,6 +21,33 @@ public class AuthController : BaseEntityController<AppUser>
 
     protected override int GetId(AppUser entity) => entity.UserId;
 
+    // User accounts are sensitive (email, address, token hashes). The generic CRUD
+    // surface inherited from BaseEntityController<AppUser> would expose every user
+    // to any authenticated caller (mass disclosure + IDOR), so it is disabled.
+    [HttpGet]
+    public override Task<ActionResult<List<AppUser>>> GetAll() =>
+        Task.FromResult<ActionResult<List<AppUser>>>(NotFound());
+
+    [HttpGet("{id}")]
+    public override Task<ActionResult<AppUser>> GetById(int id) =>
+        Task.FromResult<ActionResult<AppUser>>(NotFound());
+
+    // Account write operations go exclusively through AuthService (register, login,
+    // profile, confirmation, password reset). The generic create/update/delete surface
+    // is disabled so a caller cannot craft a raw AppUser (e.g. to escalate Role),
+    // modify another account, or delete it.
+    [HttpPost]
+    public override Task<ActionResult<AppUser>> Create(AppUser entity) =>
+        Task.FromResult<ActionResult<AppUser>>(NotFound());
+
+    [HttpPut("{id}")]
+    public override Task<ActionResult<AppUser>> Update(int id, AppUser entity) =>
+        Task.FromResult<ActionResult<AppUser>>(NotFound());
+
+    [HttpDelete("{id}")]
+    public override Task<IActionResult> Delete(int id) =>
+        Task.FromResult<IActionResult>(NotFound());
+
     [AllowAnonymous]
     [EnableRateLimiting("auth")]
     [HttpPost("register")]

@@ -16,10 +16,17 @@ public interface ITokenRevocationStore
 public class InMemoryTokenRevocationStore : ITokenRevocationStore
 {
     private readonly ConcurrentDictionary<string, DateTime> _revoked = new();
+    private readonly ILogger<InMemoryTokenRevocationStore> _logger;
+
+    public InMemoryTokenRevocationStore(ILogger<InMemoryTokenRevocationStore> logger)
+    {
+        _logger = logger;
+    }
 
     public void Revoke(string jti, DateTime expiryUtc)
     {
         _revoked[jti] = expiryUtc;
+        _logger.LogInformation("Revoked token jti {Jti} until {ExpiryUtc}", jti, expiryUtc);
     }
 
     public bool IsRevoked(string jti)
@@ -32,6 +39,7 @@ public class InMemoryTokenRevocationStore : ITokenRevocationStore
             }
 
             _revoked.TryRemove(jti, out _);
+            _logger.LogDebug("Purged expired revoked token jti {Jti}", jti);
         }
 
         return false;

@@ -47,7 +47,7 @@ private class FakeGoogleAiService : IGoogleAiService
             NullLogger<SkillParsingService>.Instance),
         new JwtTokenService(CreateConfig(), NullLogger<JwtTokenService>.Instance),
         new LoggingEmailService(NullLogger<LoggingEmailService>.Instance),
-        new InMemoryTokenRevocationStore(),
+        new InMemoryTokenRevocationStore(NullLogger<InMemoryTokenRevocationStore>.Instance),
         NullLogger<AuthService>.Instance
     );
 

@@ -5,25 +5,37 @@ import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { logger } from './logger';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000/api';
 const colors = { bg: '#e8f0ee', surface: '#f5faf8', ink: '#1a2e27', muted: '#5c7a6e', line: '#c4d6cd', teal: '#1a6b5a', coral: '#d4775c', soft: '#c6e6df' };
 
 async function request(path, options = {}) {
-  const token = await SecureStore.getItemAsync('token');
-  const response = await fetch(`${API_URL}${path}`, { ...options, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...options.headers } });
-  const data = response.status === 204 ? null : await response.json();
-  if (!response.ok) throw new Error(data?.error || `Request failed (${response.status})`);
-  return data;
+  const method = (options.method || 'GET').toUpperCase();
+  logger.debug(`[API] ${method} ${path}`);
+  try {
+    const token = await SecureStore.getItemAsync('token');
+    const response = await fetch(`${API_URL}${path}`, { ...options, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...options.headers } });
+    const data = response.status === 204 ? null : await response.json();
+    if (!response.ok) {
+      logger.warn(`[API] ${method} ${path} → ${response.status}: ${data?.error || ''}`);
+      throw new Error(data?.error || `Request failed (${response.status})`);
+    }
+    logger.debug(`[API] ${method} ${path} → ${response.status}`);
+    return data;
+  } catch (error) {
+    logger.error(`[API] ${method} ${path} → network error`, error?.message || error);
+    throw error;
+  }
 }
 
 const AuthContext = createContext(null);
 function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [checking, setChecking] = useState(true);
-  useEffect(() => { SecureStore.getItemAsync('user').then((value) => setUser(value ? JSON.parse(value) : null)).finally(() => setChecking(false)); }, []);
-  const login = async (email, password) => { const data = await request('/auth/login', { method: 'POST', body: JSON.stringify({ emailAddress: email, password }) }); await SecureStore.setItemAsync('token', data.token); await SecureStore.setItemAsync('user', JSON.stringify(data)); setUser(data); };
-  const logout = async () => { await SecureStore.deleteItemAsync('token'); await SecureStore.deleteItemAsync('user'); setUser(null); };
+  useEffect(() => { SecureStore.getItemAsync('user').then((value) => { if (value) { setUser(JSON.parse(value)); logger.info('[Auth] Session restored from secure storage'); } else { logger.debug('[Auth] No stored session'); } }).catch((error) => logger.warn('[Auth] Failed to restore session:', error?.message || error)).finally(() => setChecking(false)); }, []);
+  const login = async (email, password) => { const data = await request('/auth/login', { method: 'POST', body: JSON.stringify({ emailAddress: email, password }) }); await SecureStore.setItemAsync('token', data.token); await SecureStore.setItemAsync('user', JSON.stringify(data)); setUser(data); logger.info(`[Auth] Signed in as ${data.emailAddress || data.email}`); };
+  const logout = async () => { await SecureStore.deleteItemAsync('token'); await SecureStore.deleteItemAsync('user'); setUser(null); logger.info('[Auth] Signed out'); };
   return <AuthContext.Provider value={{ user, checking, login, logout }}>{children}</AuthContext.Provider>;
 }
 const useAuth = () => useContext(AuthContext);
@@ -34,7 +46,7 @@ function Header({ eyebrow, title, subtitle }) { return <View style={styles.heade
 function Card({ children }) { return <View style={styles.card}>{children}</View>; }
 function Loading() { return <View style={styles.loading}><ActivityIndicator color={colors.teal} /></View>; }
 
-function LoginScreen() { const { login } = useAuth(); const [email, setEmail] = useState(''); const [password, setPassword] = useState(''); const submit = async () => { try { await login(email, password); } catch (error) { Alert.alert('Unable to sign in', error.message); } }; return <SafeAreaView style={styles.login}><View><Text style={styles.brandMark}>CU</Text><Text style={styles.loginTitle}>Your next move is clear.</Text><Text style={styles.subtitle}>Build skills, find work, and move forward in Cebu.</Text><TextInput autoCapitalize="none" keyboardType="email-address" placeholder="Email address" value={email} onChangeText={setEmail} style={styles.input} /><TextInput secureTextEntry placeholder="Password" value={password} onChangeText={setPassword} style={styles.input} /><Button onPress={submit}>Sign in</Button></View></SafeAreaView>; }
+function LoginScreen() { const { login } = useAuth(); const [email, setEmail] = useState(''); const [password, setPassword] = useState(''); const submit = async () => { try { await login(email, password); } catch (error) { logger.warn('[Auth] Sign in failed:', error?.message || error); Alert.alert('Unable to sign in', error.message); } }; return <SafeAreaView style={styles.login}><View><Text style={styles.brandMark}>CU</Text><Text style={styles.loginTitle}>Your next move is clear.</Text><Text style={styles.subtitle}>Build skills, find work, and move forward in Cebu.</Text><TextInput autoCapitalize="none" keyboardType="email-address" placeholder="Email address" value={email} onChangeText={setEmail} style={styles.input} /><TextInput secureTextEntry placeholder="Password" value={password} onChangeText={setPassword} style={styles.input} /><Button onPress={submit}>Sign in</Button></View></SafeAreaView>; }
 
 function HomeScreen() { const { user } = useAuth(); const [stats, setStats] = useState(null); const [refreshing, setRefreshing] = useState(false); const load = () => request('/stats/week').then(setStats).catch(() => setStats({ learningTimeHours: 0, coursesActive: 0, jobsWorthApplying: 0 })); useEffect(load, []); const refresh = async () => { setRefreshing(true); await load(); setRefreshing(false); }; return <SafeAreaView style={styles.safe} edges={['top']}><ScrollView contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.teal} />}><Header eyebrow="MY PATHWAY" title={`Hi, ${user?.firstName || 'Learner'}.`} subtitle="Keep closing the gaps that matter most." /><Card><Text style={styles.cardEyebrow}>THIS WEEK</Text><Text style={styles.cardTitle}>Small steps add up.</Text><Text style={styles.cardText}>Keep your pathway moving with focused learning and timely applications.</Text><Button secondary onPress={() => {}}>View pathway</Button></Card><View style={styles.stats}>{[['Learning', `${stats?.learningTimeHours || 0}h`], ['Active courses', stats?.coursesActive || 0], ['Jobs to explore', stats?.jobsWorthApplying || 0]].map(([label, value]) => <Card key={label}><Text style={styles.statValue}>{value}</Text><Text style={styles.statLabel}>{label}</Text></Card>)}</View></ScrollView></SafeAreaView>; }
 function ListScreen({ title, endpoint, empty, renderItem }) { const [items, setItems] = useState(null); useEffect(() => { request(endpoint).then(setItems).catch(() => setItems([])); }, [endpoint]); if (!items) return <Screen><Loading /></Screen>; return <Screen><Header eyebrow="MY PATHWAY" title={title} subtitle="Your next best opportunities, in one place." />{items.length ? items.map(renderItem) : <Card><Text style={styles.cardTitle}>{empty}</Text><Text style={styles.cardText}>Check back soon as new opportunities are added.</Text></Card>}</Screen>; }
