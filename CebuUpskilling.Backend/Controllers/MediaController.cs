@@ -34,6 +34,12 @@ public class MediaController : ControllerBase
             return BadRequest(new { error = "A video file must be provided" });
         }
 
+        if (!IsVideoContentType(file.ContentType))
+        {
+            _logger.LogWarning("Video upload rejected: content type {ContentType} is not allowed for lesson {LessonId} by user {UserId}", file.ContentType, lessonId, userId);
+            return BadRequest(new { error = "Only video files are allowed" });
+        }
+
         _logger.LogInformation("Uploading video for lesson {LessonId}: {FileName} ({FileSize} bytes)", lessonId, file.Name, file.Length);
 
         var result = await _mediaService.UploadLessonVideoAsync(lessonId, file);
@@ -41,4 +47,8 @@ public class MediaController : ControllerBase
 
         return CreatedAtAction(nameof(UploadLessonVideo), new { lessonId }, result);
     }
+
+    private static bool IsVideoContentType(string? contentType) =>
+        !string.IsNullOrWhiteSpace(contentType)
+        && contentType.StartsWith("video/", StringComparison.OrdinalIgnoreCase);
 }

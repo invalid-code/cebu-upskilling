@@ -12,8 +12,9 @@
 #                       has Auto-Deploy enabled on the Docker Hub repo, this is
 #                       not required (the push alone triggers the redeploy).
 # Note: the frontend is deployed by Vercel's own Git auto-deploy on push, so the
-#       CI pipeline only handles the backend. Set VITE_API_URL in the Vercel
-#       project's env so the frontend calls the correct backend URL in production.
+#       CI pipeline only builds/tests the backend and runs the frontend test
+#       suite. Set VITE_API_URL in the Vercel project's env so the frontend calls
+#       the correct backend URL in production.
 
 
 name: CI/CD

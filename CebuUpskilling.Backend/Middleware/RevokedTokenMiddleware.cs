@@ -12,11 +12,16 @@ public class RevokedTokenMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly ITokenRevocationStore _revocationStore;
+    private readonly ILogger<RevokedTokenMiddleware> _logger;
 
-    public RevokedTokenMiddleware(RequestDelegate next, ITokenRevocationStore revocationStore)
+    public RevokedTokenMiddleware(
+        RequestDelegate next,
+        ITokenRevocationStore revocationStore,
+        ILogger<RevokedTokenMiddleware> logger)
     {
         _next = next;
         _revocationStore = revocationStore;
+        _logger = logger;
     }
 
     public async Task InvokeAsync(HttpContext context)
@@ -26,6 +31,10 @@ public class RevokedTokenMiddleware
 
         if (!string.IsNullOrEmpty(jti) && _revocationStore.IsRevoked(jti))
         {
+            _logger.LogWarning(
+                "Rejected revoked token (jti {Jti}) for {Method} {Path}",
+                jti, context.Request.Method, context.Request.Path);
+
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
             await context.Response.WriteAsJsonAsync(new { error = "Token has been revoked. Please log in again." });
             return;
