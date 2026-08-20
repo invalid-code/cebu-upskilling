@@ -37,6 +37,7 @@ public class ProductionApiFactory : WebApplicationFactory<Program>
             "LearnerStudyCourses",
             "LearnerSkills",
             "LearnerAssessments",
+            "LearnerNotes",
             "PostCourseRequireds",
             "Applications",
             "Posts",
