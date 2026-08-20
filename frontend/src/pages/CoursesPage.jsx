@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import CourseCard from '../components/shared/CourseCard';
 import CourseDetailPanel from '../components/shared/CourseDetailPanel';
 import { useAuth } from '../context/AuthContext';
@@ -146,6 +147,7 @@ const styles = {
 
 export default function CoursesPage() {
   useAuth();
+  const navigate = useNavigate();
   const [enrolledCourses, setEnrolledCourses] = useState([]);
   const [recommendedCourses, setRecommendedCourses] = useState([]);
   const [dayStreak, setDayStreak] = useState(0);
@@ -197,7 +199,7 @@ export default function CoursesPage() {
   };
 
   const handleResumeFromPanel = (courseId) => {
-    window.location.href = `/courses/${courseId}/learn`;
+    navigate(`/courses/${courseId}/learn`);
   };
 
   const handleEnroll = () => {

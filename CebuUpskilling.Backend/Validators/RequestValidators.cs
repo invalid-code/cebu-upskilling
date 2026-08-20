@@ -115,3 +115,13 @@ public class CreateCompanyQuestionRequestValidator : AbstractValidator<CreateCom
             .InclusiveBetween(0, 3).WithMessage("Correct option must be between 0 and 3");
     }
 }
+
+public class UpsertNoteRequestValidator : AbstractValidator<UpsertNoteRequest>
+{
+    public UpsertNoteRequestValidator()
+    {
+        RuleFor(x => x.Content)
+            .NotEmpty().WithMessage("Note content is required")
+            .MaximumLength(20000).WithMessage("Note content must not exceed 20000 characters");
+    }
+}
