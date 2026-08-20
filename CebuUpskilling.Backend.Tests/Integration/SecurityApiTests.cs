@@ -42,6 +42,13 @@ public class SecurityApiTests : ProductionApiTestBase
         return handler.WriteToken(token);
     }
 
+    private static string MakeUnsignedToken(string header, string payload)
+    {
+        static string Base64Url(string s) =>
+            Convert.ToBase64String(Encoding.UTF8.GetBytes(s)).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+        return $"{Base64Url(header)}.{Base64Url(payload)}.";
+    }
+
     private async Task<(string Token, int UserId)> RegisterUserAsync(string email, string role = "Learner", string? targetRole = null)
     {
         var response = await RegisterAsync(new
@@ -143,6 +150,52 @@ public class SecurityApiTests : ProductionApiTestBase
         var token = ForgeToken(key, issuer, audience, userId: 1, expires: DateTime.UtcNow.AddHours(-1));
 
         var response = await AuthorizedClient(token).GetAsync("/api/skillgaps");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ProtectedEndpoint_AlgNoneToken_ReturnsUnauthorized()
+    {
+        var token = MakeUnsignedToken(
+            "{\"alg\":\"none\",\"typ\":\"JWT\"}",
+            "{\"sub\":\"1\",\"email\":\"sec.algnone@example.com\",\"role\":\"Learner\"}");
+
+        var response = await AuthorizedClient(token).GetAsync("/api/skillgaps");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ProtectedEndpoint_TokenNotYetValid_ReturnsUnauthorized()
+    {
+        var (key, issuer, audience) = JwtConfig();
+        var handler = new JwtSecurityTokenHandler();
+        var token = handler.WriteToken(new JwtSecurityToken(
+            issuer: issuer,
+            audience: audience,
+            claims: new[] { new Claim(ClaimTypes.NameIdentifier, "1") },
+            notBefore: DateTime.UtcNow.AddHours(1),
+            expires: DateTime.UtcNow.AddDays(1),
+            signingCredentials: new SigningCredentials(
+                new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)),
+                SecurityAlgorithms.HmacSha256)));
+
+        var response = await AuthorizedClient(token).GetAsync("/api/skillgaps");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ProtectedEndpoint_TamperedToken_ReturnsUnauthorized()
+    {
+        var (key, issuer, audience) = JwtConfig();
+        var valid = ForgeToken(key, issuer, audience, userId: 1);
+        var parts = valid.Split('.');
+        var tamperedPayload = string.Concat(parts[1].AsSpan(0, parts[1].Length - 4), "AAAA");
+        var tampered = $"{parts[0]}.{tamperedPayload}.{parts[2]}";
+
+        var response = await AuthorizedClient(tampered).GetAsync("/api/skillgaps");
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -296,6 +349,64 @@ public class SecurityApiTests : ProductionApiTestBase
         Assert.Empty(gapsA);
         var groupB = Assert.Single(gapsB);
         Assert.Equal(7, groupB.GetProperty("gaps").GetArrayLength());
+    }
+
+    [Fact]
+    public async Task UserAccounts_ListEndpoint_IsNotExposed()
+    {
+        var (token, _) = await RegisterUserAsync("sec.authlist@example.com", targetRole: "Frontend Developer");
+
+        var response = await AuthorizedClient(token).GetAsync("/api/auth");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UserAccounts_GetOtherUserById_IsNotExposed()
+    {
+        var (_, otherUserId) = await RegisterUserAsync("sec.otheraccount@example.com", targetRole: "Frontend Developer");
+        var (token, _) = await RegisterUserAsync("sec.autheidor@example.com");
+
+        var response = await AuthorizedClient(token).GetAsync($"/api/auth/{otherUserId}");
+
+        // IDOR protection: an authenticated user must not be able to read another
+        // user's account record (email, address, token hashes).
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UserAccounts_UpdateAnotherUser_IsNotExposed()
+    {
+        var (_, otherUserId) = await RegisterUserAsync("sec.otheraccountput@example.com", targetRole: "Frontend Developer");
+        var (token, _) = await RegisterUserAsync("sec.autheidorput@example.com");
+
+        var response = await AuthorizedClient(token).PutAsJsonAsync($"/api/auth/{otherUserId}", new
+        {
+            Role = "Admin",
+        });
+
+        // A caller must not be able to modify (or escalate) another user's account.
+        // Either the disabled endpoint (NotFound) or validation rejection (BadRequest)
+        // is acceptable; the write must never succeed.
+        Assert.NotEqual(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotEqual(HttpStatusCode.NoContent, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UserAccounts_RawCreateEndpoint_IsNotExposed()
+    {
+        var (token, _) = await RegisterUserAsync("sec.authrawcreate@example.com");
+
+        var response = await AuthorizedClient(token).PostAsJsonAsync("/api/auth", new
+        {
+            FirstName = "Sneaky",
+            EmailAddress = "sneaky@example.com",
+            Role = "Admin",
+        });
+
+        // Raw AppUser creation (which would bypass password hashing) is disabled.
+        Assert.NotEqual(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotEqual(HttpStatusCode.Created, response.StatusCode);
     }
 
     [Fact]

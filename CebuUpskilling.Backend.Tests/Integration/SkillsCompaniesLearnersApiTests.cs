@@ -111,7 +111,40 @@ public class SkillsCompaniesLearnersApiTests : ProductionApiTestBase
         var learners = (await ReadJsonAsync(response)).EnumerateArray().ToList();
         Assert.Single(learners);
         Assert.Equal("Jose", learners[0].GetProperty("user").GetProperty("firstName").GetString());
-        Assert.Equal("learners.list@example.com", learners[0].GetProperty("user").GetProperty("emailAddress").GetString());
+        Assert.Equal("Learner", learners[0].GetProperty("user").GetProperty("role").GetString());
+    }
+
+    [Fact]
+    public async Task Learners_Get_DoesNotExposePiiOrSecrets()
+    {
+        var token = await RegisterLearnerAsync("learners.list.pii@example.com", "Frontend Developer");
+
+        var response = await AuthorizedClient(token).GetAsync("/api/learners");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var raw = await response.Content.ReadAsStringAsync();
+
+        var forbidden = new[]
+        {
+            "emailAddress",
+            "birthday",
+            "address",
+            "street",
+            "city",
+            "province",
+            "zipCode",
+            "country",
+            "passwordHash",
+            "emailConfirmationTokenHash",
+            "emailConfirmationTokenExpiry",
+            "passwordResetTokenHash",
+            "passwordResetTokenExpiry",
+        };
+
+        foreach (var field in forbidden)
+        {
+            Assert.DoesNotContain($"\"{field}\"", raw, StringComparison.OrdinalIgnoreCase);
+        }
     }
 
     [Fact]

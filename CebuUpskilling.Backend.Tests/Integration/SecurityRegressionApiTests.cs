@@ -68,7 +68,7 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
     {
         var enrolled = await RegisterLearnerAsync("secreg.content.enrolled@example.com");
         var outsider = await RegisterLearnerAsync("secreg.content.outsider@example.com");
-        var courseId = await CreateCourseAsync(enrolled);
+        var (courseId, lessonId) = await CreateCourseWithLessonsAsync();
         await AuthorizedClient(enrolled).PostAsJsonAsync("/api/enrollments", new { courseId });
 
         var contentEnrolled = await AuthorizedClient(enrolled).GetAsync($"/api/coursecontent/courses/{courseId}/content");
@@ -78,7 +78,7 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.NotFound, contentOutsider.StatusCode);
 
         var progressOutsider = await AuthorizedClient(outsider).PutAsJsonAsync(
-            "/api/coursecontent/lessons/1/progress", new { lessonId = 1, progressPercent = 100 });
+            $"/api/coursecontent/lessons/{lessonId}/progress", new { lessonId, progressPercent = 100 });
         Assert.Equal(HttpStatusCode.NotFound, progressOutsider.StatusCode);
     }
 
@@ -294,7 +294,8 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
     public async Task Media_UploadNonVideoContentType_ReturnsBadRequest()
     {
         var token = await RegisterLearnerAsync("secreg.media.fakevideo@example.com");
-        var (_, lessonId) = await CreateCourseWithLessonsAsync();
+        var (courseId, lessonId) = await CreateCourseWithLessonsAsync();
+        await AuthorizedClient(token).PostAsJsonAsync("/api/enrollments", new { courseId });
 
         using var content = new MultipartFormDataContent();
         var fileContent = new ByteArrayContent(Encoding.UTF8.GetBytes("<html>not a video</html>"));
@@ -312,7 +313,8 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
     public async Task Media_UploadFilenameWithTraversal_IsSanitizedInStorageKey()
     {
         var token = await RegisterLearnerAsync("secreg.media.traversal@example.com");
-        var (_, lessonId) = await CreateCourseWithLessonsAsync();
+        var (courseId, lessonId) = await CreateCourseWithLessonsAsync();
+        await AuthorizedClient(token).PostAsJsonAsync("/api/enrollments", new { courseId });
 
         using var content = new MultipartFormDataContent();
         var fileContent = new ByteArrayContent(new byte[] { 0x00, 0x01, 0x02 });
@@ -327,6 +329,58 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
         Assert.StartsWith($"https://fake-storage.example/course-content/{lessonId}/", path);
         Assert.DoesNotContain("..", path);
         Assert.DoesNotContain("etc/passwd", path);
+    }
+
+    [Fact]
+    public async Task Media_UploadToLesson_WhenNotEnrolled_ReturnsNotFound()
+    {
+        var token = await RegisterLearnerAsync("secreg.media.notenrolled@example.com");
+        var (courseId, lessonId) = await CreateCourseWithLessonsAsync();
+
+        using var content = new MultipartFormDataContent();
+        var fileContent = new ByteArrayContent(new byte[] { 0x00, 0x01, 0x02 });
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue("video/mp4");
+        content.Add(fileContent, "file", "lesson.mp4");
+
+        var response = await AuthorizedClient(token).PostAsync($"/api/media/lessons/{lessonId}/video", content);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        var body = await ReadJsonAsync(response);
+        Assert.Equal("Lesson not found or not enrolled", body.GetProperty("error").GetString());
+    }
+
+    [Fact]
+    public async Task Media_UploadByRecruiter_ReturnsNotFound()
+    {
+        var (token, _, _) = await RegisterRecruiterWithCompanyAsync("secreg.media.recruiter@example.com");
+        var (_, lessonId) = await CreateCourseWithLessonsAsync();
+
+        using var content = new MultipartFormDataContent();
+        var fileContent = new ByteArrayContent(new byte[] { 0x00, 0x01, 0x02 });
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue("video/mp4");
+        content.Add(fileContent, "file", "lesson.mp4");
+
+        var response = await AuthorizedClient(token).PostAsync($"/api/media/lessons/{lessonId}/video", content);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Media_UploadToLesson_WhenEnrolled_ReturnsCreated()
+    {
+        var token = await RegisterLearnerAsync("secreg.media.enrolled@example.com");
+        var (courseId, lessonId) = await CreateCourseWithLessonsAsync();
+        var enroll = await AuthorizedClient(token).PostAsJsonAsync("/api/enrollments", new { courseId });
+        enroll.EnsureSuccessStatusCode();
+
+        using var content = new MultipartFormDataContent();
+        var fileContent = new ByteArrayContent(new byte[] { 0x00, 0x01, 0x02 });
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue("video/mp4");
+        content.Add(fileContent, "file", "lesson.mp4");
+
+        var response = await AuthorizedClient(token).PostAsync($"/api/media/lessons/{lessonId}/video", content);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
     }
 
     // ------------------------------------------------------------------ //
