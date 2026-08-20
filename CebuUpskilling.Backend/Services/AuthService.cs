@@ -297,7 +297,18 @@ return BuildAuthResponse(
             return null;
         }
 
-        return DateTime.TryParse(value, out var parsed) ? parsed : null;
+        DateTime? parsed = DateTime.TryParse(value, out var date) ? date : null;
+        if (parsed == null)
+        {
+            return null;
+        }
+
+        // The Birthday column maps to "timestamp with time zone"; Npgsql requires
+        // a UTC DateTime. Date-only inputs parse as Kind=Unspecified, so pin them
+        // to UTC and normalize any local values.
+        return parsed.Value.Kind == DateTimeKind.Utc
+            ? parsed
+            : DateTime.SpecifyKind(parsed.Value.ToUniversalTime(), DateTimeKind.Utc);
     }
 
     public async Task<AuthResponse> LoginAsync(LoginRequest request)
