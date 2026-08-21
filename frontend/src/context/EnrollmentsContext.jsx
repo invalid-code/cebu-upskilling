@@ -18,6 +18,7 @@ export function EnrollmentsProvider({ children }) {
       const data = await api.get('/enrollments', { signal });
       setEnrollments(data || []);
     } catch (err) {
+      if (err?.name === 'AbortError') return;
       console.warn('[Enrollments] Failed to fetch enrollments:', err?.message || err);
       setEnrollments([]);
     }

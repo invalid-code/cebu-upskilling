@@ -54,7 +54,7 @@ describe('ApplicationsContext', () => {
     renderWithApplications();
 
     await waitFor(() => expect(screen.getByTestId('count')).toHaveTextContent('1'));
-    expect(api.get).toHaveBeenCalledWith('/applications');
+    expect(api.get).toHaveBeenCalledWith('/applications', { signal: expect.anything() });
     expect(screen.getByTestId('titles')).toHaveTextContent('Backend Dev');
   });
 

@@ -119,7 +119,7 @@ export default function LessonContent({ lesson, moduleName }) {
   return (
     <div style={styles.container}>
       <div style={styles.moduleLabel}>
-        Module {lesson.lessonOrder} · {moduleName || lesson.name}
+        {moduleName || lesson.name}
       </div>
       <h2 style={styles.lessonTitle}>{lesson.name}</h2>
 

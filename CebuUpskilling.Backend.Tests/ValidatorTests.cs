@@ -265,3 +265,48 @@ public class EnrollRequestValidatorTests
         Assert.False(result.IsValid);
     }
 }
+
+public class CreateDiscussionPostRequestValidatorTests
+{
+    private readonly CreateDiscussionPostRequestValidator _validator = new();
+
+    [Fact]
+    public void ValidContent_Passes()
+    {
+        var result = _validator.Validate(new CreateDiscussionPostRequest("Can anyone explain this?"));
+
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void EmptyContent_Fails()
+    {
+        var result = _validator.Validate(new CreateDiscussionPostRequest(""));
+
+        Assert.False(result.IsValid);
+    }
+
+    [Fact]
+    public void WhitespaceContent_Fails()
+    {
+        var result = _validator.Validate(new CreateDiscussionPostRequest("   "));
+
+        Assert.False(result.IsValid);
+    }
+
+    [Fact]
+    public void ExcessiveContent_Fails()
+    {
+        var result = _validator.Validate(new CreateDiscussionPostRequest(new string('a', 4001)));
+
+        Assert.False(result.IsValid);
+    }
+
+    [Fact]
+    public void Exactly4000Chars_Passes()
+    {
+        var result = _validator.Validate(new CreateDiscussionPostRequest(new string('a', 4000)));
+
+        Assert.True(result.IsValid);
+    }
+}

@@ -125,3 +125,13 @@ public class UpsertNoteRequestValidator : AbstractValidator<UpsertNoteRequest>
             .MaximumLength(20000).WithMessage("Note content must not exceed 20000 characters");
     }
 }
+
+public class CreateDiscussionPostRequestValidator : AbstractValidator<CreateDiscussionPostRequest>
+{
+    public CreateDiscussionPostRequestValidator()
+    {
+        RuleFor(x => x.Content)
+            .NotEmpty().WithMessage("Post content is required")
+            .MaximumLength(4000).WithMessage("Post content must not exceed 4000 characters");
+    }
+}

@@ -239,7 +239,8 @@ function LearnerOverview() {
     || applications.find((a) => a.targetRole?.trim())?.targetRole?.trim();
 
   useEffect(() => {
-    api.get('/courses')
+    const controller = new AbortController();
+    api.get('/courses', { signal: controller.signal })
       .then((data) => {
         setCourses((data || []).map((c) => ({
           courseId: c.courseId,
@@ -250,8 +251,14 @@ function LearnerOverview() {
           description: c.description,
         })));
       })
-      .catch(() => setCourses([]))
-      .finally(() => setLoading(false));
+      .catch((err) => {
+        if (err?.name === 'AbortError') return;
+        setCourses([]);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
   }, []);
 
   useEffect(() => {
@@ -259,24 +266,43 @@ function LearnerOverview() {
       setSkillGapsLoading(false);
       return;
     }
-    api.get('/skillgaps')
+    const controller = new AbortController();
+    api.get('/skillgaps', { signal: controller.signal })
       .then((data) => setSkillGaps(data || []))
-      .catch(() => setSkillGaps([]))
-      .finally(() => setSkillGapsLoading(false));
+      .catch((err) => {
+        if (err?.name === 'AbortError') return;
+        setSkillGaps([]);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setSkillGapsLoading(false);
+      });
+    return () => controller.abort();
   }, [targetRole]);
 
   useEffect(() => {
     if (!targetRole) return;
-    api.get('/assessments/recommended')
+    const controller = new AbortController();
+    api.get('/assessments/recommended', { signal: controller.signal })
       .then((data) => setRecommendedAssessment(data))
-      .catch(() => setRecommendedAssessment(null));
+      .catch((err) => {
+        if (err?.name === 'AbortError') return;
+        setRecommendedAssessment(null);
+      });
+    return () => controller.abort();
   }, [targetRole]);
 
   useEffect(() => {
-    api.get('/stats/week')
+    const controller = new AbortController();
+    api.get('/stats/week', { signal: controller.signal })
       .then((data) => setWeeklyStats(data))
-      .catch(() => setWeeklyStats({ learningTimeHours: 0, coursesActive: 0, jobsWorthApplying: 0 }))
-      .finally(() => setWeeklyStatsLoading(false));
+      .catch((err) => {
+        if (err?.name === 'AbortError') return;
+        setWeeklyStats({ learningTimeHours: 0, coursesActive: 0, jobsWorthApplying: 0 });
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setWeeklyStatsLoading(false);
+      });
+    return () => controller.abort();
   }, []);
 
   const recommended = courses.slice(0, 3);

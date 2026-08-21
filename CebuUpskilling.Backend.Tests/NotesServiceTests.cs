@@ -139,7 +139,7 @@ public class NotesServiceTests
     }
 
     [Fact]
-    public async Task UpsertLessonNoteAsync_CreatesThenUpdatesSingleNote()
+    public async Task UpsertLessonNoteAsync_CreatesNewNoteOnEverySave()
     {
         var context = TestDbContextFactory.Create();
         var (user, learner) = await CreateLearnerAsync(context);
@@ -159,8 +159,9 @@ public class NotesServiceTests
 
         Assert.NotNull(updated);
         Assert.Equal("second draft", updated!.Content);
-        Assert.Single(context.LearnerNotes);
-        Assert.Equal("second draft", context.LearnerNotes.Single().Content);
+        Assert.Equal(2, context.LearnerNotes.Count());
+        Assert.Equal(new[] { "first draft", "second draft" },
+            context.LearnerNotes.Select(n => n.Content));
     }
 
     [Fact]
