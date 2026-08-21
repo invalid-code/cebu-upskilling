@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, MoreHorizontal } from 'lucide-react';
-import CourseOutline from '../components/shared/CourseOutline';
+import ModuleOutline from '../components/shared/ModuleOutline';
 import LessonContent from '../components/shared/LessonContent';
 import LessonResources from '../components/shared/LessonResources';
 import VideoPlayer from '../components/shared/VideoPlayer';
@@ -200,7 +200,7 @@ export default function CourseContentPage() {
 
       <div style={styles.content}>
         <div style={styles.leftSidebar}>
-          <CourseOutline
+          <ModuleOutline
             modules={courseData.modules}
             currentLessonId={parseInt(lessonId)}
             onLessonClick={handleLessonClick}
