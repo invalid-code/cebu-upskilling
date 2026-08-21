@@ -73,6 +73,103 @@ public class LearnerFlowApiTests : ProductionApiTestBase
     }
 
     [Fact]
+    public async Task SkillGapGroups_WithTargetRole_ReturnsRoleGroup()
+    {
+        var token = await RegisterLearnerAsync("flow.groups.role@example.com", "Frontend Developer");
+
+        var response = await AuthorizedClient(token).GetAsync("/api/skillgaps/groups");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var groups = (await ReadJsonAsync(response)).EnumerateArray().ToList();
+        var group = Assert.Single(groups);
+        Assert.Equal("Frontend Developer", group.GetProperty("role").GetString());
+        Assert.Equal(JsonValueKind.Null, group.GetProperty("companyName").ValueKind);
+        Assert.Equal(JsonValueKind.Null, group.GetProperty("postId").ValueKind);
+        Assert.Equal(0, group.GetProperty("matchPercent").GetInt32());
+
+        var gaps = group.GetProperty("gaps").EnumerateArray().ToList();
+        Assert.Equal(7, gaps.Count);
+        var javascript = gaps.Single(g => g.GetProperty("skillName").GetString() == "JavaScript");
+        Assert.Equal(4, javascript.GetProperty("requiredLevel").GetInt32());
+        Assert.Equal(0, javascript.GetProperty("currentLevel").GetInt32());
+        Assert.Equal(4, javascript.GetProperty("gap").GetInt32());
+        Assert.False(javascript.GetProperty("verified").GetBoolean());
+    }
+
+    [Fact]
+    public async Task SkillGapGroups_WithoutTargetRoleOrApplications_ReturnsEmpty()
+    {
+        var token = await RegisterLearnerAsync("flow.groups.none@example.com");
+
+        var response = await AuthorizedClient(token).GetAsync("/api/skillgaps/groups");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var groups = (await ReadJsonAsync(response)).EnumerateArray().ToList();
+        Assert.Empty(groups);
+    }
+
+    [Fact]
+    public async Task SkillGapGroups_DerivesGroupFromAppliedJobTargetRole()
+    {
+        var registerResponse = await RegisterAsync(new
+        {
+            firstName = "Recruiter",
+            lastName = "ForGroups",
+            emailAddress = "flow.groups.recruiter@example.com",
+            password = "P@ssw0rd!",
+            role = "Recruiter",
+        });
+        registerResponse.EnsureSuccessStatusCode();
+        var registerBody = await ReadJsonAsync(registerResponse);
+        var recruiterToken = registerBody.GetProperty("token").GetString()!;
+        var recruiterUserId = registerBody.GetProperty("userId").GetInt32();
+
+        int companyId;
+        using (var scope = Factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var company = new Company { Name = "Groups Corp" };
+            db.Companies.Add(company);
+            await db.SaveChangesAsync();
+            companyId = company.CompanyId;
+            db.Recruiters.Add(new Recruiter { CompanyId = companyId, UserId = recruiterUserId });
+            await db.SaveChangesAsync();
+        }
+
+        int postId;
+        using (var scope = Factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var recruiterId = (await db.Recruiters.SingleAsync(r => r.UserId == recruiterUserId)).RecruiterId;
+            var post = new Post
+            {
+                RecruiterId = recruiterId,
+                CompanyId = companyId,
+                Title = "Backend Role Posting",
+                Description = "Cebu City\nskills: Node.js\nmatch: 80%",
+                TargetRole = "Backend Developer",
+            };
+            db.Posts.Add(post);
+            await db.SaveChangesAsync();
+            postId = post.PostId;
+        }
+
+        var learnerToken = await RegisterLearnerAsync("flow.groups.learner@example.com");
+        var applyResponse = await AuthorizedClient(learnerToken).PostAsJsonAsync("/api/applications", new { postId });
+        Assert.Equal(HttpStatusCode.Created, applyResponse.StatusCode);
+
+        var groupsResponse = await AuthorizedClient(learnerToken).GetAsync("/api/skillgaps/groups");
+        Assert.Equal(HttpStatusCode.OK, groupsResponse.StatusCode);
+        var groups = (await ReadJsonAsync(groupsResponse)).EnumerateArray().ToList();
+        var group = Assert.Single(groups);
+        Assert.Equal("Backend Developer", group.GetProperty("role").GetString());
+        Assert.Equal("Groups Corp", group.GetProperty("companyName").GetString());
+        Assert.Equal(postId, group.GetProperty("postId").GetInt32());
+        Assert.Equal(0, group.GetProperty("matchPercent").GetInt32());
+        Assert.Equal(6, group.GetProperty("gaps").EnumerateArray().ToList().Count);
+    }
+
+    [Fact]
     public async Task RecommendedAssessment_TopGap_IsReturned()
     {
         var token = await RegisterLearnerAsync("flow.recommended@example.com", "Frontend Developer");

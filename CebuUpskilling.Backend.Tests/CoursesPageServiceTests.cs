@@ -91,7 +91,11 @@ public class CoursesPageServiceTests
 
         for (var i = 0; i < lessonCount; i++)
         {
-            context.Lessons.Add(new Lesson { CourseId = course.CourseId, Name = $"Lesson {i + 1}" });
+            var module = new CourseModule { CourseId = course.CourseId, Name = $"Module {i + 1}", Order = i + 1 };
+            context.CourseModules.Add(module);
+            await context.SaveChangesAsync();
+
+            context.Lessons.Add(new Lesson { ModuleId = module.ModuleId, CourseId = course.CourseId, Name = $"Lesson {i + 1}" });
         }
         await context.SaveChangesAsync();
         return course;

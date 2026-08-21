@@ -47,7 +47,7 @@ private class FakeGoogleAiService : IGoogleAiService
             NullLogger<SkillParsingService>.Instance),
         new JwtTokenService(CreateConfig(), NullLogger<JwtTokenService>.Instance),
         new LoggingEmailService(NullLogger<LoggingEmailService>.Instance),
-        new InMemoryTokenRevocationStore(),
+        new InMemoryTokenRevocationStore(NullLogger<InMemoryTokenRevocationStore>.Instance),
         NullLogger<AuthService>.Instance
     );
 
@@ -90,6 +90,44 @@ private class FakeGoogleAiService : IGoogleAiService
         var saved = await context.Users.SingleAsync(u => u.EmailAddress == "jose@example.com");
         Assert.NotEqual("P@ssw0rd!", saved.PasswordHash);
         Assert.True(BCrypt.Net.BCrypt.Verify("P@ssw0rd!", saved.PasswordHash));
+    }
+
+    [Fact]
+    public async Task RegisterAsync_WithAddress_ParsesAndStoresAddressParts()
+    {
+        var context = TestDbContextFactory.Create();
+        var service = CreateService(context);
+
+        var request = NewRegisterRequest() with { Address = "88 Magallanes St, Cebu City, Cebu 6000, Philippines" };
+        var result = await service.RegisterAsync(request);
+
+        var saved = await context.Users.SingleAsync(u => u.EmailAddress == request.EmailAddress);
+        Assert.Equal("88 Magallanes St", saved.Street);
+        Assert.Equal("Cebu City", saved.City);
+        Assert.Equal("Cebu", saved.Province);
+        Assert.Equal("6000", saved.ZipCode);
+        Assert.Equal("Philippines", saved.Country);
+
+        Assert.Equal(saved.Street, result.Street);
+        Assert.Equal(saved.City, result.City);
+        Assert.Equal(saved.Province, result.Province);
+        Assert.Equal(saved.ZipCode, result.ZipCode);
+        Assert.Equal(saved.Country, result.Country);
+    }
+
+    [Fact]
+    public async Task RegisterAsync_WithoutAddress_StoresNullParts()
+    {
+        var context = TestDbContextFactory.Create();
+        var service = CreateService(context);
+
+        var result = await service.RegisterAsync(NewRegisterRequest());
+
+        Assert.Null(result.Street);
+        Assert.Null(result.City);
+        Assert.Null(result.Province);
+        Assert.Null(result.ZipCode);
+        Assert.Null(result.Country);
     }
 
     [Fact]

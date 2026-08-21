@@ -23,6 +23,7 @@ public class Course : AuditableEntity
     public string Mode { get; set; } = "Online";
 
     public Genre Genre { get; set; } = null!;
+    public ICollection<CourseModule> Modules { get; set; } = new List<CourseModule>();
     public ICollection<Lesson> Lessons { get; set; } = new List<Lesson>();
     public ICollection<LearnerStudyCourse> LearnerStudyCourses { get; set; } = new List<LearnerStudyCourse>();
     public ICollection<PostCourseRequired> PostCourseRequireds { get; set; } = new List<PostCourseRequired>();

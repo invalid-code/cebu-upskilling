@@ -5,6 +5,7 @@ import { ApplicationsProvider } from './context/ApplicationsContext';
 import { ToastProvider } from './context/ToastContext';
 import Sidebar from './components/Layout/Sidebar';
 import Topbar from './components/Layout/Topbar';
+import MobileNav from './components/Layout/MobileNav';
 import { LearnerRoute, RecruiterRoute } from './components/RoleRoute';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
@@ -24,6 +25,7 @@ import BusinessDashboardPage from './pages/BusinessDashboardPage';
 import PostJobPage from './pages/PostJobPage';
 import EditJobPage from './pages/EditJobPage';
 import JobApplicationsPage from './pages/JobApplicationsPage';
+import NotFoundPage from './pages/NotFoundPage';
 
 const appStyles = {
   app: {
@@ -47,14 +49,15 @@ function ProtectedRoute() {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
   return (
-    <div style={appStyles.app}>
+    <div className="app-shell" style={appStyles.app}>
       <Sidebar />
       <main style={appStyles.main}>
         <Topbar />
-        <div style={appStyles.content}>
+        <div className="page-content" style={appStyles.content}>
           <Outlet />
         </div>
       </main>
+      <MobileNav />
     </div>
   );
 }
@@ -63,11 +66,6 @@ function PublicRoute() {
   const { user } = useAuth();
   if (user) return <Navigate to={isRecruiter(user) ? '/business-dashboard' : '/'} replace />;
   return <Outlet />;
-}
-
-function RoleRedirect() {
-  const { user } = useAuth();
-  return <Navigate to={isRecruiter(user) ? '/business-dashboard' : '/'} replace />;
 }
 
 export default function App() {
@@ -104,7 +102,7 @@ export default function App() {
               </Route>
               <Route path="/help" element={<HelpPage />} />
             </Route>
-            <Route path="*" element={<RoleRedirect />} />
+            <Route path="*" element={<NotFoundPage />} />
           </Routes>
           </ToastProvider>
           </ApplicationsProvider>

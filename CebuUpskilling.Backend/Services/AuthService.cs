@@ -126,6 +126,8 @@ public class AuthService : IAuthService
             throw new InvalidOperationException("Email already registered");
         }
 
+        var addressParts = AddressParser.Parse(request.Address);
+
         var user = new AppUser
         {
             FirstName = request.FirstName,
@@ -137,6 +139,11 @@ public class AuthService : IAuthService
             Role = request.Role,
             TargetRole = request.TargetRole,
             Address = request.Address,
+            Street = addressParts.Street,
+            City = addressParts.City,
+            Province = addressParts.Province,
+            ZipCode = addressParts.ZipCode,
+            Country = addressParts.Country,
         };
 
         _context.Users.Add(user);
@@ -175,15 +182,8 @@ public class AuthService : IAuthService
 
         var token = _tokenService.GenerateToken(user);
 
-        return new AuthResponse(
-            user.UserId,
-            user.FirstName,
-            user.LastName,
-            user.EmailAddress,
-            user.Role,
-            user.TargetRole,
-            user.Address,
-            user.RemoteFriendly,
+        return BuildAuthResponse(
+            user,
             token,
             parseResult?.Skills.Count ?? 0,
             parseResult?.Skills.Count(s => s.AssessmentId != null) ?? 0,
@@ -222,6 +222,8 @@ public class AuthService : IAuthService
             await _context.SaveChangesAsync();
             _logger.LogInformation("Company created: {CompanyId} ({CompanyName})", company.CompanyId, company.Name);
 
+            var addressParts = AddressParser.Parse(request.Address);
+
             var user = new AppUser
             {
                 FirstName = request.FirstName,
@@ -232,6 +234,11 @@ public class AuthService : IAuthService
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
                 Role = "Recruiter",
                 Address = request.Address,
+                Street = addressParts.Street,
+                City = addressParts.City,
+                Province = addressParts.Province,
+                ZipCode = addressParts.ZipCode,
+                Country = addressParts.Country,
                 CompanyId = company.CompanyId,
             };
 
@@ -284,7 +291,18 @@ public class AuthService : IAuthService
             return null;
         }
 
-        return DateTime.TryParse(value, out var parsed) ? parsed : null;
+        DateTime? parsed = DateTime.TryParse(value, out var date) ? date : null;
+        if (parsed == null)
+        {
+            return null;
+        }
+
+        // The Birthday column maps to "timestamp with time zone"; Npgsql requires
+        // a UTC DateTime. Date-only inputs parse as Kind=Unspecified, so pin them
+        // to UTC and normalize any local values.
+        return parsed.Value.Kind == DateTimeKind.Utc
+            ? parsed
+            : DateTime.SpecifyKind(parsed.Value.ToUniversalTime(), DateTimeKind.Utc);
     }
 
     public async Task<AuthResponse> LoginAsync(LoginRequest request)
@@ -310,7 +328,7 @@ public class AuthService : IAuthService
 
         var token = _tokenService.GenerateToken(user);
 
-        return new AuthResponse(user.UserId, user.FirstName, user.LastName, user.EmailAddress, user.Role, user.TargetRole, user.Address, user.RemoteFriendly, token, CompanyId: user.CompanyId, CompanyName: user.Company?.Name);
+        return BuildAuthResponse(user, token, companyId: user.CompanyId, companyName: user.Company?.Name);
     }
 
     public async Task<AuthResponse> UpdateProfileAsync(int userId, UpdateProfileRequest request)
@@ -332,6 +350,12 @@ public class AuthService : IAuthService
         if (request.Address != null)
         {
             user.Address = request.Address;
+            var addressParts = AddressParser.Parse(request.Address);
+            user.Street = addressParts.Street;
+            user.City = addressParts.City;
+            user.Province = addressParts.Province;
+            user.ZipCode = addressParts.ZipCode;
+            user.Country = addressParts.Country;
         }
 
         if (request.RemoteFriendly.HasValue)
@@ -343,7 +367,7 @@ public class AuthService : IAuthService
         _logger.LogInformation("Profile updated for user {UserId}", userId);
 
         var token = _tokenService.GenerateToken(user);
-        return new AuthResponse(user.UserId, user.FirstName, user.LastName, user.EmailAddress, user.Role, user.TargetRole, user.Address, user.RemoteFriendly, token, CompanyId: user.CompanyId, CompanyName: user.Company?.Name);
+        return BuildAuthResponse(user, token, companyId: user.CompanyId, companyName: user.Company?.Name);
     }
 
     public Task LogoutAsync(string? jti)
@@ -495,4 +519,32 @@ public class AuthService : IAuthService
 
         return CryptographicOperations.FixedTimeEquals(rawBytes, storedBytes);
     }
+
+    private static AuthResponse BuildAuthResponse(
+        AppUser user,
+        string token,
+        int parsedSkillCount = 0,
+        int assessmentCount = 0,
+        int? companyId = null,
+        string? companyName = null) =>
+        new(
+            user.UserId,
+            user.FirstName,
+            user.LastName,
+            user.EmailAddress,
+            user.Role,
+            user.TargetRole,
+            user.Address,
+            user.Street,
+            user.City,
+            user.Province,
+            user.ZipCode,
+            user.Country,
+            user.RemoteFriendly,
+            token,
+            parsedSkillCount,
+            assessmentCount,
+            companyId,
+            companyName
+        );
 }

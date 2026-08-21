@@ -80,6 +80,27 @@ public class RoleSeparationApiTests : ProductionApiTestBase
     }
 
     [Fact]
+    public async Task Learner_GetCompanies_IsAllowed()
+    {
+        var token = await RegisterLearnerAsync("separation.learnercompanies@example.com");
+
+        var response = await AuthorizedClient(token).GetAsync("/api/companies");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Empty((await ReadJsonAsync(response)).EnumerateArray().ToList());
+    }
+
+    [Fact]
+    public async Task Learner_CreateCompany_IsForbidden()
+    {
+        var token = await RegisterLearnerAsync("separation.learnercreatecompany@example.com");
+
+        var response = await AuthorizedClient(token).PostAsJsonAsync("/api/companies", new { name = "Nope Corp" });
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Recruiter_PostWriteEndpoints_RemainAllowed()
     {
         var (token, companyId) = await RegisterRecruiterAsync("separation.recruiterposts@example.com", "Acme Corp");

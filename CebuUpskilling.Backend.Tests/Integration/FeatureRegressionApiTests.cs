@@ -518,7 +518,8 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
     public async Task Media_UploadLessonVideo_ReturnsStoredMedia()
     {
         var token = await RegisterLearnerAsync("regr.media.upload@example.com");
-        var (_, lessonIds) = await CreateCourseWithLessonsAsync();
+        var (courseId, lessonIds) = await CreateCourseWithLessonsAsync();
+        await AuthorizedClient(token).PostAsJsonAsync("/api/enrollments", new { courseId });
 
         using var content = new MultipartFormDataContent();
         var fileContent = new ByteArrayContent(new byte[] { 0x00, 0x01, 0x02, 0x03 });
@@ -538,7 +539,8 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
     public async Task Media_UploadEmptyFile_ReturnsBadRequest()
     {
         var token = await RegisterLearnerAsync("regr.media.empty@example.com");
-        var (_, lessonIds) = await CreateCourseWithLessonsAsync();
+        var (courseId, lessonIds) = await CreateCourseWithLessonsAsync();
+        await AuthorizedClient(token).PostAsJsonAsync("/api/enrollments", new { courseId });
 
         using var content = new MultipartFormDataContent();
         var fileContent = new ByteArrayContent(Array.Empty<byte>());
@@ -660,7 +662,11 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         var lessonSpecs = new[] { ("HTML Fundamentals", 1), ("CSS Styling", 2) };
         foreach (var (name, order) in lessonSpecs)
         {
-            var lesson = new Lesson { CourseId = course.CourseId, Name = name, Description = name };
+            var module = new CourseModule { CourseId = course.CourseId, Name = $"Module {order}", Order = order };
+            db.CourseModules.Add(module);
+            await db.SaveChangesAsync();
+
+            var lesson = new Lesson { ModuleId = module.ModuleId, CourseId = course.CourseId, Name = name, Description = name };
             db.Lessons.Add(lesson);
             await db.SaveChangesAsync();
 
