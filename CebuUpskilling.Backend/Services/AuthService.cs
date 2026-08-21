@@ -456,9 +456,14 @@ public class AuthService : IAuthService
     public async Task<bool> ConfirmEmailAsync(string email, string token)
     {
         var user = await _context.Users.FirstOrDefaultAsync(u => u.EmailAddress == email);
-        if (user == null || user.EmailConfirmed)
+        if (user == null)
         {
-            return user?.EmailConfirmed ?? false;
+            _logger.LogWarning("Confirmation failed: user {Email} not found", email);
+            return false;
+        }
+        if (user.EmailConfirmed)
+        {
+            return true;
         }
 
         if (string.IsNullOrWhiteSpace(token)

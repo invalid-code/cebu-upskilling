@@ -99,8 +99,13 @@ const jobTypes = ['Full-time', 'Part-time', 'Contract', 'Side-hustle'];
 
 function parsePost(post) {
   const jobType = post.jobType || 'Full-time';
-  const isSme = jobType !== 'Full-time';
-  return {
+  const description = post.description || '';
+  const schedule = post.schedule || 'Full-time';
+  let isSme = jobType !== 'Full-time';
+  // Side-hustle detection also via schedule
+  if (schedule === 'Side-hustle') isSme = true;
+
+  const job = {
     id: post.postId,
     title: post.title,
     company: post.companyName || 'Unknown',
@@ -116,9 +121,39 @@ function parsePost(post) {
     isActive: post.isActive,
     companyLogoUrl: post.companyLogoUrl || '',
     createdAt: post.createdAt || null,
-    kind: isSme ? 'sme' : 'corporate',
-    kindLabel: isSme ? 'Side Hustle & Local SME' : 'Corporate & Full-Time',
+    schedule,
+    skills: [],
+    requiredSkillLevels: [],
   };
+
+  // Description fallback parsing for legacy posts without structured skills
+  const lines = description.split('\n');
+  for (const line of lines) {
+    if (!line) continue;
+    const salaryMatch = line.match(/^(salary|rate):\s*(.*)$/i);
+    if (salaryMatch) {
+      job.salaryRange = job.salaryRange || salaryMatch[2];
+      continue;
+    }
+    const skillsMatch = line.match(/^skills:\s*(.*)$/i);
+    if (skillsMatch) {
+      job.skills = skillsMatch[1].split(',').map((skill) => skill.trim()).filter(Boolean);
+      continue;
+    }
+  }
+
+  // Employer-declared required skills (taxonomy with proficiency levels)
+  if (Array.isArray(post.requiredSkills) && post.requiredSkills.length > 0) {
+    job.skills = post.requiredSkills.map((skill) => skill.skillName);
+    job.requiredSkillLevels = post.requiredSkills.map((skill) => ({
+      name: skill.skillName,
+      level: skill.requiredLevel,
+    }));
+  }
+
+  job.kind = isSme ? 'sme' : 'corporate';
+  job.kindLabel = isSme ? 'Side Hustle & Local SME' : 'Corporate & Full-Time';
+  return job;
 }
 
 function buildQuery({ tab, search, jobType, location, isRemote, page, pageSize }) {

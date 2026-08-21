@@ -9,7 +9,8 @@ public record ApplicationSummary(
     DateTime AppliedAt,
     DateTime? SavedAt,
     string? ResumeUrl,
-    string? CoverLetterUrl
+    string? CoverLetterUrl,
+    string Schedule = "Full-time"
 );
 
 public record ApplyRequest(int PostId, string? ResumeUrl = null, string? CoverLetterUrl = null);

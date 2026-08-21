@@ -1,4 +1,6 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using CebuUpskilling.Backend.DTOs;
 
 namespace CebuUpskilling.Backend.Entities;
 
@@ -47,6 +49,13 @@ public class Post
 
     public DateTime CreatedAt { get; set; }
 
+    [Required, MaxLength(50)]
+    public string Schedule { get; set; } = "Full-time";
+
     public Company Company { get; set; } = null!;
     public ICollection<PostCourseRequired> PostCourseRequireds { get; set; } = new List<PostCourseRequired>();
+    public ICollection<PostSkill> PostSkills { get; set; } = new List<PostSkill>();
+
+    [NotMapped]
+    public List<RequiredSkillInput>? RequiredSkills { get; set; }
 }

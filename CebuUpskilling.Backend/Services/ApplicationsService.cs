@@ -309,7 +309,8 @@ public class ApplicationsService : IApplicationsService
             application.AppliedAt,
             application.SavedAt,
             application.ResumeUrl,
-            application.CoverLetterUrl
+            application.CoverLetterUrl,
+            string.IsNullOrWhiteSpace(application.Post?.Schedule) ? "Full-time" : application.Post!.Schedule!
         );
     }
 

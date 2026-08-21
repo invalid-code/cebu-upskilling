@@ -3,6 +3,7 @@ using System;
 using CebuUpskilling.Backend.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CebuUpskilling.Backend.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260821154508_AddPostScheduleAndPostSkills")]
+    partial class AddPostScheduleAndPostSkills
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -36,17 +39,6 @@ namespace CebuUpskilling.Backend.Migrations
 
                     b.Property<DateTime?>("Birthday")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("City")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<int?>("CompanyId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Country")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -84,6 +76,7 @@ namespace CebuUpskilling.Backend.Migrations
                         .HasColumnType("character varying(255)");
 
                     b.Property<string>("PasswordHash")
+                        .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
@@ -94,10 +87,6 @@ namespace CebuUpskilling.Backend.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
-                    b.Property<string>("Province")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
                     b.Property<bool>("RemoteFriendly")
                         .HasColumnType("boolean");
 
@@ -105,10 +94,6 @@ namespace CebuUpskilling.Backend.Migrations
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
-
-                    b.Property<string>("Street")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
 
                     b.Property<string>("TargetRole")
                         .HasMaxLength(100)
@@ -120,13 +105,7 @@ namespace CebuUpskilling.Backend.Migrations
                     b.Property<string>("UpdatedBy")
                         .HasColumnType("text");
 
-                    b.Property<string>("ZipCode")
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
                     b.HasKey("UserId");
-
-                    b.HasIndex("CompanyId");
 
                     b.HasIndex("EmailAddress")
                         .IsUnique();
@@ -145,19 +124,11 @@ namespace CebuUpskilling.Backend.Migrations
                     b.Property<DateTime>("AppliedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("CoverLetterUrl")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
                     b.Property<int>("LearnerId")
                         .HasColumnType("integer");
 
                     b.Property<int>("PostId")
                         .HasColumnType("integer");
-
-                    b.Property<string>("ResumeUrl")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
 
                     b.Property<DateTime?>("SavedAt")
                         .HasColumnType("timestamp with time zone");
@@ -293,48 +264,6 @@ namespace CebuUpskilling.Backend.Migrations
                     b.ToTable("Courses");
                 });
 
-            modelBuilder.Entity("CebuUpskilling.Backend.Entities.CourseModule", b =>
-                {
-                    b.Property<int>("ModuleId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("ModuleId"));
-
-                    b.Property<int>("CourseId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<int>("Order")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasColumnType("text");
-
-                    b.HasKey("ModuleId");
-
-                    b.HasIndex("CourseId");
-
-                    b.ToTable("CourseModules");
-                });
-
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.Discipline", b =>
                 {
                     b.Property<int>("DomainId")
@@ -367,42 +296,6 @@ namespace CebuUpskilling.Backend.Migrations
                     b.HasKey("DomainId");
 
                     b.ToTable("Disciplines");
-                });
-
-            modelBuilder.Entity("CebuUpskilling.Backend.Entities.DiscussionPost", b =>
-                {
-                    b.Property<int>("DiscussionPostId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("DiscussionPostId"));
-
-                    b.Property<string>("AuthorName")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<string>("Content")
-                        .IsRequired()
-                        .HasMaxLength(4000)
-                        .HasColumnType("character varying(4000)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("LearnerId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("LessonId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("DiscussionPostId");
-
-                    b.HasIndex("LearnerId");
-
-                    b.HasIndex("LessonId");
-
-                    b.ToTable("DiscussionPosts");
                 });
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.Exercise", b =>
@@ -557,37 +450,6 @@ namespace CebuUpskilling.Backend.Migrations
                     b.ToTable("LearnerAssessments");
                 });
 
-            modelBuilder.Entity("CebuUpskilling.Backend.Entities.LearnerNote", b =>
-                {
-                    b.Property<int>("LearnerNoteId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("LearnerNoteId"));
-
-                    b.Property<string>("Content")
-                        .IsRequired()
-                        .HasMaxLength(20000)
-                        .HasColumnType("character varying(20000)");
-
-                    b.Property<int>("LearnerId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("LessonId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("LearnerNoteId");
-
-                    b.HasIndex("LessonId");
-
-                    b.HasIndex("LearnerId", "LessonId");
-
-                    b.ToTable("LearnerNotes");
-                });
-
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.LearnerSkill", b =>
                 {
                     b.Property<int>("LearnerSkillId")
@@ -663,9 +525,6 @@ namespace CebuUpskilling.Backend.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
 
-                    b.Property<int>("ModuleId")
-                        .HasColumnType("integer");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(255)
@@ -680,8 +539,6 @@ namespace CebuUpskilling.Backend.Migrations
                     b.HasKey("LessonId");
 
                     b.HasIndex("CourseId");
-
-                    b.HasIndex("ModuleId");
 
                     b.ToTable("Lessons");
                 });
@@ -760,53 +617,15 @@ namespace CebuUpskilling.Backend.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("PostId"));
 
-                    b.Property<string>("Benefits")
-                        .HasMaxLength(5000)
-                        .HasColumnType("character varying(5000)");
-
-                    b.Property<int>("CompanyId")
+                    b.Property<int?>("CompanyId")
                         .HasColumnType("integer");
-
-                    b.Property<string>("CompanyLogoUrl")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Description")
                         .HasMaxLength(5000)
                         .HasColumnType("character varying(5000)");
 
-                    b.Property<string>("ExperienceLevel")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<DateTime?>("ExpiresAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("IsRemote")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("JobType")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("Location")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<string>("Requirements")
-                        .HasMaxLength(5000)
-                        .HasColumnType("character varying(5000)");
-
-                    b.Property<string>("SalaryRange")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                    b.Property<int>("RecruiterId")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Schedule")
                         .IsRequired()
@@ -826,6 +645,8 @@ namespace CebuUpskilling.Backend.Migrations
                     b.HasKey("PostId");
 
                     b.HasIndex("CompanyId");
+
+                    b.HasIndex("RecruiterId");
 
                     b.ToTable("Posts");
                 });
@@ -862,6 +683,31 @@ namespace CebuUpskilling.Backend.Migrations
 
                     b.ToTable("PostSkills");
                 });
+
+            modelBuilder.Entity("CebuUpskilling.Backend.Entities.Recruiter", b =>
+                {
+                    b.Property<int>("RecruiterId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("RecruiterId"));
+
+                    b.Property<int>("CompanyId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("RecruiterId");
+
+                    b.HasIndex("CompanyId");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("Recruiters");
+                });
+
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.RoleSkill", b =>
                 {
                     b.Property<int>("RoleSkillId")
@@ -949,15 +795,6 @@ namespace CebuUpskilling.Backend.Migrations
                     b.ToTable("SubDisciplines");
                 });
 
-            modelBuilder.Entity("CebuUpskilling.Backend.Entities.AppUser", b =>
-                {
-                    b.HasOne("CebuUpskilling.Backend.Entities.Company", "Company")
-                        .WithMany("Users")
-                        .HasForeignKey("CompanyId");
-
-                    b.Navigation("Company");
-                });
-
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.Application", b =>
                 {
                     b.HasOne("CebuUpskilling.Backend.Entities.Learner", "Learner")
@@ -1003,36 +840,6 @@ namespace CebuUpskilling.Backend.Migrations
                         .IsRequired();
 
                     b.Navigation("Genre");
-                });
-
-            modelBuilder.Entity("CebuUpskilling.Backend.Entities.CourseModule", b =>
-                {
-                    b.HasOne("CebuUpskilling.Backend.Entities.Course", "Course")
-                        .WithMany("Modules")
-                        .HasForeignKey("CourseId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Course");
-                });
-
-            modelBuilder.Entity("CebuUpskilling.Backend.Entities.DiscussionPost", b =>
-                {
-                    b.HasOne("CebuUpskilling.Backend.Entities.Learner", "Learner")
-                        .WithMany("DiscussionPosts")
-                        .HasForeignKey("LearnerId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("CebuUpskilling.Backend.Entities.Lesson", "Lesson")
-                        .WithMany("DiscussionPosts")
-                        .HasForeignKey("LessonId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Learner");
-
-                    b.Navigation("Lesson");
                 });
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.Exercise", b =>
@@ -1098,25 +905,6 @@ namespace CebuUpskilling.Backend.Migrations
                     b.Navigation("Skill");
                 });
 
-            modelBuilder.Entity("CebuUpskilling.Backend.Entities.LearnerNote", b =>
-                {
-                    b.HasOne("CebuUpskilling.Backend.Entities.Learner", "Learner")
-                        .WithMany("LearnerNotes")
-                        .HasForeignKey("LearnerId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("CebuUpskilling.Backend.Entities.Lesson", "Lesson")
-                        .WithMany("LearnerNotes")
-                        .HasForeignKey("LessonId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Learner");
-
-                    b.Navigation("Lesson");
-                });
-
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.LearnerSkill", b =>
                 {
                     b.HasOne("CebuUpskilling.Backend.Entities.Learner", "Learner")
@@ -1163,15 +951,7 @@ namespace CebuUpskilling.Backend.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("CebuUpskilling.Backend.Entities.CourseModule", "Module")
-                        .WithMany("Lessons")
-                        .HasForeignKey("ModuleId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.Navigation("Course");
-
-                    b.Navigation("Module");
                 });
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.LessonContent", b =>
@@ -1200,11 +980,17 @@ namespace CebuUpskilling.Backend.Migrations
                 {
                     b.HasOne("CebuUpskilling.Backend.Entities.Company", "Company")
                         .WithMany("Posts")
-                        .HasForeignKey("CompanyId")
+                        .HasForeignKey("CompanyId");
+
+                    b.HasOne("CebuUpskilling.Backend.Entities.Recruiter", "Recruiter")
+                        .WithMany("Posts")
+                        .HasForeignKey("RecruiterId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Company");
+
+                    b.Navigation("Recruiter");
                 });
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.PostCourseRequired", b =>
@@ -1244,6 +1030,26 @@ namespace CebuUpskilling.Backend.Migrations
 
                     b.Navigation("Skill");
                 });
+
+            modelBuilder.Entity("CebuUpskilling.Backend.Entities.Recruiter", b =>
+                {
+                    b.HasOne("CebuUpskilling.Backend.Entities.Company", "Company")
+                        .WithMany("Recruiters")
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CebuUpskilling.Backend.Entities.AppUser", "User")
+                        .WithOne("Recruiter")
+                        .HasForeignKey("CebuUpskilling.Backend.Entities.Recruiter", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Company");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.RoleSkill", b =>
                 {
                     b.HasOne("CebuUpskilling.Backend.Entities.Skill", "Skill")
@@ -1269,13 +1075,15 @@ namespace CebuUpskilling.Backend.Migrations
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.AppUser", b =>
                 {
                     b.Navigation("Learner");
+
+                    b.Navigation("Recruiter");
                 });
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.Company", b =>
                 {
                     b.Navigation("Posts");
 
-                    b.Navigation("Users");
+                    b.Navigation("Recruiters");
                 });
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.Course", b =>
@@ -1284,14 +1092,7 @@ namespace CebuUpskilling.Backend.Migrations
 
                     b.Navigation("Lessons");
 
-                    b.Navigation("Modules");
-
                     b.Navigation("PostCourseRequireds");
-                });
-
-            modelBuilder.Entity("CebuUpskilling.Backend.Entities.CourseModule", b =>
-                {
-                    b.Navigation("Lessons");
                 });
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.Discipline", b =>
@@ -1311,11 +1112,7 @@ namespace CebuUpskilling.Backend.Migrations
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.Learner", b =>
                 {
-                    b.Navigation("DiscussionPosts");
-
                     b.Navigation("LearnerAssessments");
-
-                    b.Navigation("LearnerNotes");
 
                     b.Navigation("LearnerSkills");
 
@@ -1324,11 +1121,7 @@ namespace CebuUpskilling.Backend.Migrations
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.Lesson", b =>
                 {
-                    b.Navigation("DiscussionPosts");
-
                     b.Navigation("Exercises");
-
-                    b.Navigation("LearnerNotes");
 
                     b.Navigation("LessonContents");
 
@@ -1340,6 +1133,11 @@ namespace CebuUpskilling.Backend.Migrations
                     b.Navigation("PostCourseRequireds");
 
                     b.Navigation("PostSkills");
+                });
+
+            modelBuilder.Entity("CebuUpskilling.Backend.Entities.Recruiter", b =>
+                {
+                    b.Navigation("Posts");
                 });
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.Skill", b =>
