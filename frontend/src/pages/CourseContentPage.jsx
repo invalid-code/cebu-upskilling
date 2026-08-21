@@ -225,7 +225,8 @@ export default function CourseContentPage() {
         <div style={styles.rightSidebar}>
           <LessonResources
             media={courseData.currentLesson.media}
-            exercises={courseData.currentLesson.exercises}
+            lessonId={courseData.currentLesson.lessonId}
+            courseId={courseData.courseId}
           />
         </div>
       </div>

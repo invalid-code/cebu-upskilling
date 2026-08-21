@@ -115,24 +115,14 @@ public class NotesService : INotesService
             return null;
         }
 
-        var note = await _notes.GetAsync(learner.LearnerId, lessonId);
-        if (note == null)
+        var note = new LearnerNote
         {
-            note = new LearnerNote
-            {
-                LearnerId = learner.LearnerId,
-                LessonId = lessonId,
-                Content = content,
-                UpdatedAt = DateTime.UtcNow,
-            };
-            await _notes.AddAsync(note, cancellationToken);
-        }
-        else
-        {
-            note.Content = content;
-            note.UpdatedAt = DateTime.UtcNow;
-        }
-
+            LearnerId = learner.LearnerId,
+            LessonId = lessonId,
+            Content = content,
+            UpdatedAt = DateTime.UtcNow,
+        };
+        await _notes.AddAsync(note, cancellationToken);
         await _notes.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Saved note for user {UserId}, lesson {LessonId}", userId, lessonId);

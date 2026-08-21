@@ -1,8 +1,30 @@
-import { render, screen } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import LessonResources from './LessonResources';
 
+vi.mock('../../api/client', () => ({
+  api: { get: vi.fn(), post: vi.fn(), put: vi.fn() },
+}));
+
+vi.mock('../../context/ToastContext', () => ({
+  useToast: () => ({ showToast: vi.fn() }),
+}));
+
+import { api } from '../../api/client';
+
 describe('LessonResources', () => {
+  beforeEach(() => {
+    api.get.mockReset();
+    api.post.mockReset();
+    api.put.mockReset();
+    api.get.mockImplementation((path) => {
+      if (path.startsWith('/notes/lessons/')) return Promise.resolve({ content: null });
+      if (path.startsWith('/notes/courses/')) return Promise.resolve({ notes: [] });
+      if (path.startsWith('/discussions/')) return Promise.resolve({ lessonId: 1, posts: [] });
+      return Promise.resolve({});
+    });
+  });
+
   it('renders default lesson resources', () => {
     render(<LessonResources media={[]} />);
 
@@ -36,5 +58,14 @@ describe('LessonResources', () => {
     expect(screen.getByText('Need help?')).toBeInTheDocument();
     expect(screen.getByText(/Ask the learning community about this lesson/)).toBeInTheDocument();
     expect(screen.getByText('Join discussion →')).toBeInTheDocument();
+  });
+
+  it('opens the discussion modal when Join discussion is clicked', async () => {
+    render(<LessonResources media={[]} lessonId={1} courseId={2} />);
+
+    fireEvent.click(screen.getByText('Join discussion →'));
+
+    expect(await screen.findByText('Lesson discussion')).toBeInTheDocument();
+    expect(api.get).toHaveBeenCalledWith('/discussions/lessons/1', { signal: expect.anything() });
   });
 });

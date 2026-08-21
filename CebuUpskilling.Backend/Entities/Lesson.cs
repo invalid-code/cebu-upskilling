@@ -23,4 +23,5 @@ public class Lesson : AuditableEntity
     public ICollection<Media> Media { get; set; } = new List<Media>();
     public ICollection<Exercise> Exercises { get; set; } = new List<Exercise>();
     public ICollection<LearnerNote> LearnerNotes { get; set; } = new List<LearnerNote>();
+    public ICollection<DiscussionPost> DiscussionPosts { get; set; } = new List<DiscussionPost>();
 }

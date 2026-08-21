@@ -172,11 +172,14 @@ export default function CoursesPage() {
         setCategoryTabs(['All', ...available]);
       })
       .catch((err) => {
+        if (err?.name === 'AbortError') return;
         setError(err.message || 'Could not load courses');
         setEnrolledCourses([]);
         setRecommendedCourses([]);
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
     return () => controller.abort();
   }, []);
 
@@ -199,6 +202,23 @@ export default function CoursesPage() {
   };
 
   const handleResumeFromPanel = (courseId) => {
+    // Continue to the remaining courses the learner hasn't studied, not the current first course
+    const remainingEnrolled = enrolledCourses.filter((e) => e.courseId !== courseId && e.progressPercent < 100);
+    if (remainingEnrolled.length > 0) {
+      const next = [...remainingEnrolled].sort((a, b) => a.progressPercent - b.progressPercent)[0];
+      setSelectedCourse(null);
+      navigate(`/courses/${next.courseId}/learn`);
+      return;
+    }
+    const remainingRecommended = recommendedCourses.find((c) => !c.isEnrolled);
+    if (remainingRecommended) {
+      setSelectedCourse(null);
+      // Open the next remaining course detail so learner can enroll
+      handleOpenCourseDetail(remainingRecommended.courseId);
+      setTimeout(() => document.getElementById('recommended-courses')?.scrollIntoView({ behavior: 'smooth' }), 100);
+      return;
+    }
+    setSelectedCourse(null);
     navigate(`/courses/${courseId}/learn`);
   };
 
@@ -299,7 +319,7 @@ export default function CoursesPage() {
             </div>
           )}
 
-          <div>
+          <div id="recommended-courses">
             <div style={styles.sectionHeader}>
               <h2 style={styles.sectionTitle}>Recommended for your pathway</h2>
               <div style={styles.filterTabs}>

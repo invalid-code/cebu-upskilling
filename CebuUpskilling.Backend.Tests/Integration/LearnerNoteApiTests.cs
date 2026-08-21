@@ -13,7 +13,7 @@ public class LearnerNoteApiTests : ProductionApiTestBase
     public LearnerNoteApiTests(ProductionApiFactory factory) : base(factory) { }
 
     [Fact]
-    public async Task Upsert_GetAndUpdateLessonNote_Succeeds()
+    public async Task Upsert_CreatesNewNoteOnEverySave()
     {
         var token = await RegisterLearnerAsync("notes.crud@example.com");
         var (courseId, lessonId) = await CreateCourseWithLessonAsync(token);
@@ -44,9 +44,10 @@ public class LearnerNoteApiTests : ProductionApiTestBase
         var courseNotesResponse = await authorized.GetAsync($"/api/notes/courses/{courseId}");
         Assert.Equal(HttpStatusCode.OK, courseNotesResponse.StatusCode);
         var notes = (await ReadJsonAsync(courseNotesResponse)).GetProperty("notes").EnumerateArray().ToList();
-        var single = Assert.Single(notes);
-        Assert.Equal(lessonId, single.GetProperty("lessonId").GetInt32());
-        Assert.Equal("second draft", single.GetProperty("content").GetString());
+        Assert.Equal(2, notes.Count);
+        Assert.Equal(new[] { "first draft", "second draft" },
+            notes.Select(n => n.GetProperty("content").GetString()));
+        Assert.All(notes, n => Assert.Equal(lessonId, n.GetProperty("lessonId").GetInt32()));
     }
 
     [Fact]
