@@ -18,6 +18,8 @@ public class R2StorageService : IObjectStorageService
         _options = options.Value;
         _logger = logger;
 
+        ValidateOptions(_options);
+
         var config = new AmazonS3Config
         {
             ServiceURL = $"https://{_options.AccountId}.r2.cloudflarestorage.com",
@@ -76,4 +78,17 @@ public class R2StorageService : IObjectStorageService
     }
 
     public string GetPublicUrl(string key) => $"{_options.PublicBaseUrl.TrimEnd('/')}/{key}";
+
+    private static void ValidateOptions(R2Options o)
+    {
+        if (string.IsNullOrWhiteSpace(o.AccountId)
+            || string.IsNullOrWhiteSpace(o.AccessKeyId)
+            || string.IsNullOrWhiteSpace(o.SecretAccessKey)
+            || string.IsNullOrWhiteSpace(o.BucketName)
+            || string.IsNullOrWhiteSpace(o.PublicBaseUrl))
+        {
+            throw new InvalidOperationException(
+                "R2 options are not fully configured. Set R2:AccountId, R2:AccessKeyId, R2:SecretAccessKey, R2:BucketName and R2:PublicBaseUrl in appsettings.json or as environment variables.");
+        }
+    }
 }

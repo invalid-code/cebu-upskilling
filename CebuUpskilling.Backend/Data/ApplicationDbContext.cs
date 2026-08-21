@@ -23,6 +23,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<Recruiter> Recruiters => Set<Recruiter>();
     public DbSet<Post> Posts => Set<Post>();
     public DbSet<PostCourseRequired> PostCourseRequireds => Set<PostCourseRequired>();
+    public DbSet<PostSkill> PostSkills => Set<PostSkill>();
     public DbSet<Skill> Skills => Set<Skill>();
     public DbSet<RoleSkill> RoleSkills => Set<RoleSkill>();
     public DbSet<LearnerSkill> LearnerSkills => Set<LearnerSkill>();
@@ -124,6 +125,19 @@ public class ApplicationDbContext : DbContext
             .HasOne(pcr => pcr.Course)
             .WithMany(c => c.PostCourseRequireds)
             .HasForeignKey(pcr => pcr.CourseId);
+
+        modelBuilder.Entity<PostSkill>()
+            .HasKey(ps => new { ps.PostId, ps.SkillId });
+
+        modelBuilder.Entity<PostSkill>()
+            .HasOne(ps => ps.Post)
+            .WithMany(p => p.PostSkills)
+            .HasForeignKey(ps => ps.PostId);
+
+        modelBuilder.Entity<PostSkill>()
+            .HasOne(ps => ps.Skill)
+            .WithMany(s => s.PostSkills)
+            .HasForeignKey(ps => ps.SkillId);
 
         modelBuilder.Entity<AppUser>()
             .HasIndex(u => u.EmailAddress)

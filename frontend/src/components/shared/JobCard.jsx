@@ -70,9 +70,18 @@ export default function JobCard({ job }) {
         </p>
       </div>
       <div className="meta" style={styles.meta}>
-        {job.skills?.map((skill) => (
-          <span key={skill} style={styles.metaText}>{skill}</span>
-        ))}
+        {job.schedule && (
+          <Tag variant="sand">{job.schedule}</Tag>
+        )}
+        {job.requiredSkillLevels?.length > 0
+          ? job.requiredSkillLevels.map((skill) => (
+              <span key={skill.name} style={styles.metaText}>
+                {skill.name} · L{skill.level}
+              </span>
+            ))
+          : job.skills?.map((skill) => (
+              <span key={skill} style={styles.metaText}>{skill}</span>
+            ))}
         <Button
           variant={applied ? 'primary' : 'secondary'}
           style={{ marginLeft: 'auto', padding: '5px 8px', minHeight: 28 }}

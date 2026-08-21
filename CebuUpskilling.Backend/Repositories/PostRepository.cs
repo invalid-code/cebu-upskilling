@@ -14,10 +14,20 @@ public class PostRepository : EntityRepository<Post>, IPostRepository
     public PostRepository(ApplicationDbContext context) : base(context) { }
 
     public override async Task<List<Post>> GetAllAsync()
-        => await _dbSet.Include(p => p.Recruiter).Include(p => p.Company).ToListAsync();
+        => await _dbSet
+            .Include(p => p.Recruiter)
+            .Include(p => p.Company)
+            .Include(p => p.PostSkills)
+                .ThenInclude(ps => ps.Skill)
+            .ToListAsync();
 
     public override async Task<Post?> GetByIdAsync(int id)
-        => await _dbSet.Include(p => p.Recruiter).Include(p => p.Company).FirstOrDefaultAsync(p => p.PostId == id);
+        => await _dbSet
+            .Include(p => p.Recruiter)
+            .Include(p => p.Company)
+            .Include(p => p.PostSkills)
+                .ThenInclude(ps => ps.Skill)
+            .FirstOrDefaultAsync(p => p.PostId == id);
 
     public async Task<int> CountAsync() => await _dbSet.CountAsync();
 }

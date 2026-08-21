@@ -79,38 +79,49 @@ public class StatsController : ControllerBase
         }
 
         var company = new CompanySummary(
+            recruiter.CompanyId,
+            recruiter.RecruiterId,
             recruiter.Company.Name,
             await _context.Posts.CountAsync(p => p.CompanyId == recruiter.CompanyId),
             await _context.Recruiters.CountAsync(r => r.CompanyId == recruiter.CompanyId));
 
-        var trackedSkills = await _context.LearnerSkills
+        var trackedSkillSummary = await _context.LearnerSkills
             .Where(ls => ls.CurrentLevel > 0)
-            .ToListAsync();
+            .GroupBy(ls => 1)
+            .Select(g => new
+            {
+                Count = g.Count(),
+                Average = g.Average(ls => (double)ls.CurrentLevel),
+            })
+            .SingleOrDefaultAsync();
         var talentPool = new TalentPoolSummary(
             await _context.Learners.CountAsync(),
-            trackedSkills.Count,
-            trackedSkills.Count > 0 ? Math.Round(trackedSkills.Average(ls => (double)ls.CurrentLevel), 1) : 0);
+            trackedSkillSummary?.Count ?? 0,
+            trackedSkillSummary is { Count: > 0 }
+                ? Math.Round(trackedSkillSummary.Average, 1)
+                : 0);
 
-        var posts = await _context.Posts
+        // Single projection query: no Include chains, no client-side re-navigation.
+        var jobPostings = await _context.Posts
             .Where(p => p.CompanyId == recruiter.CompanyId)
-            .Include(p => p.PostCourseRequireds)
-                .ThenInclude(pcr => pcr.Course)
-                    .ThenInclude(c => c.Genre)
-                        .ThenInclude(g => g.SubDiscipline)
-                            .ThenInclude(sd => sd.Discipline)
             .OrderByDescending(p => p.PostId)
+            .Select(p => new JobPostingDto(
+                p.PostId,
+                p.Title,
+                p.Description,
+                string.IsNullOrWhiteSpace(p.Schedule) ? "Full-time" : p.Schedule,
+                p.PostCourseRequireds.Select(pcr => new RequiredCourseDto(
+                    pcr.CourseId,
+                    pcr.Course.Name,
+                    pcr.Course.Genre.SubDiscipline.Discipline.Name,
+                    pcr.Course.TechnicalLevel,
+                    pcr.Course.Mode)).ToList(),
+                p.PostSkills.Select(ps => new RequiredSkillDto(
+                    ps.SkillId,
+                    ps.Skill.Name,
+                    ps.Skill.Category,
+                    ps.RequiredLevel)).ToList()))
             .ToListAsync();
-
-        var jobPostings = posts.Select(p => new JobPostingDto(
-            p.PostId,
-            p.Title,
-            p.Description,
-            p.PostCourseRequireds.Select(pcr => new RequiredCourseDto(
-                pcr.CourseId,
-                pcr.Course.Name,
-                pcr.Course.Genre.SubDiscipline.Discipline.Name,
-                pcr.Course.TechnicalLevel,
-                pcr.Course.Mode)).ToList())).ToList();
 
         var demand = await _context.RoleSkills
             .Include(rs => rs.Skill)

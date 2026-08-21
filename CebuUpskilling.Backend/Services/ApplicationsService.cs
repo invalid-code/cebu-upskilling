@@ -128,7 +128,8 @@ public class ApplicationsService : IApplicationsService
             targetRole,
             application.Status,
             application.AppliedAt,
-            application.SavedAt
+            application.SavedAt,
+            string.IsNullOrWhiteSpace(application.Post?.Schedule) ? "Full-time" : application.Post!.Schedule!
         );
     }
 }

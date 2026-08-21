@@ -86,6 +86,7 @@ function parsePost(post) {
     salary: '',
     match: '',
     skills: [],
+    requiredSkillLevels: [],
   };
 
   for (const line of lines) {
@@ -108,11 +109,23 @@ function parsePost(post) {
     if (!job.location) job.location = line;
   }
 
+  // Employer-declared required skills (taxonomy with proficiency levels)
+  // are the source of truth when present; fall back to description regex.
+  if (Array.isArray(post.requiredSkills) && post.requiredSkills.length > 0) {
+    job.skills = post.requiredSkills.map((skill) => skill.skillName);
+    job.requiredSkillLevels = post.requiredSkills.map((skill) => ({
+      name: skill.skillName,
+      level: skill.requiredLevel,
+    }));
+  }
+
+  const schedule = post.schedule || 'Full-time';
+  job.schedule = schedule;
+
   const isRange = / - |–|—| to /i.test(job.salary);
-  const isSme = /rate:|\/ project/i.test(description) || (!isRange && !!job.salary);
+  const isSme = /rate:|\/project/i.test(description) || (!isRange && !!job.salary) || schedule === 'Side-hustle';
   job.kind = isSme ? 'sme' : 'corporate';
   job.kindLabel = isSme ? 'Side Hustle & Local SME' : 'Corporate & Full-Time';
-  job.schedule = isSme ? 'Side-hustle' : 'Full-time';
   return job;
 }
 

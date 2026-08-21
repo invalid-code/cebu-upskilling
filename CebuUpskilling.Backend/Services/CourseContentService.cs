@@ -169,9 +169,10 @@ public class CourseContentService : ICourseContentService
         var modules = new List<CourseModuleDto>();
         var moduleNumber = 1;
 
-        foreach (var lesson in lessons)
+        for (var i = 0; i < lessons.Count; i++)
         {
-            var lessonIndex = lessons.IndexOf(lesson);
+            var lesson = lessons[i];
+            var lessonIndex = i;
             var isCompleted = lessonIndex < completedLessons;
             var isCurrent = lesson.LessonId == currentLessonId;
 

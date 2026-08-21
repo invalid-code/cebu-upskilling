@@ -7,7 +7,8 @@ public record ApplicationSummary(
     string? TargetRole,
     string Status,
     DateTime AppliedAt,
-    DateTime? SavedAt
+    DateTime? SavedAt,
+    string Schedule = "Full-time"
 );
 
 public record ApplyRequest(int PostId);
