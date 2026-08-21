@@ -24,7 +24,6 @@ public class AssessmentService : IAssessmentService
     private readonly ILearnerAssessmentRepository _learnerAssessments;
     private readonly IAssessmentQuestionRepository _assessmentQuestions;
     private readonly ISkillRepository _skills;
-    private readonly IRecruiterRepository _recruiters;
     private readonly IGoogleAiService _aiService;
     private readonly ILogger<AssessmentService> _logger;
 
@@ -45,7 +44,6 @@ public class AssessmentService : IAssessmentService
         ILearnerAssessmentRepository learnerAssessments,
         IAssessmentQuestionRepository assessmentQuestions,
         ISkillRepository skills,
-        IRecruiterRepository recruiters,
         IGoogleAiService aiService,
         ILogger<AssessmentService> logger)
     {
@@ -56,7 +54,6 @@ public class AssessmentService : IAssessmentService
         _learnerAssessments = learnerAssessments;
         _assessmentQuestions = assessmentQuestions;
         _skills = skills;
-        _recruiters = recruiters;
         _aiService = aiService;
         _logger = logger;
     }
@@ -468,12 +465,13 @@ public class AssessmentService : IAssessmentService
 
     public async Task<CreatedCompanyQuestionResponse?> CreateCompanyQuestionAsync(int userId, CreateCompanyQuestionRequest request)
     {
-        var recruiter = await _recruiters.GetByUserIdAsync(userId);
-        if (recruiter?.Company == null)
+        var user = await _users.GetByIdWithCompanyAsync(userId);
+        if (user?.Company == null)
         {
-            _logger.LogWarning("User {UserId} is not a recruiter; company question rejected", userId);
+            _logger.LogWarning("User {UserId} has no company association; company question rejected", userId);
             return null;
         }
+        var recruiter = user;
 
         var skill = await _skills.GetByIdAsync(request.SkillId);
         if (skill == null)
@@ -503,7 +501,7 @@ public class AssessmentService : IAssessmentService
             OptionD = request.OptionD.Trim(),
             CorrectOption = request.CorrectOption,
             Source = AssessmentSource.Company,
-            CompanyId = recruiter.CompanyId,
+            CompanyId = recruiter.CompanyId!.Value,
         };
 
         await _assessmentQuestions.AddAsync(question);

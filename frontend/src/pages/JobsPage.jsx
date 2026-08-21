@@ -66,6 +66,21 @@ const styles = {
     color: 'var(--muted)',
     fontSize: 13,
   },
+  pager: {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 14,
+    marginTop: 24,
+  },
+  pagerInfo: {
+    fontSize: 12,
+    color: 'var(--muted)',
+  },
+  pagerButton: {
+    minHeight: 34,
+    padding: '6px 14px',
+  },
 };
 
 const tabOptions = [
@@ -74,76 +89,93 @@ const tabOptions = [
   { key: 'sme', label: 'Side Hustles & Local SME' },
 ];
 
+const tabToJobType = {
+  all: '',
+  corporate: 'Full-time',
+  sme: 'Part-time',
+};
+
+const jobTypes = ['Full-time', 'Part-time', 'Contract', 'Side-hustle'];
+
 function parsePost(post) {
-  const description = post.description || '';
-  const lines = description.split('\n').map((line) => line.trim());
-  const job = {
+  const jobType = post.jobType || 'Full-time';
+  const isSme = jobType !== 'Full-time';
+  return {
     id: post.postId,
     title: post.title,
-    company: post.company?.name || 'Unknown',
+    company: post.companyName || 'Unknown',
     targetRole: post.targetRole || post.title,
-    location: '',
-    salary: '',
-    match: '',
-    skills: [],
+    location: post.location || '',
+    salaryRange: post.salaryRange || '',
+    jobType,
+    experienceLevel: post.experienceLevel || '',
+    requirements: post.requirements || '',
+    benefits: post.benefits || '',
+    isRemote: !!post.isRemote,
+    expiresAt: post.expiresAt || null,
+    isActive: post.isActive,
+    companyLogoUrl: post.companyLogoUrl || '',
+    createdAt: post.createdAt || null,
+    kind: isSme ? 'sme' : 'corporate',
+    kindLabel: isSme ? 'Side Hustle & Local SME' : 'Corporate & Full-Time',
   };
+}
 
-  for (const line of lines) {
-    if (!line) continue;
-    const salaryMatch = line.match(/^(salary|rate):\s*(.*)$/i);
-    if (salaryMatch) {
-      job.salary = salaryMatch[2];
-      continue;
-    }
-    const matchMatch = line.match(/^match:\s*(.*)$/i);
-    if (matchMatch) {
-      job.match = matchMatch[2];
-      continue;
-    }
-    const skillsMatch = line.match(/^skills:\s*(.*)$/i);
-    if (skillsMatch) {
-      job.skills = skillsMatch[1].split(',').map((skill) => skill.trim()).filter(Boolean);
-      continue;
-    }
-    if (!job.location) job.location = line;
-  }
-
-  const isRange = / - |–|—| to /i.test(job.salary);
-  const isSme = /rate:|\/ project/i.test(description) || (!isRange && !!job.salary);
-  job.kind = isSme ? 'sme' : 'corporate';
-  job.kindLabel = isSme ? 'Side Hustle & Local SME' : 'Corporate & Full-Time';
-  job.schedule = isSme ? 'Side-hustle' : 'Full-time';
-  return job;
+function buildQuery({ tab, search, jobType, location, isRemote, page, pageSize }) {
+  const params = new URLSearchParams();
+  const type = tabToJobType[tab] || jobType;
+  if (type) params.set('jobType', type);
+  if (search.trim()) params.set('search', search.trim());
+  if (location) params.set('location', location);
+  if (isRemote) params.set('isRemote', 'true');
+  params.set('page', String(page));
+  params.set('pageSize', String(pageSize));
+  return params.toString();
 }
 
 export default function JobsPage() {
   const [jobs, setJobs] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(9);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [search, setSearch] = useState('');
-  const [schedule, setSchedule] = useState('');
+  const [jobType, setJobType] = useState('');
   const [location, setLocation] = useState('');
+  const [isRemote, setIsRemote] = useState(false);
   const { showToast } = useToast();
 
   useEffect(() => {
     const controller = new AbortController();
-    api.get('/posts', { signal: controller.signal })
-      .then((data) => setJobs((data || []).map(parsePost)))
-      .catch((err) => setError(err.message || 'Could not load jobs'))
+    setLoading(true);
+    const query = buildQuery({ tab: activeTab, search, jobType, location, isRemote, page, pageSize });
+    api.get(`/posts?${query}`, { signal: controller.signal })
+      .then((data) => {
+        const items = (data?.items || []).map(parsePost);
+        setJobs(items);
+        setTotal(data?.total || 0);
+        setError('');
+      })
+      .catch((err) => {
+        if (err.name !== 'AbortError') setError(err.message || 'Could not load jobs');
+      })
       .finally(() => setLoading(false));
     return () => controller.abort();
-  }, []);
+  }, [activeTab, search, jobType, location, isRemote, page, pageSize]);
 
-  const filteredJobs = jobs.filter((job) => {
-    if (activeTab !== 'all' && job.kind !== activeTab) return false;
-    if (search && !job.title.toLowerCase().includes(search.toLowerCase()) &&
-        !job.company.toLowerCase().includes(search.toLowerCase()) &&
-        !job.skills.some((s) => s.toLowerCase().includes(search.toLowerCase()))) return false;
-    if (schedule && job.schedule !== schedule) return false;
-    if (location && job.location && !job.location.toLowerCase().includes(location.toLowerCase())) return false;
-    return true;
-  });
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  const changeTab = (key) => {
+    setActiveTab(key);
+    setPage(1);
+  };
+
+  const applyFilter = (setter, value) => {
+    setter(value);
+    setPage(1);
+  };
 
   return (
     <div className="view-enter">
@@ -160,7 +192,7 @@ export default function JobsPage() {
         </Button>
       </div>
 
-      <Tabs tabs={tabOptions} active={activeTab} onChange={setActiveTab} />
+      <Tabs tabs={tabOptions} active={activeTab} onChange={changeTab} />
 
       <div style={styles.toolbar}>
         <input
@@ -168,35 +200,74 @@ export default function JobsPage() {
           style={{ ...styles.field, minWidth: 230 }}
           placeholder="Search roles, skills, or locations"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => applyFilter(setSearch, e.target.value)}
         />
-        <select className="field" style={styles.field} value={schedule} onChange={(e) => setSchedule(e.target.value)}>
-          <option value="">Any schedule</option>
-          <option>Full-time</option>
-          <option>Part-time</option>
-          <option>Side-hustle</option>
+        <select
+          className="field"
+          style={styles.field}
+          value={jobType}
+          onChange={(e) => applyFilter(setJobType, e.target.value)}
+          disabled={activeTab !== 'all'}
+        >
+          <option value="">Any type</option>
+          {jobTypes.map((type) => (
+            <option key={type}>{type}</option>
+          ))}
         </select>
-        <select className="field" style={styles.field} value={location} onChange={(e) => setLocation(e.target.value)}>
+        <select className="field" style={styles.field} value={location} onChange={(e) => applyFilter(setLocation, e.target.value)}>
           <option value="">Any location</option>
           <option>Cebu City</option>
           <option>Mandaue</option>
+          <option>Lapu-Lapu</option>
           <option>Remote</option>
         </select>
+        <label className="field" style={{ ...styles.field, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={isRemote}
+            onChange={(e) => applyFilter(setIsRemote, e.target.checked)}
+          />
+          Remote only
+        </label>
       </div>
 
       {loading ? (
         <div style={styles.loading}>Loading jobs...</div>
       ) : (
         <div style={styles.grid}>
-          {filteredJobs.map((job) => (
+          {jobs.map((job) => (
             <JobCard key={job.id} job={job} />
           ))}
         </div>
       )}
 
-      {!loading && filteredJobs.length === 0 && (
+      {!loading && jobs.length === 0 && (
         <div style={styles.empty}>
-          {error ? `Couldn't load jobs. Check back later.` : 'No jobs match your search.'}
+          {error ? "Couldn't load jobs. Check back later." : 'No jobs match your search.'}
+        </div>
+      )}
+
+      {!loading && jobs.length > 0 && (
+        <div style={styles.pager}>
+          <Button
+            variant="ghost"
+            style={styles.pagerButton}
+            disabled={page <= 1}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+          >
+            Previous
+          </Button>
+          <span style={styles.pagerInfo}>
+            Page {page} of {totalPages} · {total} job{total === 1 ? '' : 's'}
+          </span>
+          <Button
+            variant="ghost"
+            style={styles.pagerButton}
+            disabled={page >= totalPages}
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+          >
+            Next
+          </Button>
         </div>
       )}
     </div>

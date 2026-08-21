@@ -256,20 +256,14 @@ public class SkillGapServiceTests
         context.Companies.Add(company);
         await context.SaveChangesAsync();
 
-        var recruiter = new Recruiter { CompanyId = company.CompanyId, UserId = user.UserId };
-        context.Recruiters.Add(recruiter);
-        await context.SaveChangesAsync();
-
         var frontendPost = new Post
         {
-            RecruiterId = recruiter.RecruiterId,
             CompanyId = company.CompanyId,
             Title = "Frontend Developer (React)",
             TargetRole = "Frontend Developer",
         };
         var backendPost = new Post
         {
-            RecruiterId = recruiter.RecruiterId,
             CompanyId = company.CompanyId,
             Title = "Backend Developer (C#)",
             TargetRole = "Backend Developer",
@@ -320,13 +314,8 @@ public class SkillGapServiceTests
         context.Companies.Add(company);
         await context.SaveChangesAsync();
 
-        var recruiter = new Recruiter { CompanyId = company.CompanyId, UserId = user.UserId };
-        context.Recruiters.Add(recruiter);
-        await context.SaveChangesAsync();
-
         var post = new Post
         {
-            RecruiterId = recruiter.RecruiterId,
             CompanyId = company.CompanyId,
             Title = "Backend Developer",
             TargetRole = "Backend Developer",

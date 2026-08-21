@@ -14,7 +14,7 @@ public class BusinessStatsApiTests : ProductionApiTestBase
     public async Task BusinessStats_AsRecruiter_ReturnsCompanyAggregates()
     {
         var (token, companyId) = await RegisterRecruiterAsync("business.stats@example.com", "Acme Corp");
-        await AddPostAsync(companyId, "Frontend Developer", includeRequiredCourse: true);
+        await AddPostAsync(companyId, "Frontend Developer");
 
         var response = await AuthorizedClient(token).GetAsync("/api/stats/business");
 
@@ -22,9 +22,10 @@ public class BusinessStatsApiTests : ProductionApiTestBase
         var body = await ReadJsonAsync(response);
         Assert.Equal("Acme Corp", body.GetProperty("company").GetProperty("name").GetString());
         Assert.Equal(1, body.GetProperty("company").GetProperty("jobPostings").GetInt32());
-        Assert.Equal("Frontend Developer", body.GetProperty("jobPostings")[0].GetProperty("title").GetString());
-        Assert.Equal("Business dashboard essentials", body.GetProperty("jobPostings")[0]
-            .GetProperty("requiredCourses")[0].GetProperty("name").GetString());
+        var posting = body.GetProperty("jobPostings")[0];
+        Assert.Equal("Frontend Developer", posting.GetProperty("title").GetString());
+        Assert.Equal("Full-time", posting.GetProperty("jobType").GetString());
+        Assert.Equal("Cebu City", posting.GetProperty("location").GetString());
         Assert.NotEmpty(body.GetProperty("skillDemand").EnumerateArray());
     }
 
@@ -74,34 +75,27 @@ public class BusinessStatsApiTests : ProductionApiTestBase
         var company = new Company { Name = companyName };
         db.Companies.Add(company);
         await db.SaveChangesAsync();
-        db.Recruiters.Add(new Recruiter { UserId = userId, CompanyId = company.CompanyId });
+        var user = await db.Users.FindAsync(userId);
+        user!.CompanyId = company.CompanyId;
         await db.SaveChangesAsync();
 
         return (body.GetProperty("token").GetString()!, company.CompanyId);
     }
 
-    private async Task AddPostAsync(int companyId, string title, bool includeRequiredCourse = false)
+    private async Task AddPostAsync(int companyId, string title)
     {
         using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        var recruiter = await db.Recruiters.FirstAsync(r => r.CompanyId == companyId);
-        var post = new Post { CompanyId = companyId, RecruiterId = recruiter.RecruiterId, Title = title };
-        db.Posts.Add(post);
-        if (includeRequiredCourse)
+        var post = new Post
         {
-            var subDiscipline = new SubDiscipline { DisciplineId = 3, Name = "Dashboard testing" };
-            var genre = new Genre { SubDiscipline = subDiscipline, Name = "Employer learning" };
-            var course = new Course
-            {
-                Genre = genre,
-                Name = "Business dashboard essentials",
-                TechnicalLevel = 8,
-                Mode = "Online",
-            };
-            db.Courses.Add(course);
-            await db.SaveChangesAsync();
-            db.PostCourseRequireds.Add(new PostCourseRequired { PostId = post.PostId, CourseId = course.CourseId });
-        }
+            CompanyId = companyId,
+            Title = title,
+            Location = "Cebu City",
+            JobType = "Full-time",
+            ExperienceLevel = "Mid",
+            IsActive = true,
+        };
+        db.Posts.Add(post);
         await db.SaveChangesAsync();
     }
 }

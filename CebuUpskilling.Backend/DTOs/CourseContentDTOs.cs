@@ -15,6 +15,12 @@ public record MediaDto(
     double MbSize
 );
 
+public record DocumentUploadDto(
+    string Url,
+    string FileName,
+    long SizeBytes
+);
+
 public record ExerciseDto(
     int ExerciseId,
     string Type,

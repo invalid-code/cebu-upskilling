@@ -542,7 +542,7 @@ function LearnerOverview() {
       ) : (
         <div style={styles.courseGrid}>
           {recommended.map((course) => (
-            <CourseCard key={course.name} course={course} tagLabel="Skill builder" />
+            <CourseCard key={course.name + '|' + course.provider} course={course} tagLabel="Skill builder" />
           ))}
         </div>
       )}

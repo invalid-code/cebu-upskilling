@@ -1,7 +1,7 @@
 /* eslint-disable react/only-export-components */
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { api } from '../api/client';
-import { useAuth } from './AuthContext';
+import { useAuth, isRecruiter } from './AuthContext';
 
 const EnrollmentsContext = createContext(null);
 
@@ -10,7 +10,7 @@ export function EnrollmentsProvider({ children }) {
   const [enrollments, setEnrollments] = useState([]);
 
   const fetchEnrollments = useCallback(async (signal) => {
-    if (!user) {
+    if (!user || isRecruiter(user)) {
       setEnrollments([]);
       return;
     }

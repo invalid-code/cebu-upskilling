@@ -34,7 +34,6 @@ public class AssessmentServiceTests
         new LearnerAssessmentRepository(context),
         new AssessmentQuestionRepository(context),
         new SkillRepository(context),
-        new RecruiterRepository(context),
         aiService,
         NullLogger<AssessmentService>.Instance
     );
@@ -476,7 +475,7 @@ public class AssessmentServiceTests
         context.Users.Add(recruiterUser);
         await context.SaveChangesAsync();
 
-        context.Recruiters.Add(new Recruiter { UserId = recruiterUser.UserId, CompanyId = company.CompanyId });
+        recruiterUser.CompanyId = company.CompanyId;
         await context.SaveChangesAsync();
 
         var request = new CreateCompanyQuestionRequest(

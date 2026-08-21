@@ -1,3 +1,4 @@
+using CebuUpskilling.Backend.DTOs;
 using CebuUpskilling.Backend.Entities;
 using CebuUpskilling.Backend.Repositories;
 
@@ -95,10 +96,24 @@ public class CourseService : BaseEntityService<Course>
     }
 }
 
-public class PostService : BaseEntityService<Post>
+public interface IPostService
 {
+    Task<PagedPostsResponse> SearchAsync(PostQueryParams query);
+    Task<PostResponse?> GetByIdAsync(int id);
+    Task<PostResponse> CreateAsync(PostRequest request, int companyId);
+    Task<PostResponse?> UpdateAsync(int id, PostRequest request);
+    Task<bool> DeleteAsync(int id);
+}
+
+public class PostService : BaseEntityService<Post>, IPostService
+{
+    private readonly IPostRepository _postRepository;
+
     public PostService(IPostRepository repository, ILogger<PostService> logger)
-        : base(repository, logger, "Post") { }
+        : base(repository, logger, "Post")
+    {
+        _postRepository = repository;
+    }
 
     public override async Task<Post> CreateAsync(Post entity)
     {
@@ -114,9 +129,125 @@ public class PostService : BaseEntityService<Post>
         existing.Title = entity.Title;
         existing.Description = entity.Description;
         existing.TargetRole = string.IsNullOrWhiteSpace(entity.TargetRole) ? entity.Title : entity.TargetRole;
-        existing.RecruiterId = entity.RecruiterId;
         existing.CompanyId = entity.CompanyId;
     }
+
+    public async Task<PagedPostsResponse> SearchAsync(PostQueryParams query)
+    {
+        _logger.LogDebug("Searching posts with query {@Query}", query);
+        var (items, total) = await _postRepository.SearchAsync(query);
+        return new PagedPostsResponse(
+            items.Select(ToResponse).ToList(),
+            total,
+            Math.Max(1, query.Page),
+            Math.Clamp(query.PageSize, 1, 100));
+    }
+
+    public async Task<PostResponse?> GetByIdAsync(int id)
+    {
+        _logger.LogDebug("Fetching post {PostId}", id);
+        var post = await _repository.GetByIdAsync(id);
+        return post == null ? null : ToResponse(post);
+    }
+
+    public async Task<PostResponse> CreateAsync(PostRequest request, int companyId)
+    {
+        _logger.LogInformation("Creating post for company {CompanyId}", companyId);
+        var post = new Post
+        {
+            CompanyId = companyId,
+            Title = request.Title ?? string.Empty,
+            Description = request.Description,
+            TargetRole = string.IsNullOrWhiteSpace(request.TargetRole) ? (request.Title ?? string.Empty) : request.TargetRole!,
+            Location = request.Location,
+            SalaryRange = request.SalaryRange,
+            JobType = string.IsNullOrWhiteSpace(request.JobType) ? "Full-time" : request.JobType!,
+            ExperienceLevel = request.ExperienceLevel,
+            Requirements = request.Requirements,
+            Benefits = request.Benefits,
+            IsRemote = request.IsRemote,
+            ExpiresAt = request.ExpiresAt,
+            IsActive = request.IsActive,
+            CompanyLogoUrl = request.CompanyLogoUrl,
+            CreatedAt = DateTime.UtcNow,
+        };
+
+        await _repository.AddAsync(post);
+        await _repository.SaveChangesAsync();
+        _logger.LogInformation("Created post {PostId} for company {CompanyId}", post.PostId, companyId);
+
+        var created = await _repository.GetByIdAsync(post.PostId);
+        return ToResponse(created!);
+    }
+
+    public async Task<PostResponse?> UpdateAsync(int id, PostRequest request)
+    {
+        _logger.LogInformation("Updating post {PostId}", id);
+        var existing = await _repository.GetByIdAsync(id);
+        if (existing == null)
+        {
+            _logger.LogWarning("Update failed: post {PostId} not found", id);
+            return null;
+        }
+
+        existing.Title = request.Title ?? existing.Title;
+        existing.Description = request.Description;
+        existing.TargetRole = string.IsNullOrWhiteSpace(request.TargetRole)
+            ? (request.Title ?? existing.Title)
+            : request.TargetRole!;
+        existing.Location = request.Location;
+        existing.SalaryRange = request.SalaryRange;
+        existing.JobType = string.IsNullOrWhiteSpace(request.JobType) ? "Full-time" : request.JobType!;
+        existing.ExperienceLevel = request.ExperienceLevel;
+        existing.Requirements = request.Requirements;
+        existing.Benefits = request.Benefits;
+        existing.IsRemote = request.IsRemote;
+        existing.ExpiresAt = request.ExpiresAt;
+        existing.IsActive = request.IsActive;
+        existing.CompanyLogoUrl = request.CompanyLogoUrl;
+
+        await _repository.SaveChangesAsync();
+        _logger.LogInformation("Updated post {PostId}", id);
+
+        var updated = await _repository.GetByIdAsync(id);
+        return ToResponse(updated!);
+    }
+
+    public async Task<bool> DeleteAsync(int id)
+    {
+        _logger.LogInformation("Deleting post {PostId}", id);
+        var existing = await _repository.GetByIdAsync(id);
+        if (existing == null)
+        {
+            _logger.LogWarning("Delete failed: post {PostId} not found", id);
+            return false;
+        }
+
+        _repository.Remove(existing);
+        await _repository.SaveChangesAsync();
+        _logger.LogInformation("Deleted post {PostId}", id);
+        return true;
+    }
+
+    private static PostResponse ToResponse(Post post)
+        => new(
+            post.PostId,
+            post.CompanyId,
+            post.Company?.Name ?? "Unknown",
+            post.Title,
+            post.Description,
+            post.TargetRole,
+            post.Location,
+            post.SalaryRange,
+            post.JobType,
+            post.ExperienceLevel,
+            post.Requirements,
+            post.Benefits,
+            post.IsRemote,
+            post.ExpiresAt,
+            post.IsActive,
+            post.CompanyLogoUrl,
+            post.CreatedAt);
 }
 
 public class AppUserService : BaseEntityService<AppUser>

@@ -8,6 +8,9 @@ public interface IApplicationRepository : IEntityRepository<Application>
 {
     Task<List<Application>> GetByLearnerIdAsync(int learnerId);
     Task<Application?> GetByLearnerAndPostAsync(int learnerId, int postId);
+    Task<List<Application>> GetByCompanyIdAsync(int companyId);
+    Task<Application?> GetByIdWithLearnerAsync(int applicationId);
+    Task<Application?> GetByIdWithLearnerAndSkillsAsync(int applicationId);
 }
 
 public class ApplicationRepository : EntityRepository<Application>, IApplicationRepository
@@ -34,4 +37,24 @@ public class ApplicationRepository : EntityRepository<Application>, IApplication
         => await _dbSet
             .Include(a => a.Post).ThenInclude(p => p.Company)
             .FirstOrDefaultAsync(a => a.LearnerId == learnerId && a.PostId == postId);
+
+    public async Task<List<Application>> GetByCompanyIdAsync(int companyId)
+        => await _dbSet
+            .Where(a => a.Post.CompanyId == companyId)
+            .Include(a => a.Post).ThenInclude(p => p.Company)
+            .Include(a => a.Learner).ThenInclude(l => l.User)
+            .ToListAsync();
+
+    public async Task<Application?> GetByIdWithLearnerAsync(int applicationId)
+        => await _dbSet
+            .Include(a => a.Post).ThenInclude(p => p.Company)
+            .Include(a => a.Learner).ThenInclude(l => l.User)
+            .FirstOrDefaultAsync(a => a.ApplicationId == applicationId);
+
+    public async Task<Application?> GetByIdWithLearnerAndSkillsAsync(int applicationId)
+        => await _dbSet
+            .Include(a => a.Post).ThenInclude(p => p.Company)
+            .Include(a => a.Learner).ThenInclude(l => l.User)
+            .Include(a => a.Learner).ThenInclude(l => l.LearnerSkills).ThenInclude(ls => ls.Skill)
+            .FirstOrDefaultAsync(a => a.ApplicationId == applicationId);
 }

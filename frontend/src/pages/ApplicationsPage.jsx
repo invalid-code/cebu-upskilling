@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import Panel from '../components/ui/Panel';
 import Button from '../components/ui/Button';
 import EmptyState from '../components/shared/EmptyState';
@@ -28,6 +29,11 @@ const statusConfig = {
     label: 'Rejected',
     background: 'rgba(239, 68, 68, 0.1)',
     color: '#dc2626',
+  },
+  hired: {
+    label: 'Hired',
+    background: 'rgba(20, 184, 166, 0.15)',
+    color: 'var(--good, #0f766e)',
   },
 };
 
@@ -161,9 +167,11 @@ export default function ApplicationsPage() {
                   </div>
                   <div style={styles.actions}>
                     <span style={styles.badge(status)}>{statusLabel}</span>
-                    <Button variant="ghost" style={styles.openButton}>
-                      Open
-                    </Button>
+                    <Link to={`/jobs/${job.id}`} style={{ textDecoration: 'none' }}>
+                      <Button variant="ghost" style={styles.openButton}>
+                        Open
+                      </Button>
+                    </Link>
                   </div>
                 </div>
               );

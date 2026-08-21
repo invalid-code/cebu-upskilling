@@ -52,4 +52,26 @@ public class MediaService : IMediaService
 
         return new MediaDto(media.MediaId, media.PathFile, media.Type, media.MbSize);
     }
+
+    public async Task<DocumentUploadDto> UploadDocumentAsync(IFormFile file, CancellationToken cancellationToken = default)
+    {
+        var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+        var allowed = new[] { ".pdf", ".doc", ".docx", ".txt", ".md", ".png", ".jpg", ".jpeg", ".webp" };
+        if (string.IsNullOrWhiteSpace(extension) || !allowed.Contains(extension))
+        {
+            throw new InvalidOperationException("Unsupported file type");
+        }
+
+        if (file.Length > 10 * 1024 * 1024)
+        {
+            throw new InvalidOperationException("File must be 10 MB or smaller");
+        }
+
+        var key = $"documents/{Guid.NewGuid()}{extension}";
+        await using var stream = file.OpenReadStream();
+        var publicUrl = await _storage.UploadAsync(key, stream, file.ContentType, cancellationToken);
+
+        _logger.LogInformation("Uploaded document to R2 as {Key}", key);
+        return new DocumentUploadDto(publicUrl, file.FileName, file.Length);
+    }
 }

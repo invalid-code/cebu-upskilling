@@ -182,11 +182,13 @@ public class AuthService : IAuthService
 
         var token = _tokenService.GenerateToken(user);
 
-return BuildAuthResponse(
+        return BuildAuthResponse(
             user,
             token,
             parseResult?.Skills.Count ?? 0,
-            parseResult?.Skills.Count(s => s.AssessmentId != null) ?? 0);
+            parseResult?.Skills.Count(s => s.AssessmentId != null) ?? 0,
+            user.CompanyId,
+            user.Company?.Name);
     }
 
     public async Task<CompanyRegisterResponse> CompanyRegisterAsync(CompanyRegisterRequest request)
@@ -237,20 +239,12 @@ return BuildAuthResponse(
                 Province = addressParts.Province,
                 ZipCode = addressParts.ZipCode,
                 Country = addressParts.Country,
+                CompanyId = company.CompanyId,
             };
 
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
             _logger.LogInformation("Recruiter user registered: {UserId} ({Email})", user.UserId, user.EmailAddress);
-
-            var recruiter = new Recruiter
-            {
-                UserId = user.UserId,
-                CompanyId = company.CompanyId,
-            };
-            _context.Recruiters.Add(recruiter);
-            await _context.SaveChangesAsync();
-            _logger.LogInformation("Recruiter profile created: {RecruiterId} for user {UserId}, company {CompanyId}", recruiter.RecruiterId, user.UserId, company.CompanyId);
 
             if (transaction != null)
                 await transaction.CommitAsync();
@@ -315,7 +309,9 @@ return BuildAuthResponse(
     {
         _logger.LogInformation("Login attempt for email {Email}", request.EmailAddress);
 
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.EmailAddress == request.EmailAddress);
+        var user = await _context.Users
+            .Include(u => u.Company)
+            .FirstOrDefaultAsync(u => u.EmailAddress == request.EmailAddress);
         if (user == null)
         {
             _logger.LogWarning("Login failed: user not found for email {Email}", request.EmailAddress);
@@ -332,7 +328,7 @@ return BuildAuthResponse(
 
         var token = _tokenService.GenerateToken(user);
 
-        return BuildAuthResponse(user, token);
+        return BuildAuthResponse(user, token, companyId: user.CompanyId, companyName: user.Company?.Name);
     }
 
     public async Task<AuthResponse> UpdateProfileAsync(int userId, UpdateProfileRequest request)
@@ -371,7 +367,7 @@ return BuildAuthResponse(
         _logger.LogInformation("Profile updated for user {UserId}", userId);
 
         var token = _tokenService.GenerateToken(user);
-        return BuildAuthResponse(user, token);
+        return BuildAuthResponse(user, token, companyId: user.CompanyId, companyName: user.Company?.Name);
     }
 
     public Task LogoutAsync(string? jti)
@@ -524,7 +520,13 @@ return BuildAuthResponse(
         return CryptographicOperations.FixedTimeEquals(rawBytes, storedBytes);
     }
 
-    private static AuthResponse BuildAuthResponse(AppUser user, string token, int parsedSkillCount = 0, int assessmentCount = 0) =>
+    private static AuthResponse BuildAuthResponse(
+        AppUser user,
+        string token,
+        int parsedSkillCount = 0,
+        int assessmentCount = 0,
+        int? companyId = null,
+        string? companyName = null) =>
         new(
             user.UserId,
             user.FirstName,
@@ -541,6 +543,8 @@ return BuildAuthResponse(
             user.RemoteFriendly,
             token,
             parsedSkillCount,
-            assessmentCount
+            assessmentCount,
+            companyId,
+            companyName
         );
 }

@@ -50,7 +50,7 @@ builder.Services.AddCors(options =>
         {
             policy.WithOrigins(allowedOrigins)
                 .WithHeaders("Authorization", "Content-Type")
-                .WithMethods("GET", "POST", "PATCH");
+                .WithMethods("GET", "POST", "PATCH", "PUT", "DELETE");
         });
 });
 
@@ -82,7 +82,6 @@ builder.Services.AddScoped<IRoleSkillRepository, RoleSkillRepository>();
 builder.Services.AddScoped<ILearnerSkillRepository, LearnerSkillRepository>();
 builder.Services.AddScoped<ILearnerAssessmentRepository, LearnerAssessmentRepository>();
 builder.Services.AddScoped<IAssessmentQuestionRepository, AssessmentQuestionRepository>();
-builder.Services.AddScoped<IRecruiterRepository, RecruiterRepository>();
 builder.Services.AddScoped<ILearnerStudyCourseRepository, LearnerStudyCourseRepository>();
 builder.Services.AddScoped<IApplicationRepository, ApplicationRepository>();
 builder.Services.AddScoped<IMediaRepository, MediaRepository>();
@@ -90,6 +89,7 @@ builder.Services.AddScoped<IMediaRepository, MediaRepository>();
 builder.Services.AddScoped<IEntityService<Course>, CourseService>();
 
 builder.Services.AddScoped<IEntityService<Post>, PostService>();
+builder.Services.AddScoped<IPostService, PostService>();
 builder.Services.AddScoped<IEntityService<AppUser>, AppUserService>();
 builder.Services.AddScoped<IEntityService<LearnerAssessment>, LearnerAssessmentService>();
 builder.Services.AddScoped<IEntityService<LearnerStudyCourse>, LearnerStudyCourseService>();
@@ -203,6 +203,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseExceptionHandler();
 app.UseCors(myAllowSpecificOrigins);
+app.UseStaticFiles();
 if (rateLimitingOptions.Enabled)
 {
     app.UseRateLimiter();

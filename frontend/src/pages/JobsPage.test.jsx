@@ -18,22 +18,44 @@ const mockPosts = [
   {
     postId: 1,
     title: 'Senior Frontend Developer',
-    company: { name: 'TechCorp' },
-    description: 'Cebu City\nsalary: ₱80,000 - ₱120,000\nskills: JavaScript, React, TypeScript\nmatch: 85%',
+    companyName: 'TechCorp',
+    targetRole: 'Frontend Developer',
+    location: 'Cebu City',
+    salaryRange: '₱80,000 - ₱120,000',
+    jobType: 'Full-time',
+    experienceLevel: 'Senior',
+    isRemote: false,
+    createdAt: '2026-01-01T00:00:00Z',
   },
   {
     postId: 2,
     title: 'Backend Developer',
-    company: { name: 'StartupInc' },
-    description: 'Remote\nrate: ₱1,500/hr\nskills: Node.js, Python\nmatch: 70%',
+    companyName: 'StartupInc',
+    targetRole: 'Backend Developer',
+    location: 'Remote',
+    salaryRange: '₱1,500/hr',
+    jobType: 'Part-time',
+    experienceLevel: 'Mid',
+    isRemote: true,
+    createdAt: '2026-01-02T00:00:00Z',
   },
   {
     postId: 3,
     title: 'Full Stack Developer',
-    company: { name: 'LocalSME' },
-    description: 'Mandaue\nsalary: ₱60,000\nskills: PHP, Laravel, Vue\nmatch: 60%',
+    companyName: 'LocalSME',
+    targetRole: 'Full Stack Developer',
+    location: 'Mandaue',
+    salaryRange: '₱60,000',
+    jobType: 'Part-time',
+    experienceLevel: 'Junior',
+    isRemote: false,
+    createdAt: '2026-01-03T00:00:00Z',
   },
 ];
+
+function envelope(items, total = items.length) {
+  return { items, total, page: 1, pageSize: 9 };
+}
 
 function renderJobs() {
   return render(
@@ -54,7 +76,7 @@ describe('JobsPage', () => {
     localStorage.setItem('user', JSON.stringify({ firstName: 'Test', role: 'Learner' }));
     localStorage.setItem('token', 'abc');
     api.get.mockReset();
-    api.get.mockResolvedValue(mockPosts);
+    api.get.mockResolvedValue(envelope(mockPosts));
   });
 
   it('renders the jobs page heading', async () => {
@@ -85,34 +107,48 @@ describe('JobsPage', () => {
     expect(screen.getByText('Full Stack Developer')).toBeInTheDocument();
   });
 
-  it('filters jobs by search term', async () => {
+  it('fetches from the server when a search term is typed', async () => {
+    api.get.mockImplementation((url) =>
+      Promise.resolve(url.includes('search=Frontend')
+        ? envelope([mockPosts[0]])
+        : envelope(mockPosts)),
+    );
     renderJobs();
     await screen.findByText('Senior Frontend Developer');
 
     const searchInput = screen.getByPlaceholderText('Search roles, skills, or locations');
     fireEvent.change(searchInput, { target: { value: 'Frontend' } });
 
-    expect(screen.getByText('Senior Frontend Developer')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(api.get).toHaveBeenCalledWith(expect.stringContaining('search=Frontend'), expect.anything());
+    });
+    expect(await screen.findByText('Senior Frontend Developer')).toBeInTheDocument();
     expect(screen.queryByText('Backend Developer')).not.toBeInTheDocument();
-    expect(screen.queryByText('Full Stack Developer')).not.toBeInTheDocument();
   });
 
-  it('filters jobs by tab selection', async () => {
+  it('fetches by jobType when a tab is selected', async () => {
+    api.get.mockImplementation((url) =>
+      Promise.resolve(url.includes('jobType=Part-time')
+        ? envelope([mockPosts[1], mockPosts[2]])
+        : envelope(mockPosts)),
+    );
     renderJobs();
     await screen.findByText('Senior Frontend Developer');
 
     fireEvent.click(screen.getByRole('button', { name: 'Side Hustles & Local SME' }));
 
+    await waitFor(() => {
+      expect(api.get).toHaveBeenCalledWith(expect.stringContaining('jobType=Part-time'), expect.anything());
+    });
+    expect(await screen.findByText('Backend Developer')).toBeInTheDocument();
     expect(screen.queryByText('Senior Frontend Developer')).not.toBeInTheDocument();
-    expect(screen.getByText('Backend Developer')).toBeInTheDocument();
-    expect(screen.getByText('Full Stack Developer')).toBeInTheDocument();
   });
 
   it('shows empty state when no jobs match filter', async () => {
+    api.get.mockResolvedValue(envelope([]));
     renderJobs();
-    await screen.findByText('Senior Frontend Developer');
 
-    const searchInput = screen.getByPlaceholderText('Search roles, skills, or locations');
+    const searchInput = await screen.findByPlaceholderText('Search roles, skills, or locations');
     fireEvent.change(searchInput, { target: { value: 'NonExistentJob' } });
 
     expect(await screen.findByText('No jobs match your search.')).toBeInTheDocument();
@@ -126,7 +162,7 @@ describe('JobsPage', () => {
 
     expect(screen.getByText('Loading jobs...')).toBeInTheDocument();
 
-    resolveFn(mockPosts);
+    resolveFn(envelope(mockPosts));
     await waitFor(() => expect(screen.queryByText('Loading jobs...')).not.toBeInTheDocument());
   });
 

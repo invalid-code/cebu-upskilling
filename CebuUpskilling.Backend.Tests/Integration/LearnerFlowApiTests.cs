@@ -333,19 +333,17 @@ public class LearnerFlowApiTests : ProductionApiTestBase
             await db.SaveChangesAsync();
             companyId = company.CompanyId;
 
-            db.Recruiters.Add(new Recruiter { CompanyId = companyId, UserId = userId });
+            var user = await db.Users.FindAsync(userId);
+            user!.CompanyId = companyId;
             await db.SaveChangesAsync();
         }
 
         using (var scope = Factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            var recruiterId = (await db.Recruiters.SingleAsync(r => r.UserId == userId)).RecruiterId;
 
             var postResponse = await authorized.PostAsJsonAsync("/api/posts", new
             {
-                recruiterId,
-                companyId,
                 title = "Senior Backend Developer",
                 description = "Cebu City\nsalary: ₱120,000 - ₱180,000\nskills: Node.js, Python\nmatch: 85%",
             });
@@ -354,10 +352,10 @@ public class LearnerFlowApiTests : ProductionApiTestBase
 
         var listResponse = await authorized.GetAsync("/api/posts");
         listResponse.EnsureSuccessStatusCode();
-        var posts = (await ReadJsonAsync(listResponse)).EnumerateArray().ToList();
+        var posts = (await ReadJsonAsync(listResponse)).GetProperty("items").EnumerateArray().ToList();
         Assert.Single(posts);
         Assert.Equal("Senior Backend Developer", posts[0].GetProperty("title").GetString());
-        Assert.Equal("Acme Corp", posts[0].GetProperty("company").GetProperty("name").GetString());
+        Assert.Equal("Acme Corp", posts[0].GetProperty("companyName").GetString());
     }
 
     [Fact]

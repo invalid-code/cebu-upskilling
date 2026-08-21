@@ -19,6 +19,12 @@ public class Application
 
     public DateTime? SavedAt { get; set; }
 
+    [MaxLength(1000)]
+    public string? ResumeUrl { get; set; }
+
+    [MaxLength(1000)]
+    public string? CoverLetterUrl { get; set; }
+
     public Learner Learner { get; set; } = null!;
     public Post Post { get; set; } = null!;
 }

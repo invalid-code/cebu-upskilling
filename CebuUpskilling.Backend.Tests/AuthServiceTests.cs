@@ -241,7 +241,7 @@ private class FakeGoogleAiService : IGoogleAiService
     }
 
     [Fact]
-    public async Task CompanyRegisterAsync_CreatesCompanyAndRecruiter_ReturnsTokenAndCompanyInfo()
+    public async Task CompanyRegisterAsync_CreatesCompanyAndLinksUser_ReturnsTokenAndCompanyInfo()
     {
         var context = TestDbContextFactory.Create();
         var service = CreateService(context);
@@ -263,8 +263,7 @@ private class FakeGoogleAiService : IGoogleAiService
         var savedCompany = await context.Companies.SingleAsync(c => c.Name == "Tech Solutions Inc");
         Assert.Equal(result.CompanyId, savedCompany.CompanyId);
 
-        var savedRecruiter = await context.Recruiters.SingleAsync(r => r.UserId == savedUser.UserId);
-        Assert.Equal(savedRecruiter.CompanyId, savedCompany.CompanyId);
+        Assert.Equal(savedUser.CompanyId, savedCompany.CompanyId);
     }
 
     [Fact]
