@@ -39,7 +39,8 @@ public record RecommendedCourseDto(
     bool IsCompleted,
     bool IsRecommended,
     string? RecommendedReason,
-    int? UnlocksJobsCount
+    int? UnlocksJobsCount,
+    string? SkillCategory
 );
 
 public record CoursesPageResponse(
@@ -47,7 +48,9 @@ public record CoursesPageResponse(
     List<RecommendedCourseDto> RecommendedCourses,
     int DayStreak,
     int CoursesInProgress,
-    int CertificatesEarned
+    int CertificatesEarned,
+    string? TargetRole,
+    List<string> AvailableCategories
 );
 
 public record CourseRecommendationRequest(
