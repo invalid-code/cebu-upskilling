@@ -224,6 +224,10 @@ export default function ModuleOutline({ modules, currentLessonId, onLessonClick 
   const handleModuleSelect = (module) => {
     setSelectedModule(module);
     setIsOpen(false);
+    const firstUnfinished = module.lessons.find((l) => !l.isCompleted);
+    if (firstUnfinished) {
+      onLessonClick(firstUnfinished.lessonId);
+    }
   };
 
   return (

@@ -5,6 +5,11 @@ const styles = {
     flex: 1,
     minWidth: 0,
   },
+  moduleLabel: {
+    fontSize: 12,
+    color: 'var(--muted)',
+    marginBottom: 4,
+  },
   lessonTitle: {
     fontFamily: "'Space Grotesk', sans-serif",
     fontSize: 24,
@@ -59,7 +64,7 @@ const styles = {
 
 };
 
-export default function LessonContent({ lesson }) {
+export default function LessonContent({ lesson, moduleNumber, lessonNumber }) {
   if (!lesson) return null;
 
   const renderContentBlock = (block, index) => {
@@ -100,6 +105,11 @@ export default function LessonContent({ lesson }) {
 
   return (
     <div style={styles.container}>
+      {moduleNumber != null && lessonNumber != null && (
+        <div style={styles.moduleLabel}>
+          Module {moduleNumber} · Lesson {lessonNumber}
+        </div>
+      )}
       <h2 style={styles.lessonTitle}>{lesson.name}</h2>
 
       {lesson.contentBlocks.map((block, index) =>

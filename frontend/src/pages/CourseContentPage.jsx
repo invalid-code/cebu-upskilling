@@ -115,6 +115,11 @@ export default function CourseContentPage() {
           : `/coursecontent/courses/${courseId}/content`;
         const data = await api.get(url, { signal: controller.signal });
         setCourseData(data);
+        // When starting/resuming without a lessonId, the backend now returns the first unfinished lesson.
+        // Update the URL to reflect that lesson so deep-linking and refresh work correctly.
+        if (!lessonId && data?.currentLesson?.lessonId) {
+          navigate(`/courses/${courseId}/learn/${data.currentLesson.lessonId}`, { replace: true });
+        }
       } catch (err) {
         if (err.name !== 'AbortError') {
           setError(err.message || 'Could not load course content');
@@ -126,7 +131,7 @@ export default function CourseContentPage() {
 
     fetchCourseContent();
     return () => controller.abort();
-  }, [courseId, lessonId]);
+  }, [courseId, lessonId, navigate]);
 
   const handleLessonClick = (id) => {
     navigate(`/courses/${courseId}/learn/${id}`);
@@ -148,9 +153,15 @@ export default function CourseContentPage() {
     );
   }
 
+  const currentModule = courseData.modules.find(m =>
+    m.lessons.some(l => l.lessonId === parseInt(lessonId))
+  ) || courseData.modules[0];
   const currentLessonIndex = courseData.modules.findIndex(m =>
     m.lessons.some(l => l.lessonId === parseInt(lessonId))
   );
+  const currentModuleNumber = currentModule?.moduleNumber ?? 1;
+  const lessonIndexInModule = currentModule?.lessons.findIndex(l => l.lessonId === parseInt(lessonId)) ?? -1;
+  const currentLessonNumber = lessonIndexInModule >= 0 ? lessonIndexInModule + 1 : 1;
 
   return (
     <div style={styles.container}>
@@ -200,7 +211,11 @@ export default function CourseContentPage() {
             totalLessons={courseData.totalLessons}
             currentIndex={currentLessonIndex >= 0 ? currentLessonIndex : 0}
           />
-          <LessonContent lesson={courseData.currentLesson} />
+          <LessonContent
+            lesson={courseData.currentLesson}
+            moduleNumber={currentModuleNumber}
+            lessonNumber={currentLessonNumber}
+          />
         </div>
 
         <div style={styles.rightSidebar}>
