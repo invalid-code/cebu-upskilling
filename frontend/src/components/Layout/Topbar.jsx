@@ -1,4 +1,4 @@
-import { useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Search, Bell } from 'lucide-react';
 import { useAuth, isRecruiter } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
@@ -12,6 +12,7 @@ const routeLabels = {
   '/assessments': 'Assessments',
   '/credentials': 'Credentials',
   '/help': 'Help center',
+  '/profile': 'Profile',
   '/business-dashboard': 'Business dashboard',
   '/login': 'Login',
   '/register': 'Register',
@@ -97,9 +98,9 @@ export default function Topbar() {
         >
           <Bell size={18} />
         </button>
-        <button style={styles.avatar} aria-label="Open profile">
+        <Link to="/profile" style={styles.avatar} aria-label="Open profile">
           {initials}
-        </button>
+        </Link>
       </div>
     </header>
   );
