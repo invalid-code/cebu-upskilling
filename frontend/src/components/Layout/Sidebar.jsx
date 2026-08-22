@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import { useAuth, isRecruiter } from '../../context/AuthContext';
 import {
   LayoutDashboard, Orbit, BriefcaseBusiness, BookOpenCheck,
@@ -197,13 +197,15 @@ export default function Sidebar() {
       )}
 
        <div style={styles.account}>
-         <div style={styles.avatar}>{initials}</div>
-         <div>
-           <strong style={styles.userName}>
-             {user?.firstName || 'User'}
-           </strong>
-           <small style={styles.userRole}>{user?.role || 'User'}</small>
-         </div>
+         <Link to="/profile" style={{ display: 'flex', gap: 10, alignItems: 'center', color: 'inherit', textDecoration: 'none' }} aria-label="Open profile">
+           <div style={styles.avatar}>{initials}</div>
+           <div>
+             <strong style={styles.userName}>
+               {user?.firstName || 'User'}
+             </strong>
+             <small style={styles.userRole}>{user?.role || 'User'}</small>
+           </div>
+         </Link>
          <button
            style={styles.logoutBtn}
            onClick={() => logout()}
