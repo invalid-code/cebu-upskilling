@@ -269,9 +269,9 @@ export default function AssessmentModal({ open, onClose, assessmentId, skillName
     return () => controller.abort();
   }, [open, assessmentId, initialSkillName]);
 
-  const select = useCallback((idx) => {
-    setAnswers(prev => ({ ...prev, [question?.questionId]: idx }));
-  }, [question?.questionId]);
+  const select = useCallback((questionId, idx) => {
+    setAnswers(prev => ({ ...prev, [questionId]: idx }));
+  }, []);
 
   const handleSubmit = useCallback(async () => {
     if (submitting || completed) return;
@@ -371,9 +371,9 @@ export default function AssessmentModal({ open, onClose, assessmentId, skillName
                     const selected = answers[question.questionId] === i;
                     return (
                       <div
-                        key={i}
+                        key={`${question.questionId}-${i}`}
                         style={{ ...styles.option, ...(selected ? styles.optionSelected : {}) }}
-                        onClick={() => select(i)}
+                        onClick={() => select(question.questionId, i)}
                       >
                         <div style={{ ...styles.optionLetter, ...(selected ? styles.optionLetterSelected : {}) }}>
                           {LETTERS[i]}

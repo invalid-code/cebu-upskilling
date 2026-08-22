@@ -144,8 +144,6 @@ const styles = {
   },
 };
 
-const categoryTabs = ['All', 'Frontend', 'Languages', 'Tooling', 'Career'];
-
 export default function CoursesPage() {
   useAuth();
   const [enrolledCourses, setEnrolledCourses] = useState([]);
@@ -157,6 +155,7 @@ export default function CoursesPage() {
   const [error, setError] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
   const [selectedCourse, setSelectedCourse] = useState(null);
+  const [categoryTabs, setCategoryTabs] = useState(['All']);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -167,6 +166,8 @@ export default function CoursesPage() {
         setDayStreak(data.dayStreak || 0);
         setCoursesInProgress(data.coursesInProgress || 0);
         setCertificatesEarned(data.certificatesEarned || 0);
+        const available = Array.isArray(data.availableCategories) ? data.availableCategories : [];
+        setCategoryTabs(['All', ...available]);
       })
       .catch((err) => {
         setError(err.message || 'Could not load courses');
@@ -179,7 +180,7 @@ export default function CoursesPage() {
 
   const filteredRecommended = recommendedCourses.filter((course) => {
     if (activeCategory === 'All') return true;
-    return course.category === activeCategory;
+    return course.skillCategory === activeCategory;
   });
 
   const handleOpenCourseDetail = async (courseId) => {
@@ -208,6 +209,8 @@ export default function CoursesPage() {
         setDayStreak(data.dayStreak || 0);
         setCoursesInProgress(data.coursesInProgress || 0);
         setCertificatesEarned(data.certificatesEarned || 0);
+        const available = Array.isArray(data.availableCategories) ? data.availableCategories : [];
+        setCategoryTabs(['All', ...available]);
       })
       .finally(() => setLoading(false));
   };

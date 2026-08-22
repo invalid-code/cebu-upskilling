@@ -65,7 +65,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
     public async Task CoursesPage_WithTargetRole_ListsRecommendedCourses()
     {
         var token = await RegisterLearnerAsync("regr.courses.recommended@example.com", "Frontend Developer");
-        var courseId = await CreateCourseAsync(token);
+        var courseId = await CreateCourseAsync(token, "JavaScript Essentials");
 
         var response = await AuthorizedClient(token).GetAsync("/api/coursespage");
 
@@ -79,8 +79,10 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
 
         var recommended = body.GetProperty("recommendedCourses").EnumerateArray().ToList();
         var course = recommended.Single(c => c.GetProperty("courseId").GetInt32() == courseId);
-        Assert.Equal("Modern Web Development", course.GetProperty("name").GetString());
+        Assert.Equal("JavaScript Essentials", course.GetProperty("name").GetString());
         Assert.True(course.GetProperty("isRecommended").GetBoolean());
+        Assert.Equal("Language", course.GetProperty("skillCategory").GetString());
+        Assert.Equal("Frontend Developer", body.GetProperty("targetRole").GetString());
         Assert.False(course.GetProperty("isEnrolled").GetBoolean());
     }
 
