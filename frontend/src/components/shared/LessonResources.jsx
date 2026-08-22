@@ -174,11 +174,6 @@ export default function LessonResources({ media, lessonId, courseId }) {
   const [error, setError] = useState('');
   const [discussionOpen, setDiscussionOpen] = useState(false);
 
-  const resources = [
-    { name: 'Lesson transcript', type: 'PDF', size: '4 pages', iconType: 'pdf' },
-    { name: 'Practice files', type: 'ZIP', size: '3 files', iconType: 'zip' },
-  ];
-
   const displayResources = media && media.length > 0
     ? media.map(m => ({
         name: m.pathFile.split('/').pop(),
@@ -186,7 +181,7 @@ export default function LessonResources({ media, lessonId, courseId }) {
         size: `${m.mbSize.toFixed(1)} MB`,
         iconType: m.type.toLowerCase() === 'pdf' ? 'pdf' : 'zip',
       }))
-    : resources;
+    : [];
 
   useEffect(() => {
     if (!lessonId) return;
@@ -277,38 +272,40 @@ export default function LessonResources({ media, lessonId, courseId }) {
 
   return (
     <div style={styles.container}>
-      <div style={styles.section}>
-        <div style={styles.sectionHeader}>
-          <span style={styles.sectionTitle}>Lesson resources</span>
-          <button style={styles.sectionAction}>
-            <Download size={16} />
-          </button>
-        </div>
-        {displayResources.map((resource, index) => (
-          <div
-            key={index}
-            style={{
-              ...styles.resourceItem,
-              ...(index === displayResources.length - 1 ? styles.resourceItemLast : {}),
-            }}
-          >
+      {displayResources.length > 0 && (
+        <div style={styles.section}>
+          <div style={styles.sectionHeader}>
+            <span style={styles.sectionTitle}>Lesson resources</span>
+            <button style={styles.sectionAction}>
+              <Download size={16} />
+            </button>
+          </div>
+          {displayResources.map((resource, index) => (
             <div
+              key={index}
               style={{
-                ...styles.resourceIcon,
-                ...(resource.iconType === 'pdf' ? styles.resourceIconPdf : styles.resourceIconZip),
+                ...styles.resourceItem,
+                ...(index === displayResources.length - 1 ? styles.resourceItemLast : {}),
               }}
             >
-              {resource.iconType === 'pdf' ? <FileText size={16} /> : <Package size={16} />}
-            </div>
-            <div style={styles.resourceInfo}>
-              <div style={styles.resourceName}>{resource.name}</div>
-              <div style={styles.resourceMeta}>
-                {resource.type} · {resource.size}
+              <div
+                style={{
+                  ...styles.resourceIcon,
+                  ...(resource.iconType === 'pdf' ? styles.resourceIconPdf : styles.resourceIconZip),
+                }}
+              >
+                {resource.iconType === 'pdf' ? <FileText size={16} /> : <Package size={16} />}
+              </div>
+              <div style={styles.resourceInfo}>
+                <div style={styles.resourceName}>{resource.name}</div>
+                <div style={styles.resourceMeta}>
+                  {resource.type} · {resource.size}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       <div style={styles.section}>
         <div style={styles.sectionHeader}>

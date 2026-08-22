@@ -25,14 +25,12 @@ describe('LessonResources', () => {
     });
   });
 
-  it('renders default lesson resources', () => {
+  it('does not render lesson resources when there is no backend media', () => {
     render(<LessonResources media={[]} />);
 
-    expect(screen.getByText('Lesson resources')).toBeInTheDocument();
-    expect(screen.getByText('Lesson transcript')).toBeInTheDocument();
-    expect(screen.getByText('PDF · 4 pages')).toBeInTheDocument();
-    expect(screen.getByText('Practice files')).toBeInTheDocument();
-    expect(screen.getByText('ZIP · 3 files')).toBeInTheDocument();
+    expect(screen.queryByText('Lesson resources')).not.toBeInTheDocument();
+    expect(screen.queryByText('Lesson transcript')).not.toBeInTheDocument();
+    expect(screen.queryByText('Practice files')).not.toBeInTheDocument();
   });
 
   it('renders media files with name, type and size', () => {

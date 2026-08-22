@@ -285,8 +285,33 @@ export default function CoursesPage() {
     setSelectedCourse(null);
   };
 
-  const handleResumeFromPanel = (courseId) => {
+  const handleResumeFromPanel = async (courseId) => {
+    const course = selectedCourse;
+    // Ensure enrollment exists before trying to resolve first unfinished lesson
+    if (course && !course.isEnrolled) {
+      try {
+        await api.post('/enrollments', { courseId });
+      } catch {
+        // ignore enrollment errors, still try to navigate
+      }
+    }
     setSelectedCourse(null);
+    try {
+      const data = await api.get(`/coursecontent/courses/${courseId}/content`);
+      const firstUnfinished = data.modules?.flatMap((m) => m.lessons).find((l) => !l.isCompleted);
+      if (firstUnfinished) {
+        navigate(`/courses/${courseId}/learn/${firstUnfinished.lessonId}`);
+        return;
+      }
+      // If all lessons done, fall back to first lesson of first module
+      const fallback = data.modules?.[0]?.lessons?.[0];
+      if (fallback) {
+        navigate(`/courses/${courseId}/learn/${fallback.lessonId}`);
+        return;
+      }
+    } catch {
+      // fall back to generic learn route, backend will resolve first unfinished
+    }
     navigate(`/courses/${courseId}/learn`);
   };
 
