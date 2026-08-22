@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from 'react';
 import { Play, CheckCircle, Circle, Clock, ChevronDown } from 'lucide-react';
 
 const styles = {
@@ -6,6 +7,7 @@ const styles = {
     borderRadius: 'var(--radius-lg)',
     border: '1px solid var(--line)',
     overflow: 'hidden',
+    position: 'relative',
   },
   header: {
     display: 'flex',
@@ -14,6 +16,12 @@ const styles = {
     padding: '14px 16px',
     borderBottom: '1px solid var(--line)',
     cursor: 'pointer',
+    width: '100%',
+    background: 'var(--surface)',
+    borderTop: 0,
+    borderLeft: 0,
+    borderRight: 0,
+    textAlign: 'left',
   },
   headerTitle: {
     fontSize: 11,
@@ -27,6 +35,36 @@ const styles = {
     fontWeight: 600,
     color: 'var(--ink)',
     marginTop: 2,
+  },
+  dropdown: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    background: 'var(--surface)',
+    border: '1px solid var(--line)',
+    borderTop: 'none',
+    borderRadius: '0 0 var(--radius-lg) var(--radius-lg)',
+    boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
+    zIndex: 10,
+    overflow: 'hidden',
+  },
+  dropdownItem: {
+    display: 'block',
+    width: '100%',
+    padding: '12px 16px',
+    fontSize: 13,
+    fontWeight: 600,
+    color: 'var(--ink)',
+    background: 'var(--surface)',
+    border: 0,
+    borderTop: '1px solid var(--line)',
+    textAlign: 'left',
+    cursor: 'pointer',
+  },
+  dropdownItemSelected: {
+    background: 'var(--teal-soft)',
+    color: 'var(--teal)',
   },
   progressCard: {
     margin: 12,
@@ -135,34 +173,115 @@ export default function ModuleOutline({ modules, currentLessonId, onLessonClick 
     m.lessons.some((l) => l.lessonId === currentLessonId)
   ) || modules[0];
 
-  if (!currentModule) return null;
+  const [isOpen, setIsOpen] = useState(false);
+  const [selectedModule, setSelectedModule] = useState(currentModule);
+  const containerRef = useRef(null);
+  const prevLessonIdRef = useRef(currentLessonId);
 
-  const totalLessons = currentModule.lessons.length;
-  const completedLessons = currentModule.completedLessonCount ?? currentModule.lessons.filter((l) => l.isCompleted).length;
+  useEffect(() => {
+    // Only sync selected module when the current lesson actually changes (navigation),
+    // not when user manually picks a different module from the dropdown.
+    if (prevLessonIdRef.current !== currentLessonId) {
+      prevLessonIdRef.current = currentLessonId;
+      if (currentModule && selectedModule?.moduleNumber !== currentModule.moduleNumber) {
+        setSelectedModule(currentModule);
+      } else if (!selectedModule && currentModule) {
+        setSelectedModule(currentModule);
+      }
+    } else if (!selectedModule && currentModule) {
+      setSelectedModule(currentModule);
+    }
+  }, [currentLessonId, currentModule, selectedModule]);
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    }
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isOpen]);
+
+  if (!selectedModule) return null;
+
+  const displayModule = selectedModule || currentModule;
+  const totalLessons = displayModule.lessons.length;
+  const completedLessons = displayModule.completedLessonCount ?? displayModule.lessons.filter((l) => l.isCompleted).length;
 
   const handleProgressClick = () => {
-    const nextLesson = currentModule.lessons.find((l) => !l.isCompleted && l.lessonId !== currentLessonId);
+    const nextLesson = displayModule.lessons.find((l) => !l.isCompleted && l.lessonId !== currentLessonId);
     if (nextLesson) {
       onLessonClick(nextLesson.lessonId);
       return;
     }
     // If all lessons in module completed, go to next lesson in module after current
-    const currentIdx = currentModule.lessons.findIndex((l) => l.lessonId === currentLessonId);
-    const fallback = currentModule.lessons[currentIdx + 1];
+    const currentIdx = displayModule.lessons.findIndex((l) => l.lessonId === currentLessonId);
+    const fallback = displayModule.lessons[currentIdx + 1];
     if (fallback) onLessonClick(fallback.lessonId);
   };
 
-  const isProgressClickable = currentModule.lessons.some((l) => !l.isCompleted && l.lessonId !== currentLessonId) ||
-    currentModule.lessons.findIndex((l) => l.lessonId === currentLessonId) < totalLessons - 1;
+  const isProgressClickable = displayModule.lessons.some((l) => !l.isCompleted && l.lessonId !== currentLessonId) ||
+    displayModule.lessons.findIndex((l) => l.lessonId === currentLessonId) < totalLessons - 1;
+
+  const handleModuleSelect = (module) => {
+    setSelectedModule(module);
+    setIsOpen(false);
+  };
 
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <div>
-          <div style={styles.headerTitle}>Module Outline</div>
-          <div style={styles.headerSubtitle}>{getModuleDisplayName(currentModule)}</div>
-        </div>
-        <ChevronDown size={18} color="var(--muted)" />
+    <div style={{ ...styles.container, overflow: isOpen ? 'visible' : 'hidden' }} ref={containerRef}>
+      <div style={{ position: 'relative' }}>
+        <button
+          type="button"
+          style={{
+            ...styles.header,
+            borderBottom: isOpen ? '1px solid var(--line)' : '1px solid var(--line)',
+          }}
+          onClick={() => setIsOpen((prev) => !prev)}
+          aria-expanded={isOpen}
+          aria-haspopup="listbox"
+          aria-label="Select module"
+        >
+          <div>
+            <div style={styles.headerTitle}>Module Outline</div>
+            <div style={styles.headerSubtitle}>{getModuleDisplayName(displayModule)}</div>
+          </div>
+          <ChevronDown
+            size={18}
+            color="var(--muted)"
+            style={{
+              transform: isOpen ? 'rotate(180deg)' : 'none',
+              transition: 'transform 0.2s',
+              flexShrink: 0,
+            }}
+          />
+        </button>
+
+        {isOpen && (
+          <div role="listbox" aria-label="Module list" style={styles.dropdown}>
+            {modules.map((module) => {
+              const isSelected = module.moduleNumber === displayModule.moduleNumber;
+              return (
+                <button
+                  key={`${module.moduleNumber}-${module.name}`}
+                  type="button"
+                  role="option"
+                  aria-selected={isSelected}
+                  style={{
+                    ...styles.dropdownItem,
+                    ...(isSelected ? styles.dropdownItemSelected : {}),
+                  }}
+                  onClick={() => handleModuleSelect(module)}
+                >
+                  {getModuleDisplayName(module)}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <button
@@ -190,7 +309,7 @@ export default function ModuleOutline({ modules, currentLessonId, onLessonClick 
       </button>
 
       <div style={styles.lessonList}>
-        {currentModule.lessons.map((lesson) => {
+        {displayModule.lessons.map((lesson) => {
           const isCurrent = lesson.lessonId === currentLessonId;
           const isCompleted = lesson.isCompleted;
 
