@@ -36,6 +36,13 @@ export function AuthProvider({ children }) {
     return res;
   };
 
+  const updateProfile = async (data) => {
+    const res = await api.patch('/auth/profile', data);
+    localStorage.setItem('user', JSON.stringify(res));
+    setUser(res);
+    return res;
+  };
+
   const logout = async () => {
     const token = localStorage.getItem('token');
     // Discard the token from the client immediately so it can't be reused,
@@ -78,6 +85,7 @@ export function AuthProvider({ children }) {
         register,
         registerCompany,
         logout,
+        updateProfile,
         confirmEmail,
         resendConfirmation,
         forgotPassword,

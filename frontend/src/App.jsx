@@ -22,6 +22,7 @@ import CredentialsPage from './pages/CredentialsPage';
 import HelpPage from './pages/HelpPage';
 import BusinessDashboardPage from './pages/BusinessDashboardPage';
 import NotFoundPage from './pages/NotFoundPage';
+import ProfilePage from './pages/ProfilePage';
 
 const appStyles = {
   app: {
@@ -92,6 +93,7 @@ export default function App() {
               <Route element={<RecruiterRoute />}>
                 <Route path="/business-dashboard" element={<BusinessDashboardPage />} />
               </Route>
+              <Route path="/profile" element={<ProfilePage />} />
               <Route path="/help" element={<HelpPage />} />
             </Route>
             <Route path="*" element={<NotFoundPage />} />

@@ -16,6 +16,7 @@ public class CoursesPageServiceTests
         new LearnerStudyCourseRepository(context),
         new RoleSkillRepository(context),
         new LearnerSkillRepository(context),
+        new ApplicationRepository(context),
         NullLogger<CoursesPageService>.Instance
     );
 
@@ -170,10 +171,11 @@ public class CoursesPageServiceTests
     public async Task GetCoursesPageAsync_ExcludesEnrolledCoursesFromRecommended()
     {
         var context = TestDbContextFactory.Create();
+        TestDataSeeder.Seed(context);
         var (user, learner) = await CreateLearnerAsync(context);
         var genre = await CreateGenreAsync(context, "Frontend", "Frontend");
         var enrolledCourse = await CreateCourseAsync(context, "Enrolled Course", genre, lessonCount: 1);
-        var freeCourse = await CreateCourseAsync(context, "Free Course", genre, lessonCount: 1);
+        var freeCourse = await CreateCourseAsync(context, "React Basics", genre, lessonCount: 1);
 
         context.LearnerStudyCourses.Add(new LearnerStudyCourse
         {
@@ -190,7 +192,8 @@ public class CoursesPageServiceTests
         var recommended = Assert.Single(result!.RecommendedCourses);
         Assert.Equal(freeCourse.CourseId, recommended.CourseId);
         Assert.True(recommended.IsRecommended);
-        Assert.Equal("Recommended", recommended.RecommendedReason);
+        Assert.Equal("Recommended for React", recommended.RecommendedReason);
+        Assert.Equal("Framework", recommended.SkillCategory);
         Assert.False(recommended.IsEnrolled);
         Assert.True(recommended.IsFree);
         Assert.Equal("Frontend", recommended.Category);
@@ -257,27 +260,93 @@ public class CoursesPageServiceTests
     }
 
     [Fact]
-    public async Task GetCoursesPageAsync_FiltersRecommendedByCategory()
+    public async Task GetCoursesPageAsync_FiltersRecommendedBySkillCategory()
     {
         var context = TestDbContextFactory.Create();
+        TestDataSeeder.Seed(context);
         var (user, _) = await CreateLearnerAsync(context);
         var frontendGenre = await CreateGenreAsync(context, "Frontend", "Frontend");
         var backendGenre = await CreateGenreAsync(context, "Backend", "Backend");
         var frontendCourse = await CreateCourseAsync(context, "React Basics", frontendGenre, lessonCount: 1);
-        var backendCourse = await CreateCourseAsync(context, "C# Fundamentals", backendGenre, lessonCount: 1);
+        var backendCourse = await CreateCourseAsync(context, "JavaScript Basics", backendGenre, lessonCount: 1);
 
         var service = CreateService(context);
 
-        var frontendPage = await service.GetCoursesPageAsync(user.UserId, category: "Frontend");
-        Assert.NotNull(frontendPage);
-        var frontendRecommended = Assert.Single(frontendPage!.RecommendedCourses);
-        Assert.Equal(frontendCourse.CourseId, frontendRecommended.CourseId);
+        var frameworkPage = await service.GetCoursesPageAsync(user.UserId, category: "Framework");
+        Assert.NotNull(frameworkPage);
+        var frameworkRecommended = Assert.Single(frameworkPage!.RecommendedCourses);
+        Assert.Equal(frontendCourse.CourseId, frameworkRecommended.CourseId);
+        Assert.Equal("Framework", frameworkRecommended.SkillCategory);
 
         var allPage = await service.GetCoursesPageAsync(user.UserId, category: "All");
         Assert.NotNull(allPage);
         Assert.Equal(2, allPage!.RecommendedCourses.Count);
         Assert.Contains(allPage.RecommendedCourses, c => c.CourseId == frontendCourse.CourseId);
         Assert.Contains(allPage.RecommendedCourses, c => c.CourseId == backendCourse.CourseId);
+    }
+
+    [Fact]
+    public async Task GetCoursesPageAsync_WithProfileTargetRole_ReturnsRoleSkillCategories()
+    {
+        var context = TestDbContextFactory.Create();
+        TestDataSeeder.Seed(context);
+        var (user, _) = await CreateLearnerAsync(context);
+        var genre = await CreateGenreAsync(context, "Frontend", "Frontend");
+        await CreateCourseAsync(context, "React Basics", genre, lessonCount: 1);
+
+        var result = await CreateService(context).GetCoursesPageAsync(user.UserId);
+
+        Assert.NotNull(result);
+        Assert.Equal("Frontend Developer", result!.TargetRole);
+        Assert.Contains("Framework", result.AvailableCategories);
+        Assert.Contains("Language", result.AvailableCategories);
+        Assert.Contains("Tool", result.AvailableCategories);
+    }
+
+    [Fact]
+    public async Task GetCoursesPageAsync_WithoutProfileRole_UsesAppliedJobTargetRoles()
+    {
+        var context = TestDbContextFactory.Create();
+        TestDataSeeder.Seed(context);
+        var (user, learner) = await CreateLearnerNoRoleAsync(context);
+        var genre = await CreateGenreAsync(context, "Backend", "Backend");
+        await CreateCourseAsync(context, "SQL Basics", genre, lessonCount: 1);
+
+        var company = new Company { Name = "Acme" };
+        context.Companies.Add(company);
+        await context.SaveChangesAsync();
+
+        var recruiter = new Recruiter { CompanyId = company.CompanyId, UserId = user.UserId };
+        context.Recruiters.Add(recruiter);
+        await context.SaveChangesAsync();
+
+        var post = new Post
+        {
+            RecruiterId = recruiter.RecruiterId,
+            CompanyId = company.CompanyId,
+            Title = "Data Analyst",
+            TargetRole = "Data Analyst",
+        };
+        context.Posts.Add(post);
+        await context.SaveChangesAsync();
+
+        context.Applications.Add(new Application
+        {
+            LearnerId = learner!.LearnerId,
+            PostId = post.PostId,
+            Status = "applied",
+            AppliedAt = DateTime.UtcNow,
+        });
+        await context.SaveChangesAsync();
+
+        var result = await CreateService(context).GetCoursesPageAsync(user.UserId);
+
+        Assert.NotNull(result);
+        Assert.Equal("Data Analyst", result!.TargetRole);
+        Assert.Contains("Language", result.AvailableCategories);
+        var recommended = Assert.Single(result.RecommendedCourses);
+        Assert.Equal("SQL Basics", recommended.Name);
+        Assert.True(recommended.IsRecommended);
     }
 
     [Fact]

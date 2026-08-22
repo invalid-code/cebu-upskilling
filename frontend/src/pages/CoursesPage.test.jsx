@@ -39,11 +39,12 @@ const mockCoursesPageData = {
       technicalLevel: 8,
       lessonCount: 6,
       category: 'Languages',
+      skillCategory: 'Language',
       isEnrolled: false,
       progressPercent: 0,
       isCompleted: false,
       isRecommended: true,
-      recommendedReason: 'Recommended',
+      recommendedReason: 'Recommended for TypeScript',
       unlocksJobsCount: 3,
     },
     {
@@ -57,11 +58,12 @@ const mockCoursesPageData = {
       technicalLevel: 6,
       lessonCount: 5,
       category: 'Frontend',
+      skillCategory: 'Language',
       isEnrolled: false,
       progressPercent: 0,
       isCompleted: false,
       isRecommended: true,
-      recommendedReason: 'Recommended',
+      recommendedReason: 'Recommended for CSS',
       unlocksJobsCount: null,
     },
     {
@@ -75,17 +77,20 @@ const mockCoursesPageData = {
       technicalLevel: 4,
       lessonCount: 4,
       category: 'Tooling',
+      skillCategory: 'Tool',
       isEnrolled: false,
       progressPercent: 0,
       isCompleted: false,
       isRecommended: true,
-      recommendedReason: 'Recommended',
+      recommendedReason: 'Recommended for Git',
       unlocksJobsCount: null,
     },
   ],
   dayStreak: 6,
   coursesInProgress: 2,
   certificatesEarned: 1,
+  targetRole: 'Frontend Developer',
+  availableCategories: ['Language', 'Tool'],
 };
 
 function renderCourses() {
@@ -147,24 +152,22 @@ describe('CoursesPage', () => {
     expect(screen.getByText('Git & Team Workflows')).toBeInTheDocument();
   });
 
-  it('shows filter tabs', async () => {
+  it('shows filter tabs derived from the target role', async () => {
     renderCourses();
     await screen.findByText('Recommended for your pathway');
     expect(screen.getByRole('button', { name: 'All' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Frontend' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Languages' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Tooling' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Career' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Language' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Tool' })).toBeInTheDocument();
   });
 
   it('filters courses by category', async () => {
     renderCourses();
     await screen.findByText('Recommended for your pathway');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Frontend' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Language' }));
 
+    expect(screen.getByText('TypeScript from Zero')).toBeInTheDocument();
     expect(screen.getByText('Responsive Layout with CSS Grid')).toBeInTheDocument();
-    expect(screen.queryByText('TypeScript from Zero')).not.toBeInTheDocument();
     expect(screen.queryByText('Git & Team Workflows')).not.toBeInTheDocument();
   });
 
