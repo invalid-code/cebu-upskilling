@@ -78,7 +78,7 @@ describe('CourseContentPage', () => {
     const titles = await screen.findAllByText('Modern Web Development');
     expect(titles.length).toBeGreaterThan(0);
     expect(screen.getByText('50% complete')).toBeInTheDocument();
-    expect(screen.getAllByText('HTML Fundamentals').length).toBeGreaterThan(0);
+    expect(screen.getByText(/HTML Fundamentals/)).toBeInTheDocument();
     expect(screen.getByText('Welcome aboard.')).toBeInTheDocument();
     expect(api.get).toHaveBeenCalledWith(
       '/coursecontent/courses/1/content?lessonId=5',

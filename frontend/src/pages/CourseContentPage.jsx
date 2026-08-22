@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MoreHorizontal } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import ModuleOutline from '../components/shared/ModuleOutline';
 import LessonContent from '../components/shared/LessonContent';
 import LessonResources from '../components/shared/LessonResources';
@@ -73,17 +73,6 @@ const styles = {
   },
   progressBarContainer: {
     width: 120,
-  },
-  moreButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    background: 'var(--surface)',
-    border: '1px solid var(--line)',
-    color: 'var(--muted)',
-    display: 'grid',
-    placeItems: 'center',
-    cursor: 'pointer',
   },
   content: {
     display: 'flex',
@@ -192,9 +181,6 @@ export default function CourseContentPage() {
           <div style={styles.progressBarContainer}>
             <ProgressBar percent={courseData.progressPercent} color="var(--coral)" />
           </div>
-          <button style={styles.moreButton}>
-            <MoreHorizontal size={18} />
-          </button>
         </div>
       </div>
 
@@ -214,12 +200,7 @@ export default function CourseContentPage() {
             totalLessons={courseData.totalLessons}
             currentIndex={currentLessonIndex >= 0 ? currentLessonIndex : 0}
           />
-          <LessonContent
-            lesson={courseData.currentLesson}
-            moduleName={courseData.modules.find(m =>
-              m.lessons.some(l => l.lessonId === parseInt(lessonId))
-            )?.name}
-          />
+          <LessonContent lesson={courseData.currentLesson} />
         </div>
 
         <div style={styles.rightSidebar}>

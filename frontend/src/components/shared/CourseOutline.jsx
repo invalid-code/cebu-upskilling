@@ -1,6 +1,5 @@
 import { Fragment, useState } from 'react';
 import { ChevronDown, Play, CheckCircle, Circle, Clock } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 
 const styles = {
   container: {
@@ -146,7 +145,6 @@ const styles = {
 };
 
 export default function CourseOutline({ modules, currentLessonId, onLessonClick }) {
-  const navigate = useNavigate();
   const [showAllModules, setShowAllModules] = useState(false);
   const totalLessons = modules.reduce((acc, m) => acc + m.lessons.length, 0);
   const completedLessons = modules.reduce((acc, m) => acc + m.completedLessonCount, 0);
@@ -158,20 +156,11 @@ export default function CourseOutline({ modules, currentLessonId, onLessonClick 
   const showAll = showAllModules || !currentModule;
   const visibleModules = showAll ? modules : [currentModule];
 
+  const firstUnfinishedLesson = modules.flatMap((m) => m.lessons).find((l) => !l.isCompleted) || null;
+
   const handleProgressClick = () => {
-    const allLessons = modules.flatMap((m) => m.lessons);
-    const nextLesson = allLessons.find((l) => !l.isCompleted && l.lessonId !== currentLessonId);
-    if (nextLesson) {
-      onLessonClick(nextLesson.lessonId);
-    } else if (completedLessons >= totalLessons) {
-      // All lessons in this course done → continue to remaining courses the learner hasn't studied
-      navigate('/courses');
-    } else {
-      // Fallback: next lesson in order after current
-      const currentIdx = allLessons.findIndex((l) => l.lessonId === currentLessonId);
-      const fallback = allLessons[currentIdx + 1];
-      if (fallback) onLessonClick(fallback.lessonId);
-      else navigate('/courses');
+    if (firstUnfinishedLesson) {
+      onLessonClick(firstUnfinishedLesson.lessonId);
     }
   };
 
@@ -191,10 +180,11 @@ export default function CourseOutline({ modules, currentLessonId, onLessonClick 
 
       <button
         type="button"
-        style={{ ...styles.progressCard, cursor: 'pointer', width: 'calc(100% - 24px)', border: 0, textAlign: 'left' }}
-        onClick={handleProgressClick}
-        aria-label={completedLessons >= totalLessons ? 'Continue to remaining courses' : 'Continue to next remaining lesson'}
-        title={completedLessons >= totalLessons ? 'Continue to remaining courses' : 'Continue to next lesson'}
+        style={{ ...styles.progressCard, cursor: firstUnfinishedLesson ? 'pointer' : 'default', width: 'calc(100% - 24px)', border: 0, textAlign: 'left' }}
+        onClick={firstUnfinishedLesson ? handleProgressClick : undefined}
+        aria-label={firstUnfinishedLesson ? 'Continue to first unfinished lesson' : 'No unfinished lessons'}
+        title={firstUnfinishedLesson ? 'Continue to first unfinished lesson' : 'No unfinished lessons'}
+        disabled={!firstUnfinishedLesson}
       >
         <div style={styles.progressIcon}>
           <Play size={16} />
@@ -202,7 +192,7 @@ export default function CourseOutline({ modules, currentLessonId, onLessonClick 
         <div style={styles.progressText}>
           <div style={styles.progressTitle}>Your progress</div>
           <div style={styles.progressSubtitle}>
-            {completedLessons} of {totalLessons} lessons {completedLessons < totalLessons ? '· Continue' : '· Explore more courses'}
+            {completedLessons} of {totalLessons} lessons {firstUnfinishedLesson ? '· Continue' : ''}
           </div>
         </div>
       </button>

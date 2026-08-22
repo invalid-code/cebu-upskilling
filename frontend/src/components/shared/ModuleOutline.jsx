@@ -211,20 +211,15 @@ export default function ModuleOutline({ modules, currentLessonId, onLessonClick 
   const totalLessons = displayModule.lessons.length;
   const completedLessons = displayModule.completedLessonCount ?? displayModule.lessons.filter((l) => l.isCompleted).length;
 
+  const firstUnfinishedLesson = displayModule.lessons.find((l) => !l.isCompleted) || null;
+
   const handleProgressClick = () => {
-    const nextLesson = displayModule.lessons.find((l) => !l.isCompleted && l.lessonId !== currentLessonId);
-    if (nextLesson) {
-      onLessonClick(nextLesson.lessonId);
-      return;
+    if (firstUnfinishedLesson) {
+      onLessonClick(firstUnfinishedLesson.lessonId);
     }
-    // If all lessons in module completed, go to next lesson in module after current
-    const currentIdx = displayModule.lessons.findIndex((l) => l.lessonId === currentLessonId);
-    const fallback = displayModule.lessons[currentIdx + 1];
-    if (fallback) onLessonClick(fallback.lessonId);
   };
 
-  const isProgressClickable = displayModule.lessons.some((l) => !l.isCompleted && l.lessonId !== currentLessonId) ||
-    displayModule.lessons.findIndex((l) => l.lessonId === currentLessonId) < totalLessons - 1;
+  const isProgressClickable = !!firstUnfinishedLesson;
 
   const handleModuleSelect = (module) => {
     setSelectedModule(module);
@@ -294,8 +289,9 @@ export default function ModuleOutline({ modules, currentLessonId, onLessonClick 
           textAlign: 'left',
         }}
         onClick={isProgressClickable ? handleProgressClick : undefined}
-        aria-label="Continue to next lesson in module"
-        title="Continue to next lesson in module"
+        aria-label={isProgressClickable ? 'Continue to first unfinished lesson in module' : 'No unfinished lessons in module'}
+        title={isProgressClickable ? 'Continue to first unfinished lesson in module' : 'No unfinished lessons in module'}
+        disabled={!isProgressClickable}
       >
         <div style={styles.progressIcon}>
           <Play size={16} />

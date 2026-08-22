@@ -1,4 +1,6 @@
 import { X, Star, Clock, BookOpen, CheckCircle, Circle, Play, ChevronRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { api } from '../../api/client';
 import Button from '../ui/Button';
 import Tag from '../ui/Tag';
 
@@ -197,7 +199,14 @@ const styles = {
   },
 };
 
-export default function CourseDetailPanel({ course, onClose, onResume }) {
+export default function CourseDetailPanel({ course, onClose, onResume, onModuleClick }) {
+  let navigate = () => {};
+  try {
+    navigate = useNavigate();
+  } catch {
+    navigate = () => {};
+  }
+
   if (!course) return null;
 
   const getLevelLabel = (level) => {
@@ -212,6 +221,34 @@ export default function CourseDetailPanel({ course, onClose, onResume }) {
 
   const handleResume = () => {
     if (onResume) onResume(course.courseId);
+  };
+
+  const handleModuleClick = async (module) => {
+    // If parent provides handler, delegate
+    if (onModuleClick) {
+      onModuleClick(module);
+      return;
+    }
+    const lessons = module.lessons || module.Lessons || [];
+    const firstLesson = lessons[0];
+    const lessonId = firstLesson?.lessonId ?? firstLesson?.LessonId ?? firstLesson?.id;
+
+    // Auto-enroll if not already enrolled so the learn page can load
+    if (!course.isEnrolled && course.courseId) {
+      try {
+        await api.post('/enrollments', { courseId: course.courseId });
+      } catch {
+        // enrollment failures are non-blocking; navigation will still be attempted
+      }
+    }
+
+    if (onClose) onClose();
+    if (lessonId) {
+      navigate(`/courses/${course.courseId}/learn/${lessonId}`);
+    } else {
+      // Fallback: let the content page resolve the first lesson (module has lessonCount but no ids)
+      navigate(`/courses/${course.courseId}/learn`);
+    }
   };
 
   const hasStarted = (course.completedModules || 0) > 0;
@@ -284,11 +321,23 @@ export default function CourseDetailPanel({ course, onClose, onResume }) {
               const isCurrent = index === (course.completedModules || 0);
               
               return (
-                <div
+                <button
                   key={module.moduleNumber}
+                  type="button"
+                  onClick={() => handleModuleClick(module)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleModuleClick(module);
+                    }
+                  }}
+                  aria-label={`Open module ${module.moduleNumber}: ${module.name}`}
                   style={{
                     ...styles.moduleItem,
                     ...(isCompleted ? styles.moduleItemCompleted : {}),
+                    width: '100%',
+                    border: 'none',
+                    textAlign: 'left',
                   }}
                 >
                   <div
@@ -314,11 +363,11 @@ export default function CourseDetailPanel({ course, onClose, onResume }) {
                       {module.moduleNumber}. {module.name}
                     </div>
                     <div style={styles.moduleLessons}>
-                      {module.lessonCount} {module.lessonCount === 1 ? 'lesson' : 'lessons'}
+                      {(module.lessonCount ?? module.LessonCount ?? module.lessons?.length ?? module.Lessons?.length ?? 0)} {( (module.lessonCount ?? module.LessonCount ?? module.lessons?.length ?? module.Lessons?.length ?? 0) === 1 ? 'lesson' : 'lessons')}
                     </div>
                   </div>
                   <ChevronRight size={16} color="var(--muted)" />
-                </div>
+                </button>
               );
             })}
           </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Download, FileText, Package, Plus, Save, HelpCircle } from 'lucide-react';
+import { Download, FileText, Package, Save, HelpCircle } from 'lucide-react';
 import { api } from '../../api/client';
 import { useToast } from '../../context/ToastContext';
 import DiscussionModal from './DiscussionModal';
@@ -313,9 +313,6 @@ export default function LessonResources({ media, lessonId, courseId }) {
       <div style={styles.section}>
         <div style={styles.sectionHeader}>
           <span style={styles.sectionTitle}>My notes</span>
-          <button style={styles.sectionAction} onClick={handleClear} aria-label="Clear note">
-            <Plus size={16} />
-          </button>
         </div>
         <div style={styles.notesContent}>
           {loading ? (

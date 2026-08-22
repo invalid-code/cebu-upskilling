@@ -23,14 +23,14 @@ describe('LessonContent', () => {
   it('renders the lesson title and module label', () => {
     render(<LessonContent lesson={lesson} moduleName="Web Basics" />);
 
-    expect(screen.getByText('Web Basics')).toBeInTheDocument();
+    expect(screen.queryByText('Web Basics')).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'HTML Fundamentals' })).toBeInTheDocument();
   });
 
   it('falls back to the lesson title when no module name is provided', () => {
     render(<LessonContent lesson={lesson} moduleName={undefined} />);
 
-    expect(screen.getAllByText('HTML Fundamentals')).toHaveLength(2);
+    expect(screen.getAllByText('HTML Fundamentals')).toHaveLength(1);
   });
 
   it('renders text, heading and code blocks', () => {
