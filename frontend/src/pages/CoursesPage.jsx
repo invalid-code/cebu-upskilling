@@ -289,6 +289,27 @@ export default function CoursesPage() {
     navigate(`/courses/${courseId}/learn`);
   };
 
+  const handleModuleClickFromPanel = async (module) => {
+    if (!selectedCourse) return;
+    const lessons = module.lessons || module.Lessons || [];
+    const firstLesson = lessons[0];
+    const lessonId = firstLesson?.lessonId ?? firstLesson?.LessonId;
+    const courseId = selectedCourse.courseId;
+    if (!selectedCourse.isEnrolled) {
+      try {
+        await api.post('/enrollments', { courseId });
+      } catch {
+        // ignore enrollment errors
+      }
+    }
+    setSelectedCourse(null);
+    if (lessonId) {
+      navigate(`/courses/${courseId}/learn/${lessonId}`);
+    } else {
+      navigate(`/courses/${courseId}/learn`);
+    }
+  };
+
   const handleEnroll = () => {
     setLoading(true);
     api.get('/coursespage')
@@ -451,6 +472,7 @@ export default function CoursesPage() {
           course={selectedCourse}
           onClose={handleCloseCourseDetail}
           onResume={handleResumeFromPanel}
+          onModuleClick={handleModuleClickFromPanel}
         />
       )}
     </div>

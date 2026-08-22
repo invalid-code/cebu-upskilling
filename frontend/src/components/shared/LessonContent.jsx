@@ -1,14 +1,9 @@
-import { FileText, MessageSquare } from 'lucide-react';
+import { FileText } from 'lucide-react';
 
 const styles = {
   container: {
     flex: 1,
     minWidth: 0,
-  },
-  moduleLabel: {
-    fontSize: 12,
-    color: 'var(--muted)',
-    marginBottom: 4,
   },
   lessonTitle: {
     fontFamily: "'Space Grotesk', sans-serif",
@@ -61,23 +56,10 @@ const styles = {
     color: '#e8f0ee',
     overflowX: 'auto',
   },
-  notesButton: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 6,
-    padding: '8px 14px',
-    background: 'var(--surface)',
-    border: '1px solid var(--line)',
-    borderRadius: 8,
-    fontSize: 13,
-    fontWeight: 600,
-    color: 'var(--muted)',
-    cursor: 'pointer',
-    marginBottom: 16,
-  },
+
 };
 
-export default function LessonContent({ lesson, moduleName }) {
+export default function LessonContent({ lesson }) {
   if (!lesson) return null;
 
   const renderContentBlock = (block, index) => {
@@ -118,15 +100,7 @@ export default function LessonContent({ lesson, moduleName }) {
 
   return (
     <div style={styles.container}>
-      <div style={styles.moduleLabel}>
-        {moduleName || lesson.name}
-      </div>
       <h2 style={styles.lessonTitle}>{lesson.name}</h2>
-
-      <button style={styles.notesButton}>
-        <MessageSquare size={14} />
-        Notes
-      </button>
 
       {lesson.contentBlocks.map((block, index) =>
         renderContentBlock(block, index)
