@@ -177,11 +177,28 @@ export default function LessonResources({ media, lessonId, courseId }) {
   const displayResources = media && media.length > 0
     ? media.map(m => ({
         name: m.pathFile.split('/').pop(),
+        href: m.pathFile,
         type: m.type.toUpperCase(),
         size: `${m.mbSize.toFixed(1)} MB`,
         iconType: m.type.toLowerCase() === 'pdf' ? 'pdf' : 'zip',
       }))
     : [];
+
+  const triggerDownload = (href, fileName) => {
+    if (!href) return;
+    const a = document.createElement('a');
+    a.href = href;
+    a.download = fileName || '';
+    a.target = '_blank';
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
+
+  const handleDownloadAll = () => {
+    displayResources.forEach((r) => triggerDownload(r.href, r.name));
+  };
 
   useEffect(() => {
     if (!lessonId) return;
@@ -276,17 +293,29 @@ export default function LessonResources({ media, lessonId, courseId }) {
         <div style={styles.section}>
           <div style={styles.sectionHeader}>
             <span style={styles.sectionTitle}>Lesson resources</span>
-            <button style={styles.sectionAction}>
+            <button style={styles.sectionAction} onClick={handleDownloadAll} aria-label="Download all lesson files">
               <Download size={16} />
             </button>
           </div>
           {displayResources.map((resource, index) => (
-            <div
+            <a
               key={index}
+              href={resource.href}
+              download={resource.name}
+              target="_blank"
+              rel="noopener"
+              onClick={(e) => {
+                // Use direct download attribute; no backend update is triggered
+                // Fallback for browsers that ignore download on cross-origin
+                if (!resource.href) e.preventDefault();
+              }}
               style={{
                 ...styles.resourceItem,
                 ...(index === displayResources.length - 1 ? styles.resourceItemLast : {}),
+                textDecoration: 'none',
+                color: 'inherit',
               }}
+              aria-label={`Download ${resource.name}`}
             >
               <div
                 style={{
@@ -302,7 +331,7 @@ export default function LessonResources({ media, lessonId, courseId }) {
                   {resource.type} · {resource.size}
                 </div>
               </div>
-            </div>
+            </a>
           ))}
         </div>
       )}
