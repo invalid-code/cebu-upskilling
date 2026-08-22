@@ -66,7 +66,7 @@ public abstract class ProductionApiTestBase : IClassFixture<ProductionApiFactory
         return body.GetProperty("token").GetString()!;
     }
 
-    protected async Task<int> CreateCourseAsync(string token)
+    protected async Task<int> CreateCourseAsync(string token, string name = "Modern Web Development")
     {
         using var context = Factory.CreateDbContext();
 
@@ -91,7 +91,7 @@ public abstract class ProductionApiTestBase : IClassFixture<ProductionApiFactory
         var course = new Course
         {
             GenreId = genre.GenreId,
-            Name = "Modern Web Development",
+            Name = name,
             TechnicalLevel = 3,
             Description = "Build production-ready web apps",
             Price = 5000,

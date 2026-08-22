@@ -217,6 +217,19 @@ const styles = {
   },
 };
 
+function formatLastCalculated(date) {
+  if (!date) return 'Last calculated —';
+  const diffMs = Date.now() - date.getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+  if (diffSec < 60) return 'Last calculated just now';
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `Last calculated ${diffMin} minute${diffMin === 1 ? '' : 's'} ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `Last calculated ${diffHr} hour${diffHr === 1 ? '' : 's'} ago`;
+  const diffDay = Math.floor(diffHr / 24);
+  return `Last calculated ${diffDay} day${diffDay === 1 ? '' : 's'} ago`;
+}
+
 export default function OverviewPage() {
   const { user } = useAuth();
   if (isRecruiter(user)) return <EmployerOverviewPage />;
@@ -231,6 +244,8 @@ function LearnerOverview() {
   const [loading, setLoading] = useState(true);
   const [skillGaps, setSkillGaps] = useState([]);
   const [skillGapsLoading, setSkillGapsLoading] = useState(true);
+  const [lastCalculatedAt, setLastCalculatedAt] = useState(null);
+  const [, setTick] = useState(0);
   const [recommendedAssessment, setRecommendedAssessment] = useState(null);
   const [weeklyStats, setWeeklyStats] = useState({ learningTimeHours: 0, coursesActive: 0, jobsWorthApplying: 0 });
   const [weeklyStatsLoading, setWeeklyStatsLoading] = useState(true);
@@ -260,10 +275,20 @@ function LearnerOverview() {
       return;
     }
     api.get('/skillgaps')
-      .then((data) => setSkillGaps(data || []))
+      .then((data) => {
+        setSkillGaps(data || []);
+        setLastCalculatedAt(new Date());
+      })
       .catch(() => setSkillGaps([]))
       .finally(() => setSkillGapsLoading(false));
   }, [targetRole]);
+
+  // Re-render every minute so the relative "last calculated" label stays accurate
+  useEffect(() => {
+    if (!lastCalculatedAt) return;
+    const id = setInterval(() => setTick((t) => t + 1), 60000);
+    return () => clearInterval(id);
+  }, [lastCalculatedAt]);
 
   useEffect(() => {
     if (!targetRole) return;
@@ -358,12 +383,15 @@ function LearnerOverview() {
                         <p style={styles.matchDesc}>{desc}</p>
                       </div>
                     </div>
-                    <div style={styles.matchFooter}>
-                      Last calculated just now ·{' '}
+                    <div style={styles.matchFooter} title={lastCalculatedAt ? lastCalculatedAt.toLocaleString() : undefined}>
+                      {formatLastCalculated(lastCalculatedAt)} ·{' '}
                       <button style={styles.matchRefresh} onClick={() => {
                         setSkillGapsLoading(true);
                         api.get('/skillgaps')
-                          .then((data) => setSkillGaps(data || []))
+                          .then((data) => {
+                            setSkillGaps(data || []);
+                            setLastCalculatedAt(new Date());
+                          })
                           .catch(() => setSkillGaps([]))
                           .finally(() => setSkillGapsLoading(false));
                       }}>Refresh</button>
