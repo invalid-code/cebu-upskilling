@@ -1,3 +1,4 @@
+import { Fragment, useState } from 'react';
 import { ChevronDown, Play, CheckCircle, Circle, Clock } from 'lucide-react';
 
 const styles = {
@@ -62,6 +63,17 @@ const styles = {
   },
   lessonList: {
     padding: '0 12px 12px',
+  },
+  moduleLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    padding: '14px 12px 6px',
+    fontSize: 11,
+    fontWeight: 700,
+    textTransform: 'uppercase',
+    letterSpacing: '0.06em',
+    color: 'var(--muted)',
   },
   lessonItem: {
     display: 'flex',
@@ -133,6 +145,7 @@ const styles = {
 };
 
 export default function CourseOutline({ modules, currentLessonId, onLessonClick }) {
+  const [showAllModules, setShowAllModules] = useState(false);
   const totalLessons = modules.reduce((acc, m) => acc + m.lessons.length, 0);
   const completedLessons = modules.reduce((acc, m) => acc + m.completedLessonCount, 0);
 
@@ -140,90 +153,120 @@ export default function CourseOutline({ modules, currentLessonId, onLessonClick 
     m.lessons.some(l => l.lessonId === currentLessonId)
   );
 
+  const showAll = showAllModules || !currentModule;
+  const visibleModules = showAll ? modules : [currentModule];
+
+  const firstUnfinishedLesson = modules.flatMap((m) => m.lessons).find((l) => !l.isCompleted) || null;
+
+  const handleProgressClick = () => {
+    if (firstUnfinishedLesson) {
+      onLessonClick(firstUnfinishedLesson.lessonId);
+    }
+  };
+
   return (
     <div style={styles.container}>
       <div style={styles.header}>
         <div>
           <div style={styles.headerTitle}>Course Outline</div>
           <div style={styles.headerSubtitle}>
-            {currentModule
-              ? `Module ${currentModule.moduleNumber} · ${currentModule.name}`
+            {!showAll && currentModule
+              ? currentModule.name
               : 'All Modules'}
           </div>
         </div>
         <ChevronDown size={18} color="var(--muted)" />
       </div>
 
-      <div style={styles.progressCard}>
+      <button
+        type="button"
+        style={{ ...styles.progressCard, cursor: firstUnfinishedLesson ? 'pointer' : 'default', width: 'calc(100% - 24px)', border: 0, textAlign: 'left' }}
+        onClick={firstUnfinishedLesson ? handleProgressClick : undefined}
+        aria-label={firstUnfinishedLesson ? 'Continue to first unfinished lesson' : 'No unfinished lessons'}
+        title={firstUnfinishedLesson ? 'Continue to first unfinished lesson' : 'No unfinished lessons'}
+        disabled={!firstUnfinishedLesson}
+      >
         <div style={styles.progressIcon}>
           <Play size={16} />
         </div>
         <div style={styles.progressText}>
           <div style={styles.progressTitle}>Your progress</div>
           <div style={styles.progressSubtitle}>
-            {completedLessons} of {totalLessons} lessons
+            {completedLessons} of {totalLessons} lessons {firstUnfinishedLesson ? '· Continue' : ''}
           </div>
         </div>
-      </div>
+      </button>
 
       <div style={styles.lessonList}>
-        {modules.map((module) =>
-          module.lessons.map((lesson) => {
-            const isCurrent = lesson.lessonId === currentLessonId;
-            const isCompleted = lesson.isCompleted;
+        {visibleModules.map((module) => (
+          <Fragment key={`${module.moduleNumber}-${module.name}`}>
+            {module.lessons.map((lesson) => {
+              const isCurrent = lesson.lessonId === currentLessonId;
+              const isCompleted = lesson.isCompleted;
 
-            return (
-              <div
-                key={lesson.lessonId}
-                style={{
-                  ...styles.lessonItem,
-                  ...(isCurrent ? styles.lessonItemCurrent : {}),
-                  ...(isCompleted && !isCurrent ? styles.lessonItemCompleted : {}),
-                }}
-                onClick={() => onLessonClick(lesson.lessonId)}
-              >
+              return (
                 <div
+                  key={lesson.lessonId}
                   style={{
-                    ...styles.lessonIcon,
-                    ...(isCompleted
-                      ? styles.lessonIconCompleted
-                      : isCurrent
-                      ? styles.lessonIconCurrent
-                      : styles.lessonIconPending),
+                    ...styles.lessonItem,
+                    ...(isCurrent ? styles.lessonItemCurrent : {}),
+                    ...(isCompleted && !isCurrent ? styles.lessonItemCompleted : {}),
                   }}
+                  onClick={() => onLessonClick(lesson.lessonId)}
                 >
-                  {isCompleted ? (
-                    <CheckCircle size={14} />
-                  ) : isCurrent ? (
-                    <Play size={12} />
-                  ) : (
-                    <Circle size={14} />
-                  )}
-                </div>
-                <div style={styles.lessonInfo}>
-                  <div style={{
-                    ...styles.lessonName,
-                    color: isCurrent ? 'var(--surface)' : 'var(--ink)',
-                  }}>
-                    {lesson.name}
+                  <div
+                    style={{
+                      ...styles.lessonIcon,
+                      ...(isCompleted
+                        ? styles.lessonIconCompleted
+                        : isCurrent
+                        ? styles.lessonIconCurrent
+                        : styles.lessonIconPending),
+                    }}
+                  >
+                    {isCompleted ? (
+                      <CheckCircle size={14} />
+                    ) : isCurrent ? (
+                      <Play size={12} />
+                    ) : (
+                      <Circle size={14} />
+                    )}
                   </div>
-                  <div style={{
-                    ...styles.lessonDuration,
-                    color: isCurrent ? 'rgba(255,255,255,0.8)' : 'var(--muted)',
-                  }}>
-                    <Clock size={10} />
-                    {lesson.durationMinutes} min
+                  <div style={styles.lessonInfo}>
+                    <div style={{
+                      ...styles.lessonName,
+                      color: isCurrent ? 'var(--surface)' : 'var(--ink)',
+                    }}>
+                      {lesson.name}
+                    </div>
+                    <div style={{
+                      ...styles.lessonDuration,
+                      color: isCurrent ? 'rgba(255,255,255,0.8)' : 'var(--muted)',
+                    }}>
+                      <Clock size={10} />
+                      {lesson.durationMinutes} min
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })
-        )}
+              );
+            })}
+          </Fragment>
+        ))}
       </div>
 
-      <div style={styles.allModules}>
+      <button
+        type="button"
+        style={{ ...styles.allModules, background: 'none', border: 0, width: '100%' }}
+        onClick={() => setShowAllModules(!showAllModules)}
+        aria-expanded={showAll}
+        title={showAll ? 'Show current module only' : 'Show all course modules'}
+      >
         <span>All course modules</span>
-      </div>
+        <ChevronDown
+          size={14}
+          style={{ transform: showAll ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}
+        />
+      </button>
     </div>
   );
 }

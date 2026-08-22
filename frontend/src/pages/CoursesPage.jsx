@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import CourseCard from '../components/shared/CourseCard';
 import CourseDetailPanel from '../components/shared/CourseDetailPanel';
 import { useAuth } from '../context/AuthContext';
+import { useApplications } from '../context/ApplicationsContext';
 import { api } from '../api/client';
 import { Flame, CheckCircle, Award, ArrowRight } from 'lucide-react';
 
@@ -144,10 +146,42 @@ const styles = {
   },
 };
 
-const categoryTabs = ['All', 'Frontend', 'Languages', 'Tooling', 'Career'];
+const DEFAULT_CATEGORY_TABS = ['All', 'Frontend', 'Languages', 'Tooling', 'Career'];
+
+function mapSkillCategoryToTab(category) {
+  if (!category) return null;
+  const lower = category.trim().toLowerCase();
+  if (lower === 'language') return 'Languages';
+  if (lower === 'languages') return 'Languages';
+  if (lower === 'framework') return 'Frontend';
+  if (lower === 'tool') return 'Tooling';
+  if (lower === 'tooling') return 'Tooling';
+  if (lower === 'runtime') return 'Tooling';
+  if (lower === 'platform') return 'Tooling';
+  if (lower === 'concept') return 'Career';
+  if (lower === 'career') return 'Career';
+  if (lower === 'frontend') return 'Frontend';
+  if (lower === 'backend') return 'Backend';
+  // Fallback: capitalize
+  return category.charAt(0).toUpperCase() + category.slice(1);
+}
+
+function getTabOrderIndex(tab) {
+  const order = ['Frontend', 'Backend', 'Languages', 'Tooling', 'Career'];
+  const idx = order.indexOf(tab);
+  return idx === -1 ? 999 : idx;
+}
 
 export default function CoursesPage() {
-  useAuth();
+  const { user } = useAuth();
+  let applications = [];
+  try {
+    const ctx = useApplications();
+    applications = ctx?.applications || [];
+  } catch {
+    applications = [];
+  }
+  const navigate = useNavigate();
   const [enrolledCourses, setEnrolledCourses] = useState([]);
   const [recommendedCourses, setRecommendedCourses] = useState([]);
   const [dayStreak, setDayStreak] = useState(0);
@@ -157,6 +191,7 @@ export default function CoursesPage() {
   const [error, setError] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
   const [selectedCourse, setSelectedCourse] = useState(null);
+  const [categoryTabs, setCategoryTabs] = useState(DEFAULT_CATEGORY_TABS);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -169,13 +204,67 @@ export default function CoursesPage() {
         setCertificatesEarned(data.certificatesEarned || 0);
       })
       .catch((err) => {
+        if (err?.name === 'AbortError') return;
         setError(err.message || 'Could not load courses');
         setEnrolledCourses([]);
         setRecommendedCourses([]);
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
     return () => controller.abort();
   }, []);
+
+  useEffect(() => {
+    const profileTargetRole = user?.targetRole?.trim() || '';
+    const appliedTargetRole = applications.find((a) => a.targetRole?.trim())?.targetRole?.trim() || '';
+    const resolvedTargetRole = appliedTargetRole || profileTargetRole;
+    const controller = new AbortController();
+
+    const applyTabsFromCategories = (rawCategories) => {
+      if (!rawCategories || rawCategories.length === 0) return;
+      const mapped = [...new Set(rawCategories.map(mapSkillCategoryToTab).filter(Boolean))];
+      if (mapped.length === 0) return;
+      const sorted = mapped.sort((a, b) => getTabOrderIndex(a) - getTabOrderIndex(b));
+      const nextTabs = ['All', ...sorted];
+      setCategoryTabs((prev) => {
+        if (prev.length === nextTabs.length && prev.every((v, i) => v === nextTabs[i])) return prev;
+        return nextTabs;
+      });
+      setActiveCategory((prev) => (nextTabs.includes(prev) ? prev : 'All'));
+    };
+
+    if (resolvedTargetRole) {
+      api.get('/skillgaps', { signal: controller.signal })
+        .then((groups) => {
+          if (!Array.isArray(groups)) return;
+          const group = groups.find((g) => {
+            const role = (g.role ?? g.Role ?? '').trim();
+            return role.toLowerCase() === resolvedTargetRole.toLowerCase();
+          });
+          if (!group) return;
+          const gaps = group.gaps ?? group.Gaps ?? [];
+          if (!Array.isArray(gaps) || gaps.length === 0) return;
+          const rawCategories = [...new Set(gaps.map((g) => (g.category ?? g.Category ?? '').trim()).filter(Boolean))];
+          applyTabsFromCategories(rawCategories);
+        })
+        .catch((err) => {
+          if (err?.name === 'AbortError') return;
+        });
+    } else {
+      // No target role: categorize based on the field a skill belongs to (Skill.Category)
+      api.get('/skills', { signal: controller.signal })
+        .then((skills) => {
+          if (!Array.isArray(skills) || skills.length === 0) return;
+          const rawCategories = [...new Set(skills.map((s) => (s.category ?? s.Category ?? '').trim()).filter(Boolean))];
+          applyTabsFromCategories(rawCategories);
+        })
+        .catch((err) => {
+          if (err?.name === 'AbortError') return;
+        });
+    }
+    return () => controller.abort();
+  }, [user?.targetRole, applications]);
 
   const filteredRecommended = recommendedCourses.filter((course) => {
     if (activeCategory === 'All') return true;
@@ -195,8 +284,55 @@ export default function CoursesPage() {
     setSelectedCourse(null);
   };
 
-  const handleResumeFromPanel = (courseId) => {
-    window.location.href = `/courses/${courseId}/learn`;
+  const handleResumeFromPanel = async (courseId) => {
+    const course = selectedCourse;
+    // Ensure enrollment exists before trying to resolve first unfinished lesson
+    if (course && !course.isEnrolled) {
+      try {
+        await api.post('/enrollments', { courseId });
+      } catch {
+        // ignore enrollment errors, still try to navigate
+      }
+    }
+    setSelectedCourse(null);
+    try {
+      const data = await api.get(`/coursecontent/courses/${courseId}/content`);
+      const firstUnfinished = data.modules?.flatMap((m) => m.lessons).find((l) => !l.isCompleted);
+      if (firstUnfinished) {
+        navigate(`/courses/${courseId}/learn/${firstUnfinished.lessonId}`);
+        return;
+      }
+      // If all lessons done, fall back to first lesson of first module
+      const fallback = data.modules?.[0]?.lessons?.[0];
+      if (fallback) {
+        navigate(`/courses/${courseId}/learn/${fallback.lessonId}`);
+        return;
+      }
+    } catch {
+      // fall back to generic learn route, backend will resolve first unfinished
+    }
+    navigate(`/courses/${courseId}/learn`);
+  };
+
+  const handleModuleClickFromPanel = async (module) => {
+    if (!selectedCourse) return;
+    const lessons = module.lessons || module.Lessons || [];
+    const firstLesson = lessons[0];
+    const lessonId = firstLesson?.lessonId ?? firstLesson?.LessonId;
+    const courseId = selectedCourse.courseId;
+    if (!selectedCourse.isEnrolled) {
+      try {
+        await api.post('/enrollments', { courseId });
+      } catch {
+        // ignore enrollment errors
+      }
+    }
+    setSelectedCourse(null);
+    if (lessonId) {
+      navigate(`/courses/${courseId}/learn/${lessonId}`);
+    } else {
+      navigate(`/courses/${courseId}/learn`);
+    }
   };
 
   const handleEnroll = () => {
@@ -294,7 +430,7 @@ export default function CoursesPage() {
             </div>
           )}
 
-          <div>
+          <div id="recommended-courses">
             <div style={styles.sectionHeader}>
               <h2 style={styles.sectionTitle}>Recommended for your pathway</h2>
               <div style={styles.filterTabs}>
@@ -361,6 +497,7 @@ export default function CoursesPage() {
           course={selectedCourse}
           onClose={handleCloseCourseDetail}
           onResume={handleResumeFromPanel}
+          onModuleClick={handleModuleClickFromPanel}
         />
       )}
     </div>

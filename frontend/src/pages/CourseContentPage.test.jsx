@@ -2,6 +2,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from '../context/AuthContext';
+import { ToastProvider } from '../context/ToastContext';
 import CourseContentPage from './CourseContentPage';
 
 vi.mock('../api/client', () => ({
@@ -39,11 +40,13 @@ function renderPage(initialPath = '/courses/1/learn/5') {
   return render(
     <MemoryRouter initialEntries={[initialPath]}>
       <AuthProvider>
-        <Routes>
-          <Route path="/courses" element={<div>CoursesList</div>} />
-          <Route path="/courses/:courseId/learn/:lessonId" element={<CourseContentPage />} />
-          <Route path="/courses/:courseId/learn" element={<CourseContentPage />} />
-        </Routes>
+        <ToastProvider>
+          <Routes>
+            <Route path="/courses" element={<div>CoursesList</div>} />
+            <Route path="/courses/:courseId/learn/:lessonId" element={<CourseContentPage />} />
+            <Route path="/courses/:courseId/learn" element={<CourseContentPage />} />
+          </Routes>
+        </ToastProvider>
       </AuthProvider>
     </MemoryRouter>,
   );
@@ -75,7 +78,7 @@ describe('CourseContentPage', () => {
     const titles = await screen.findAllByText('Modern Web Development');
     expect(titles.length).toBeGreaterThan(0);
     expect(screen.getByText('50% complete')).toBeInTheDocument();
-    expect(screen.getAllByText('Module 1 · HTML Fundamentals').length).toBeGreaterThan(0);
+    expect(screen.getByText(/HTML Fundamentals/)).toBeInTheDocument();
     expect(screen.getByText('Welcome aboard.')).toBeInTheDocument();
     expect(api.get).toHaveBeenCalledWith(
       '/coursecontent/courses/1/content?lessonId=5',

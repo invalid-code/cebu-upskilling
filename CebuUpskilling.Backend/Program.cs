@@ -50,7 +50,7 @@ builder.Services.AddCors(options =>
         {
             policy.WithOrigins(allowedOrigins)
                 .WithHeaders("Authorization", "Content-Type")
-                .WithMethods("GET", "POST", "PATCH");
+                .WithMethods("GET", "POST", "PUT", "PATCH", "DELETE");
         });
 });
 
@@ -85,6 +85,8 @@ builder.Services.AddScoped<IAssessmentQuestionRepository, AssessmentQuestionRepo
 builder.Services.AddScoped<IRecruiterRepository, RecruiterRepository>();
 builder.Services.AddScoped<ILearnerStudyCourseRepository, LearnerStudyCourseRepository>();
 builder.Services.AddScoped<IApplicationRepository, ApplicationRepository>();
+builder.Services.AddScoped<ILearnerNoteRepository, LearnerNoteRepository>();
+builder.Services.AddScoped<IDiscussionPostRepository, DiscussionPostRepository>();
 builder.Services.AddScoped<IMediaRepository, MediaRepository>();
 
 builder.Services.AddScoped<IEntityService<Course>, CourseService>();
@@ -101,6 +103,8 @@ builder.Services.AddScoped<IApplicationsService, ApplicationsService>();
 builder.Services.AddScoped<IStatsService, StatsService>();
 builder.Services.AddScoped<ICoursesPageService, CoursesPageService>();
 builder.Services.AddScoped<ICourseContentService, CourseContentService>();
+builder.Services.AddScoped<INotesService, NotesService>();
+builder.Services.AddScoped<IDiscussionService, DiscussionService>();
 builder.Services.AddScoped<IObjectStorageService, R2StorageService>();
 builder.Services.AddScoped<IMediaService, MediaService>();
 

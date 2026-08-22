@@ -30,6 +30,8 @@ public class ApplicationDbContext : DbContext
     public DbSet<LearnerAssessment> LearnerAssessments => Set<LearnerAssessment>();
     public DbSet<AssessmentQuestion> AssessmentQuestions => Set<AssessmentQuestion>();
     public DbSet<Application> Applications => Set<Application>();
+    public DbSet<LearnerNote> LearnerNotes => Set<LearnerNote>();
+    public DbSet<DiscussionPost> DiscussionPosts => Set<DiscussionPost>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -184,6 +186,48 @@ public class ApplicationDbContext : DbContext
             entity.Property(a => a.AppliedAt)
                 .HasColumnType("timestamp with time zone");
             entity.Property(a => a.SavedAt)
+                .HasColumnType("timestamp with time zone");
+        });
+
+        modelBuilder.Entity<LearnerNote>()
+            .HasOne(n => n.Learner)
+            .WithMany(l => l.LearnerNotes)
+            .HasForeignKey(n => n.LearnerId);
+
+        modelBuilder.Entity<LearnerNote>()
+            .HasOne(n => n.Lesson)
+            .WithMany(l => l.LearnerNotes)
+            .HasForeignKey(n => n.LessonId);
+
+        modelBuilder.Entity<LearnerNote>()
+            .HasIndex(n => new { n.LearnerId, n.LessonId });
+
+        modelBuilder.Entity<LearnerNote>(entity =>
+        {
+            entity.Property(n => n.Content)
+                .HasMaxLength(20000);
+            entity.Property(n => n.UpdatedAt)
+                .HasColumnType("timestamp with time zone");
+        });
+
+        modelBuilder.Entity<DiscussionPost>()
+            .HasOne(p => p.Learner)
+            .WithMany(l => l.DiscussionPosts)
+            .HasForeignKey(p => p.LearnerId);
+
+        modelBuilder.Entity<DiscussionPost>()
+            .HasOne(p => p.Lesson)
+            .WithMany(l => l.DiscussionPosts)
+            .HasForeignKey(p => p.LessonId);
+
+        modelBuilder.Entity<DiscussionPost>()
+            .HasIndex(p => p.LessonId);
+
+        modelBuilder.Entity<DiscussionPost>(entity =>
+        {
+            entity.Property(p => p.Content)
+                .HasMaxLength(4000);
+            entity.Property(p => p.CreatedAt)
                 .HasColumnType("timestamp with time zone");
         });
     }

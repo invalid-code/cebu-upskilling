@@ -3,6 +3,7 @@ using System;
 using CebuUpskilling.Backend.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CebuUpskilling.Backend.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260820110819_AddLearnerNotes")]
+    partial class AddLearnerNotes
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -357,42 +360,6 @@ namespace CebuUpskilling.Backend.Migrations
                     b.ToTable("Disciplines");
                 });
 
-            modelBuilder.Entity("CebuUpskilling.Backend.Entities.DiscussionPost", b =>
-                {
-                    b.Property<int>("DiscussionPostId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("DiscussionPostId"));
-
-                    b.Property<string>("AuthorName")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<string>("Content")
-                        .IsRequired()
-                        .HasMaxLength(4000)
-                        .HasColumnType("character varying(4000)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("LearnerId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("LessonId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("DiscussionPostId");
-
-                    b.HasIndex("LearnerId");
-
-                    b.HasIndex("LessonId");
-
-                    b.ToTable("DiscussionPosts");
-                });
-
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.Exercise", b =>
                 {
                     b.Property<int>("ExerciseId")
@@ -571,7 +538,8 @@ namespace CebuUpskilling.Backend.Migrations
 
                     b.HasIndex("LessonId");
 
-                    b.HasIndex("LearnerId", "LessonId");
+                    b.HasIndex("LearnerId", "LessonId")
+                        .IsUnique();
 
                     b.ToTable("LearnerNotes");
                 });
@@ -961,25 +929,6 @@ namespace CebuUpskilling.Backend.Migrations
                     b.Navigation("Course");
                 });
 
-            modelBuilder.Entity("CebuUpskilling.Backend.Entities.DiscussionPost", b =>
-                {
-                    b.HasOne("CebuUpskilling.Backend.Entities.Learner", "Learner")
-                        .WithMany("DiscussionPosts")
-                        .HasForeignKey("LearnerId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("CebuUpskilling.Backend.Entities.Lesson", "Lesson")
-                        .WithMany("DiscussionPosts")
-                        .HasForeignKey("LessonId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Learner");
-
-                    b.Navigation("Lesson");
-                });
-
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.Exercise", b =>
                 {
                     b.HasOne("CebuUpskilling.Backend.Entities.Lesson", "Lesson")
@@ -1265,8 +1214,6 @@ namespace CebuUpskilling.Backend.Migrations
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.Learner", b =>
                 {
-                    b.Navigation("DiscussionPosts");
-
                     b.Navigation("LearnerAssessments");
 
                     b.Navigation("LearnerNotes");
@@ -1278,8 +1225,6 @@ namespace CebuUpskilling.Backend.Migrations
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.Lesson", b =>
                 {
-                    b.Navigation("DiscussionPosts");
-
                     b.Navigation("Exercises");
 
                     b.Navigation("LearnerNotes");

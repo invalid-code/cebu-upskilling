@@ -15,20 +15,27 @@ const lesson = {
 
 describe('LessonContent', () => {
   it('renders nothing when no lesson is provided', () => {
-    const { container } = render(<LessonContent lesson={null} moduleName="Module" />);
+    const { container } = render(<LessonContent lesson={null} />);
 
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('renders the lesson title and module label', () => {
-    render(<LessonContent lesson={lesson} moduleName="Web Basics" />);
+  it('renders the lesson title and module dot lesson label', () => {
+    render(<LessonContent lesson={lesson} moduleNumber={1} lessonNumber={2} />);
 
-    expect(screen.getByText('Module 1 · Web Basics')).toBeInTheDocument();
+    expect(screen.getByText('Module 1 · Lesson 2')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'HTML Fundamentals' })).toBeInTheDocument();
   });
 
+  it('does not render the small label when module or lesson number is missing', () => {
+    render(<LessonContent lesson={lesson} />);
+
+    expect(screen.queryByText(/·/)).not.toBeInTheDocument();
+    expect(screen.getAllByText('HTML Fundamentals')).toHaveLength(1);
+  });
+
   it('renders text, heading and code blocks', () => {
-    render(<LessonContent lesson={lesson} moduleName="Web Basics" />);
+    render(<LessonContent lesson={lesson} />);
 
     expect(screen.getByText('Welcome to HTML.')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'What is HTML?' })).toBeInTheDocument();
@@ -37,7 +44,7 @@ describe('LessonContent', () => {
   });
 
   it('falls back to the description when there are no content blocks', () => {
-    render(<LessonContent lesson={{ ...lesson, contentBlocks: [] }} moduleName="Web Basics" />);
+    render(<LessonContent lesson={{ ...lesson, contentBlocks: [] }} />);
 
     expect(screen.getByText('Falls back when there are no blocks')).toBeInTheDocument();
   });

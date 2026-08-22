@@ -15,4 +15,6 @@ public class Learner
     public ICollection<LearnerStudyCourse> LearnerStudyCourses { get; set; } = new List<LearnerStudyCourse>();
     public ICollection<LearnerSkill> LearnerSkills { get; set; } = new List<LearnerSkill>();
     public ICollection<LearnerAssessment> LearnerAssessments { get; set; } = new List<LearnerAssessment>();
+    public ICollection<LearnerNote> LearnerNotes { get; set; } = new List<LearnerNote>();
+    public ICollection<DiscussionPost> DiscussionPosts { get; set; } = new List<DiscussionPost>();
 }
