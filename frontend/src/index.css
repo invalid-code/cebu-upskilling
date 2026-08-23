@@ -86,6 +86,10 @@ button:focus-visible {
   display: none !important;
 }
 
+.cookie-banner {
+  bottom: 22px;
+}
+
 @media (max-width: 820px) {
   body {
     padding-bottom: 84px;
@@ -127,6 +131,10 @@ button:focus-visible {
   .mobile-nav a {
     min-width: 52px;
     min-height: 48px;
+  }
+
+  .cookie-banner {
+    bottom: 86px !important;
   }
 
   .view-enter > div:first-child {
