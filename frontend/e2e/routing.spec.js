@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { setAuth, mockApi } from './helpers.js';
+import { setAuth, clearAuth, mockApi } from './helpers.js';
 
 const learnerUser = { firstName: 'Jose', lastName: 'Rizal', role: 'Learner' };
 const recruiterUser = { firstName: 'Employer', role: 'Recruiter', companyId: 1 };
@@ -124,5 +124,45 @@ test.describe('Routing and role guards', () => {
     // App should clear token and redirect to login
     await page.goto('/');
     await expect(page).toHaveURL(/\/login/);
+  });
+
+  test('company profile page is publicly viewable without auth', async ({ page }) => {
+    await clearAuth(page);
+    await mockApi(page, {
+      'GET /api/companies/9': {
+        companyId: 9,
+        name: 'Island Bites',
+        logoUrl: '',
+        description: 'Homegrown snack brand from Cebu.',
+        industry: 'Food & Beverage',
+        website: '',
+        location: 'Cebu City',
+        companySize: '1-10',
+      },
+      'GET /api/companies/9/posts': { items: [], total: 0, page: 1, pageSize: 20 },
+    });
+    await page.goto('/companies/9');
+    await expect(page.getByRole('heading', { name: 'Island Bites' })).toBeVisible();
+    await expect(page.getByText(/Homegrown snack brand from Cebu\./)).toBeVisible();
+    await expect(page.getByText('No open roles right now')).toBeVisible();
+  });
+
+  test('recruiter can open the company profile editor', async ({ page }) => {
+    await setAuth(page, { user: recruiterUser });
+    await mockApi(page, {
+      'GET /api/companies/1': {
+        companyId: 1,
+        name: 'Acme Corp',
+        logoUrl: '',
+        description: null,
+        industry: null,
+        website: null,
+        location: null,
+        companySize: null,
+      },
+    });
+    await page.goto('/company-profile');
+    await expect(page).toHaveURL(/\/company-profile/);
+    await expect(page.getByRole('heading', { name: 'Company profile' })).toBeVisible();
   });
 });

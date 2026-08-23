@@ -10,7 +10,7 @@ const baseStyle = {
   fontFamily: "'Space Grotesk', sans-serif",
 };
 
-export function initialsFor(name) {
+function initialsFor(name) {
   const words = (name || '').trim().split(/\s+/).filter(Boolean);
   if (words.length === 0) return '?';
   if (words.length === 1) return words[0].slice(0, 2).toUpperCase();

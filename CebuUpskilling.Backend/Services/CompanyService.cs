@@ -55,7 +55,7 @@ public class CompanyService : ICompanyService
     }
 
     public Task<PagedPostsResponse> GetPostsAsync(int companyId)
-        => _postService.SearchAsync(new PostQueryParams { CompanyId = companyId, SortBy = "newest" });
+        => _postService.SearchAsync(new PostQueryParams { CompanyId = companyId, IsActive = true, SortBy = "newest" });
 
     public async Task<CompanyResponse> CreateAsync(CreateCompanyRequest request)
     {

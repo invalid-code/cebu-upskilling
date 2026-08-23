@@ -184,7 +184,7 @@ public class SkillsCompaniesLearnersApiTests : ProductionApiTestBase
         var body = await ReadJsonAsync(response);
         Assert.True(body.GetProperty("companyId").GetInt32() > 0);
         Assert.Equal("Second Corp", body.GetProperty("name").GetString());
-        Assert.Equal("/api/companies/" + body.GetProperty("companyId").GetInt32(), response.Headers.Location?.ToString());
+        Assert.Equal("/api/companies/" + body.GetProperty("companyId").GetInt32(), response.Headers.Location?.AbsolutePath);
     }
 
     [Fact]

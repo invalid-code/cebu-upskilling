@@ -196,6 +196,18 @@ const { register, registerCompany } = useAuth();
     }
   };
 
+  const formWithoutCompanyFields = () => {
+    const {
+      companyIndustry: _i,
+      companyWebsite: _w,
+      companyLocation: _l,
+      companySize: _s,
+      companyDescription: _d,
+      ...rest
+    } = form;
+    return rest;
+  };
+
   const validateForm = () => {
     let websiteError = '';
     if (role === 'recruiter' && form.companyWebsite.trim()) {
@@ -247,11 +259,11 @@ const { register, registerCompany } = useAuth();
         return;
       }
       if (role === 'courseprovider') {
-        await register({ ...form, birthday: form.birthday || null, role: 'CourseProvider' });
+        await register({ ...formWithoutCompanyFields(), birthday: form.birthday || null, role: 'CourseProvider' });
         navigate('/');
         return;
       }
-      const payload = { ...form, birthday: form.birthday || null };
+      const payload = { ...formWithoutCompanyFields(), birthday: form.birthday || null };
       if (resumeFile) {
         const resumeText = await extractResumeText(resumeFile);
         if (!resumeText) {

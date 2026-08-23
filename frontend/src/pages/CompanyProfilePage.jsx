@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import Panel from '../components/ui/Panel';
 import Tag from '../components/ui/Tag';
-import Button from '../components/ui/Button';
 import EmptyState from '../components/shared/EmptyState';
 import CompanyAvatar from '../components/shared/CompanyAvatar';
 import { api } from '../api/client';
