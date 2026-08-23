@@ -10,7 +10,7 @@ namespace CebuUpskilling.Backend.Tests;
 
 public class AuthServiceTests
 {
-private class FakeGoogleAiService : IGoogleAiService
+    private class FakeGoogleAiService : IGoogleAiService
     {
         private readonly List<string> _skills;
         private readonly List<GeneratedAssessmentQuestion> _questions;

@@ -208,7 +208,7 @@ public class MassAssignmentRegressionTests
         var svc = new AuthService(ctx, new JobseekerSkillParserAgent(
             new FakeAi(), new SkillRepository(ctx), new LearnerRepository(ctx), new LearnerSkillRepository(ctx), new LearnerAssessmentRepository(ctx),
             new AppUserRepository(ctx), new RoleSkillRepository(ctx), new AssessmentQuestionRepository(ctx), NullLogger<JobseekerSkillParserAgent>.Instance),
-            new JwtTokenService(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Jwt:Key"]="test-secret-key-that-is-at-least-32-characters-long",["Jwt:Issuer"]="CebuUpskilling",["Jwt:Audience"]="CebuUpskilling.Web"}).Build(), NullLogger<JwtTokenService>.Instance),
+            new JwtTokenService(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Jwt:Key"] = "test-secret-key-that-is-at-least-32-characters-long", ["Jwt:Issuer"] = "CebuUpskilling", ["Jwt:Audience"] = "CebuUpskilling.Web" }).Build(), NullLogger<JwtTokenService>.Instance),
             new LoggingEmailService(NullLogger<LoggingEmailService>.Instance), store, NullLogger<AuthService>.Instance);
 
         var resp = await svc.CompanyRegisterAsync(new CompanyRegisterRequest("Overpost Corp", "Maria", "Santos", null, null, "overpost.role@example.com", "P@ssw0rd!", null));

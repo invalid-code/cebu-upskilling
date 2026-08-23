@@ -143,7 +143,10 @@ public class AssessmentServiceTests
         {
             SkillId = skill.SkillId,
             Text = "Pre-seeded question",
-            OptionA = "A", OptionB = "B", OptionC = "C", OptionD = "D",
+            OptionA = "A",
+            OptionB = "B",
+            OptionC = "C",
+            OptionD = "D",
             CorrectOption = 0,
         });
         await context.SaveChangesAsync();
@@ -403,7 +406,10 @@ public class AssessmentServiceTests
             {
                 SkillId = skill.SkillId,
                 Text = $"Company question {i}?",
-                OptionA = "A", OptionB = "B", OptionC = "C", OptionD = "D",
+                OptionA = "A",
+                OptionB = "B",
+                OptionC = "C",
+                OptionD = "D",
                 CorrectOption = 0,
                 Source = AssessmentSource.Company,
                 CompanyId = company.CompanyId,
@@ -434,7 +440,10 @@ public class AssessmentServiceTests
         {
             SkillId = skill.SkillId,
             Text = "Company-authored question?",
-            OptionA = "A", OptionB = "B", OptionC = "C", OptionD = "D",
+            OptionA = "A",
+            OptionB = "B",
+            OptionC = "C",
+            OptionD = "D",
             CorrectOption = 0,
             Source = AssessmentSource.Company,
             CompanyId = company.CompanyId,
@@ -468,9 +477,11 @@ public class AssessmentServiceTests
         context.Companies.Add(company);
         var recruiterUser = new AppUser
         {
-            FirstName = "Recruiter", LastName = "User",
+            FirstName = "Recruiter",
+            LastName = "User",
             EmailAddress = $"recruiter-{Guid.NewGuid():N}@example.com",
-            PasswordHash = "hash", Role = "Recruiter",
+            PasswordHash = "hash",
+            Role = "Recruiter",
         };
         context.Users.Add(recruiterUser);
         await context.SaveChangesAsync();
@@ -508,9 +519,11 @@ public class AssessmentServiceTests
         context.Skills.Add(skill);
         var learnerUser = new AppUser
         {
-            FirstName = "Learner", LastName = "User",
+            FirstName = "Learner",
+            LastName = "User",
             EmailAddress = $"learner-{Guid.NewGuid():N}@example.com",
-            PasswordHash = "hash", Role = "Learner",
+            PasswordHash = "hash",
+            Role = "Learner",
         };
         context.Users.Add(learnerUser);
         await context.SaveChangesAsync();

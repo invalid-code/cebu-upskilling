@@ -281,12 +281,12 @@ public class SkillGapServiceTests
 
         Assert.Equal(2, result.Count);
 
-        var feRole = Assert.Single(result.Where(g => g.Role == "Frontend Developer"));
+        var feRole = Assert.Single(result, g => g.Role == "Frontend Developer");
         Assert.Equal("Serbisyo Digital", feRole.CompanyName);
         Assert.Equal(frontendPost.PostId, feRole.PostId);
         Assert.Equal(50, feRole.MatchPercent);
 
-        var beRole = Assert.Single(result.Where(g => g.Role == "Backend Developer"));
+        var beRole = Assert.Single(result, g => g.Role == "Backend Developer");
         Assert.Equal("Serbisyo Digital", beRole.CompanyName);
         Assert.Equal(backendPost.PostId, beRole.PostId);
         Assert.Equal(0, beRole.MatchPercent);

@@ -52,8 +52,11 @@ public class BusinessStatsApiTests : ProductionApiTestBase
 
         var recruiterResponse = await RegisterAsync(new
         {
-            firstName = "No", lastName = "Company", emailAddress = "business.none@example.com",
-            password = "P@ssw0rd!", role = "Recruiter",
+            firstName = "No",
+            lastName = "Company",
+            emailAddress = "business.none@example.com",
+            password = "P@ssw0rd!",
+            role = "Recruiter",
         });
         var recruiterToken = (await ReadJsonAsync(recruiterResponse)).GetProperty("token").GetString()!;
         Assert.Equal(HttpStatusCode.BadRequest, (await AuthorizedClient(recruiterToken).GetAsync("/api/stats/business")).StatusCode);
@@ -63,8 +66,11 @@ public class BusinessStatsApiTests : ProductionApiTestBase
     {
         var registration = await RegisterAsync(new
         {
-            firstName = "Employer", lastName = "Corp", emailAddress = email,
-            password = "P@ssw0rd!", role = "Recruiter",
+            firstName = "Employer",
+            lastName = "Corp",
+            emailAddress = email,
+            password = "P@ssw0rd!",
+            role = "Recruiter",
         });
         registration.EnsureSuccessStatusCode();
         var body = await ReadJsonAsync(registration);
