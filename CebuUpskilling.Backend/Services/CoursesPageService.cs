@@ -1,4 +1,5 @@
 using CebuUpskilling.Backend.DTOs;
+using CebuUpskilling.Backend.Entities;
 using CebuUpskilling.Backend.Repositories;
 
 namespace CebuUpskilling.Backend.Services;
@@ -17,6 +18,7 @@ public class CoursesPageService : ICoursesPageService
     private readonly ILearnerStudyCourseRepository _learnerStudyCourses;
     private readonly IRoleSkillRepository _roleSkills;
     private readonly ILearnerSkillRepository _learnerSkills;
+    private readonly IApplicationRepository _applications;
     private readonly ILogger<CoursesPageService> _logger;
 
     public CoursesPageService(
@@ -26,6 +28,7 @@ public class CoursesPageService : ICoursesPageService
         ILearnerStudyCourseRepository learnerStudyCourses,
         IRoleSkillRepository roleSkills,
         ILearnerSkillRepository learnerSkills,
+        IApplicationRepository applications,
         ILogger<CoursesPageService> logger)
     {
         _users = users;
@@ -34,6 +37,7 @@ public class CoursesPageService : ICoursesPageService
         _learnerStudyCourses = learnerStudyCourses;
         _roleSkills = roleSkills;
         _learnerSkills = learnerSkills;
+        _applications = applications;
         _logger = logger;
     }
 
@@ -75,27 +79,67 @@ public class CoursesPageService : ICoursesPageService
             .Select(n => n!)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
+        // Resolve the role(s) that should drive course recommendations. The
+        // learner's own profile target role takes priority; when they have not
+        // set one yet, fall back to the target roles required by the jobs they
+        // have applied for.
+        var effectiveRoles = await ResolveTargetRolesAsync(user, learner.LearnerId);
+        var roleSkills = new List<RoleSkill>();
+        foreach (var role in effectiveRoles)
+        {
+            roleSkills.AddRange(await _roleSkills.GetByTargetRoleWithSkillAsync(role));
+        }
+
+        var availableCategories = roleSkills
+            .Select(rs => rs.Skill.Category)
+            .Where(c => !string.IsNullOrWhiteSpace(c))
+            .Select(c => c!)
+            .Distinct()
+            .OrderBy(c => c)
+            .ToList();
+
+        var targetRole = effectiveRoles.Count > 0 ? effectiveRoles[0] : null;
+
         var enrolledCourseIds = enrollments.Select(e => e.CourseId).ToHashSet();
 
         var recommendedCourses = allCourses
             .Where(c => !enrolledCourseIds.Contains(c.CourseId))
-            .Select(c => MapToRecommendedDto(c, learnerSkillNames, user?.TargetRole))
-            .Where(c => category == null || c.Category == category || category == "All")
+            .Select(c => MapToRecommendedDto(c, learnerSkillNames, effectiveRoles, roleSkills))
+            .Where(c => category == null || category == "All" || c.SkillCategory == category)
             .OrderByDescending(c => c.IsRecommended)
             .ThenByDescending(c => c.UnlocksJobsCount ?? 0)
             .ThenBy(c => c.Name)
             .ToList();
 
-        _logger.LogInformation("Courses page for user {UserId}: {EnrolledCount} enrolled, {RecommendedCount} recommended, {CoursesInProgress} in progress, {CertificatesEarned} certificates",
-            userId, enrolledCourses.Count, recommendedCourses.Count, coursesInProgress, certificatesEarned);
+        _logger.LogInformation("Courses page for user {UserId}: target role {TargetRole}, {EnrolledCount} enrolled, {RecommendedCount} recommended, {CoursesInProgress} in progress, {CertificatesEarned} certificates",
+            userId, targetRole, enrolledCourses.Count, recommendedCourses.Count, coursesInProgress, certificatesEarned);
 
         return new CoursesPageResponse(
             EnrolledCourses: enrolledCourses,
             RecommendedCourses: recommendedCourses,
             DayStreak: dayStreak,
             CoursesInProgress: coursesInProgress,
-            CertificatesEarned: certificatesEarned
+            CertificatesEarned: certificatesEarned,
+            TargetRole: targetRole,
+            AvailableCategories: availableCategories
         );
+    }
+
+    private async Task<List<string>> ResolveTargetRolesAsync(AppUser? user, int learnerId)
+    {
+        var profileRole = user?.TargetRole?.Trim();
+        if (!string.IsNullOrWhiteSpace(profileRole))
+        {
+            return new List<string> { profileRole! };
+        }
+
+        var applications = await _applications.GetByLearnerIdAsync(learnerId);
+        return applications
+            .Select(a => !string.IsNullOrWhiteSpace(a.Post?.TargetRole) ? a.Post!.TargetRole! : a.Post?.Title)
+            .Where(r => !string.IsNullOrWhiteSpace(r))
+            .Select(r => r!)
+            .Distinct()
+            .ToList();
     }
 
     private static string? GetCurrentModule(int lessonCount, int progressPercent)
@@ -123,11 +167,39 @@ public class CoursesPageService : ICoursesPageService
     private static RecommendedCourseDto MapToRecommendedDto(
         Entities.Course course,
         HashSet<string> learnerSkillNames,
-        string? targetRole)
+        List<string> effectiveRoles,
+        List<RoleSkill> roleSkills)
     {
-        var matchedSkill = MatchSkill(course, learnerSkillNames);
-        var isRecommended = targetRole != null || matchedSkill != null;
-        var reason = targetRole != null ? "Recommended" : matchedSkill != null ? $"Matches {matchedSkill}" : null;
+        string? skillCategory = null;
+        string? reason = null;
+        bool isRecommended;
+
+        if (effectiveRoles.Count > 0)
+        {
+            // Only recommend courses that map to a skill the resolved target
+            // role actually requires, and surface that skill's category so the
+            // UI can filter by it.
+            var matchedRoleSkill = MatchRoleSkill(course, roleSkills);
+            if (matchedRoleSkill != null)
+            {
+                skillCategory = matchedRoleSkill.Skill.Category;
+                reason = $"Recommended for {matchedRoleSkill.Skill.Name}";
+                isRecommended = true;
+            }
+            else
+            {
+                isRecommended = false;
+            }
+        }
+        else
+        {
+            // No target role and no applied jobs: fall back to recommending
+            // courses that match the learner's own declared skills.
+            var matchedSkill = MatchSkill(course, learnerSkillNames);
+            isRecommended = matchedSkill != null;
+            reason = matchedSkill != null ? $"Matches {matchedSkill}" : null;
+        }
+
         var unlocksJobs = isRecommended ? (int?)null : null;
 
         return new RecommendedCourseDto(
@@ -146,8 +218,22 @@ public class CoursesPageService : ICoursesPageService
             IsCompleted: false,
             IsRecommended: isRecommended,
             RecommendedReason: reason,
-            UnlocksJobsCount: unlocksJobs
+            UnlocksJobsCount: unlocksJobs,
+            SkillCategory: skillCategory
         );
+    }
+
+    private static RoleSkill? MatchRoleSkill(Entities.Course course, List<RoleSkill> roleSkills)
+    {
+        var haystack = new[] { course.Name, course.Genre?.Name }
+            .Where(t => !string.IsNullOrWhiteSpace(t))
+            .Select(t => t!.ToLowerInvariant())
+            .ToList();
+
+        return roleSkills
+            .Where(rs => !string.IsNullOrWhiteSpace(rs.Skill.Name))
+            .OrderByDescending(rs => rs.Skill.Name.Length)
+            .FirstOrDefault(rs => haystack.Any(h => h.Contains(rs.Skill.Name.ToLowerInvariant())));
     }
 
     private static string? MatchSkill(Entities.Course course, HashSet<string> learnerSkillNames)
