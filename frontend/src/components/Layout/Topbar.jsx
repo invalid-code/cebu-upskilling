@@ -14,6 +14,8 @@ const routeLabels = {
   '/help': 'Help center',
   '/profile': 'Profile',
   '/business-dashboard': 'Business dashboard',
+  '/post-job': 'Post a job',
+  '/job-applications': 'Job applications',
   '/login': 'Login',
   '/register': 'Register',
 };
@@ -71,7 +73,9 @@ export default function Topbar() {
   const { user } = useAuth();
   const { showToast } = useToast();
 
-  const label = routeLabels[location.pathname] || 'Page';
+  const label = location.pathname.startsWith('/edit-job/')
+    ? 'Edit job'
+    : routeLabels[location.pathname] || 'Page';
   const initials = user
     ? `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`
     : 'U';

@@ -413,29 +413,20 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
 
     private async Task<(string Token, int CompanyId, int RecruiterId)> RegisterRecruiterWithCompanyAsync(string email)
     {
-        var response = await RegisterAsync(new
+        var response = await RegisterCompanyAsync(new
         {
+            companyName = $"Sec Corp {Guid.NewGuid():N}",
             firstName = "Employer",
             lastName = "Corp",
             emailAddress = email,
             password = "P@ssw0rd!",
-            role = "Recruiter",
         });
         response.EnsureSuccessStatusCode();
         var body = await ReadJsonAsync(response);
         var token = body.GetProperty("token").GetString()!;
-        var userId = body.GetProperty("userId").GetInt32();
+        var companyId = body.GetProperty("companyId").GetInt32();
 
-        await using var context = Factory.CreateDbContext();
-        var company = new CebuUpskilling.Backend.Entities.Company { Name = $"Sec Corp {Guid.NewGuid():N}" };
-        context.Companies.Add(company);
-        await context.SaveChangesAsync();
-
-        var user = await context.Users.FindAsync(userId);
-        user!.CompanyId = company.CompanyId;
-        await context.SaveChangesAsync();
-
-        return (token, company.CompanyId, userId);
+        return (token, companyId, body.GetProperty("userId").GetInt32());
     }
 
     private async Task<int> CreatePostAsync(string token, int companyId, int recruiterId, string title)

@@ -153,7 +153,7 @@ export default function JobPostForm({ initial, onSubmit, submitting, error, subm
       requirements: form.requirements,
       benefits: form.benefits,
       isRemote: form.isRemote,
-      expiresAt: form.expiresAt ? new Date(`${form.expiresAt}T00:00:00`).toISOString() : null,
+      expiresAt: form.expiresAt ? new Date(`${form.expiresAt}T00:00:00Z`).toISOString() : null,
       companyLogoUrl: form.companyLogoUrl,
       isActive: form.isActive,
     };

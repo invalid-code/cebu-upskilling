@@ -166,7 +166,7 @@ public class PostService : BaseEntityService<Post>, IPostService
             Requirements = request.Requirements,
             Benefits = request.Benefits,
             IsRemote = request.IsRemote,
-            ExpiresAt = request.ExpiresAt,
+            ExpiresAt = NormalizeToUtc(request.ExpiresAt),
             IsActive = request.IsActive,
             CompanyLogoUrl = request.CompanyLogoUrl,
             CreatedAt = DateTime.UtcNow,
@@ -202,7 +202,7 @@ public class PostService : BaseEntityService<Post>, IPostService
         existing.Requirements = request.Requirements;
         existing.Benefits = request.Benefits;
         existing.IsRemote = request.IsRemote;
-        existing.ExpiresAt = request.ExpiresAt;
+        existing.ExpiresAt = NormalizeToUtc(request.ExpiresAt);
         existing.IsActive = request.IsActive;
         existing.CompanyLogoUrl = request.CompanyLogoUrl;
 
@@ -229,6 +229,18 @@ public class PostService : BaseEntityService<Post>, IPostService
         return true;
     }
 
+    private static DateTime? NormalizeToUtc(DateTime? value)
+    {
+        if (value is null) return null;
+        var dt = value.Value;
+        return dt.Kind switch
+        {
+            DateTimeKind.Utc => dt,
+            DateTimeKind.Local => dt.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(dt, DateTimeKind.Utc),
+        };
+    }
+
     private static PostResponse ToResponse(Post post)
         => new(
             post.PostId,
@@ -246,7 +258,7 @@ public class PostService : BaseEntityService<Post>, IPostService
             post.IsRemote,
             post.ExpiresAt,
             post.IsActive,
-            post.CompanyLogoUrl,
+            post.Company?.LogoUrl ?? post.CompanyLogoUrl,
             post.CreatedAt);
 }
 

@@ -125,13 +125,13 @@ public class DiscussionApiTests : ProductionApiTestBase
     [Fact]
     public async Task Discussions_RequireLearnerRole()
     {
-        var registerResponse = await RegisterAsync(new
+        var registerResponse = await RegisterCompanyAsync(new
         {
+            companyName = "Discussion Corp",
             firstName = "Carmen",
             lastName = "Tan",
             emailAddress = "discussion.recruiter@example.com",
             password = "P@ssw0rd!",
-            role = "Recruiter",
         });
         registerResponse.EnsureSuccessStatusCode();
         var token = (await ReadJsonAsync(registerResponse)).GetProperty("token").GetString()!;

@@ -54,6 +54,11 @@ public class AuthController : BaseEntityController<AppUser>
     public async Task<ActionResult<AuthResponse>> Register(RegisterRequest request)
     {
         _logger.LogInformation("HTTP POST /api/auth/register called for {Email}", request.EmailAddress);
+        if (string.Equals(request.Role, "Recruiter", StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.LogWarning("Registration rejected for {Email}: self-service Recruiter role is not allowed", request.EmailAddress);
+            return BadRequest(new { error = "Recruiter accounts must register together with a company via /api/auth/register-company" });
+        }
         try
         {
             var result = await _authService.RegisterAsync(request);

@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { BarChart3, BriefcaseBusiness, Inbox, PlusCircle, UserCheck, Users } from 'lucide-react';
+import { Link } from 'react-router-dom';import { BarChart3, BriefcaseBusiness, Inbox, PlusCircle, UserCheck, Users } from 'lucide-react';
 import Panel from '../components/ui/Panel';
 import Tag from '../components/ui/Tag';
 import EmptyState from '../components/shared/EmptyState';
 import StatCard from '../components/shared/StatCard';
 import BarList from '../components/shared/BarList';
 import { api } from '../api/client';
+import { useToast } from '../context/ToastContext';
 
 const styles = {
   heading: { display: 'flex', justifyContent: 'space-between', alignItems: 'end', gap: 18, marginBottom: 28 },
@@ -31,6 +31,7 @@ const styles = {
 };
 
 export default function BusinessDashboardPage() {
+  const { showToast } = useToast();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -98,10 +99,15 @@ export default function BusinessDashboardPage() {
                         onClick={(e) => {
                           e.stopPropagation();
                           if (confirm('Are you sure you want to delete this job posting?')) {
-                            api.delete(`/api/posts/${post.postId}`).then(() => {
-                              window.location.reload();
+                            api.delete(`/posts/${post.postId}`).then(() => {
+                              showToast('Job posting deleted.');
+                              setStats((prev) => prev && {
+                                ...prev,
+                                company: { ...prev.company, jobPostings: prev.company.jobPostings - 1 },
+                                jobPostings: (prev.jobPostings || []).filter((p) => p.postId !== post.postId),
+                              });
                             }).catch((err) => {
-                              alert(err.message || 'Failed to delete posting');
+                              showToast(err.message || 'Failed to delete posting');
                             });
                           }
                         }}

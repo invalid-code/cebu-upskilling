@@ -203,27 +203,17 @@ public class SkillsCompaniesLearnersApiTests : ProductionApiTestBase
 
     private async Task<(string token, int companyId)> RegisterRecruiterAsync(string email, string companyName)
     {
-        using var registration = await RegisterAsync(new
+        using var registration = await RegisterCompanyAsync(new
         {
+            companyName,
             firstName = "Employer",
             lastName = "Corp",
             emailAddress = email,
             password = "P@ssw0rd!",
-            role = "Recruiter",
         });
         registration.EnsureSuccessStatusCode();
         var body = await ReadJsonAsync(registration);
-        var userId = body.GetProperty("userId").GetInt32();
 
-        using var scope = Factory.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        var company = new Company { Name = companyName };
-        db.Companies.Add(company);
-        await db.SaveChangesAsync();
-        var user = await db.Users.FindAsync(userId);
-        user!.CompanyId = company.CompanyId;
-        await db.SaveChangesAsync();
-
-        return (body.GetProperty("token").GetString()!, company.CompanyId);
+        return (body.GetProperty("token").GetString()!, body.GetProperty("companyId").GetInt32());
     }
 }

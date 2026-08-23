@@ -223,7 +223,7 @@ public class SecurityApiTests : ProductionApiTestBase
     }
 
     [Fact]
-    public async Task Register_WithRecruiterRole_IsAllowed()
+    public async Task Register_WithRecruiterRole_IsRejected()
     {
         var response = await RegisterAsync(new
         {
@@ -234,9 +234,12 @@ public class SecurityApiTests : ProductionApiTestBase
             role = "Recruiter",
         });
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         var body = await ReadJsonAsync(response);
-        Assert.Equal("Recruiter", body.GetProperty("role").GetString());
+        Assert.Contains("register-company", body.GetProperty("error").GetString());
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        Assert.False(await db.Users.AnyAsync(u => u.EmailAddress == "sec.recruiter@example.com"));
     }
 
     [Fact]

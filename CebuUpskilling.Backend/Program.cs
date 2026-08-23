@@ -122,6 +122,7 @@ builder.Services.AddScoped<INotesService, NotesService>();
 builder.Services.AddScoped<IDiscussionService, DiscussionService>();
 builder.Services.AddScoped<IObjectStorageService, R2StorageService>();
 builder.Services.AddScoped<IMediaService, MediaService>();
+builder.Services.AddScoped<ICompanyService, CompanyService>();
 
 var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException(
     "Jwt:Key is not configured. Set Jwt:Key in appsettings.json or the Jwt__Key environment variable.");
@@ -159,6 +160,18 @@ builder.Services.AddControllers(options =>
 }).AddJsonOptions(options =>
 {
     options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+});
+builder.Services.Configure<Microsoft.AspNetCore.Mvc.ApiBehaviorOptions>(options =>
+{
+    // Keep validation failures on the same {"error": "..."} contract as the rest of the API.
+    options.InvalidModelStateResponseFactory = context =>
+    {
+        var firstError = context.ModelState.Values
+            .SelectMany(v => v.Errors)
+            .Select(e => string.IsNullOrWhiteSpace(e.ErrorMessage) ? e.Exception?.Message : e.ErrorMessage)
+            .FirstOrDefault(e => !string.IsNullOrWhiteSpace(e)) ?? "Invalid request";
+        return new Microsoft.AspNetCore.Mvc.BadRequestObjectResult(new { error = firstError });
+    };
 });
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();

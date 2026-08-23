@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Orbit, BriefcaseBusiness, BookOpenCheck, ClipboardList, ChartBar, CircleHelp } from 'lucide-react';
+import { LayoutDashboard, Orbit, BriefcaseBusiness, BookOpenCheck, ClipboardList, ChartBar, CircleHelp, Inbox, PlusCircle, Building2 } from 'lucide-react';
 import { useAuth, isRecruiter } from '../../context/AuthContext';
 
 const learnerLinks = [
@@ -12,6 +12,9 @@ const learnerLinks = [
 
 const recruiterLinks = [
   { to: '/business-dashboard', icon: ChartBar, label: 'Dashboard' },
+  { to: '/post-job', icon: PlusCircle, label: 'Post' },
+  { to: '/job-applications', icon: Inbox, label: 'Apps' },
+  { to: '/company-profile', icon: Building2, label: 'Company' },
   { to: '/help', icon: CircleHelp, label: 'Help' },
 ];
 

@@ -28,6 +28,8 @@ import EditJobPage from './pages/EditJobPage';
 import JobApplicationsPage from './pages/JobApplicationsPage';
 import NotFoundPage from './pages/NotFoundPage';
 import ProfilePage from './pages/ProfilePage';
+import CompanyProfilePage from './pages/CompanyProfilePage';
+import CompanyProfileEditPage from './pages/CompanyProfileEditPage';
 
 const appStyles = {
   app: {
@@ -86,8 +88,8 @@ export default function App() {
               <Route path="/reset-password" element={<ResetPasswordPage />} />
             </Route>
             <Route element={<ProtectedRoute />}>
+              <Route path="/" element={<OverviewPage />} />
               <Route element={<LearnerRoute />}>
-                <Route path="/" element={<OverviewPage />} />
                 <Route path="/skills" element={<SkillsPage />} />
                 <Route path="/jobs" element={<JobsPage />} />
                 <Route path="/jobs/:postId" element={<JobDetailPage />} />
@@ -103,10 +105,12 @@ export default function App() {
                 <Route path="/post-job" element={<PostJobPage />} />
                 <Route path="/edit-job/:postId" element={<EditJobPage />} />
                 <Route path="/job-applications" element={<JobApplicationsPage />} />
+                <Route path="/company-profile" element={<CompanyProfileEditPage />} />
               </Route>
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/help" element={<HelpPage />} />
             </Route>
+            <Route path="/companies/:companyId" element={<CompanyProfilePage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
           </ToastProvider>

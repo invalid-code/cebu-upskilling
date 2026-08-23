@@ -48,10 +48,10 @@ describe('App routing', () => {
     expect(await screen.findByText('Your next move is clear.')).toBeInTheDocument();
   });
 
-  it('renders business dashboard for recruiter users', async () => {
+  it('renders the employer overview for recruiter users', async () => {
     seedRecruiter();
     render(<App />);
-    expect(await screen.findByRole('heading', { name: 'Business Dashboard' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Welcome back.' })).toBeInTheDocument();
     expect(screen.queryByText('Your next move is clear.')).not.toBeInTheDocument();
   });
 
