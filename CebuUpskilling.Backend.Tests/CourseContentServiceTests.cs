@@ -179,14 +179,14 @@ public class CourseContentServiceTests
         Assert.Equal(2, result.Modules.Count);
 
         Assert.True(result.Modules[0].Lessons[0].IsCompleted);
-        Assert.True(result.Modules[0].Lessons[0].IsCurrent);
+        Assert.False(result.Modules[0].Lessons[0].IsCurrent);
         Assert.Equal(10, result.Modules[0].Lessons[0].DurationMinutes);
 
         Assert.False(result.Modules[1].Lessons[0].IsCompleted);
-        Assert.False(result.Modules[1].Lessons[0].IsCurrent);
+        Assert.True(result.Modules[1].Lessons[0].IsCurrent);
         Assert.Equal(12, result.Modules[1].Lessons[0].DurationMinutes);
 
-        Assert.Equal("Lesson 1", result.CurrentLesson.Name);
+        Assert.Equal("Lesson 2", result.CurrentLesson.Name);
         Assert.Single(result.CurrentLesson.ContentBlocks);
         Assert.Single(result.CurrentLesson.Media);
         Assert.Single(result.CurrentLesson.Exercises);

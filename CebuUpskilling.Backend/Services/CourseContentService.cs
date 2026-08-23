@@ -64,11 +64,24 @@ public class CourseContentService : ICourseContentService
             return null;
         }
 
-        var currentLessonId = lessonId ?? lessons.First().LessonId;
-        var currentLesson = lessons.FirstOrDefault(l => l.LessonId == currentLessonId) ?? lessons.First();
-
         var progressPercent = enrollment.LastTotalProgressPercent;
         var completedLessons = (int)Math.Ceiling(progressPercent / 100.0 * lessons.Count);
+
+        int currentLessonId;
+        if (lessonId.HasValue)
+        {
+            currentLessonId = lessonId.Value;
+        }
+        else
+        {
+            // When starting/resuming without a specific lesson, go to first unfinished lesson
+            var firstUnfinishedIndex = completedLessons < lessons.Count ? completedLessons : 0;
+            // Ensure lessons are ordered to find first not done deterministically
+            var orderedLessons = lessons.OrderBy(l => l.LessonId).ToList();
+            var firstUnfinished = orderedLessons.ElementAtOrDefault(firstUnfinishedIndex);
+            currentLessonId = firstUnfinished?.LessonId ?? lessons.First().LessonId;
+        }
+        var currentLesson = lessons.FirstOrDefault(l => l.LessonId == currentLessonId) ?? lessons.First();
 
         var modules = BuildModuleList(course.Modules, lessons, completedLessons, currentLessonId);
 

@@ -33,6 +33,17 @@ function request(path, options = {}) {
       xhr.setRequestHeader(key, value);
     }
 
+    const signal = options.signal;
+    if (signal) {
+      if (signal.aborted) {
+        reject(new DOMException('Aborted', 'AbortError'));
+        return;
+      }
+      const onAbort = () => xhr.abort();
+      signal.addEventListener('abort', onAbort, { once: true });
+      xhr.addEventListener('loadend', () => signal.removeEventListener('abort', onAbort));
+    }
+
     xhr.onload = () => {
       if (xhr.status === 401) {
         // If a token exists, the session expired/invalidated → clear and redirect.
@@ -77,6 +88,10 @@ function request(path, options = {}) {
     xhr.onerror = () => {
       console.error(`[API] ${method} ${path} → network error`);
       reject(new Error('Network error'));
+    };
+
+    xhr.onabort = () => {
+      reject(new DOMException('Aborted', 'AbortError'));
     };
 
     xhr.send(options.body);

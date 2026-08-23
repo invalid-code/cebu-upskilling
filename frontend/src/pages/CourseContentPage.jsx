@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MoreHorizontal } from 'lucide-react';
-import CourseOutline from '../components/shared/CourseOutline';
+import { ArrowLeft } from 'lucide-react';
+import ModuleOutline from '../components/shared/ModuleOutline';
 import LessonContent from '../components/shared/LessonContent';
 import LessonResources from '../components/shared/LessonResources';
 import VideoPlayer from '../components/shared/VideoPlayer';
@@ -74,17 +74,6 @@ const styles = {
   progressBarContainer: {
     width: 120,
   },
-  moreButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    background: 'var(--surface)',
-    border: '1px solid var(--line)',
-    color: 'var(--muted)',
-    display: 'grid',
-    placeItems: 'center',
-    cursor: 'pointer',
-  },
   content: {
     display: 'flex',
     gap: 24,
@@ -126,6 +115,11 @@ export default function CourseContentPage() {
           : `/coursecontent/courses/${courseId}/content`;
         const data = await api.get(url, { signal: controller.signal });
         setCourseData(data);
+        // When starting/resuming without a lessonId, the backend now returns the first unfinished lesson.
+        // Update the URL to reflect that lesson so deep-linking and refresh work correctly.
+        if (!lessonId && data?.currentLesson?.lessonId) {
+          navigate(`/courses/${courseId}/learn/${data.currentLesson.lessonId}`, { replace: true });
+        }
       } catch (err) {
         if (err.name !== 'AbortError') {
           setError(err.message || 'Could not load course content');
@@ -137,7 +131,7 @@ export default function CourseContentPage() {
 
     fetchCourseContent();
     return () => controller.abort();
-  }, [courseId, lessonId]);
+  }, [courseId, lessonId, navigate]);
 
   const handleLessonClick = (id) => {
     navigate(`/courses/${courseId}/learn/${id}`);
@@ -159,9 +153,15 @@ export default function CourseContentPage() {
     );
   }
 
+  const currentModule = courseData.modules.find(m =>
+    m.lessons.some(l => l.lessonId === parseInt(lessonId))
+  ) || courseData.modules[0];
   const currentLessonIndex = courseData.modules.findIndex(m =>
     m.lessons.some(l => l.lessonId === parseInt(lessonId))
   );
+  const currentModuleNumber = currentModule?.moduleNumber ?? 1;
+  const lessonIndexInModule = currentModule?.lessons.findIndex(l => l.lessonId === parseInt(lessonId)) ?? -1;
+  const currentLessonNumber = lessonIndexInModule >= 0 ? lessonIndexInModule + 1 : 1;
 
   return (
     <div style={styles.container}>
@@ -192,15 +192,12 @@ export default function CourseContentPage() {
           <div style={styles.progressBarContainer}>
             <ProgressBar percent={courseData.progressPercent} color="var(--coral)" />
           </div>
-          <button style={styles.moreButton}>
-            <MoreHorizontal size={18} />
-          </button>
         </div>
       </div>
 
       <div style={styles.content}>
         <div style={styles.leftSidebar}>
-          <CourseOutline
+          <ModuleOutline
             modules={courseData.modules}
             currentLessonId={parseInt(lessonId)}
             onLessonClick={handleLessonClick}
@@ -216,16 +213,16 @@ export default function CourseContentPage() {
           />
           <LessonContent
             lesson={courseData.currentLesson}
-            moduleName={courseData.modules.find(m =>
-              m.lessons.some(l => l.lessonId === parseInt(lessonId))
-            )?.name}
+            moduleNumber={currentModuleNumber}
+            lessonNumber={currentLessonNumber}
           />
         </div>
 
         <div style={styles.rightSidebar}>
           <LessonResources
             media={courseData.currentLesson.media}
-            exercises={courseData.currentLesson.exercises}
+            lessonId={courseData.currentLesson.lessonId}
+            courseId={courseData.courseId}
           />
         </div>
       </div>
