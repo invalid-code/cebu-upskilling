@@ -38,13 +38,17 @@ private class FakeGoogleAiService : IGoogleAiService
 
     private static AuthService CreateService(Data.ApplicationDbContext context, IGoogleAiService? aiService = null) => new(
         context,
-        new SkillParsingService(
+        new JobseekerSkillParserAgent(
             aiService ?? new FakeGoogleAiService(),
             new SkillRepository(context),
             new LearnerRepository(context),
             new LearnerSkillRepository(context),
             new LearnerAssessmentRepository(context),
-            NullLogger<SkillParsingService>.Instance),
+            new AppUserRepository(context),
+            new RoleSkillRepository(context),
+            new AssessmentQuestionRepository(context),
+            new RecruiterRepository(context),
+            NullLogger<JobseekerSkillParserAgent>.Instance),
         new JwtTokenService(CreateConfig(), NullLogger<JwtTokenService>.Instance),
         new LoggingEmailService(NullLogger<LoggingEmailService>.Instance),
         new InMemoryTokenRevocationStore(NullLogger<InMemoryTokenRevocationStore>.Instance),

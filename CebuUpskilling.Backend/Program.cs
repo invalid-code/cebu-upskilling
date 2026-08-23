@@ -94,8 +94,10 @@ builder.Services.AddScoped<IEntityService<AppUser>, AppUserService>();
 builder.Services.AddScoped<IEntityService<LearnerAssessment>, LearnerAssessmentService>();
 builder.Services.AddScoped<IEntityService<LearnerStudyCourse>, LearnerStudyCourseService>();
 builder.Services.AddScoped<ISkillGapService, SkillGapService>();
-builder.Services.AddScoped<ISkillParsingService, SkillParsingService>();
-builder.Services.AddScoped<IAssessmentService, AssessmentService>();
+builder.Services.AddScoped<IJobseekerSkillParserAgent, JobseekerSkillParserAgent>();
+// Backwards-compat: old interfaces now resolve to the unified agent
+builder.Services.AddScoped<ISkillParsingService>(sp => sp.GetRequiredService<IJobseekerSkillParserAgent>());
+builder.Services.AddScoped<IAssessmentService>(sp => sp.GetRequiredService<IJobseekerSkillParserAgent>());
 builder.Services.AddScoped<IEnrollmentsService, EnrollmentsService>();
 builder.Services.AddScoped<IApplicationsService, ApplicationsService>();
 builder.Services.AddScoped<IStatsService, StatsService>();

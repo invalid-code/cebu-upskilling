@@ -9,15 +9,15 @@ namespace CebuUpskilling.Backend.Controllers;
 
 public class AssessmentsController : BaseEntityController<LearnerAssessment>
 {
-    private readonly IAssessmentService _assessmentService;
+    private readonly IJobseekerSkillParserAgent _jobseekerSkillParserAgent;
 
     public AssessmentsController(
         IEntityService<LearnerAssessment> service,
-        IAssessmentService assessmentService,
+        IJobseekerSkillParserAgent jobseekerSkillParserAgent,
         ILogger<AssessmentsController> logger)
         : base(service, logger, "Assessments")
     {
-        _assessmentService = assessmentService;
+        _jobseekerSkillParserAgent = jobseekerSkillParserAgent;
     }
 
     protected override int GetId(LearnerAssessment entity) => entity.LearnerAssessmentId;
@@ -29,7 +29,7 @@ public class AssessmentsController : BaseEntityController<LearnerAssessment>
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
         _logger.LogInformation("HTTP GET /api/assessments/results called by user {UserId}", userId);
 
-        var results = await _assessmentService.GetRecentResultsAsync(userId);
+        var results = await _jobseekerSkillParserAgent.GetRecentResultsAsync(userId);
         return Ok(results);
     }
 
@@ -40,7 +40,7 @@ public class AssessmentsController : BaseEntityController<LearnerAssessment>
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
         _logger.LogInformation("HTTP GET /api/assessments/available called by user {UserId}", userId);
 
-        var result = await _assessmentService.GetAvailableAssessmentsAsync(userId);
+        var result = await _jobseekerSkillParserAgent.GetAvailableAssessmentsAsync(userId);
         if (result == null)
             return Ok(null);
 
@@ -54,7 +54,7 @@ public class AssessmentsController : BaseEntityController<LearnerAssessment>
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
         _logger.LogInformation("HTTP GET /api/assessments/recommended called by user {UserId}", userId);
 
-        var result = await _assessmentService.GetRecommendedAsync(userId);
+        var result = await _jobseekerSkillParserAgent.GetRecommendedAsync(userId);
         if (result == null)
             return Ok(null);
 
@@ -68,7 +68,7 @@ public class AssessmentsController : BaseEntityController<LearnerAssessment>
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
         _logger.LogInformation("HTTP POST /api/assessments/start called by user {UserId} for skill {SkillId}", userId, request.SkillId);
 
-        var result = await _assessmentService.StartAssessmentAsync(userId, request);
+        var result = await _jobseekerSkillParserAgent.StartAssessmentAsync(userId, request);
         if (result == null)
             return BadRequest(new { error = "Unable to start assessment" });
 
@@ -82,7 +82,7 @@ public class AssessmentsController : BaseEntityController<LearnerAssessment>
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
         _logger.LogInformation("HTTP GET /api/assessments/{AssessmentId}/questions called by user {UserId}", assessmentId, userId);
 
-        var result = await _assessmentService.GetQuestionsAsync(userId, assessmentId);
+        var result = await _jobseekerSkillParserAgent.GetQuestionsAsync(userId, assessmentId);
         if (result == null)
             return NotFound(new { error = "Assessment not found" });
 
@@ -96,7 +96,7 @@ public class AssessmentsController : BaseEntityController<LearnerAssessment>
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
         _logger.LogInformation("HTTP POST /api/assessments/{AssessmentId}/submit called by user {UserId}", assessmentId, userId);
 
-        var result = await _assessmentService.SubmitAssessmentAsync(userId, assessmentId, request);
+        var result = await _jobseekerSkillParserAgent.SubmitAssessmentAsync(userId, assessmentId, request);
         if (result == null)
             return BadRequest(new { error = "Unable to submit assessment" });
 
@@ -110,7 +110,7 @@ public class AssessmentsController : BaseEntityController<LearnerAssessment>
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
         _logger.LogInformation("HTTP POST /api/assessments/company/questions called by user {UserId} for skill {SkillId}", userId, request.SkillId);
 
-        var result = await _assessmentService.CreateCompanyQuestionAsync(userId, request);
+        var result = await _jobseekerSkillParserAgent.CreateCompanyQuestionAsync(userId, request);
         if (result == null)
             return BadRequest(new { error = "Unable to create company question" });
 

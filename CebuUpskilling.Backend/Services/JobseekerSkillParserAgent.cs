@@ -4,29 +4,27 @@ using CebuUpskilling.Backend.Repositories;
 
 namespace CebuUpskilling.Backend.Services;
 
-public interface IAssessmentService
+/// <summary>
+/// Unified jobseeker-side agent that handles both AI skill parsing from resumes
+/// and the full assessment lifecycle. Merges the former <c>ISkillParsingService</c>
+/// and <c>IAssessmentService</c> into a single agent.
+/// </summary>
+public interface IJobseekerSkillParserAgent : ISkillParsingService, IAssessmentService
 {
-    Task<List<AssessmentResultResponse>> GetRecentResultsAsync(int userId);
-    Task<RecommendedAssessmentResponse?> GetRecommendedAsync(int userId);
-    Task<AvailableAssessmentsResponse?> GetAvailableAssessmentsAsync(int userId);
-    Task<StartAssessmentResponse?> StartAssessmentAsync(int userId, StartAssessmentRequest request);
-    Task<AssessmentQuestionsResponse?> GetQuestionsAsync(int userId, int assessmentId);
-    Task<SubmitAssessmentResponse?> SubmitAssessmentAsync(int userId, int assessmentId, SubmitAssessmentRequest request);
-    Task<CreatedCompanyQuestionResponse?> CreateCompanyQuestionAsync(int userId, CreateCompanyQuestionRequest request);
 }
 
-[Obsolete("Use JobseekerSkillParserAgent instead. This implementation is retained for backwards-compatibility; new code should use JobseekerSkillParserAgent.")]
-public class AssessmentService : IAssessmentService
+public class JobseekerSkillParserAgent : IJobseekerSkillParserAgent
 {
-    private readonly IAppUserRepository _users;
-    private readonly IRoleSkillRepository _roleSkills;
+    private readonly IGoogleAiService _ai;
+    private readonly ISkillRepository _skills;
     private readonly ILearnerRepository _learners;
     private readonly ILearnerSkillRepository _learnerSkills;
     private readonly ILearnerAssessmentRepository _learnerAssessments;
+    private readonly IAppUserRepository _users;
+    private readonly IRoleSkillRepository _roleSkills;
     private readonly IAssessmentQuestionRepository _assessmentQuestions;
-    private readonly ISkillRepository _skills;
-    private readonly IGoogleAiService _aiService;
-    private readonly ILogger<AssessmentService> _logger;
+    private readonly IRecruiterRepository _recruiters;
+    private readonly ILogger<JobseekerSkillParserAgent> _logger;
 
     private static readonly Dictionary<int, string> LevelLabels = new()
     {
@@ -37,27 +35,141 @@ public class AssessmentService : IAssessmentService
         { 5, "Expert" },
     };
 
-    public AssessmentService(
-        IAppUserRepository users,
-        IRoleSkillRepository roleSkills,
+    public JobseekerSkillParserAgent(
+        IGoogleAiService ai,
+        ISkillRepository skills,
         ILearnerRepository learners,
         ILearnerSkillRepository learnerSkills,
         ILearnerAssessmentRepository learnerAssessments,
+        IAppUserRepository users,
+        IRoleSkillRepository roleSkills,
         IAssessmentQuestionRepository assessmentQuestions,
-        ISkillRepository skills,
-        IGoogleAiService aiService,
-        ILogger<AssessmentService> logger)
+        IRecruiterRepository recruiters,
+        ILogger<JobseekerSkillParserAgent> logger)
     {
-        _users = users;
-        _roleSkills = roleSkills;
+        _ai = ai;
+        _skills = skills;
         _learners = learners;
         _learnerSkills = learnerSkills;
         _learnerAssessments = learnerAssessments;
+        _users = users;
+        _roleSkills = roleSkills;
         _assessmentQuestions = assessmentQuestions;
-        _skills = skills;
-        _aiService = aiService;
+        _recruiters = recruiters;
         _logger = logger;
     }
+
+    // ---------------------------------------------------------------------
+    // Skill parsing (from former SkillParsingService)
+    // ---------------------------------------------------------------------
+
+    public async Task<ParseSkillsResult> ParseAndCreateAssessmentsAsync(int userId, string resumeText, CancellationToken ct = default)
+    {
+        var names = await _ai.ParseSkillsFromResumeAsync(resumeText, ct);
+        if (names.Count == 0)
+        {
+            _logger.LogInformation("No skills parsed from resume for user {UserId}", userId);
+            return new ParseSkillsResult(new List<ParsedSkillResult>());
+        }
+
+        var skills = await UpsertSkillsAsync(names);
+        await _skills.SaveChangesAsync(ct);
+
+        var learner = await _learners.GetByUserIdAsync(userId);
+        if (learner == null)
+        {
+            _logger.LogWarning("No learner profile found for user {UserId}; skipping assessment creation", userId);
+            return new ParseSkillsResult(skills.Select(s => new ParsedSkillResult(s.Name, s.SkillId, null)).ToList());
+        }
+
+        var existingAssessments = await _learnerAssessments.GetByLearnerIdAsync(learner.LearnerId);
+        var assessmentSkillIds = new HashSet<int>(existingAssessments.Select(a => a.SkillId));
+
+        var createdAssessments = new List<LearnerAssessment>();
+        var results = new List<(Skill Skill, LearnerAssessment? Assessment)>();
+
+        foreach (var skill in skills)
+        {
+            var learnerSkill = await _learnerSkills.GetByLearnerAndSkillAsync(learner.LearnerId, skill.SkillId);
+            if (learnerSkill == null)
+            {
+                learnerSkill = new LearnerSkill
+                {
+                    LearnerId = learner.LearnerId,
+                    SkillId = skill.SkillId,
+                    CurrentLevel = 0,
+                    Verified = false,
+                };
+                await _learnerSkills.AddAsync(learnerSkill);
+            }
+
+            LearnerAssessment? assessment = null;
+            if (!assessmentSkillIds.Contains(skill.SkillId))
+            {
+                assessment = new LearnerAssessment
+                {
+                    LearnerId = learner.LearnerId,
+                    SkillId = skill.SkillId,
+                    ScoredLevel = 0,
+                    Verified = false,
+                    CompletedAt = DateTime.UtcNow,
+                };
+                await _learnerAssessments.AddAsync(assessment);
+                createdAssessments.Add(assessment);
+                assessmentSkillIds.Add(skill.SkillId);
+            }
+
+            results.Add((skill, assessment));
+        }
+
+        await _learnerSkills.SaveChangesAsync(ct);
+        await _learnerAssessments.SaveChangesAsync(ct);
+
+        var parsed = results.Select(r => new ParsedSkillResult(
+            r.Skill.Name,
+            r.Skill.SkillId,
+            r.Assessment == null ? (int?)null : r.Assessment.LearnerAssessmentId
+        )).ToList();
+
+        _logger.LogInformation("Parsed {Parsed} skills and created {Created} assessments for user {UserId}",
+            parsed.Count, createdAssessments.Count, userId);
+
+        return new ParseSkillsResult(parsed);
+    }
+
+    private async Task<List<Skill>> UpsertSkillsAsync(IEnumerable<string> names)
+    {
+        var normalizedNames = names
+            .Select(n => n?.Trim())
+            .Where(n => !string.IsNullOrWhiteSpace(n) && n.Length <= 100)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Select(n => n!)
+            .ToList();
+
+        var existing = await _skills.GetByNamesAsync(normalizedNames);
+        var existingByNormalized = existing.ToDictionary(s => s.Name, StringComparer.OrdinalIgnoreCase);
+
+        var skills = new List<Skill>();
+        foreach (var name in normalizedNames)
+        {
+            if (existingByNormalized.TryGetValue(name, out var skill))
+            {
+                skills.Add(skill);
+            }
+            else
+            {
+                var created = new Skill { Name = name, Category = null };
+                await _skills.AddAsync(created);
+                skills.Add(created);
+            }
+        }
+
+        return skills;
+    }
+
+    // ---------------------------------------------------------------------
+    // Assessment lifecycle (from former AssessmentService)
+    // ---------------------------------------------------------------------
 
     public async Task<List<AssessmentResultResponse>> GetRecentResultsAsync(int userId)
     {
@@ -466,13 +578,12 @@ public class AssessmentService : IAssessmentService
 
     public async Task<CreatedCompanyQuestionResponse?> CreateCompanyQuestionAsync(int userId, CreateCompanyQuestionRequest request)
     {
-        var user = await _users.GetByIdWithCompanyAsync(userId);
-        if (user?.Company == null)
+        var recruiter = await _recruiters.GetByUserIdAsync(userId);
+        if (recruiter?.Company == null)
         {
-            _logger.LogWarning("User {UserId} has no company association; company question rejected", userId);
+            _logger.LogWarning("User {UserId} is not a recruiter; company question rejected", userId);
             return null;
         }
-        var recruiter = user;
 
         var skill = await _skills.GetByIdAsync(request.SkillId);
         if (skill == null)
@@ -502,7 +613,7 @@ public class AssessmentService : IAssessmentService
             OptionD = request.OptionD.Trim(),
             CorrectOption = request.CorrectOption,
             Source = AssessmentSource.Company,
-            CompanyId = recruiter.CompanyId!.Value,
+            CompanyId = recruiter.CompanyId,
         };
 
         await _assessmentQuestions.AddAsync(question);
@@ -525,7 +636,7 @@ public class AssessmentService : IAssessmentService
         _logger.LogInformation("Generating {Count} AI assessment questions for skill {Skill}",
             count, skill.Name);
 
-        var generated = await _aiService.GenerateAssessmentQuestionsAsync(skill.Name, count, ct);
+        var generated = await _ai.GenerateAssessmentQuestionsAsync(skill.Name, count, ct);
 
         if (generated.Count == 0)
         {
