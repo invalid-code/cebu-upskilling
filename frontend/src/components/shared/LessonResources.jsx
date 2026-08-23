@@ -3,6 +3,7 @@ import { Download, FileText, Package, Save, HelpCircle, Clapperboard } from 'luc
 import { api } from '../../api/client';
 import { useToast } from '../../context/ToastContext';
 import DiscussionModal from './DiscussionModal';
+import { SkeletonText, SkeletonStatus } from '../ui/Skeleton';
 
 const styles = {
   container: {
@@ -360,7 +361,9 @@ export default function LessonResources({ media, lessonId, courseId }) {
         </div>
         <div style={styles.notesContent}>
           {loading ? (
-            <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>Loading notes...</div>
+            <SkeletonStatus label="Loading notes...">
+              <SkeletonText lines={3} lineHeight={12} gap={8} lastWidth="40%" />
+            </SkeletonStatus>
           ) : courseNotes.filter((n) => n.lessonId === lessonId && n.content).length > 0 ? (
             <div style={styles.notesList}>
               {courseNotes

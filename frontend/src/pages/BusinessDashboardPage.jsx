@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';import { BarChart3, BriefcaseBusiness, Inbox, PlusCircle, UserCheck, Users } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { BarChart3, BriefcaseBusiness, Inbox, PlusCircle, UserCheck, Users } from 'lucide-react';
 import Panel from '../components/ui/Panel';
 import Tag from '../components/ui/Tag';
 import EmptyState from '../components/shared/EmptyState';
 import StatCard from '../components/shared/StatCard';
 import BarList from '../components/shared/BarList';
 import { ErrorCard } from '../components/ui/ErrorState';
+import Skeleton, { SkeletonStat, SkeletonStatus, SkeletonText } from '../components/ui/Skeleton';
 import { api } from '../api/client';
 import { useToast } from '../context/ToastContext';
 
@@ -66,7 +68,41 @@ export default function BusinessDashboardPage() {
       .finally(() => setDeletingId(null));
   };
 
-  if (loading) return <div style={styles.loading}>Loading business dashboard...</div>;
+  if (loading) {
+    return (
+      <div className="view-enter">
+        <SkeletonStatus label="Loading business dashboard...">
+          <div style={styles.quickLinks}>
+            <Skeleton height={38} width={130} radius={10} />
+            <Skeleton height={38} width={148} radius={10} />
+          </div>
+          <Panel>
+            <div style={styles.statGrid}>
+              {Array.from({ length: 4 }, (_, i) => (
+                <SkeletonStat key={i} />
+              ))}
+            </div>
+          </Panel>
+          <section style={styles.section}>
+            <Skeleton height={22} width={190} radius={8} style={{ marginBottom: 16 }} />
+            <Panel>
+              {Array.from({ length: 4 }, (_, i) => (
+                <Skeleton key={i} height={44} width="100%" radius={10} style={{ marginBottom: 12 }} />
+              ))}
+            </Panel>
+          </section>
+          <section style={{ ...styles.section, ...styles.charts }}>
+            <Panel>
+              <SkeletonText lines={5} lineHeight={12} gap={14} />
+            </Panel>
+            <Panel>
+              <SkeletonText lines={5} lineHeight={12} gap={14} lastWidth="45%" />
+            </Panel>
+          </section>
+        </SkeletonStatus>
+      </div>
+    );
+  }
   if (error) return <div style={{ padding: 20 }}><ErrorCard title="Business dashboard unavailable" description={error} onRetry={() => setRetryKey((k) => k + 1)} /></div>;
 
   const postings = stats?.jobPostings || [];
