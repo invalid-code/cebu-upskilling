@@ -6,6 +6,7 @@ import EmptyState from '../components/shared/EmptyState';
 import StatCard from '../components/shared/StatCard';
 import CourseCard from '../components/shared/CourseCard';
 import SkillGapItem from '../components/shared/SkillGapItem';
+import Skeleton, { SkeletonCard, SkeletonStat, SkeletonStatus } from '../components/ui/Skeleton';
 import { useAuth, isRecruiter } from '../context/AuthContext';
 import { useApplications } from '../context/ApplicationsContext';
 import EmployerOverviewPage from './EmployerOverviewPage';
@@ -375,7 +376,15 @@ function LearnerOverview() {
             <Panel style={styles.col5}>
               <div style={styles.eyebrow}>Current match</div>
               {skillGapsLoading ? (
-                <div style={styles.loading}>Calculating...</div>
+                <SkeletonStatus label="Calculating...">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 18, padding: '18px 0' }}>
+                    <Skeleton height={96} width={96} radius="50%" />
+                    <div style={{ flex: 1 }}>
+                      <Skeleton height={26} width="55%" radius={8} style={{ marginBottom: 10 }} />
+                      <Skeleton height={13} width="85%" />
+                    </div>
+                  </div>
+                </SkeletonStatus>
               ) : skillGaps.length === 0 ? (
                 <EmptyState
                   title="No score yet"
@@ -516,7 +525,11 @@ function LearnerOverview() {
               <h3 style={styles.sectionH3}>This week</h3>
             </div>
             {weeklyStatsLoading ? (
-              <div style={styles.loading}>Loading stats...</div>
+              <SkeletonStatus label="Loading stats...">
+                {Array.from({ length: 3 }, (_, i) => (
+                  <SkeletonStat key={i} />
+                ))}
+              </SkeletonStatus>
             ) : (
               <>
                 <StatCard
@@ -557,7 +570,14 @@ function LearnerOverview() {
       </div>
       <Panel>
         {skillGapsLoading ? (
-          <div style={styles.loading}>Loading skill gaps...</div>
+          <SkeletonStatus label="Loading skill gaps...">
+            {Array.from({ length: 4 }, (_, i) => (
+              <div key={i} style={{ marginBottom: 18 }}>
+                <Skeleton height={14} width="40%" style={{ marginBottom: 8 }} />
+                <Skeleton height={10} width="100%" radius={5} />
+              </div>
+            ))}
+          </SkeletonStatus>
         ) : skillGaps.length === 0 ? (
           <EmptyState
             title={targetRole ? 'No skill gaps yet' : 'Set a target role to see your gaps'}
@@ -584,7 +604,13 @@ function LearnerOverview() {
         <a href="#" onClick={(e) => { e.preventDefault(); navigate('/courses'); }}>See all courses →</a>
       </div>
       {loading ? (
-        <div style={styles.loading}>Loading courses...</div>
+        <SkeletonStatus label="Loading courses...">
+          <div style={styles.courseGrid}>
+            {Array.from({ length: 3 }, (_, i) => (
+              <SkeletonCard key={i} minHeight={210} style={{ padding: 20 }} />
+            ))}
+          </div>
+        </SkeletonStatus>
       ) : recommended.length === 0 ? (
         <Panel>
           <EmptyState

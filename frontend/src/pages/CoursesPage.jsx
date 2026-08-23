@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import CourseCard from '../components/shared/CourseCard';
 import CourseDetailPanel from '../components/shared/CourseDetailPanel';
+import Skeleton, { SkeletonCard, SkeletonStatus } from '../components/ui/Skeleton';
 import { useAuth } from '../context/AuthContext';
 import { useApplications } from '../context/ApplicationsContext';
 import { api } from '../api/client';
@@ -397,7 +398,24 @@ export default function CoursesPage() {
       )}
 
       {loading ? (
-        <div style={styles.loading}>Loading courses...</div>
+        <SkeletonStatus label="Loading courses...">
+          <div style={{ marginBottom: 24 }}>
+            <Skeleton height={20} width={170} radius={8} style={{ marginBottom: 14 }} />
+            <div style={styles.courseGrid}>
+              {Array.from({ length: 3 }, (_, i) => (
+                <SkeletonCard key={i} minHeight={210} style={{ padding: 20 }} />
+              ))}
+            </div>
+          </div>
+          <div>
+            <Skeleton height={20} width={230} radius={8} style={{ marginBottom: 14 }} />
+            <div style={styles.courseGrid}>
+              {Array.from({ length: 3 }, (_, i) => (
+                <SkeletonCard key={i} minHeight={210} style={{ padding: 20 }} />
+              ))}
+            </div>
+          </div>
+        </SkeletonStatus>
       ) : (
         <>
           {enrolledCourses.length > 0 && (

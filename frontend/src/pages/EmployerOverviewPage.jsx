@@ -5,6 +5,7 @@ import Button from '../components/ui/Button';
 import Panel from '../components/ui/Panel';
 import EmptyState from '../components/shared/EmptyState';
 import StatCard from '../components/shared/StatCard';
+import { SkeletonStat, SkeletonStatus } from '../components/ui/Skeleton';
 import { api } from '../api/client';
 
 const styles = {
@@ -79,7 +80,15 @@ export default function EmployerOverviewPage() {
       </div>
 
       {loading ? (
-        <div style={styles.loading}>Loading business summary...</div>
+        <SkeletonStatus label="Loading business summary...">
+          <Panel>
+            <div style={styles.statGrid}>
+              {Array.from({ length: 4 }, (_, i) => (
+                <SkeletonStat key={i} />
+              ))}
+            </div>
+          </Panel>
+        </SkeletonStatus>
       ) : error ? (
         <Panel>
           <EmptyState

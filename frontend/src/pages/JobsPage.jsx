@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Button from '../components/ui/Button';
 import Tabs from '../components/ui/Tabs';
 import JobCard from '../components/shared/JobCard';
+import { SkeletonCard, SkeletonStatus } from '../components/ui/Skeleton';
 import { api } from '../api/client';
 import { useToast } from '../context/ToastContext';
 import { BellPlus } from 'lucide-react';
@@ -232,7 +233,13 @@ export default function JobsPage() {
       </div>
 
       {loading ? (
-        <div style={styles.loading}>Loading jobs...</div>
+        <SkeletonStatus label="Loading jobs...">
+          <div style={styles.grid}>
+            {Array.from({ length: 9 }, (_, i) => (
+              <SkeletonCard key={i} />
+            ))}
+          </div>
+        </SkeletonStatus>
       ) : (
         <div style={styles.grid}>
           {jobs.map((job) => (

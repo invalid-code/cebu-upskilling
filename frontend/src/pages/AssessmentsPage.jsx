@@ -6,6 +6,7 @@ import EmptyState from '../components/shared/EmptyState';
 import AssessmentCard from '../components/shared/AssessmentCard';
 import Modal from '../components/ui/Modal';
 import AssessmentModal from '../components/ui/AssessmentModal';
+import Skeleton, { SkeletonCard, SkeletonStatus } from '../components/ui/Skeleton';
 import { useAuth } from '../context/AuthContext';
 import { useApplications } from '../context/ApplicationsContext';
 import { api } from '../api/client';
@@ -423,7 +424,13 @@ export default function AssessmentsPage() {
           </div>
 
           {loading ? (
-            <div style={styles.loading}>Loading...</div>
+            <SkeletonStatus label="Loading...">
+              <div style={styles.assessmentGrid}>
+                {Array.from({ length: 4 }, (_, i) => (
+                  <SkeletonCard key={i} minHeight={150} />
+                ))}
+              </div>
+            </SkeletonStatus>
           ) : !available?.assessments?.length ? (
             <Panel>
               <EmptyState
@@ -465,7 +472,17 @@ export default function AssessmentsPage() {
           <Panel>
             <h3 style={styles.resultsTitle}>Recent results</h3>
             {loading ? (
-              <div style={styles.loading}>Loading...</div>
+              <SkeletonStatus label="Loading...">
+                {Array.from({ length: 3 }, (_, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 0', borderBottom: '1px solid var(--line)' }}>
+                    <Skeleton height={26} width={26} radius="50%" />
+                    <div style={{ flex: 1 }}>
+                      <Skeleton height={13} width="55%" style={{ marginBottom: 6 }} />
+                      <Skeleton height={11} width="35%" />
+                    </div>
+                  </div>
+                ))}
+              </SkeletonStatus>
             ) : results.length === 0 ? (
               <EmptyState
                 title="No results yet"

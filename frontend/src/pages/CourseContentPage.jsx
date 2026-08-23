@@ -6,6 +6,8 @@ import LessonContent from '../components/shared/LessonContent';
 import LessonResources from '../components/shared/LessonResources';
 import VideoPlayer from '../components/shared/VideoPlayer';
 import ProgressBar from '../components/ui/ProgressBar';
+import Panel from '../components/ui/Panel';
+import Skeleton, { SkeletonStatus, SkeletonText } from '../components/ui/Skeleton';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api/client';
 
@@ -142,7 +144,24 @@ export default function CourseContentPage() {
   };
 
   if (loading) {
-    return <div style={styles.loading}>Loading course content...</div>;
+    return (
+      <SkeletonStatus label="Loading course content..." style={{ padding: '20px 0' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20 }}>
+          <div style={{ flex: '0 1 260px', minWidth: 220 }}>
+            <Panel>
+              <Skeleton height={18} width="55%" style={{ marginBottom: 16 }} />
+              {Array.from({ length: 6 }, (_, i) => (
+                <Skeleton key={i} height={34} width="100%" radius={8} style={{ marginBottom: 8 }} />
+              ))}
+            </Panel>
+          </div>
+          <div style={{ flex: '1 1 320px' }}>
+            <Skeleton height={240} width="100%" radius={12} style={{ marginBottom: 18 }} />
+            <SkeletonText lines={5} lineHeight={13} gap={10} lastWidth="45%" />
+          </div>
+        </div>
+      </SkeletonStatus>
+    );
   }
 
   if (error || !courseData) {

@@ -8,6 +8,7 @@ import EmptyState from '../components/shared/EmptyState';
 import Button from '../components/ui/Button';
 import { api } from '../api/client';
 import { useToast } from '../context/ToastContext';
+import Skeleton, { SkeletonStatus } from '../components/ui/Skeleton';
 
 const styles = {
   heading: {
@@ -230,7 +231,25 @@ export default function JobApplicationsPage() {
     }
   };
 
-  if (loading) return <div style={styles.loading}>Loading applications...</div>;
+  if (loading) {
+    return (
+      <div className="view-enter">
+        <SkeletonStatus label="Loading applications...">
+          <Panel>
+            {Array.from({ length: 5 }, (_, i) => (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, padding: '16px 0', borderBottom: '1px solid var(--line)' }}>
+                <div style={{ flex: 1 }}>
+                  <Skeleton height={14} width="28%" style={{ marginBottom: 8 }} />
+                  <Skeleton height={12} width="45%" />
+                </div>
+                <Skeleton height={26} width={84} radius={13} />
+              </div>
+            ))}
+          </Panel>
+        </SkeletonStatus>
+      </div>
+    );
+  }
 
   return (
     <div className="view-enter">
@@ -302,7 +321,14 @@ export default function JobApplicationsPage() {
         title={detail?.learnerName || selected?.learnerName || 'Applicant'}
       >
         {detailLoading ? (
-          <div style={styles.loading}>Loading profile...</div>
+          <SkeletonStatus label="Loading profile...">
+            {Array.from({ length: 5 }, (_, i) => (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '9px 0' }}>
+                <Skeleton height={12} width={92} />
+                <Skeleton height={12} width="45%" />
+              </div>
+            ))}
+          </SkeletonStatus>
         ) : detailError ? (
           <p style={{ color: 'var(--coral)', margin: 0 }}>{detailError}</p>
         ) : detail ? (

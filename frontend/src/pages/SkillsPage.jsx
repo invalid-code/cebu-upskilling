@@ -5,6 +5,7 @@ import Tag from '../components/ui/Tag';
 import EmptyState from '../components/shared/EmptyState';
 import TargetRoleCard from '../components/shared/TargetRoleCard';
 import SkillGapItem from '../components/shared/SkillGapItem';
+import Skeleton, { SkeletonStatus } from '../components/ui/Skeleton';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import { useApplications } from '../context/ApplicationsContext';
@@ -239,9 +240,17 @@ export default function SkillsPage() {
             <span style={{ color: 'var(--muted)', fontSize: 12 }}>Verified skills have a check</span>
           </div>
           {skillGapsLoading ? (
-            <div style={{ textAlign: 'center', padding: 45, color: 'var(--muted)', fontSize: 13 }}>
-              Loading skills...
-            </div>
+            <SkeletonStatus label="Loading skills...">
+              {Array.from({ length: 3 }, (_, i) => (
+                <div key={i} style={{ border: '1px solid var(--line)', borderRadius: 12, padding: 14, marginBottom: 12 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                    <Skeleton height={14} width="38%" />
+                    <Skeleton height={22} width={70} radius={11} />
+                  </div>
+                  <Skeleton height={10} width="100%" radius={5} />
+                </div>
+              ))}
+            </SkeletonStatus>
           ) : gapGroups.length === 0 ? (
             <EmptyState
               title={!hasApplied
