@@ -108,7 +108,7 @@ public class AuthService : IAuthService
             throw new InvalidOperationException("Password must be at least 6 characters long");
         }
 
-        if (request.Role != "Learner" && request.Role != "Recruiter")
+        if (request.Role != "Learner" && request.Role != "Recruiter" && request.Role != "CourseProvider")
         {
             _logger.LogWarning("Registration failed: role '{Role}' is not allowed", request.Role);
             throw new InvalidOperationException($"Role '{request.Role}' is not allowed");

@@ -110,3 +110,7 @@ export function isLearner(user) {
 export function isRecruiter(user) {
   return user?.role?.toLowerCase() === 'recruiter';
 }
+
+export function isCourseProvider(user) {
+  return user?.role?.toLowerCase() === 'courseprovider';
+}

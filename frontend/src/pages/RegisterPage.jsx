@@ -221,6 +221,11 @@ const { register, registerCompany } = useAuth();
         navigate('/business-dashboard');
         return;
       }
+      if (role === 'courseprovider') {
+        await register({ ...form, birthday: form.birthday || null, role: 'CourseProvider' });
+        navigate('/');
+        return;
+      }
       const payload = { ...form, birthday: form.birthday || null };
       if (resumeFile) {
         const resumeText = await extractResumeText(resumeFile);
@@ -284,6 +289,16 @@ const { register, registerCompany } = useAuth();
             onClick={() => setRole('recruiter')}
           >
             Employer
+          </button>
+          <button
+            type="button"
+            style={{
+              ...styles.roleButton,
+              ...(role === 'courseprovider' ? styles.roleButtonActive : {}),
+            }}
+            onClick={() => setRole('courseprovider')}
+          >
+            Course Provider
           </button>
         </div>
 
