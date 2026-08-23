@@ -109,6 +109,8 @@ public class AuthTokenReuseTests
     {
         public Task<List<string>> ParseSkillsFromResumeAsync(string t, CancellationToken ct = default) => Task.FromResult(new List<string>());
         public Task<List<GeneratedAssessmentQuestion>> GenerateAssessmentQuestionsAsync(string s, int c = 5, CancellationToken ct = default) => Task.FromResult(new List<GeneratedAssessmentQuestion>());
+        public Task<List<CandidateRanking>> RankCandidatesAsync(string j, string r, string? req, List<CandidateSkillProfile> cands, CancellationToken ct = default) => Task.FromResult(new List<CandidateRanking>());
+        public Task<DraftJobPostResponse?> DraftJobPostAsync(DraftJobPostRequest request, CancellationToken ct = default) => Task.FromResult<DraftJobPostResponse?>(null);
     }
 
     private static string HashToken(string raw)
@@ -221,6 +223,8 @@ public class MassAssignmentRegressionTests
     {
         public Task<List<string>> ParseSkillsFromResumeAsync(string t, CancellationToken ct = default) => Task.FromResult(new List<string>());
         public Task<List<GeneratedAssessmentQuestion>> GenerateAssessmentQuestionsAsync(string s, int c = 5, CancellationToken ct = default) => Task.FromResult(new List<GeneratedAssessmentQuestion>());
+        public Task<List<CandidateRanking>> RankCandidatesAsync(string j, string r, string? req, List<CandidateSkillProfile> cands, CancellationToken ct = default) => Task.FromResult(new List<CandidateRanking>());
+        public Task<DraftJobPostResponse?> DraftJobPostAsync(DraftJobPostRequest request, CancellationToken ct = default) => Task.FromResult<DraftJobPostResponse?>(null);
     }
 }
 

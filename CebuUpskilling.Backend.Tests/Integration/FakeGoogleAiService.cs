@@ -32,4 +32,11 @@ public class FakeGoogleAiService : IGoogleAiService
     public Task<List<GeneratedAssessmentQuestion>> GenerateAssessmentQuestionsAsync(
         string skillName, int count = 5, CancellationToken ct = default)
         => Task.FromResult(new List<GeneratedAssessmentQuestion>());
+
+    public Task<List<CandidateRanking>> RankCandidatesAsync(
+        string jobTitle, string targetRole, string? requirements, List<CandidateSkillProfile> candidates, CancellationToken ct = default)
+        => Task.FromResult(new List<CandidateRanking>());
+
+    public Task<DraftJobPostResponse?> DraftJobPostAsync(DraftJobPostRequest request, CancellationToken ct = default)
+        => Task.FromResult<DraftJobPostResponse?>(null);
 }

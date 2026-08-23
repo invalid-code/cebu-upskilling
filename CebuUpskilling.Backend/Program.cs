@@ -112,6 +112,7 @@ builder.Services.AddScoped<IEntityService<LearnerAssessment>, LearnerAssessmentS
 builder.Services.AddScoped<IEntityService<LearnerStudyCourse>, LearnerStudyCourseService>();
 builder.Services.AddScoped<ISkillGapService, SkillGapService>();
 builder.Services.AddScoped<IJobseekerSkillParserAgent, JobseekerSkillParserAgent>();
+builder.Services.AddScoped<IEmployerHiringAgent, EmployerHiringAgent>();
 builder.Services.AddScoped<IEnrollmentsService, EnrollmentsService>();
 builder.Services.AddScoped<IApplicationsService, ApplicationsService>();
 builder.Services.AddScoped<IStatsService, StatsService>();
