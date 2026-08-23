@@ -1,7 +1,7 @@
 import { Link, NavLink } from 'react-router-dom';
 import { useAuth, isRecruiter } from '../../context/AuthContext';
 import {
-  LayoutDashboard, Orbit, BriefcaseBusiness, BookOpenCheck,
+  LayoutDashboard, Orbit, BriefcaseBusiness, BookOpenCheck, BookOpen,
   ClipboardList, ScanFace, BadgeCheck, CircleHelp, LogOut,
   ChartBar, Inbox, PlusCircle,
 } from 'lucide-react';
@@ -22,6 +22,7 @@ const learnerAccountNav = [
 
 const recruiterNav = [
   { to: '/business-dashboard', icon: ChartBar, label: 'Business dashboard' },
+  { to: '/company-courses', icon: BookOpen, label: 'Course studio' },
   { to: '/post-job', icon: PlusCircle, label: 'Post a job' },
   { to: '/job-applications', icon: Inbox, label: 'Applications' },
   { to: '/help', icon: CircleHelp, label: 'Help center' },
