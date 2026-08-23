@@ -74,7 +74,7 @@ public interface IAuthService
 public class AuthService : IAuthService
 {
     private readonly ApplicationDbContext _context;
-    private readonly ISkillParsingService _skillParsingService;
+    private readonly IJobseekerSkillParserAgent _jobseekerSkillParserAgent;
     private readonly IJwtTokenService _tokenService;
     private readonly IEmailService _emailService;
     private readonly ITokenRevocationStore _revocationStore;
@@ -84,14 +84,14 @@ public class AuthService : IAuthService
 
     public AuthService(
         ApplicationDbContext context,
-        ISkillParsingService skillParsingService,
+        IJobseekerSkillParserAgent jobseekerSkillParserAgent,
         IJwtTokenService tokenService,
         IEmailService emailService,
         ITokenRevocationStore revocationStore,
         ILogger<AuthService> logger)
     {
         _context = context;
-        _skillParsingService = skillParsingService;
+        _jobseekerSkillParserAgent = jobseekerSkillParserAgent;
         _tokenService = tokenService;
         _emailService = emailService;
         _revocationStore = revocationStore;
@@ -162,7 +162,7 @@ public class AuthService : IAuthService
             var resumeText = request.Resume ?? string.Empty;
             try
             {
-                parseResult = await _skillParsingService.ParseAndCreateAssessmentsAsync(user.UserId, resumeText, CancellationToken.None);
+                parseResult = await _jobseekerSkillParserAgent.ParseAndCreateAssessmentsAsync(user.UserId, resumeText, CancellationToken.None);
                 _logger.LogInformation("Auto-parsed resume skills and created assessments for user {UserId}", user.UserId);
             }
             catch (Exception ex)

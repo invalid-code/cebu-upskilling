@@ -12,6 +12,7 @@ public interface ISkillParsingService
     Task<ParseSkillsResult> ParseAndCreateAssessmentsAsync(int userId, string resumeText, CancellationToken ct = default);
 }
 
+[Obsolete("Use JobseekerSkillParserAgent instead. This implementation is retained for backwards-compatibility; new code should use JobseekerSkillParserAgent.")]
 public class SkillParsingService : ISkillParsingService
 {
     private readonly IGoogleAiService _ai;

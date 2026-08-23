@@ -11,12 +11,12 @@ namespace CebuUpskilling.Backend.Controllers;
 [Authorize]
 public class SkillsController : ControllerBase
 {
-    private readonly ISkillParsingService _skillParsingService;
+    private readonly IJobseekerSkillParserAgent _jobseekerSkillParserAgent;
     private readonly ILogger<SkillsController> _logger;
 
-    public SkillsController(ISkillParsingService skillParsingService, ILogger<SkillsController> logger)
+    public SkillsController(IJobseekerSkillParserAgent jobseekerSkillParserAgent, ILogger<SkillsController> logger)
     {
-        _skillParsingService = skillParsingService;
+        _jobseekerSkillParserAgent = jobseekerSkillParserAgent;
         _logger = logger;
     }
 
@@ -28,7 +28,7 @@ public class SkillsController : ControllerBase
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
         _logger.LogInformation("HTTP POST /api/skills/parse called by user {UserId}", userId);
 
-        var result = await _skillParsingService.ParseAndCreateAssessmentsAsync(userId, request.ResumeText ?? string.Empty, ct);
+        var result = await _jobseekerSkillParserAgent.ParseAndCreateAssessmentsAsync(userId, request.ResumeText ?? string.Empty, ct);
 
         _logger.LogInformation("Skill parsing completed for user {UserId}: {SkillCount} skills found, {AssessmentCount} assessments created",
             userId, result.Skills.Count, result.Skills.Count(s => s.AssessmentId != null));
