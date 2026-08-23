@@ -53,7 +53,9 @@ public record AuthResponse(
     bool RemoteFriendly,
     string Token,
     int ParsedSkillCount = 0,
-    int AssessmentCount = 0
+    int AssessmentCount = 0,
+    int? CompanyId = null,
+    string? CompanyName = null
 );
 
 public record CompanyRegisterResponse(

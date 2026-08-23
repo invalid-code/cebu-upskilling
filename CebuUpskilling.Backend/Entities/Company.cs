@@ -10,6 +10,6 @@ public class Company
     [Required, MaxLength(255)]
     public string Name { get; set; } = string.Empty;
 
-    public ICollection<Recruiter> Recruiters { get; set; } = new List<Recruiter>();
+    public ICollection<AppUser> Users { get; set; } = new List<AppUser>();
     public ICollection<Post> Posts { get; set; } = new List<Post>();
 }

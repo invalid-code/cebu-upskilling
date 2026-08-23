@@ -5,4 +5,5 @@ namespace CebuUpskilling.Backend.Services;
 public interface IMediaService
 {
     Task<MediaDto> UploadLessonVideoAsync(int lessonId, IFormFile file, CancellationToken cancellationToken = default);
+    Task<DocumentUploadDto> UploadDocumentAsync(IFormFile file, CancellationToken cancellationToken = default);
 }

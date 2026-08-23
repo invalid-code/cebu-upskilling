@@ -59,11 +59,10 @@ public class StatsServiceTests
         context.Users.Add(recruiterUser);
         await context.SaveChangesAsync();
 
-        context.Recruiters.Add(new Recruiter { UserId = recruiterUser.UserId, CompanyId = company.CompanyId });
+        recruiterUser.CompanyId = company.CompanyId;
         await context.SaveChangesAsync();
 
-        var recruiter = await context.Recruiters.FirstAsync(r => r.UserId == recruiterUser.UserId);
-        var post = new Post { RecruiterId = recruiter.RecruiterId, Title = "Job posting" };
+        var post = new Post { CompanyId = company.CompanyId, Title = "Job posting" };
         context.Posts.Add(post);
         await context.SaveChangesAsync();
         return post.PostId;

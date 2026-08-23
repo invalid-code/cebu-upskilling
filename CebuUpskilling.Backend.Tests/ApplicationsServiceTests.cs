@@ -14,6 +14,8 @@ public class ApplicationsServiceTests
         new LearnerRepository(context),
         new PostRepository(context),
         new ApplicationRepository(context),
+        new AppUserRepository(context),
+        new LoggingEmailService(NullLogger<LoggingEmailService>.Instance),
         NullLogger<ApplicationsService>.Instance
     );
 
@@ -40,13 +42,11 @@ public class ApplicationsServiceTests
         context.Companies.Add(company);
         await context.SaveChangesAsync();
 
-        var recruiter = new Recruiter { CompanyId = company.CompanyId, UserId = user.UserId };
-        context.Recruiters.Add(recruiter);
+        user.CompanyId = company.CompanyId;
         await context.SaveChangesAsync();
 
         var post = new Post
         {
-            RecruiterId = recruiter.RecruiterId,
             CompanyId = company.CompanyId,
             Title = "Frontend Developer (React)",
         };

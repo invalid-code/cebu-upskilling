@@ -179,8 +179,8 @@ export default function CourseCard({
         </div>
         <div style={{ flex: 1 }}>
           <div style={styles.tags}>
-            {tags.map((tag, i) => (
-              <Tag key={i} variant={tag.variant || 'default'}>{tag.label}</Tag>
+            {tags.map((tag) => (
+              <Tag key={tag.label} variant={tag.variant || 'default'}>{tag.label}</Tag>
             ))}
           </div>
           <div style={styles.title}>{course.name}</div>
