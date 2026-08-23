@@ -249,9 +249,10 @@ public class CourseContentServiceTests
     public async Task GetLessonDetailAsync_MapsContentBlocksMediaAndExercises()
     {
         var context = TestDbContextFactory.Create();
-        var (user, _) = await CreateLearnerAsync(context);
+        var (user, learner) = await CreateLearnerAsync(context);
         var course = await CreateCourseWithLessonsAsync(context, lessonCount: 1, withContent: true);
         var lesson = context.Lessons.Single(l => l.CourseId == course.CourseId);
+        await EnrollAsync(context, learner.LearnerId, course.CourseId, 0);
 
         var result = await CreateService(context).GetLessonDetailAsync(user.UserId, lesson.LessonId);
 

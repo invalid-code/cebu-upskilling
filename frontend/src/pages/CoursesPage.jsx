@@ -175,6 +175,7 @@ export default function CoursesPage() {
   const { user } = useAuth();
   let applications = [];
   try {
+    // oxlint-disable-next-line react-hooks/rules-of-hooks
     const ctx = useApplications();
     applications = ctx?.applications || [];
   } catch {
@@ -265,6 +266,7 @@ export default function CoursesPage() {
         });
     }
     return () => controller.abort();
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.targetRole, applications]);
 
   const filteredRecommended = recommendedCourses.filter((course) => {

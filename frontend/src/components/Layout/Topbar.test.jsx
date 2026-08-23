@@ -41,7 +41,7 @@ describe('Topbar', () => {
   it('renders the avatar initials', () => {
     renderTopbar('/', { firstName: 'Juan', lastName: 'Cruz', role: 'Learner' });
 
-    expect(screen.getByRole('button', { name: 'Open profile' })).toHaveTextContent('JC');
+    expect(screen.getByRole('link', { name: 'Open profile' })).toHaveTextContent('JC');
   });
 
   it('shows a toast when Search is clicked', () => {

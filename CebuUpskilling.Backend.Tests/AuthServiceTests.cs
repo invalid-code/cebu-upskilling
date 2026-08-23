@@ -10,7 +10,7 @@ namespace CebuUpskilling.Backend.Tests;
 
 public class AuthServiceTests
 {
-private class FakeGoogleAiService : IGoogleAiService
+    private class FakeGoogleAiService : IGoogleAiService
     {
         private readonly List<string> _skills;
         private readonly List<GeneratedAssessmentQuestion> _questions;
@@ -47,7 +47,6 @@ private class FakeGoogleAiService : IGoogleAiService
             new AppUserRepository(context),
             new RoleSkillRepository(context),
             new AssessmentQuestionRepository(context),
-            new RecruiterRepository(context),
             NullLogger<JobseekerSkillParserAgent>.Instance),
         new JwtTokenService(CreateConfig(), NullLogger<JwtTokenService>.Instance),
         new LoggingEmailService(NullLogger<LoggingEmailService>.Instance),

@@ -39,18 +39,34 @@ builder.Services.AddHttpClient<IGoogleAiService, GoogleAiService>(client =>
 
 var myAllowSpecificOrigins = "_myAllowSpecificOrigins";
 
+// Backend only receives requests from the configured frontend origin(s) and only
+// handles JSON / multipart requests with Bearer auth. Derive CORS directly from
+// what the controllers actually handle: GET/POST/PUT/PATCH/DELETE and the two
+// headers the frontend sends (Authorization, Content-Type). No credentials, no
+// wildcard, no extra headers/methods.
 var corsOriginsValue = builder.Configuration["Cors:AllowedOrigins"];
 var allowedOrigins = string.IsNullOrWhiteSpace(corsOriginsValue)
     ? new[] { "http://localhost:5173" }
-    : corsOriginsValue.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    : corsOriginsValue.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        .Select(o => o.Trim().TrimEnd('/'))
+        .Where(o => Uri.TryCreate(o, UriKind.Absolute, out var uri)
+                    && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .ToArray();
+
+if (allowedOrigins.Length == 0)
+    allowedOrigins = new[] { "http://localhost:5173" };
 
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(name: myAllowSpecificOrigins, policy =>
         {
             policy.WithOrigins(allowedOrigins)
+                // Frontend XHR only sends these two; multipart upload still uses Content-Type
                 .WithHeaders("Authorization", "Content-Type")
-                .WithMethods("GET", "POST", "PATCH", "PUT", "DELETE");
+                // Exact methods exposed by Controllers (grep HttpGet/Post/Put/Patch/Delete)
+                .WithMethods("GET", "POST", "PUT", "PATCH", "DELETE")
+                .SetPreflightMaxAge(TimeSpan.FromHours(1));
         });
 });
 
@@ -90,16 +106,12 @@ builder.Services.AddScoped<IMediaRepository, MediaRepository>();
 
 builder.Services.AddScoped<IEntityService<Course>, CourseService>();
 
-builder.Services.AddScoped<IEntityService<Post>, PostService>();
 builder.Services.AddScoped<IPostService, PostService>();
 builder.Services.AddScoped<IEntityService<AppUser>, AppUserService>();
 builder.Services.AddScoped<IEntityService<LearnerAssessment>, LearnerAssessmentService>();
 builder.Services.AddScoped<IEntityService<LearnerStudyCourse>, LearnerStudyCourseService>();
 builder.Services.AddScoped<ISkillGapService, SkillGapService>();
 builder.Services.AddScoped<IJobseekerSkillParserAgent, JobseekerSkillParserAgent>();
-// Backwards-compat: old interfaces now resolve to the unified agent
-builder.Services.AddScoped<ISkillParsingService>(sp => sp.GetRequiredService<IJobseekerSkillParserAgent>());
-builder.Services.AddScoped<IAssessmentService>(sp => sp.GetRequiredService<IJobseekerSkillParserAgent>());
 builder.Services.AddScoped<IEnrollmentsService, EnrollmentsService>();
 builder.Services.AddScoped<IApplicationsService, ApplicationsService>();
 builder.Services.AddScoped<IStatsService, StatsService>();
@@ -207,6 +219,7 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
+app.UseMiddleware<CebuUpskilling.Backend.Middleware.SecurityHeadersMiddleware>();
 app.UseExceptionHandler();
 app.UseCors(myAllowSpecificOrigins);
 app.UseStaticFiles();

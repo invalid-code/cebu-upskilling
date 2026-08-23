@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState } from 'react';
 import { api } from '../api/client';
 import { hasValidSession } from '../lib/jwt';
 
@@ -10,7 +10,7 @@ export function AuthProvider({ children }) {
     const saved = localStorage.getItem('user');
     return saved ? JSON.parse(saved) : null;
   });
-  const [loading, setLoading] = useState(false);
+  const [loading] = useState(false);
 
   const login = async (email, password) => {
     const res = await api.post('/auth/login', { emailAddress: email, password });

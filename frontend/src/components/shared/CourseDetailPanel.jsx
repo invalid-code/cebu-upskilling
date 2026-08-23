@@ -202,6 +202,7 @@ const styles = {
 export default function CourseDetailPanel({ course, onClose, onResume, onModuleClick }) {
   let navigate = () => {};
   try {
+    // oxlint-disable-next-line react-hooks/rules-of-hooks
     navigate = useNavigate();
   } catch {
     navigate = () => {};

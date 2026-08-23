@@ -282,11 +282,6 @@ export default function LessonResources({ media, lessonId, courseId }) {
     }
   };
 
-  const handleClear = () => {
-    setNoteInput('');
-    setError('');
-  };
-
   return (
     <div style={styles.container}>
       {displayResources.length > 0 && (

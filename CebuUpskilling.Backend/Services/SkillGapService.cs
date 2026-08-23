@@ -4,11 +4,11 @@ using CebuUpskilling.Backend.Repositories;
 
 namespace CebuUpskilling.Backend.Services;
 
-    public interface ISkillGapService
-    {
-        Task<List<SkillGapGroupDto>> GetSkillGapsAsync(int userId);
-        Task<List<SkillGapGroupDto>> GetSkillGapGroupsAsync(int userId);
-    }
+public interface ISkillGapService
+{
+    Task<List<SkillGapGroupDto>> GetSkillGapsAsync(int userId);
+    Task<List<SkillGapGroupDto>> GetSkillGapGroupsAsync(int userId);
+}
 
 public class SkillGapService : ISkillGapService
 {

@@ -479,11 +479,11 @@ public class SecurityApiTests : ProductionApiTestBase
         {
             firstName = "Jose",
             lastName = "Rizal",
-             emailAddress = literal,
-             password = "P@ssw0rd!",
-             role = "Learner",
-             resume = "Experienced software developer.",
-         });
+            emailAddress = literal,
+            password = "P@ssw0rd!",
+            role = "Learner",
+            resume = "Experienced software developer.",
+        });
         response.EnsureSuccessStatusCode();
 
         var login = await LoginAsync(new { emailAddress = literal, password = "P@ssw0rd!" });

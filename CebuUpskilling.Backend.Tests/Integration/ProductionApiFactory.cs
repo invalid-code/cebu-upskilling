@@ -81,11 +81,11 @@ public class ProductionApiFactory : WebApplicationFactory<Program>
             });
         });
 
-builder.ConfigureLogging(logging =>
-        {
-            logging.ClearProviders();
-            logging.AddConsole();
-        });
+        builder.ConfigureLogging(logging =>
+                {
+                    logging.ClearProviders();
+                    logging.AddConsole();
+                });
 
         // Tests must not log: swap in a blank logger so nothing is written to
         // the Console/File sinks configured in appsettings.json for production.

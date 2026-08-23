@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../components/ui/Button';
 import Panel from '../components/ui/Panel';
-import Tag from '../components/ui/Tag';
 import EmptyState from '../components/shared/EmptyState';
 import StatCard from '../components/shared/StatCard';
 import CourseCard from '../components/shared/CourseCard';
