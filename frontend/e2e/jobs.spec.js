@@ -42,10 +42,6 @@ const mockPosts = [
   },
 ];
 
-function envelope(items, total = items.length) {
-  return { items, total, page: 1, pageSize: 9 };
-}
-
 async function mockPostsRoute(page, options = {}) {
   const { filterFn, error = false, delayMs = 0 } = options;
   await page.route(/\/api\/posts/, async (route) => {
