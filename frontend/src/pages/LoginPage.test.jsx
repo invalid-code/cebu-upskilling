@@ -30,7 +30,7 @@ function renderLogin() {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/" element={<div>Learner home</div>} />
+          <Route path="/dashboard" element={<div>Learner home</div>} />
           <Route path="/business-dashboard" element={<div>Business dashboard</div>} />
           <Route path="*" element={<MockDestination />} />
         </Routes>

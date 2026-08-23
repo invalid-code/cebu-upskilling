@@ -4,7 +4,8 @@ import { useAuth, isRecruiter } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 
 const routeLabels = {
-  '/': 'Overview',
+  '/': 'Home',
+  '/dashboard': 'Overview',
   '/skills': 'Skill profile',
   '/jobs': 'Find work',
   '/courses': 'Learn',

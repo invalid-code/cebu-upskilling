@@ -3,7 +3,7 @@ import { LayoutDashboard, Orbit, BriefcaseBusiness, BookOpenCheck, ClipboardList
 import { useAuth, isRecruiter } from '../../context/AuthContext';
 
 const learnerLinks = [
-  { to: '/', icon: LayoutDashboard, label: 'Home' },
+  { to: '/dashboard', icon: LayoutDashboard, label: 'Home' },
   { to: '/skills', icon: Orbit, label: 'Skills' },
   { to: '/jobs', icon: BriefcaseBusiness, label: 'Jobs' },
   { to: '/courses', icon: BookOpenCheck, label: 'Learn' },
@@ -52,7 +52,7 @@ export default function MobileNav() {
         <NavLink
           key={to}
           to={to}
-          end={to === '/'}
+          end={to === '/dashboard'}
           style={({ isActive }) => ({
             ...styles.link,
             background: isActive ? 'rgba(255,255,255,0.15)' : 'transparent',

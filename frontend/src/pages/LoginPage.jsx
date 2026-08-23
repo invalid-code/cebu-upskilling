@@ -111,7 +111,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const user = await login(email, password);
-      navigate(isRecruiter(user) ? '/business-dashboard' : '/');
+      navigate(isRecruiter(user) ? '/business-dashboard' : '/dashboard');
     } catch (err) {
       setError(err.message || 'Login failed');
     } finally {

@@ -51,6 +51,17 @@ if (isBrokenStorage(globalThis.sessionStorage)) {
   });
 }
 
+if (typeof globalThis.matchMedia !== 'function') {
+  globalThis.matchMedia = (query) => ({
+    matches: false,
+    media: query,
+    addEventListener() {},
+    removeEventListener() {},
+    addListener() {},
+    removeListener() {},
+  });
+}
+
 afterEach(() => {
   cleanup();
   localStorage.clear();

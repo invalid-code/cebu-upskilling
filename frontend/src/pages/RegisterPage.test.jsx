@@ -48,7 +48,7 @@ function renderRegister() {
         <AuthProvider>
           <Routes>
             <Route path="/register" element={<RegisterPage />} />
-            <Route path="/" element={<div>Learner home</div>} />
+            <Route path="/dashboard" element={<div>Learner home</div>} />
             <Route path="/business-dashboard" element={<div>Business dashboard</div>} />
           </Routes>
         </AuthProvider>

@@ -253,7 +253,7 @@ export default function RegisterPage() {
       } else {
         showToast('Account created');
       }
-      navigate('/');
+      navigate('/dashboard');
     } catch (err) {
       setError(err.message || 'Registration failed');
     } finally {
