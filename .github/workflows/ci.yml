@@ -1,25 +1,27 @@
 # CI/CD pipeline for Cebu Upskilling.
 #
 # Required repository secrets (Settings > Secrets and variables > Actions):
-#   PROD_DATABASE_URL   Full Postgres connection string for the production DB
-#                       (used by the dedicated `dotnet ef database update` step).
-#   DOCKERHUB_USERNAME  Docker Hub username (used to authenticate the push).
+#   PROD_DATABASE_URL   Full Postgres connection string for the
+#                       production DB (used by the dedicated
+#                       `dotnet ef database update` step).
+#   DOCKERHUB_USERNAME  Docker Hub username (used to authenticate push).
 #   DOCKERHUB_TOKEN     Docker Hub access token (with push rights).
 #   DOCKER_IMAGE        Full image repo WITHOUT tag, e.g.
 #                       docker.io/invalidjess/cebu-upskilling
 #                       (CI appends :latest and :sha-<commit>).
-#   DEPLOY_HOOK_URL     Optional Render "Deploy Hook" URL. If your Render service
-#                       has Auto-Deploy enabled on the Docker Hub repo, this is
-#                       not required (the push alone triggers the redeploy).
-# Note: the frontend is deployed by Vercel's own Git auto-deploy on push, so the
-#       CI pipeline only builds/tests the backend and runs the frontend test
-#       suite. Set VITE_API_URL in the Vercel project's env so the frontend calls
-#       the correct backend URL in production.
-
+#   DEPLOY_HOOK_URL     Optional Render "Deploy Hook" URL. If your
+#                       Render service has Auto-Deploy enabled on the
+#                       Docker Hub repo, this is not required (the push
+#                       alone triggers the redeploy).
+# Note: the frontend is deployed by Vercel's own Git auto-deploy on
+#       push, so the CI pipeline only builds/tests the backend and
+#       runs the frontend test suite. Set VITE_API_URL in the Vercel
+#       project's env so the frontend calls the correct backend URL
+#       in production.
 
 name: CI/CD
 
-on:
+"on":
   pull_request:
   push:
     branches: [main]
@@ -46,7 +48,9 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     env:
-      ConnectionStrings__DefaultConnection: Host=localhost;Port=5432;Database=cebu_upskilling_test;Username=postgres;Password=postgres
+      ConnectionStrings__DefaultConnection: >-
+        Host=localhost;Port=5432;Database=cebu_upskilling_test;
+        Username=postgres;Password=postgres
       Jwt__Key: ci-signing-key-that-is-at-least-32-characters
       Jwt__Issuer: CebuUpskilling
       Jwt__Audience: CebuUpskillingApp
@@ -58,14 +62,17 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Test with coverage
-        run: dotnet test CebuUpskilling.Backend.Tests/CebuUpskilling.Backend.Tests.csproj --settings CebuUpskilling.Backend.Tests/coverlet.runsettings --nologo
+        run: >-
+          dotnet test
+          CebuUpskilling.Backend.Tests/CebuUpskilling.Backend.Tests.csproj
+          --settings CebuUpskilling.Backend.Tests/coverlet.runsettings --nologo
 
       - name: Upload coverage report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: backend-coverage
-          path: CebuUpskilling.Backend.Tests/TestResults/**/coverage.cobertura.xml
+          path: CebuUpskilling.Backend.Tests/TestResults/**/coverage.cobertura.xml  # yamllint disable-line rule:line-length
           if-no-files-found: ignore
 
   frontend:
@@ -79,7 +86,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '26'
+          node-version-file: '.nvmrc'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
@@ -112,7 +119,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install dotnet-ef (matching EF Core 9.0)
-        run: dotnet tool update --global dotnet-ef --version 9.0.* 2>/dev/null || dotnet tool install --global dotnet-ef --version 9.0.*
+        run: >-
+          dotnet tool update --global dotnet-ef --version 9.0.*
+          2>/dev/null || dotnet tool install --global dotnet-ef --version 9.0.*
 
       - name: Add dotnet tools to PATH
         run: echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
@@ -124,7 +133,7 @@ jobs:
         env:
           ConnectionStrings__DefaultConnection: ${{ secrets.PROD_DATABASE_URL }}
           DOTNET_ROLL_FORWARD: Major
-        run: ef database update
+        run: dotnet ef database update
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -145,7 +154,11 @@ jobs:
             ${{ env.IMAGE }}:sha-${{ github.sha }}
 
       - name: Trigger backend deploy (Render / Railway)
-        if: ${{ secrets.DEPLOY_HOOK_URL != '' }}  
         env:
           DEPLOY_HOOK_URL: ${{ secrets.DEPLOY_HOOK_URL }}
-        run: curl -fsSL -X POST "$DEPLOY_HOOK_URL"
+        run: |
+          if [ -z "$DEPLOY_HOOK_URL" ]; then
+            echo "DEPLOY_HOOK_URL not set, skipping."
+            exit 0
+          fi
+          curl -fsSL -X POST "$DEPLOY_HOOK_URL"
