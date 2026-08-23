@@ -103,10 +103,10 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
             title = "Hijacked by recruiter B",
             description = "Should not be allowed",
         });
-        Assert.Equal(HttpStatusCode.NotFound, updateB.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, updateB.StatusCode);
 
         var deleteB = await AuthorizedClient(recruiterBToken).DeleteAsync($"/api/posts/{postId}");
-        Assert.Equal(HttpStatusCode.NotFound, deleteB.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, deleteB.StatusCode);
 
         var stillThere = await AuthorizedClient(recruiterAToken).GetAsync($"/api/posts/{postId}");
         Assert.Equal(HttpStatusCode.OK, stillThere.StatusCode);
