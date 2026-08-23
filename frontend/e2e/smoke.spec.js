@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { setAuth } from './helpers.js';
 
 test.describe('Smoke — critical user journeys', () => {
   test('learner can log in, view jobs, and open a course', async ({ page }) => {
