@@ -13,6 +13,7 @@ public interface ICompanyService
     Task<CompanyResponse> CreateAsync(CreateCompanyRequest request);
     Task<CompanyResponse> UpdateForUserAsync(int userId, UpdateCompanyRequest request);
     Task<string> UploadLogoAsync(int userId, IFormFile file);
+    Task<string> UploadCoverAsync(int userId, IFormFile file);
 }
 
 public class CompanyService : ICompanyService
@@ -69,9 +70,12 @@ public class CompanyService : ICompanyService
         var company = new Company
         {
             Name = name,
+            Tagline = request.Tagline,
             Description = request.Description,
             Industry = request.Industry,
             Website = request.Website,
+            LinkedInUrl = request.LinkedInUrl,
+            FacebookUrl = request.FacebookUrl,
             Location = request.Location,
             CompanySize = request.CompanySize,
         };
@@ -104,11 +108,15 @@ public class CompanyService : ICompanyService
             company.Name = newName;
         }
 
-        if (request.Description != null) company.Description = request.Description;
-        if (request.Industry != null) company.Industry = request.Industry;
-        if (request.Website != null) company.Website = request.Website;
-        if (request.Location != null) company.Location = request.Location;
-        if (request.CompanySize != null) company.CompanySize = request.CompanySize;
+        // Empty string means "clear this field"; null means "leave unchanged".
+        company.Tagline = ApplyUpdate(company.Tagline, request.Tagline);
+        company.Description = ApplyUpdate(company.Description, request.Description);
+        company.Industry = ApplyUpdate(company.Industry, request.Industry);
+        company.Website = ApplyUpdate(company.Website, request.Website);
+        company.LinkedInUrl = ApplyUpdate(company.LinkedInUrl, request.LinkedInUrl);
+        company.FacebookUrl = ApplyUpdate(company.FacebookUrl, request.FacebookUrl);
+        company.Location = ApplyUpdate(company.Location, request.Location);
+        company.CompanySize = ApplyUpdate(company.CompanySize, request.CompanySize);
 
         await _context.SaveChangesAsync();
         _logger.LogInformation("Company profile updated: {CompanyId}", company.CompanyId);
@@ -116,22 +124,33 @@ public class CompanyService : ICompanyService
         return ToResponse(company);
     }
 
-    public async Task<string> UploadLogoAsync(int userId, IFormFile file)
+    public Task<string> UploadLogoAsync(int userId, IFormFile file)
+        => UploadImageAsync(userId, file, "company-logos", static c => c.LogoUrl, static (c, url) => c.LogoUrl = url);
+
+    public Task<string> UploadCoverAsync(int userId, IFormFile file)
+        => UploadImageAsync(userId, file, "company-covers", static c => c.CoverImageUrl, static (c, url) => c.CoverImageUrl = url);
+
+    private async Task<string> UploadImageAsync(
+        int userId,
+        IFormFile file,
+        string folder,
+        Func<Company, string?> existingUrlSelector,
+        Action<Company, string> applyUrl)
     {
         if (file == null || file.Length == 0)
         {
-            throw new InvalidOperationException("Logo file is required");
+            throw new InvalidOperationException("Image file is required");
         }
 
         var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
         if (string.IsNullOrWhiteSpace(extension) || !AllowedLogoExtensions.Contains(extension))
         {
-            throw new InvalidOperationException("Logo must be a PNG, JPG or WEBP image");
+            throw new InvalidOperationException("Image must be a PNG, JPG or WEBP file");
         }
 
         if (file.Length > MaxLogoBytes)
         {
-            throw new InvalidOperationException("Logo must be 2 MB or smaller");
+            throw new InvalidOperationException("Image must be 2 MB or smaller");
         }
 
         var user = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.UserId == userId);
@@ -141,28 +160,22 @@ public class CompanyService : ICompanyService
         }
 
         var companyId = user.CompanyId.Value;
-        var key = $"company-logos/{companyId}/{Guid.NewGuid()}{extension}";
+        var key = $"{folder}/{companyId}/{Guid.NewGuid()}{extension}";
 
         await using var stream = file.OpenReadStream();
         var publicUrl = await _storage.UploadAsync(key, stream, file.ContentType, CancellationToken.None);
 
-        await DeletePreviousLogoAsync(user, key);
-
         var company = await _context.Companies.FirstAsync(c => c.CompanyId == companyId);
-        company.LogoUrl = publicUrl;
+        await DeletePreviousImageAsync(existingUrlSelector(company), key);
+        applyUrl(company, publicUrl);
         await _context.SaveChangesAsync();
 
-        _logger.LogInformation("Uploaded logo for company {CompanyId} to {Key}", companyId, key);
+        _logger.LogInformation("Uploaded {Folder} image for company {CompanyId} to {Key}", folder, companyId, key);
         return publicUrl;
     }
 
-    private async Task DeletePreviousLogoAsync(AppUser user, string newKey)
+    private async Task DeletePreviousImageAsync(string? previousUrl, string newKey)
     {
-        var previousUrl = await _context.Companies
-            .Where(c => c.CompanyId == user.CompanyId!.Value)
-            .Select(c => c.LogoUrl)
-            .FirstOrDefaultAsync();
-
         if (string.IsNullOrWhiteSpace(previousUrl))
         {
             return;
@@ -183,6 +196,13 @@ public class CompanyService : ICompanyService
             _logger.LogWarning(ex, "Failed to delete previous logo object {Key}; continuing", previousKey);
         }
     }
+
+    /// <summary>
+    /// null keeps the current value (field not sent); empty/whitespace clears the field;
+    /// otherwise the trimmed incoming value replaces it.
+    /// </summary>
+    private static string? ApplyUpdate(string? current, string? incoming)
+        => incoming == null ? current : (string.IsNullOrWhiteSpace(incoming) ? null : incoming.Trim());
 
     /// <summary>
     /// Best-effort reverse of <see cref="IObjectStorageService.GetPublicUrl"/> so superseded
@@ -213,10 +233,37 @@ public class CompanyService : ICompanyService
         => new(
             company.CompanyId,
             company.Name,
+            company.Tagline,
             company.LogoUrl,
+            company.CoverImageUrl,
             company.Description,
             company.Industry,
             company.Website,
+            company.LinkedInUrl,
+            company.FacebookUrl,
             company.Location,
-            company.CompanySize);
+            company.CompanySize,
+            ComputeCompleteness(company));
+
+    /// <summary>
+    /// Percentage (0-100) of optional identity fields filled in; each of the ten
+    /// fields is worth 10 points and counts when non-blank.
+    /// </summary>
+    private static int ComputeCompleteness(Company company)
+    {
+        string?[] fields =
+        [
+            company.Tagline,
+            company.LogoUrl,
+            company.CoverImageUrl,
+            company.Description,
+            company.Industry,
+            company.Website,
+            company.LinkedInUrl,
+            company.FacebookUrl,
+            company.Location,
+            company.CompanySize,
+        ];
+        return fields.Count(static f => !string.IsNullOrWhiteSpace(f)) * 10;
+    }
 }

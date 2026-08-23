@@ -29,6 +29,10 @@ public class CreateCompanyRequestValidator : AbstractValidator<CreateCompanyRequ
             .MinimumLength(2).WithMessage("Company name must be at least 2 characters")
             .MaximumLength(255).WithMessage("Company name must not exceed 255 characters");
 
+        RuleFor(x => x.Tagline)
+            .MaximumLength(160).WithMessage("Tagline must not exceed 160 characters")
+            .When(x => x.Tagline != null);
+
         RuleFor(x => x.Description)
             .MaximumLength(2000).WithMessage("Description must not exceed 2000 characters")
             .When(x => x.Description != null);
@@ -39,8 +43,18 @@ public class CreateCompanyRequestValidator : AbstractValidator<CreateCompanyRequ
 
         RuleFor(x => x.Website)
             .MaximumLength(255).WithMessage("Website must not exceed 255 characters")
-            .Must(CompanyFieldRules.IsValidWebsite).WithMessage("Website must be a valid http(s) URL")
-            .When(x => x.Website != null);
+            .Must(CompanyFieldRules.IsValidWebsite).WithMessage("Website must be a valid http(s) URL")
+            .When(x => x.Website != null);
+
+        RuleFor(x => x.LinkedInUrl)
+            .MaximumLength(255).WithMessage("LinkedIn URL must not exceed 255 characters")
+            .Must(CompanyFieldRules.IsValidWebsite).WithMessage("LinkedIn URL must be a valid http(s) URL")
+            .When(x => x.LinkedInUrl != null);
+
+        RuleFor(x => x.FacebookUrl)
+            .MaximumLength(255).WithMessage("Facebook URL must not exceed 255 characters")
+            .Must(CompanyFieldRules.IsValidWebsite).WithMessage("Facebook URL must be a valid http(s) URL")
+            .When(x => x.FacebookUrl != null);
 
         RuleFor(x => x.Location)
             .MaximumLength(255).WithMessage("Location must not exceed 255 characters")
@@ -62,6 +76,10 @@ public class UpdateCompanyRequestValidator : AbstractValidator<UpdateCompanyRequ
             .MaximumLength(255).WithMessage("Company name must not exceed 255 characters")
             .When(x => x.Name != null);
 
+        RuleFor(x => x.Tagline)
+            .MaximumLength(160).WithMessage("Tagline must not exceed 160 characters")
+            .When(x => x.Tagline != null);
+
         RuleFor(x => x.Description)
             .MaximumLength(2000).WithMessage("Description must not exceed 2000 characters")
             .When(x => x.Description != null);
@@ -72,8 +90,18 @@ public class UpdateCompanyRequestValidator : AbstractValidator<UpdateCompanyRequ
 
         RuleFor(x => x.Website)
             .MaximumLength(255).WithMessage("Website must not exceed 255 characters")
-            .Must(CompanyFieldRules.IsValidWebsite).WithMessage("Website must be a valid http(s) URL")
-            .When(x => x.Website != null);
+            .Must(CompanyFieldRules.IsValidWebsite).WithMessage("Website must be a valid http(s) URL")
+            .When(x => x.Website != null);
+
+        RuleFor(x => x.LinkedInUrl)
+            .MaximumLength(255).WithMessage("LinkedIn URL must not exceed 255 characters")
+            .Must(CompanyFieldRules.IsValidWebsite).WithMessage("LinkedIn URL must be a valid http(s) URL")
+            .When(x => x.LinkedInUrl != null);
+
+        RuleFor(x => x.FacebookUrl)
+            .MaximumLength(255).WithMessage("Facebook URL must not exceed 255 characters")
+            .Must(CompanyFieldRules.IsValidWebsite).WithMessage("Facebook URL must be a valid http(s) URL")
+            .When(x => x.FacebookUrl != null);
 
         RuleFor(x => x.Location)
             .MaximumLength(255).WithMessage("Location must not exceed 255 characters")

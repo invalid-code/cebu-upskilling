@@ -96,6 +96,22 @@ public class CompaniesController : ControllerBase
         return Ok(new UploadLogoResponse(logoUrl));
     }
 
+    [HttpPost("me/cover")]
+    [Authorize(Roles = "Recruiter")]
+    [RequestSizeLimit(2 * 1024 * 1024)]
+    public async Task<IActionResult> UploadCover(IFormFile file)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null)
+        {
+            return Unauthorized(new { error = "Invalid token" });
+        }
+
+        _logger.LogInformation("HTTP POST /api/companies/me/cover by user {UserId}", userId.Value);
+        var coverUrl = await _companyService.UploadCoverAsync(userId.Value, file);
+        return Ok(new UploadLogoResponse(coverUrl));
+    }
+
     private int? GetCurrentUserId()
         => int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var id) ? id : null;
 }

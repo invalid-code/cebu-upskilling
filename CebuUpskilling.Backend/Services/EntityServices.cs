@@ -259,6 +259,8 @@ public class PostService : BaseEntityService<Post>, IPostService
             post.ExpiresAt,
             post.IsActive,
             post.Company?.LogoUrl ?? post.CompanyLogoUrl,
+            post.Company?.Industry,
+            post.Company?.CompanySize,
             post.CreatedAt);
 }
 

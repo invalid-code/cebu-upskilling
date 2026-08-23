@@ -33,6 +33,8 @@ public record PostResponse(
     DateTime? ExpiresAt,
     bool IsActive,
     string? CompanyLogoUrl,
+    string? CompanyIndustry,
+    string? CompanySize,
     DateTime CreatedAt
 );
 
