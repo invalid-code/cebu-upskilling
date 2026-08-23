@@ -23,7 +23,6 @@ public class JobseekerSkillParserAgent : IJobseekerSkillParserAgent
     private readonly IAppUserRepository _users;
     private readonly IRoleSkillRepository _roleSkills;
     private readonly IAssessmentQuestionRepository _assessmentQuestions;
-    private readonly IRecruiterRepository _recruiters;
     private readonly ILogger<JobseekerSkillParserAgent> _logger;
 
     private static readonly Dictionary<int, string> LevelLabels = new()
@@ -44,7 +43,6 @@ public class JobseekerSkillParserAgent : IJobseekerSkillParserAgent
         IAppUserRepository users,
         IRoleSkillRepository roleSkills,
         IAssessmentQuestionRepository assessmentQuestions,
-        IRecruiterRepository recruiters,
         ILogger<JobseekerSkillParserAgent> logger)
     {
         _ai = ai;
@@ -55,7 +53,6 @@ public class JobseekerSkillParserAgent : IJobseekerSkillParserAgent
         _users = users;
         _roleSkills = roleSkills;
         _assessmentQuestions = assessmentQuestions;
-        _recruiters = recruiters;
         _logger = logger;
     }
 
@@ -578,7 +575,7 @@ public class JobseekerSkillParserAgent : IJobseekerSkillParserAgent
 
     public async Task<CreatedCompanyQuestionResponse?> CreateCompanyQuestionAsync(int userId, CreateCompanyQuestionRequest request)
     {
-        var recruiter = await _recruiters.GetByUserIdAsync(userId);
+        var recruiter = await _users.GetByIdWithCompanyAsync(userId);
         if (recruiter?.Company == null)
         {
             _logger.LogWarning("User {UserId} is not a recruiter; company question rejected", userId);
@@ -613,7 +610,7 @@ public class JobseekerSkillParserAgent : IJobseekerSkillParserAgent
             OptionD = request.OptionD.Trim(),
             CorrectOption = request.CorrectOption,
             Source = AssessmentSource.Company,
-            CompanyId = recruiter.CompanyId,
+            CompanyId = recruiter.CompanyId!.Value,
         };
 
         await _assessmentQuestions.AddAsync(question);

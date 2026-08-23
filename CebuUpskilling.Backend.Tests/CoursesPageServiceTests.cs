@@ -316,13 +316,12 @@ public class CoursesPageServiceTests
         context.Companies.Add(company);
         await context.SaveChangesAsync();
 
-        var recruiter = new Recruiter { CompanyId = company.CompanyId, UserId = user.UserId };
-        context.Recruiters.Add(recruiter);
+        // Link user to company directly (Recruiter entity was removed)
+        user.CompanyId = company.CompanyId;
         await context.SaveChangesAsync();
 
         var post = new Post
         {
-            RecruiterId = recruiter.RecruiterId,
             CompanyId = company.CompanyId,
             Title = "Data Analyst",
             TargetRole = "Data Analyst",

@@ -220,7 +220,8 @@ public class SkillsCompaniesLearnersApiTests : ProductionApiTestBase
         var company = new Company { Name = companyName };
         db.Companies.Add(company);
         await db.SaveChangesAsync();
-        db.Recruiters.Add(new Recruiter { UserId = userId, CompanyId = company.CompanyId });
+        var user = await db.Users.FindAsync(userId);
+        user!.CompanyId = company.CompanyId;
         await db.SaveChangesAsync();
 
         return (body.GetProperty("token").GetString()!, company.CompanyId);

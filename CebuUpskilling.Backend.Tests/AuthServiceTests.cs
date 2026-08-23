@@ -47,7 +47,6 @@ private class FakeGoogleAiService : IGoogleAiService
             new AppUserRepository(context),
             new RoleSkillRepository(context),
             new AssessmentQuestionRepository(context),
-            new RecruiterRepository(context),
             NullLogger<JobseekerSkillParserAgent>.Instance),
         new JwtTokenService(CreateConfig(), NullLogger<JwtTokenService>.Instance),
         new LoggingEmailService(NullLogger<LoggingEmailService>.Instance),

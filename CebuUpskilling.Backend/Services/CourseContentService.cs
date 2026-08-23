@@ -117,6 +117,13 @@ public class CourseContentService : ICourseContentService
             return null;
         }
 
+        var enrollment = await _learnerStudyCourses.GetByLearnerAndCourseAsync(learner.LearnerId, lesson.CourseId);
+        if (enrollment == null)
+        {
+            _logger.LogInformation("No enrollment found for user {UserId} in course {CourseId} for lesson {LessonId}", userId, lesson.CourseId, lessonId);
+            return null;
+        }
+
         return MapToLessonDetailDto(lesson);
     }
 

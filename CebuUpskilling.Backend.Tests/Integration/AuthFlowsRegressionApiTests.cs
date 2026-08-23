@@ -386,8 +386,7 @@ public class AuthFlowsRegressionApiTests : ProductionApiTestBase
         Assert.Equal("Cebu City", user.City);
         Assert.Equal("Cebu", user.Province);
         var company = await context.Companies.SingleAsync(c => c.Name == "Regression Corp");
-        var recruiter = await context.Recruiters.SingleAsync(r => r.UserId == user.UserId);
-        Assert.Equal(company.CompanyId, recruiter.CompanyId);
+        Assert.Equal(company.CompanyId, user.CompanyId);
     }
 
     [Fact]

@@ -94,7 +94,7 @@ public class PostsController : ControllerBase
         if (existing.CompanyId != companyId.Value)
         {
             _logger.LogWarning("User {UserId} attempted to update post {Id} of another company", UserId, id);
-            return Forbid();
+            return NotFound();
         }
 
         _logger.LogInformation("HTTP PUT /api/posts/{Id} called by user {UserId}", id, UserId);
@@ -122,7 +122,7 @@ public class PostsController : ControllerBase
         if (existing.CompanyId != companyId.Value)
         {
             _logger.LogWarning("User {UserId} attempted to delete post {Id} of another company", UserId, id);
-            return Forbid();
+            return NotFound();
         }
 
         _logger.LogInformation("HTTP DELETE /api/posts/{Id} called by user {UserId}", id, UserId);

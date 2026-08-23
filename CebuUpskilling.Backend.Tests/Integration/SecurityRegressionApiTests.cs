@@ -431,19 +431,17 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
         context.Companies.Add(company);
         await context.SaveChangesAsync();
 
-        var recruiter = new CebuUpskilling.Backend.Entities.Recruiter { CompanyId = company.CompanyId, UserId = userId };
-        context.Recruiters.Add(recruiter);
+        var user = await context.Users.FindAsync(userId);
+        user!.CompanyId = company.CompanyId;
         await context.SaveChangesAsync();
 
-        return (token, company.CompanyId, recruiter.RecruiterId);
+        return (token, company.CompanyId, userId);
     }
 
     private async Task<int> CreatePostAsync(string token, int companyId, int recruiterId, string title)
     {
         var response = await AuthorizedClient(token).PostAsJsonAsync("/api/posts", new
         {
-            recruiterId,
-            companyId,
             title,
             description = "Cebu City\nskills: Node.js\nmatch: 80%",
         });

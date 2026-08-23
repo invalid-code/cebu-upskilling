@@ -132,7 +132,8 @@ public class LearnerFlowApiTests : ProductionApiTestBase
             db.Companies.Add(company);
             await db.SaveChangesAsync();
             companyId = company.CompanyId;
-            db.Recruiters.Add(new Recruiter { CompanyId = companyId, UserId = recruiterUserId });
+            var user = await db.Users.FindAsync(recruiterUserId);
+            user!.CompanyId = companyId;
             await db.SaveChangesAsync();
         }
 
@@ -140,10 +141,8 @@ public class LearnerFlowApiTests : ProductionApiTestBase
         using (var scope = Factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            var recruiterId = (await db.Recruiters.SingleAsync(r => r.UserId == recruiterUserId)).RecruiterId;
             var post = new Post
             {
-                RecruiterId = recruiterId,
                 CompanyId = companyId,
                 Title = "Backend Role Posting",
                 Description = "Cebu City\nskills: Node.js\nmatch: 80%",
