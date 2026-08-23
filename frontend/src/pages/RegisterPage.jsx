@@ -137,6 +137,8 @@ const styles = {
   },
 };
 
+const COMPANY_SIZES = ['1-10', '11-50', '51-200', '201+'];
+
 const initialFieldErrors = {
   firstName: '',
   lastName: '',
@@ -144,6 +146,7 @@ const initialFieldErrors = {
   password: '',
   companyName: '',
   birthday: '',
+  companyWebsite: '',
 };
 
 export default function RegisterPage() {
@@ -156,6 +159,11 @@ export default function RegisterPage() {
     address: '',
     birthday: '',
     companyName: '',
+    companyIndustry: '',
+    companyWebsite: '',
+    companyLocation: '',
+    companySize: '',
+    companyDescription: '',
   });
   const [role, setRole] = useState('learner');
   const [fieldErrors, setFieldErrors] = useState(initialFieldErrors);
@@ -189,6 +197,17 @@ const { register, registerCompany } = useAuth();
   };
 
   const validateForm = () => {
+    let websiteError = '';
+    if (role === 'recruiter' && form.companyWebsite.trim()) {
+      try {
+        const url = new URL(form.companyWebsite.trim());
+        websiteError = !['http:', 'https:'].includes(url.protocol)
+          ? 'Website must start with http:// or https://'
+          : '';
+      } catch {
+        websiteError = 'Enter a valid website URL (e.g. https://example.com)';
+      }
+    }
     const errors = {
       firstName: validateRequired(form.firstName, 'First name') || '',
       lastName: validateRequired(form.lastName, 'Last name') || '',
@@ -196,6 +215,7 @@ const { register, registerCompany } = useAuth();
       password: validatePassword(form.password) || '',
       companyName: role === 'recruiter' ? validateRequired(form.companyName, 'Company name') || '' : '',
       birthday: role === 'learner' ? validateBirthday(form.birthday) || '' : '',
+      companyWebsite: websiteError,
     };
     setFieldErrors(errors);
     return !Object.values(errors).some(Boolean);
@@ -217,6 +237,11 @@ const { register, registerCompany } = useAuth();
           password: form.password,
           address: form.address,
           birthday: form.birthday,
+          companyIndustry: form.companyIndustry || null,
+          companyWebsite: form.companyWebsite.trim() || null,
+          companyLocation: form.companyLocation || null,
+          companySize: form.companySize || null,
+          companyDescription: form.companyDescription || null,
         });
         navigate('/business-dashboard');
         return;
@@ -315,6 +340,60 @@ const { register, registerCompany } = useAuth();
               {fieldErrors.companyName && (
                 <div style={styles.fieldError}>{fieldErrors.companyName}</div>
               )}
+              <div style={{ ...styles.row, marginTop: 8 }}>
+                <div>
+                  <input
+                    style={styles.field}
+                    placeholder="Industry (optional)"
+                    value={form.companyIndustry}
+                    onChange={update('companyIndustry')}
+                  />
+                </div>
+                <div>
+                  <select
+                    style={styles.field}
+                    value={form.companySize}
+                    onChange={update('companySize')}
+                    aria-label="Company size"
+                  >
+                    <option value="">Company size…</option>
+                    {COMPANY_SIZES.map((size) => (
+                      <option key={size} value={size}>{size} employees</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div style={styles.row}>
+                <div>
+                  <input
+                    style={styles.field}
+                    type="url"
+                    placeholder="Website (optional)"
+                    value={form.companyWebsite}
+                    onChange={update('companyWebsite')}
+                    aria-invalid={!!fieldErrors.companyWebsite}
+                  />
+                  {fieldErrors.companyWebsite && (
+                    <div style={styles.fieldError}>{fieldErrors.companyWebsite}</div>
+                  )}
+                </div>
+                <div>
+                  <input
+                    style={styles.field}
+                    placeholder="Location (optional)"
+                    value={form.companyLocation}
+                    onChange={update('companyLocation')}
+                  />
+                </div>
+              </div>
+              <textarea
+                style={{ ...styles.field, minHeight: 70, resize: 'vertical', fontFamily: 'inherit' }}
+                maxLength={2000}
+                placeholder="About your company (optional) — what you do and why candidates should join"
+                value={form.companyDescription}
+                onChange={update('companyDescription')}
+                aria-label="Company description"
+              />
             </>
           )}
           <div style={styles.row}>

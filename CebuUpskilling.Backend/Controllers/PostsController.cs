@@ -41,7 +41,15 @@ public class PostsController : ControllerBase
         [FromQuery] int pageSize = 20)
     {
         _logger.LogInformation("HTTP GET /api/posts called");
-        var query = new PostQueryParams(search, targetRole, jobType, location, isRemote, sortBy, page, pageSize);
+        var query = new PostQueryParams(
+            Search: search,
+            TargetRole: targetRole,
+            JobType: jobType,
+            Location: location,
+            IsRemote: isRemote,
+            SortBy: sortBy,
+            Page: page,
+            PageSize: pageSize);
         var results = await _service.SearchAsync(query);
         return Ok(results);
     }

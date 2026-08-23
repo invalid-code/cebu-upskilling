@@ -31,6 +31,11 @@ const companyFormData = {
   password: 'secret123',
   address: '',
   birthday: '',
+  companyIndustry: null,
+  companyWebsite: null,
+  companyLocation: null,
+  companySize: null,
+  companyDescription: null,
 };
 
 function renderRegister() {
@@ -211,6 +216,53 @@ describe('RegisterPage', () => {
     });
     expect(localStorage.getItem('token')).toBe('xyz');
     expect(await screen.findByText('Business dashboard')).toBeInTheDocument();
+  });
+
+  it('submits optional company identity fields when provided on employer registration', async () => {
+    api.post.mockResolvedValue({ token: 'xyz', firstName: 'Maria', companyId: 1, role: 'Recruiter' });
+    renderRegister();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Employer' }));
+    fireEvent.change(screen.getByPlaceholderText('Company name'), { target: { value: 'Cebu Prints' } });
+    fireEvent.change(screen.getByPlaceholderText('First name'), { target: { value: 'Maria' } });
+    fireEvent.change(screen.getByPlaceholderText('Last name'), { target: { value: 'Santos' } });
+    fireEvent.change(screen.getByPlaceholderText('Email address'), { target: { value: 'maria@tech.com' } });
+    fireEvent.change(screen.getByPlaceholderText('Password'), { target: { value: 'secret123' } });
+    fireEvent.change(screen.getByPlaceholderText('Industry (optional)'), { target: { value: 'Apparel' } });
+    fireEvent.change(screen.getByLabelText('Company size'), { target: { value: '11-50' } });
+    fireEvent.change(screen.getByPlaceholderText('Website (optional)'), { target: { value: 'https://cebuprints.example.com' } });
+    fireEvent.change(screen.getByPlaceholderText('Location (optional)'), { target: { value: 'Cebu City' } });
+    fireEvent.change(screen.getByLabelText('Company description'), { target: { value: 'Custom shirts.' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+
+    await waitFor(() => {
+      expect(api.post).toHaveBeenCalledWith('/auth/register-company', expect.objectContaining({
+        companyName: 'Cebu Prints',
+        companyIndustry: 'Apparel',
+        companySize: '11-50',
+        companyWebsite: 'https://cebuprints.example.com',
+        companyLocation: 'Cebu City',
+        companyDescription: 'Custom shirts.',
+      }));
+    });
+  });
+
+  it('shows a field error for an invalid website URL on employer registration', async () => {
+    renderRegister();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Employer' }));
+    fireEvent.change(screen.getByPlaceholderText('Company name'), { target: { value: 'Bad Web Co' } });
+    fireEvent.change(screen.getByPlaceholderText('First name'), { target: { value: 'Maria' } });
+    fireEvent.change(screen.getByPlaceholderText('Last name'), { target: { value: 'Santos' } });
+    fireEvent.change(screen.getByPlaceholderText('Email address'), { target: { value: 'maria@tech.com' } });
+    fireEvent.change(screen.getByPlaceholderText('Password'), { target: { value: 'secret123' } });
+    fireEvent.change(screen.getByPlaceholderText('Website (optional)'), { target: { value: 'not-a-url' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+
+    expect(await screen.findByText(/Enter a valid website URL/)).toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
   });
 
   it('clears the password field error as the user types', async () => {

@@ -4,6 +4,7 @@ import Panel from '../components/ui/Panel';
 import Tag from '../components/ui/Tag';
 import Button from '../components/ui/Button';
 import EmptyState from '../components/shared/EmptyState';
+import CompanyAvatar from '../components/shared/CompanyAvatar';
 import { api } from '../api/client';
 import { useToast } from '../context/ToastContext';
 import { useApplications } from '../context/ApplicationsContext';
@@ -111,6 +112,28 @@ const styles = {
     color: 'var(--muted)',
     fontSize: 13,
   },
+  employerRow: {
+    display: 'flex',
+    gap: 12,
+    alignItems: 'center',
+  },
+  employerName: {
+    fontWeight: 700,
+    color: 'var(--teal)',
+    textDecoration: 'none',
+    fontSize: 14,
+  },
+  employerMeta: {
+    fontSize: 12,
+    color: 'var(--muted)',
+    margin: '2px 0 0',
+  },
+  employerBody: {
+    fontSize: 13,
+    lineHeight: 1.7,
+    color: 'var(--ink)',
+    margin: '12px 0 0',
+  },
   expired: {
     color: 'var(--coral)',
     fontSize: 12,
@@ -135,6 +158,7 @@ function Section({ title, children }) {
 export default function JobDetailPage() {
   const { postId } = useParams();
   const [job, setJob] = useState(null);
+  const [company, setCompany] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [resumeFile, setResumeFile] = useState(null);
@@ -150,6 +174,19 @@ export default function JobDetailPage() {
       .catch((err) => setError(err.message || 'Could not load job'))
       .finally(() => setLoading(false));
   }, [postId]);
+
+  useEffect(() => {
+    if (!job?.companyId) return;
+    let cancelled = false;
+    api.get(`/companies/${job.companyId}`)
+      .then((data) => {
+        if (!cancelled) setCompany(data);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [job?.companyId]);
 
   if (loading) return <div style={styles.loading}>Loading job...</div>;
   if (error || !job) {
@@ -201,7 +238,25 @@ export default function JobDetailPage() {
               {expired && <span style={styles.expired}>Expired</span>}
             </div>
             <h1 style={styles.h1}>{job.title}</h1>
-            <p style={styles.company}>{job.companyName}</p>
+            <p style={{ ...styles.company, display: 'flex', alignItems: 'center', gap: 10 }}>
+              {(job.companyLogoUrl || company?.logoUrl || job.companyName) && (
+                <CompanyAvatar
+                  name={job.companyName}
+                  src={company?.logoUrl || job.companyLogoUrl}
+                  size={30}
+                />
+              )}
+              {job.companyId ? (
+                <Link to={`/companies/${job.companyId}`} style={styles.employerName}>
+                  {job.companyName}
+                </Link>
+              ) : (
+                job.companyName
+              )}
+              {company && (company.industry || company.location) && (
+                <span>{[company.industry, company.location].filter(Boolean).join(' · ')}</span>
+              )}
+            </p>
           </div>
           <div style={styles.facts}>
             {job.location && (
@@ -243,6 +298,32 @@ export default function JobDetailPage() {
 
         <div>
           <Panel style={styles.applyBox}>
+            {company && (
+              <div style={{ marginBottom: 18 }}>
+                <h2 style={styles.sectionTitle}>About the employer</h2>
+                <div style={styles.employerRow}>
+                  <CompanyAvatar name={company.name} src={company.logoUrl} size={46} />
+                  <div>
+                    <Link to={`/companies/${company.companyId}`} style={styles.employerName}>
+                      {company.name}
+                    </Link>
+                    <p style={styles.employerMeta}>
+                      {[
+                        company.industry,
+                        company.companySize ? `${company.companySize} employees` : '',
+                        company.location,
+                      ].filter(Boolean).join(' · ') || 'View all openings'}
+                    </p>
+                  </div>
+                </div>
+                {company.description && (
+                  <p style={styles.employerBody}>{company.description}</p>
+                )}
+                <Link to={`/companies/${company.companyId}`} style={{ fontSize: 12, fontWeight: 700 }}>
+                  View all roles at {company.name} →
+                </Link>
+              </div>
+            )}
             {applied ? (
               <EmptyState title="Application submitted" description="The employer has been notified. Track progress on your Applications page." />
             ) : (

@@ -3,7 +3,7 @@ import { useAuth, isRecruiter } from '../../context/AuthContext';
 import {
   LayoutDashboard, Orbit, BriefcaseBusiness, BookOpenCheck,
   ClipboardList, ScanFace, BadgeCheck, CircleHelp, LogOut,
-  ChartBar, Inbox, PlusCircle,
+  ChartBar, Inbox, PlusCircle, Building2,
 } from 'lucide-react';
 
 const learnerPathwayNav = [
@@ -24,6 +24,7 @@ const recruiterNav = [
   { to: '/business-dashboard', icon: ChartBar, label: 'Business dashboard' },
   { to: '/post-job', icon: PlusCircle, label: 'Post a job' },
   { to: '/job-applications', icon: Inbox, label: 'Applications' },
+  { to: '/company-profile', icon: Building2, label: 'Company profile' },
   { to: '/help', icon: CircleHelp, label: 'Help center' },
 ];
 

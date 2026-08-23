@@ -42,6 +42,8 @@ public record PostQueryParams(
     string? JobType = null,
     string? Location = null,
     bool? IsRemote = null,
+    int? CompanyId = null,
+    bool? IsActive = null,
     string? SortBy = "newest",
     int Page = 1,
     int PageSize = 20

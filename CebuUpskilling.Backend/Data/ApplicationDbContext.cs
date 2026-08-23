@@ -132,6 +132,10 @@ public class ApplicationDbContext : DbContext
             .HasIndex(u => u.EmailAddress)
             .IsUnique();
 
+        modelBuilder.Entity<Company>()
+            .HasIndex(c => c.Name)
+            .IsUnique();
+
         modelBuilder.Entity<RoleSkill>()
             .HasOne(rs => rs.Skill)
             .WithMany(s => s.RoleSkills)

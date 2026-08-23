@@ -217,7 +217,15 @@ public class AuthService : IAuthService
 
         try
         {
-            var company = new Company { Name = request.CompanyName };
+            var company = new Company
+            {
+                Name = request.CompanyName,
+                Description = request.CompanyDescription,
+                Industry = request.CompanyIndustry,
+                Website = request.CompanyWebsite,
+                Location = request.CompanyLocation,
+                CompanySize = request.CompanySize,
+            };
             _context.Companies.Add(company);
             await _context.SaveChangesAsync();
             _logger.LogInformation("Company created: {CompanyId} ({CompanyName})", company.CompanyId, company.Name);

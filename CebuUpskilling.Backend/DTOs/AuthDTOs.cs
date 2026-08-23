@@ -23,7 +23,12 @@ public record CompanyRegisterRequest(
     string? Birthday,
     [Required] string EmailAddress,
     [Required, MinLength(6)] string Password,
-    string? Address = null
+    string? Address = null,
+    string? CompanyDescription = null,
+    string? CompanyIndustry = null,
+    string? CompanyWebsite = null,
+    string? CompanyLocation = null,
+    string? CompanySize = null
 );
 
 public record UpdateProfileRequest(

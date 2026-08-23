@@ -84,9 +84,9 @@ export default function EmployerOverviewPage() {
         <Panel>
           <EmptyState
             title="No company profile yet"
-            description="Connect a company to your account to start posting jobs and tracking hiring demand."
+            description="Complete your company profile to build trust with candidates, then start posting jobs."
           >
-            <Button variant="primary" onClick={() => navigate('/business-dashboard')}>
+            <Button variant="primary" onClick={() => navigate('/company-profile')}>
               Set up your company
             </Button>
           </EmptyState>
