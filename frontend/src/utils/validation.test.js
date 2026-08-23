@@ -6,6 +6,7 @@ import {
   validateMaxLength,
   validateMinLength,
   validateBirthday,
+  validatePasswordConfirm,
 } from './validation';
 
 describe('validateEmail', () => {
@@ -107,5 +108,21 @@ describe('validateBirthday', () => {
 
   it('accepts a past date', () => {
     expect(validateBirthday('1990-01-01')).toBeUndefined();
+  });
+});
+
+describe('validatePasswordConfirm', () => {
+  it('requires a value', () => {
+    expect(validatePasswordConfirm('', 'secret123')).toBe('Confirm password is required');
+    expect(validatePasswordConfirm(undefined, 'secret123')).toBe('Confirm password is required');
+  });
+
+  it('rejects mismatched passwords', () => {
+    expect(validatePasswordConfirm('secret124', 'secret123')).toBe('Passwords do not match');
+    expect(validatePasswordConfirm('secret123 ', 'secret123')).toBe('Passwords do not match');
+  });
+
+  it('accepts matching passwords', () => {
+    expect(validatePasswordConfirm('secret123', 'secret123')).toBeUndefined();
   });
 });

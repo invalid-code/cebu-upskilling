@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { validateEmail, validatePassword, validateRequired, validateBirthday } from '../utils/validation';
+import { validateEmail, validatePassword, validatePasswordConfirm, validateRequired, validateBirthday } from '../utils/validation';
 import { useToast } from '../context/ToastContext';
 import Button from '../components/ui/Button';
 import { extractResumeText } from '../utils/resumeText';
@@ -142,6 +142,7 @@ const initialFieldErrors = {
   lastName: '',
   emailAddress: '',
   password: '',
+  confirmPassword: '',
   companyName: '',
   birthday: '',
 };
@@ -162,6 +163,7 @@ export default function RegisterPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [resumeFile, setResumeFile] = useState(null);
+  const [confirmPassword, setConfirmPassword] = useState('');
 const { register, registerCompany } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
@@ -181,6 +183,13 @@ const { register, registerCompany } = useAuth();
     setResumeFile(file);
   };
 
+  const handleConfirmPasswordChange = (e) => {
+    setConfirmPassword(e.target.value);
+    if (fieldErrors.confirmPassword) {
+      setFieldErrors((prev) => ({ ...prev, confirmPassword: '' }));
+    }
+  };
+
   const update = (field) => (e) => {
     setForm({ ...form, [field]: e.target.value });
     if (fieldErrors[field]) {
@@ -194,6 +203,7 @@ const { register, registerCompany } = useAuth();
       lastName: validateRequired(form.lastName, 'Last name') || '',
       emailAddress: validateEmail(form.emailAddress) || '',
       password: validatePassword(form.password) || '',
+      confirmPassword: validatePasswordConfirm(confirmPassword, form.password) || '',
       companyName: role === 'recruiter' ? validateRequired(form.companyName, 'Company name') || '' : '',
       birthday: role === 'learner' ? validateBirthday(form.birthday) || '' : '',
     };
@@ -348,6 +358,17 @@ const { register, registerCompany } = useAuth();
             aria-invalid={!!fieldErrors.password}
           />
           {fieldErrors.password && <div style={styles.fieldError}>{fieldErrors.password}</div>}
+          <input
+            style={styles.field}
+            type="password"
+            placeholder="Confirm password"
+            value={confirmPassword}
+            onChange={handleConfirmPasswordChange}
+            aria-invalid={!!fieldErrors.confirmPassword}
+          />
+          {fieldErrors.confirmPassword && (
+            <div style={styles.fieldError}>{fieldErrors.confirmPassword}</div>
+          )}
           {role === 'learner' && (
             <>
               <div>
