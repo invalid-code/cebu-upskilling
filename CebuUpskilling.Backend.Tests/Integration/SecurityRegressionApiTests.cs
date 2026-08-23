@@ -437,8 +437,7 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
         await context.SaveChangesAsync();
 
         var user = await context.Users.FindAsync(userId);
-        user!.CompanyId = company.CompanyId;
-        await context.SaveChangesAsync();
+        user!.CompanyId = company.CompanyId;        await context.SaveChangesAsync();
 
         return (token, company.CompanyId, userId);
     }
