@@ -48,7 +48,7 @@ public class JobPostingApiTests : ProductionApiTestBase
         return created.GetProperty("postId").GetInt32();
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task Posts_CreateWithJobFields_ReturnsFullResponse()
     {
         var (token, _, _) = await RegisterRecruiterAsync("job.fields.recruiter@example.com");
@@ -84,7 +84,7 @@ public class JobPostingApiTests : ProductionApiTestBase
         Assert.Equal("https://example.com/logo.png", body.GetProperty("companyLogoUrl").GetString());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task Posts_SearchFiltersAndPaginates()
     {
         var (token, _, _) = await RegisterRecruiterAsync("job.search.recruiter@example.com");
@@ -127,7 +127,7 @@ public class JobPostingApiTests : ProductionApiTestBase
         Assert.Equal(2, pagedBody.GetProperty("pageSize").GetInt32());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task Employer_ListAndUpdateApplications_WithHiredStatus()
     {
         var (recruiterToken, _, companyId) = await RegisterRecruiterAsync("job.employer.recruiter@example.com");
@@ -168,7 +168,7 @@ public class JobPostingApiTests : ProductionApiTestBase
         Assert.Equal("hired", learnerList[0].GetProperty("status").GetString());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task Employer_ViewsApplicantProfile_WithDocumentsAndSkills()
     {
         var (recruiterToken, _, companyId) = await RegisterRecruiterAsync("job.profile.recruiter@example.com");
@@ -208,7 +208,7 @@ public class JobPostingApiTests : ProductionApiTestBase
         }
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task Employer_CannotUpdateOtherCompanysApplication()
     {
         var (recruiterToken, _, _) = await RegisterRecruiterAsync("job.other.recruiter@example.com");
@@ -234,7 +234,7 @@ public class JobPostingApiTests : ProductionApiTestBase
         }
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task Employer_InvalidStatus_ReturnsBadRequest()
     {
         var (recruiterToken, _, _) = await RegisterRecruiterAsync("job.invalid.recruiter@example.com");
@@ -257,7 +257,7 @@ public class JobPostingApiTests : ProductionApiTestBase
         }
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task Media_UploadDocument_ReturnsUrl()
     {
         var token = await RegisterLearnerAsync("job.document.learner@example.com");
@@ -275,7 +275,7 @@ public class JobPostingApiTests : ProductionApiTestBase
         Assert.Equal("resume.pdf", body.GetProperty("fileName").GetString());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task Media_UploadUnsupportedDocument_ReturnsBadRequest()
     {
         var token = await RegisterLearnerAsync("job.document.bad@example.com");
@@ -290,7 +290,7 @@ public class JobPostingApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task Applications_ApplyWithResumeAndCoverLetter_StoresUrls()
     {
         var (recruiterToken, _, _) = await RegisterRecruiterAsync("job.resume.recruiter@example.com");
@@ -309,7 +309,7 @@ public class JobPostingApiTests : ProductionApiTestBase
         Assert.Equal("https://storage.example/cover.pdf", body.GetProperty("coverLetterUrl").GetString());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task Posts_LearnerCannotCreateOrModify()
     {
         var token = await RegisterLearnerAsync("job.forbidden.learner@example.com");

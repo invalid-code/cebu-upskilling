@@ -36,7 +36,7 @@ public class AuthServiceTests
         })
         .Build();
 
-    private static AuthService CreateService(Data.ApplicationDbContext context, IGoogleAiService? aiService = null) => new(
+    private static AuthService CreateService(Data.ApplicationDbContext context, IGoogleAiService? aiService = null, IGoogleTokenVerifier? googleVerifier = null) => new(
         context,
         new JobseekerSkillParserAgent(
             aiService ?? new FakeGoogleAiService(),
@@ -51,8 +51,24 @@ public class AuthServiceTests
         new JwtTokenService(CreateConfig(), NullLogger<JwtTokenService>.Instance),
         new LoggingEmailService(NullLogger<LoggingEmailService>.Instance),
         new InMemoryTokenRevocationStore(NullLogger<InMemoryTokenRevocationStore>.Instance),
+        googleVerifier ?? new FakeGoogleTokenVerifier(),
         NullLogger<AuthService>.Instance
     );
+
+    internal class FakeGoogleTokenVerifier : IGoogleTokenVerifier
+    {
+        public GoogleUserInfo? User { get; set; }
+        public bool ThrowUnauthorized { get; set; }
+
+        public Task<GoogleUserInfo> VerifyIdTokenAsync(string idToken)
+        {
+            if (ThrowUnauthorized || User == null)
+            {
+                throw new UnauthorizedAccessException("Invalid Google credential");
+            }
+            return Task.FromResult(User);
+        }
+    }
 
     private static RegisterRequest NewRegisterRequest() => new(
         FirstName: "Jose",

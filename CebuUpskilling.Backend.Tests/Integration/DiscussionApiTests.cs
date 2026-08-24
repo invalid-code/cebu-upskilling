@@ -11,7 +11,7 @@ public class DiscussionApiTests : ProductionApiTestBase
 {
     public DiscussionApiTests(ProductionApiFactory factory) : base(factory) { }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task GetDiscussion_ForNewLesson_ReturnsEmptyPosts()
     {
         var token = await RegisterLearnerAsync("discussion.empty@example.com");
@@ -26,7 +26,7 @@ public class DiscussionApiTests : ProductionApiTestBase
         Assert.Empty(body.GetProperty("posts").EnumerateArray());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task CreatePost_ThenFetch_ReturnsPostWithAuthor()
     {
         var token = await RegisterLearnerAsync("discussion.crud@example.com");
@@ -52,7 +52,7 @@ public class DiscussionApiTests : ProductionApiTestBase
         Assert.Equal("Jose Rizal", post.GetProperty("authorName").GetString());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task Get_NotEnrolled_ReturnsNotFound()
     {
         var token = await RegisterLearnerAsync("discussion.notenrolled@example.com");
@@ -63,7 +63,7 @@ public class DiscussionApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task CreatePost_NotEnrolled_ReturnsNotFound()
     {
         var token = await RegisterLearnerAsync("discussion.notenrolled2@example.com");
@@ -76,7 +76,7 @@ public class DiscussionApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task CreatePost_UnknownLesson_ReturnsNotFound()
     {
         var token = await RegisterLearnerAsync("discussion.missinglesson@example.com");
@@ -88,7 +88,7 @@ public class DiscussionApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task CreatePost_EmptyContent_ReturnsBadRequest()
     {
         var token = await RegisterLearnerAsync("discussion.emptycontent@example.com");
@@ -102,7 +102,7 @@ public class DiscussionApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task IsOwn_IsScopedPerLearner()
     {
         var tokenA = await RegisterLearnerAsync("discussion.owna@example.com");
@@ -122,7 +122,7 @@ public class DiscussionApiTests : ProductionApiTestBase
         Assert.False(post.GetProperty("isOwn").GetBoolean());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task Discussions_RequireLearnerRole()
     {
         var registerResponse = await RegisterAsync(new

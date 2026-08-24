@@ -21,7 +21,7 @@ public class SkillsCompaniesLearnersApiTests : ProductionApiTestBase
     // POST /api/skills/parse
     // ------------------------------------------------------------------ //
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task SkillsParse_LearnerWithResumeSkills_PersistsSkillsAndAssessments()
     {
         var token = await RegisterLearnerAsync("skills.parse.learner@example.com");
@@ -48,7 +48,7 @@ public class SkillsCompaniesLearnersApiTests : ProductionApiTestBase
         Assert.Equal(3, await db.LearnerAssessments.CountAsync());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task SkillsParse_RepeatedCall_ReusesExistingAssessments()
     {
         var token = await RegisterLearnerAsync("skills.parse.repeat@example.com");
@@ -69,7 +69,7 @@ public class SkillsCompaniesLearnersApiTests : ProductionApiTestBase
         Assert.Equal(1, await db.LearnerAssessments.CountAsync());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task SkillsParse_EmptyResume_ReturnsEmptySkills()
     {
         var token = await RegisterLearnerAsync("skills.parse.empty@example.com");
@@ -81,7 +81,7 @@ public class SkillsCompaniesLearnersApiTests : ProductionApiTestBase
         Assert.Empty(body.GetProperty("skills").EnumerateArray().ToList());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task SkillsParse_RecruiterWithoutLearnerProfile_ReturnsSkillsWithoutAssessments()
     {
         var (token, _) = await RegisterRecruiterAsync("skills.parse.recruiter@example.com", "Acme Corp");
@@ -100,7 +100,7 @@ public class SkillsCompaniesLearnersApiTests : ProductionApiTestBase
     // GET /api/learners
     // ------------------------------------------------------------------ //
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task Learners_Get_ReturnsRegisteredLearners()
     {
         var token = await RegisterLearnerAsync("learners.list@example.com", "Frontend Developer");
@@ -114,7 +114,7 @@ public class SkillsCompaniesLearnersApiTests : ProductionApiTestBase
         Assert.Equal("Learner", learners[0].GetProperty("user").GetProperty("role").GetString());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task Learners_Get_DoesNotExposePiiOrSecrets()
     {
         var token = await RegisterLearnerAsync("learners.list.pii@example.com", "Frontend Developer");
@@ -147,7 +147,7 @@ public class SkillsCompaniesLearnersApiTests : ProductionApiTestBase
         }
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task Learners_Get_WithoutAuth_ReturnsUnauthorized()
     {
         var response = await Client.GetAsync("/api/learners");
@@ -159,7 +159,7 @@ public class SkillsCompaniesLearnersApiTests : ProductionApiTestBase
     // GET/POST /api/companies
     // ------------------------------------------------------------------ //
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task Companies_Get_ReturnsSeededCompany()
     {
         var (token, companyId) = await RegisterRecruiterAsync("companies.list@example.com", "Acme Corp");
@@ -173,7 +173,7 @@ public class SkillsCompaniesLearnersApiTests : ProductionApiTestBase
         Assert.Equal("Acme Corp", companies[0].GetProperty("name").GetString());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task Companies_Create_RecruiterCreatesCompany()
     {
         var (token, _) = await RegisterRecruiterAsync("companies.create@example.com", "Acme Corp");
@@ -187,7 +187,7 @@ public class SkillsCompaniesLearnersApiTests : ProductionApiTestBase
         Assert.Equal("/api/companies/" + body.GetProperty("companyId").GetInt32(), response.Headers.Location?.ToString());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task Companies_Create_MissingName_ReturnsBadRequest()
     {
         var (token, _) = await RegisterRecruiterAsync("companies.create.bad@example.com", "Acme Corp");

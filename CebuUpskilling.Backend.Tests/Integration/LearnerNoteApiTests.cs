@@ -12,7 +12,7 @@ public class LearnerNoteApiTests : ProductionApiTestBase
 {
     public LearnerNoteApiTests(ProductionApiFactory factory) : base(factory) { }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task Upsert_CreatesNewNoteOnEverySave()
     {
         var token = await RegisterLearnerAsync("notes.crud@example.com");
@@ -50,7 +50,7 @@ public class LearnerNoteApiTests : ProductionApiTestBase
         Assert.All(notes, n => Assert.Equal(lessonId, n.GetProperty("lessonId").GetInt32()));
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task Delete_RemovesNote_AndIsIdempotent()
     {
         var token = await RegisterLearnerAsync("notes.delete@example.com");
@@ -72,7 +72,7 @@ public class LearnerNoteApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.NoContent, secondDeleteResponse.StatusCode);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task Upsert_NotEnrolled_ReturnsNotFound()
     {
         var token = await RegisterLearnerAsync("notes.notenrolled@example.com");
@@ -89,7 +89,7 @@ public class LearnerNoteApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.NotFound, lessonResponse.StatusCode);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task Notes_AreScopedPerLearner()
     {
         var tokenA = await RegisterLearnerAsync("notes.scopea@example.com");
@@ -117,7 +117,7 @@ public class LearnerNoteApiTests : ProductionApiTestBase
         Assert.Equal("A's secret", Assert.Single(notesA).GetProperty("content").GetString());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task Upsert_UnknownLesson_ReturnsNotFound()
     {
         var token = await RegisterLearnerAsync("notes.missinglesson@example.com");
@@ -129,7 +129,7 @@ public class LearnerNoteApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task Upsert_EmptyContent_ReturnsBadRequest()
     {
         var token = await RegisterLearnerAsync("notes.empty@example.com");
@@ -143,7 +143,7 @@ public class LearnerNoteApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task Notes_RequireLearnerRole()
     {
         var registerResponse = await RegisterAsync(new

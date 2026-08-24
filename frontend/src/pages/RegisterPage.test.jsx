@@ -11,6 +11,14 @@ vi.mock('../api/client', () => ({
   },
 }));
 
+// Stand-in for the real GIS-backed button: clicking it simulates the Google
+// credential callback with a fixed ID token.
+vi.mock('../components/GoogleSignInButton', () => ({
+  default: ({ onSuccess }) => (
+    <button onClick={() => onSuccess('google-fake-id-token')}>Continue with Google</button>
+  ),
+}));
+
 import { api } from '../api/client';
 
 const formData = {
@@ -318,5 +326,37 @@ describe('RegisterPage', () => {
     });
 
     expect(screen.queryByText('Password must be at least 6 characters')).not.toBeInTheDocument();
+  });
+
+  it('signs up with Google as Learner by default and navigates home', async () => {
+    api.post.mockResolvedValue({ token: 'g-token', firstName: 'Ana', role: 'Learner' });
+    renderRegister();
+
+    fireEvent.click(screen.getByRole('button', { name: /continue with google/i }));
+
+    await waitFor(() => {
+      expect(api.post).toHaveBeenCalledWith('/auth/google', {
+        idToken: 'google-fake-id-token',
+        role: 'Learner',
+      });
+    });
+    expect(localStorage.getItem('token')).toBe('g-token');
+    expect(await screen.findByText('Learner home')).toBeInTheDocument();
+  });
+
+  it('signs up with Google using the selected Employer role and navigates to the dashboard', async () => {
+    api.post.mockResolvedValue({ token: 'g-token2', firstName: 'Ana', role: 'Recruiter' });
+    renderRegister();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Employer' }));
+    fireEvent.click(screen.getByRole('button', { name: /continue with google/i }));
+
+    await waitFor(() => {
+      expect(api.post).toHaveBeenCalledWith('/auth/google', {
+        idToken: 'google-fake-id-token',
+        role: 'Recruiter',
+      });
+    });
+    expect(await screen.findByText('Business dashboard')).toBeInTheDocument();
   });
 });

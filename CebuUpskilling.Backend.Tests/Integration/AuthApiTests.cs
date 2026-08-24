@@ -8,7 +8,7 @@ public class AuthApiTests : ProductionApiTestBase
 {
     public AuthApiTests(ProductionApiFactory factory) : base(factory) { }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task Register_ValidLearner_ReturnsProfileAndToken()
     {
         var response = await RegisterAsync(new
@@ -32,7 +32,7 @@ public class AuthApiTests : ProductionApiTestBase
         Assert.False(string.IsNullOrWhiteSpace(body.GetProperty("token").GetString()));
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task Register_DuplicateEmail_ReturnsBadRequest()
     {
         var request = new
@@ -55,7 +55,7 @@ public class AuthApiTests : ProductionApiTestBase
         Assert.Equal("Email already registered", body.GetProperty("error").GetString());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task Register_LearnerWithTargetRole_IsPersisted()
     {
         var token = await RegisterLearnerAsync("auth.targetrole@example.com", "Frontend Developer");
@@ -68,7 +68,7 @@ public class AuthApiTests : ProductionApiTestBase
         Assert.False(string.IsNullOrWhiteSpace(token));
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task Register_LearnerWithoutResume_ReturnsBadRequest()
     {
         var response = await RegisterAsync(new
@@ -85,7 +85,7 @@ public class AuthApiTests : ProductionApiTestBase
         Assert.Equal("Resume is required for learners", body.GetProperty("error").GetString());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task Login_ValidCredentials_ReturnsToken()
     {
         await RegisterLearnerAsync("auth.login@example.com");
@@ -98,7 +98,7 @@ public class AuthApiTests : ProductionApiTestBase
         Assert.False(string.IsNullOrWhiteSpace(body.GetProperty("token").GetString()));
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task Login_WrongPassword_ReturnsUnauthorized()
     {
         await RegisterLearnerAsync("auth.wrongpass@example.com");
@@ -110,7 +110,7 @@ public class AuthApiTests : ProductionApiTestBase
         Assert.Equal("Invalid credentials", body.GetProperty("error").GetString());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task Login_UnknownEmail_ReturnsUnauthorized()
     {
         var response = await LoginAsync(new { emailAddress = "auth.ghost@example.com", password = "P@ssw0rd!" });
@@ -118,7 +118,7 @@ public class AuthApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task UpdateProfile_WithAuth_SetsTargetRole()
     {
         var token = await RegisterLearnerAsync("auth.profile@example.com");
@@ -133,7 +133,7 @@ public class AuthApiTests : ProductionApiTestBase
         Assert.Equal("Backend Developer", body.GetProperty("targetRole").GetString());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task UpdateProfile_WithoutAuth_ReturnsUnauthorized()
     {
         var response = await Client.PatchAsJsonAsync("/api/auth/profile", new { targetRole = "Backend Developer" });
@@ -141,7 +141,7 @@ public class AuthApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task ProtectedEndpoint_WithoutToken_ReturnsUnauthorized()
     {
         var response = await Client.GetAsync("/api/courses");
