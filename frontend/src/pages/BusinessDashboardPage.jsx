@@ -7,6 +7,7 @@ import EmptyState from '../components/shared/EmptyState';
 import StatCard from '../components/shared/StatCard';
 import BarList from '../components/shared/BarList';
 import { api } from '../api/client';
+import { useToast } from '../context/ToastContext';
 
 const styles = {
   heading: { display: 'flex', justifyContent: 'space-between', alignItems: 'end', gap: 18, marginBottom: 28 },
@@ -34,6 +35,8 @@ export default function BusinessDashboardPage() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
+  const { showToast } = useToast();
 
   useEffect(() => {
     api.get('/stats/business')
@@ -41,6 +44,20 @@ export default function BusinessDashboardPage() {
       .catch((err) => setError(err.message || 'Unable to load business dashboard.'))
       .finally(() => setLoading(false));
   }, []);
+
+  const handleDelete = (post) => {
+    if (deletingId) return;
+    if (!confirm('Are you sure you want to delete this job posting?')) return;
+    setDeletingId(post.postId);
+    // NOTE: path is relative to the API base ("/api") — never prefix it with "/api".
+    api.delete(`/posts/${post.postId}`)
+      .then(() => {
+        showToast('Job posting deleted');
+        return api.get('/stats/business').then(setStats).catch(() => {});
+      })
+      .catch((err) => showToast(err.message || 'Failed to delete posting'))
+      .finally(() => setDeletingId(null));
+  };
 
   if (loading) return <div style={styles.loading}>Loading business dashboard...</div>;
   if (error) return <Panel><EmptyState title="Business dashboard unavailable" description={error} /></Panel>;
@@ -95,18 +112,13 @@ export default function BusinessDashboardPage() {
                       <div style={{ marginTop: 8 }}><Link to={`/edit-job/${post.postId}`} style={styles.postingLink}>Edit posting</Link></div>
                       <button
                         style={{ marginLeft: 8, background: 'var(--danger)', color: 'white', border: 'none', padding: '6px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}
+                        disabled={deletingId === post.postId}
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (confirm('Are you sure you want to delete this job posting?')) {
-                            api.delete(`/api/posts/${post.postId}`).then(() => {
-                              window.location.reload();
-                            }).catch((err) => {
-                              alert(err.message || 'Failed to delete posting');
-                            });
-                          }
+                          handleDelete(post);
                         }}
                       >
-                        Delete
+                        {deletingId === post.postId ? 'Deleting…' : 'Delete'}
                       </button>
                     </td>
                     <td style={styles.td}>{post.jobType || '—'}</td>

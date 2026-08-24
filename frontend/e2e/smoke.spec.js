@@ -1,7 +1,13 @@
 import { test, expect } from './fixtures.js';
+import { mockApi } from './helpers.js';
 
 test.describe('Smoke — critical user journeys', () => {
   test('learner can log in, view jobs, and open a course', async ({ page }) => {
+    // Registered FIRST => lowest priority: any endpoint without a specific
+    // mock below gets a safe default instead of reaching a live backend,
+    // whose 401 would clear the session and break the journey.
+    await mockApi(page);
+
     // Start unauthenticated
     await page.goto('/login');
     await expect(page.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
@@ -99,6 +105,8 @@ test.describe('Smoke — critical user journeys', () => {
   });
 
   test('recruiter journey: login → dashboard visible', async ({ page }) => {
+    // Same catch-all safety net as the learner journey above.
+    await mockApi(page);
     await page.route(/\/api\/auth\/login/, async (route) => {
       const url = new URL(route.request().url());
       if (!url.pathname.startsWith('/api/')) { await route.continue(); return; }
