@@ -118,3 +118,8 @@ public record CreatedCompanyQuestionResponse(
     string Source,
     string CompanyName
 );
+
+public record LogIntegrityEventRequest(
+    string EventType,
+    string? Detail
+);

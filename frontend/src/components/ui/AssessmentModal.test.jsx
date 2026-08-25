@@ -139,4 +139,64 @@ describe('AssessmentModal', () => {
     fireEvent.click(screen.getByText('Close'));
     expect(onClose).toHaveBeenCalled();
   });
+
+  it('warns when the learner leaves and returns to the assessment tab', async () => {
+    api.get.mockResolvedValue(questionsPayload);
+    api.post.mockResolvedValue({ recorded: true });
+
+    render(<AssessmentModal open onClose={vi.fn()} assessmentId={1} skillName="JavaScript" />);
+    await screen.findByText('What is a closure?');
+
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+    fireEvent(document, new Event('visibilitychange'));
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
+    fireEvent(document, new Event('visibilitychange'));
+
+    expect(screen.getByText('You left the assessment tab')).toBeInTheDocument();
+    expect(api.post).toHaveBeenCalledWith('/assessments/1/integrity-event', {
+      eventType: 'TabLeft',
+      detail: 'Learner left the assessment tab for JavaScript',
+    });
+
+    fireEvent.click(screen.getByText('Resume assessment'));
+    expect(screen.queryByText('You left the assessment tab')).not.toBeInTheDocument();
+  });
+
+  it('logs an integrity event when the tab is left mid-assessment', async () => {
+    api.get.mockResolvedValue(questionsPayload);
+    api.post.mockResolvedValue({ recorded: true });
+
+    render(<AssessmentModal open onClose={vi.fn()} assessmentId={1} skillName="JavaScript" />);
+    await screen.findByText('What is a closure?');
+
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+    fireEvent(document, new Event('visibilitychange'));
+
+    expect(api.post).toHaveBeenCalledTimes(1);
+    expect(api.post).toHaveBeenCalledWith('/assessments/1/integrity-event', {
+      eventType: 'TabLeft',
+      detail: 'Learner left the assessment tab for JavaScript',
+    });
+  });
+
+  it('does not warn about tab switches after completion', async () => {
+    api.get.mockResolvedValue(questionsPayload);
+    api.post.mockResolvedValue(submitResult);
+
+    render(<AssessmentModal open onClose={vi.fn()} assessmentId={1} skillName="JavaScript" />);
+    await screen.findByText('What is a closure?');
+    fireEvent.click(screen.getByText('Closure option 1'));
+    fireEvent.click(screen.getByRole('button', { name: /Next/ }));
+    await screen.findByText('What is hoisting?');
+    fireEvent.click(screen.getByText('Hoisting option 1'));
+    fireEvent.click(screen.getByRole('button', { name: /Finish/ }));
+    await screen.findByText('Assessment complete');
+
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+    fireEvent(document, new Event('visibilitychange'));
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
+    fireEvent(document, new Event('visibilitychange'));
+
+    expect(screen.queryByText('You left the assessment tab')).not.toBeInTheDocument();
+  });
 });

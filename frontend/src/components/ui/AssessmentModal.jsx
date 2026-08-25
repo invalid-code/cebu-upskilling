@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Clock, X, Award, CheckCircle, RotateCcw, Loader2 } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { ChevronLeft, ChevronRight, Clock, X, Award, CheckCircle, RotateCcw, Loader2, AlertTriangle } from 'lucide-react';
 import Button from './Button';
 import { api } from '../../api/client';
 
@@ -214,6 +214,49 @@ const styles = {
     padding: '16px 22px',
     borderTop: '1px solid var(--line)',
   },
+  warnOverlay: {
+    position: 'fixed',
+    inset: 0,
+    background: 'rgba(20, 30, 25, 0.55)',
+    zIndex: 30,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 18,
+  },
+  warnCard: {
+    background: 'var(--surface)',
+    borderRadius: 18,
+    maxWidth: 420,
+    width: '100%',
+    boxShadow: 'var(--shadow)',
+    padding: '28px 26px',
+    textAlign: 'center',
+  },
+  warnIcon: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 56,
+    height: 56,
+    borderRadius: '50%',
+    background: 'var(--coral-soft)',
+    color: 'var(--coral)',
+    marginBottom: 14,
+  },
+  warnTitle: {
+    fontFamily: "'Space Grotesk', sans-serif",
+    fontSize: 18,
+    fontWeight: 700,
+    color: 'var(--ink)',
+    marginBottom: 8,
+  },
+  warnDesc: {
+    fontSize: 13,
+    color: 'var(--muted)',
+    lineHeight: 1.55,
+    marginBottom: 20,
+  },
 };
 
 function formatTime(seconds) {
@@ -238,6 +281,8 @@ export default function AssessmentModal({ open, onClose, assessmentId, skillName
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const [leftWarning, setLeftWarning] = useState(false);
+  const leftWhileActive = useRef(false);
   const question = questions[current];
 
   useEffect(() => {
@@ -249,6 +294,8 @@ export default function AssessmentModal({ open, onClose, assessmentId, skillName
     setResult(null);
     setError(null);
     setLoading(true);
+    setLeftWarning(false);
+    leftWhileActive.current = false;
 
     const controller = new AbortController();
 
@@ -268,6 +315,26 @@ export default function AssessmentModal({ open, onClose, assessmentId, skillName
 
     return () => controller.abort();
   }, [open, assessmentId, initialSkillName]);
+
+  useEffect(() => {
+    if (!open || completed || loading || error) return;
+
+    const onVisibilityChange = () => {
+      if (document.hidden) {
+        leftWhileActive.current = true;
+        Promise.resolve(api.post(`/assessments/${assessmentId}/integrity-event`, {
+          eventType: 'TabLeft',
+          detail: `Learner left the assessment tab for ${skillName || 'assessment'}`,
+        })).catch(() => {});
+      } else if (leftWhileActive.current) {
+        leftWhileActive.current = false;
+        setLeftWarning(true);
+      }
+    };
+
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, [open, completed, loading, error]);
 
   const select = useCallback((questionId, idx) => {
     setAnswers(prev => ({ ...prev, [questionId]: idx }));
@@ -326,9 +393,10 @@ export default function AssessmentModal({ open, onClose, assessmentId, skillName
   if (!open) return null;
 
   return (
-    <div style={styles.backdrop} onClick={onClose}>
-      <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
-        {loading ? (
+    <>
+      <div style={styles.backdrop} onClick={onClose}>
+        <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+          {loading ? (
           <div style={styles.loading}>
             <div style={styles.loadingSpinner}><Loader2 size={24} /></div>
             <div style={styles.loadingText}>Preparing your assessment...</div>
@@ -459,5 +527,22 @@ export default function AssessmentModal({ open, onClose, assessmentId, skillName
         )}
       </div>
     </div>
+
+    {leftWarning && (
+      <div style={styles.warnOverlay} onClick={(e) => e.stopPropagation()}>
+        <div style={styles.warnCard}>
+          <div style={styles.warnIcon}><AlertTriangle size={28} /></div>
+          <div style={styles.warnTitle}>You left the assessment tab</div>
+          <div style={styles.warnDesc}>
+            Switching tabs or leaving this window during an assessment may be flagged for review.
+            Stay on this tab until you finish or submit.
+          </div>
+          <Button variant="primary" onClick={() => setLeftWarning(false)}>
+            Resume assessment
+          </Button>
+        </div>
+      </div>
+    )}
+    </>
   );
 }

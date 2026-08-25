@@ -103,6 +103,18 @@ public class AssessmentsController : BaseEntityController<LearnerAssessment>
         return Ok(result);
     }
 
+    [Authorize(Roles = "Learner")]
+    [HttpPost("{assessmentId}/integrity-event")]
+    public IActionResult LogIntegrityEvent(int assessmentId, [FromBody] LogIntegrityEventRequest request)
+    {
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        _logger.LogWarning(
+            "Assessment integrity event: user {UserId} left assessment {AssessmentId} tab (event={EventType}, detail={Detail}) at {OccurredAt}",
+            userId, assessmentId, request.EventType, request.Detail, DateTime.UtcNow);
+
+        return Ok(new { recorded = true });
+    }
+
     [Authorize(Roles = "Recruiter")]
     [HttpPost("company/questions")]
     public async Task<ActionResult<CreatedCompanyQuestionResponse>> CreateCompanyQuestion([FromBody] CreateCompanyQuestionRequest request)
