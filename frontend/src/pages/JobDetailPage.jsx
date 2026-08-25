@@ -172,11 +172,13 @@ export default function JobDetailPage() {
       let coverLetterUrl = null;
       if (resumeFile) {
         const uploaded = await api.upload('/media/documents', resumeFile);
-        resumeUrl = uploaded?.url;
+        if (!uploaded?.url) throw new Error('Resume upload did not complete — please try again');
+        resumeUrl = uploaded.url;
       }
       if (coverFile) {
         const uploaded = await api.upload('/media/documents', coverFile);
-        coverLetterUrl = uploaded?.url;
+        if (!uploaded?.url) throw new Error('Cover letter upload did not complete — please try again');
+        coverLetterUrl = uploaded.url;
       }
       await applyToJob(job, { resumeUrl, coverLetterUrl });
       showToast('Application submitted');

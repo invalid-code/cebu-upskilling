@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from '../context/AuthContext';
 import { ToastProvider } from '../context/ToastContext';
@@ -53,6 +53,10 @@ function renderDetail() {
 }
 
 describe('JobDetailPage', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('renders the full job posting', async () => {
     api.get.mockResolvedValue(post);
     renderDetail();
@@ -106,5 +110,65 @@ describe('JobDetailPage', () => {
     api.get.mockRejectedValue(new Error('Not found'));
     renderDetail();
     expect(await screen.findByText('Job unavailable')).toBeInTheDocument();
+  });
+
+  it('does not submit the application when the upload response has no url', async () => {
+    api.get.mockResolvedValue(post);
+    api.upload.mockResolvedValueOnce({}); // server responded but without a file url
+
+    renderDetail();
+    await screen.findByRole('heading', { name: 'DevOps Engineer' });
+
+    const resumeInput = document.querySelectorAll('input[type="file"]')[0];
+    fireEvent.change(resumeInput, { target: { files: [new File(['x'], 'resume.pdf', { type: 'application/pdf' })] } });
+    fireEvent.click(screen.getByRole('button', { name: 'Submit application' }));
+
+    await waitFor(() => {
+      expect(api.upload).toHaveBeenCalledTimes(1);
+    });
+    await waitFor(() => {
+      expect(screen.getByText(/upload did not complete/i)).toBeInTheDocument();
+    });
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('does not submit the application when the upload fails', async () => {
+    api.get.mockResolvedValue(post);
+    api.upload.mockRejectedValueOnce(new Error('Network error — file was not uploaded'));
+
+    renderDetail();
+    await screen.findByRole('heading', { name: 'DevOps Engineer' });
+
+    const resumeInput = document.querySelectorAll('input[type="file"]')[0];
+    fireEvent.change(resumeInput, { target: { files: [new File(['x'], 'resume.pdf', { type: 'application/pdf' })] } });
+    fireEvent.click(screen.getByRole('button', { name: 'Submit application' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Network error — file was not uploaded')).toBeInTheDocument();
+    });
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('does not submit the application when only the cover letter upload fails', async () => {
+    api.get.mockResolvedValue(post);
+    api.upload.mockResolvedValueOnce({ url: 'https://storage.example/resume.pdf' });
+    api.upload.mockRejectedValueOnce(new Error('Upload did not complete'));
+
+    renderDetail();
+    await screen.findByRole('heading', { name: 'DevOps Engineer' });
+
+    const resumeInput = document.querySelectorAll('input[type="file"]')[0];
+    const coverInput = document.querySelectorAll('input[type="file"]')[1];
+    fireEvent.change(resumeInput, { target: { files: [new File(['x'], 'resume.pdf', { type: 'application/pdf' })] } });
+    fireEvent.change(coverInput, { target: { files: [new File(['x'], 'cover.pdf', { type: 'application/pdf' })] } });
+    fireEvent.click(screen.getByRole('button', { name: 'Submit application' }));
+
+    await waitFor(() => {
+      expect(api.upload).toHaveBeenCalledTimes(2);
+    });
+    await waitFor(() => {
+      expect(screen.getByText('Upload did not complete')).toBeInTheDocument();
+    });
+    expect(api.post).not.toHaveBeenCalled();
   });
 });

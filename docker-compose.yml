@@ -42,6 +42,7 @@ services:
       - "8080:8080"
     volumes:
       - api-logs:/app/logs
+      - uploads-data:/app/wwwroot/uploads
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
       interval: 30s
@@ -52,3 +53,4 @@ services:
 volumes:
   pgdata:
   api-logs:
+  uploads-data:
