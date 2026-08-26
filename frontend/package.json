@@ -15,6 +15,7 @@
     "test:e2e:headed": "playwright test --headed"
   },
   "dependencies": {
+    "@mediapipe/tasks-vision": "^0.10.18",
     "lucide-react": "^1.28.0",
     "mammoth": "^1.12.1",
     "pdfjs-dist": "^6.2.108",
