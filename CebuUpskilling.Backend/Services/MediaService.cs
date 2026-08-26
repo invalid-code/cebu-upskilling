@@ -67,11 +67,16 @@ public class MediaService : IMediaService
             throw new InvalidOperationException("File must be 10 MB or smaller");
         }
 
+        if (file.Length == 0)
+        {
+            throw new InvalidOperationException("The uploaded file is empty");
+        }
+
         var key = $"documents/{Guid.NewGuid()}{extension}";
         await using var stream = file.OpenReadStream();
         var publicUrl = await _storage.UploadAsync(key, stream, file.ContentType, cancellationToken);
 
-        _logger.LogInformation("Uploaded document to R2 as {Key}", key);
+        _logger.LogInformation("Uploaded document to storage as {Key}", key);
         return new DocumentUploadDto(publicUrl, file.FileName, file.Length);
     }
 }

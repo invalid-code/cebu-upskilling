@@ -27,7 +27,7 @@ public class R2StorageService : IObjectStorageService
 
         if (!_isConfigured)
         {
-            _logger.LogWarning("R2 storage is not configured; uploads will fail until R2__* environment variables are set (strict R2-only mode)");
+            _logger.LogWarning("R2 storage is not configured; document uploads are disabled (no secrets logged)");
             return;
         }
 
@@ -35,7 +35,14 @@ public class R2StorageService : IObjectStorageService
         {
             ServiceURL = $"https://{_options.AccountId}.r2.cloudflarestorage.com",
             ForcePathStyle = true,
-            RegionEndpoint = RegionEndpoint.USEast1
+            // Cloudflare R2 requires this exact signing region. Do not set RegionEndpoint
+            // (e.g. USEast1): R2 rejects any other region's credential scope as
+            // "InvalidAccessKeyId" even for a valid key.
+            AuthenticationRegion = "auto",
+            // AWS SDK v4 adds CRC32 trailing checksums by default (aws-chunked
+            // STREAMING-*-TRAILER body encoding), which Cloudflare R2 rejects.
+            // Send checksums only when required => plain SigV4 body, which R2 accepts.
+            RequestChecksumCalculation = Amazon.Runtime.RequestChecksumCalculation.WHEN_REQUIRED
         };
 
         _client = new AmazonS3Client(_options.AccessKeyId, _options.SecretAccessKey, config);
@@ -46,7 +53,7 @@ public class R2StorageService : IObjectStorageService
         if (!_isConfigured || _client is null)
         {
             throw new InvalidOperationException(
-                "R2 storage is not configured. Set R2__AccountId, R2__AccessKeyId, R2__SecretAccessKey, R2__BucketName and R2__PublicBaseUrl. Local disk fallback is disabled — all files must go to Cloudflare R2.");
+                "Document uploads are temporarily disabled.");
         }
     }
 
@@ -67,20 +74,30 @@ public class R2StorageService : IObjectStorageService
                 BucketName = _options.BucketName,
                 Key = key,
                 InputStream = content,
-                ContentType = contentType
+                ContentType = contentType,
+                // Cloudflare R2 does not implement aws-chunked streaming payloads
+                // (STREAMING-AWS4-HMAC-SHA256-PAYLOAD[-TRAILER]). In AWS SDK v4 the
+                // flag lives on the request itself: this sends UNSIGNED-PAYLOAD over
+                // HTTPS (headers still fully SigV4-signed), which R2 accepts.
+                DisablePayloadSigning = true
             };
 
             await _client!.PutObjectAsync(request, cancellationToken);
             var publicUrl = GetPublicUrl(key);
 
-            _logger.LogInformation("Uploaded {Key} to R2 at {PublicUrl}", key, publicUrl);
+            _logger.LogInformation("Uploaded {Key} to R2", key);
 
             return publicUrl;
         }
+        catch (AmazonS3Exception ex)
+        {
+            _logger.LogWarning(ex, "R2 upload failed for {Key} (status {StatusCode})", key, ex.StatusCode);
+            throw new InvalidOperationException("Document uploads are temporarily unavailable. Please try again later.");
+        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to upload {Key} to R2 bucket {Bucket}", key, _options.BucketName);
-            throw;
+            _logger.LogWarning(ex, "R2 upload failed for {Key}", key);
+            throw new InvalidOperationException("Document uploads are temporarily unavailable. Please try again later.");
         }
     }
 
@@ -94,10 +111,15 @@ public class R2StorageService : IObjectStorageService
             await _client!.DeleteObjectAsync(_options.BucketName, key, cancellationToken);
             _logger.LogInformation("Deleted {Key} from R2", key);
         }
+        catch (AmazonS3Exception ex)
+        {
+            _logger.LogWarning(ex, "R2 delete failed for {Key} (status {StatusCode})", key, ex.StatusCode);
+            throw new InvalidOperationException("Document deletion is temporarily unavailable.");
+        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to delete {Key} from R2 bucket {Bucket}", key, _options.BucketName);
-            throw;
+            _logger.LogWarning(ex, "R2 delete failed for {Key}", key);
+            throw new InvalidOperationException("Document deletion is temporarily unavailable.");
         }
     }
 

@@ -51,8 +51,10 @@ public class R2StorageServiceTests
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
             () => service.UploadAsync("documents/abc.pdf", stream, "application/pdf"));
 
-        Assert.Contains("R2 storage is not configured", ex.Message);
-        Assert.Contains("Local disk fallback is disabled", ex.Message);
+        Assert.Contains("temporarily disabled", ex.Message);
+        // Ensure no secrets or internal config details are leaked
+        Assert.DoesNotContain("R2__", ex.Message);
+        Assert.DoesNotContain("AccountId", ex.Message);
     }
 
     [Fact]
@@ -66,7 +68,8 @@ public class R2StorageServiceTests
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
             () => service.DeleteAsync("documents/abc.pdf"));
 
-        Assert.Contains("R2 storage is not configured", ex.Message);
+        Assert.Contains("temporarily disabled", ex.Message);
+        Assert.DoesNotContain("R2__", ex.Message);
     }
 
     [Fact]
@@ -78,6 +81,7 @@ public class R2StorageServiceTests
         );
 
         var ex = Assert.Throws<InvalidOperationException>(() => service.GetPublicUrl("documents/abc.pdf"));
-        Assert.Contains("R2 storage is not configured", ex.Message);
+        Assert.Contains("temporarily disabled", ex.Message);
+        Assert.DoesNotContain("R2__", ex.Message);
     }
 }

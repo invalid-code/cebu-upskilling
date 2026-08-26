@@ -32,14 +32,43 @@ public class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger) : IE
             return true;
         }
 
-        if (exception is InvalidOperationException)
+        if (exception is InvalidOperationException invalidOp)
         {
-            logger.LogWarning(exception, "Invalid operation for {Method} {Path}: {Message}",
-                httpContext.Request.Method, httpContext.Request.Path, exception.Message);
+            // Never leak secrets or storage internals: only the sanitized Message is returned.
+            // R2StorageService already wraps AmazonS3Exception into a generic InvalidOperationException.
+            logger.LogWarning("Invalid operation for {Method} {Path}: {Message}",
+                httpContext.Request.Method, httpContext.Request.Path, invalidOp.Message);
             httpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
             await httpContext.Response.WriteAsJsonAsync(new
             {
-                error = exception.Message
+                error = invalidOp.Message
+            }, cancellationToken);
+
+            return true;
+        }
+
+        // Explicitly handle storage SDK failures without leaking credentials, bucket names, or account IDs.
+        if (exception is Amazon.S3.AmazonS3Exception s3Ex)
+        {
+            logger.LogWarning(s3Ex, "Storage request failed for {Method} {Path} (status {StatusCode})",
+                httpContext.Request.Method, httpContext.Request.Path, s3Ex.StatusCode);
+            httpContext.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+            await httpContext.Response.WriteAsJsonAsync(new
+            {
+                error = "Storage is temporarily unavailable. Please try again later."
+            }, cancellationToken);
+
+            return true;
+        }
+
+        if (exception is Amazon.Runtime.AmazonServiceException svcEx)
+        {
+            logger.LogWarning(svcEx, "Storage service error for {Method} {Path}",
+                httpContext.Request.Method, httpContext.Request.Path);
+            httpContext.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+            await httpContext.Response.WriteAsJsonAsync(new
+            {
+                error = "Storage is temporarily unavailable. Please try again later."
             }, cancellationToken);
 
             return true;
