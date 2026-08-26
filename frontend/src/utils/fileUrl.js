@@ -20,9 +20,9 @@ function apiOrigin() {
 
 /**
  * Returns a browser-openable URL for a stored application document.
- * - Absolute http(s) URLs (e.g. Cloudflare R2 public URLs) pass through untouched.
- * - Root-relative URLs from the backend's local-disk fallback ("/uploads/...") are
- *   prefixed with the API origin so links resolve against the server that serves them.
+ * All files are stored in Cloudflare R2 — returned URLs are absolute https://.../key.
+ * Legacy root-relative "/uploads/..." values (pre-R2-only mode) are still supported
+ * opportunistically by prefixing the API origin so old links do not break.
  */
 export function resolveFileUrl(url) {
   if (!url || typeof url !== 'string') return url;
