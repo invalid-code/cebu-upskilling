@@ -154,7 +154,11 @@ public class LearnerFlowApiTests : ProductionApiTestBase
         }
 
         var learnerToken = await RegisterLearnerAsync("flow.groups.learner@example.com");
-        var applyResponse = await AuthorizedClient(learnerToken).PostAsJsonAsync("/api/applications", new { postId });
+        var applyResponse = await AuthorizedClient(learnerToken).PostAsJsonAsync("/api/applications", new
+        {
+            postId,
+            resumeUrl = "https://storage.example/resume.pdf",
+        });
         Assert.Equal(HttpStatusCode.Created, applyResponse.StatusCode);
 
         var groupsResponse = await AuthorizedClient(learnerToken).GetAsync("/api/skillgaps/groups");

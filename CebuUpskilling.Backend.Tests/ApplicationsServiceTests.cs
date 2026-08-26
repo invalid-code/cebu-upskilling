@@ -10,6 +10,8 @@ namespace CebuUpskilling.Backend.Tests;
 
 public class ApplicationsServiceTests
 {
+    private const string TestResumeUrl = "https://storage.example/resume.pdf";
+
     private static ApplicationsService CreateService(ApplicationDbContext context) => new(
         new LearnerRepository(context),
         new PostRepository(context),
@@ -62,7 +64,7 @@ public class ApplicationsServiceTests
         var (context, userId, postId) = await SeedAsync();
         var service = CreateService(context);
 
-        var outcome = await service.ApplyAsync(userId, postId);
+        var outcome = await service.ApplyAsync(userId, postId, TestResumeUrl);
 
         Assert.True(outcome.Success);
         Assert.NotNull(outcome.Application);
@@ -82,7 +84,7 @@ public class ApplicationsServiceTests
         var (context, userId, postId) = await SeedAsync();
         var service = CreateService(context);
 
-        await service.ApplyAsync(userId, postId);
+        await service.ApplyAsync(userId, postId, TestResumeUrl);
         var apps = await service.GetMyApplicationsAsync(userId);
 
         Assert.Single(apps);
@@ -95,8 +97,8 @@ public class ApplicationsServiceTests
         var (context, userId, postId) = await SeedAsync();
         var service = CreateService(context);
 
-        await service.ApplyAsync(userId, postId);
-        var second = await service.ApplyAsync(userId, postId);
+        await service.ApplyAsync(userId, postId, TestResumeUrl);
+        var second = await service.ApplyAsync(userId, postId, TestResumeUrl);
 
         Assert.False(second.Success);
         Assert.Equal(ApplyFailure.AlreadyApplied, second.Failure);
@@ -109,7 +111,7 @@ public class ApplicationsServiceTests
         var (context, userId, _) = await SeedAsync();
         var service = CreateService(context);
 
-        var outcome = await service.ApplyAsync(userId, 999);
+        var outcome = await service.ApplyAsync(userId, 999, TestResumeUrl);
 
         Assert.False(outcome.Success);
         Assert.Equal(ApplyFailure.PostNotFound, outcome.Failure);
@@ -121,10 +123,23 @@ public class ApplicationsServiceTests
         var context = TestDbContextFactory.Create();
         var service = CreateService(context);
 
-        var outcome = await service.ApplyAsync(12345, 1);
+        var outcome = await service.ApplyAsync(12345, 1, TestResumeUrl);
 
         Assert.False(outcome.Success);
         Assert.Equal(ApplyFailure.NoLearnerProfile, outcome.Failure);
+    }
+
+    [Fact]
+    public async Task ApplyAsync_WithoutResume_ReturnsResumeRequired()
+    {
+        var (context, userId, postId) = await SeedAsync();
+        var service = CreateService(context);
+
+        var outcome = await service.ApplyAsync(userId, postId, resumeUrl: null);
+
+        Assert.False(outcome.Success);
+        Assert.Equal(ApplyFailure.ResumeRequired, outcome.Failure);
+        Assert.Empty(context.Applications);
     }
 
     [Fact]
@@ -133,7 +148,7 @@ public class ApplicationsServiceTests
         var (context, userId, postId) = await SeedAsync();
         var service = CreateService(context);
 
-        await service.ApplyAsync(userId, postId);
+        await service.ApplyAsync(userId, postId, TestResumeUrl);
         var updated = await service.UpdateStatusAsync(userId, postId, "interview");
 
         Assert.True(updated);

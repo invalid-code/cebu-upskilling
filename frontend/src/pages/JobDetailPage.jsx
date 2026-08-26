@@ -100,6 +100,7 @@ const styles = {
   },
   fileInput: {
     fontSize: 12,
+    cursor: 'pointer',
   },
   fileName: {
     fontSize: 11,
@@ -166,20 +167,23 @@ export default function JobDetailPage() {
   const expired = job.expiresAt && new Date(job.expiresAt) < new Date();
 
   const handleApply = async () => {
+    if (!resumeFile) {
+      showToast('A resume is required to apply for this job');
+      return;
+    }
     setApplying(true);
     try {
-      let resumeUrl = null;
+      const uploaded = await api.upload('/media/documents', resumeFile);
+      if (!uploaded?.url) throw new Error('Resume upload did not complete — please try again');
+      const resumeUrl = uploaded.url;
+
       let coverLetterUrl = null;
-      if (resumeFile) {
-        const uploaded = await api.upload('/media/documents', resumeFile);
-        if (!uploaded?.url) throw new Error('Resume upload did not complete — please try again');
-        resumeUrl = uploaded.url;
-      }
       if (coverFile) {
-        const uploaded = await api.upload('/media/documents', coverFile);
-        if (!uploaded?.url) throw new Error('Cover letter upload did not complete — please try again');
-        coverLetterUrl = uploaded.url;
+        const coverUploaded = await api.upload('/media/documents', coverFile);
+        if (!coverUploaded?.url) throw new Error('Cover letter upload did not complete — please try again');
+        coverLetterUrl = coverUploaded.url;
       }
+
       await applyToJob(job, { resumeUrl, coverLetterUrl });
       showToast('Application submitted');
     } catch (err) {
@@ -251,7 +255,7 @@ export default function JobDetailPage() {
               <>
                 <h2 style={styles.sectionTitle}>Apply for this role</h2>
                 <div style={styles.fileRow}>
-                  <span style={styles.fileLabel}>Resume</span>
+                  <span style={styles.fileLabel}>Resume *</span>
                   <label style={styles.fileInput}>
                     <Upload size={13} /> {resumeFile ? resumeFile.name : 'Choose file'}
                     <input
@@ -274,7 +278,7 @@ export default function JobDetailPage() {
                     />
                   </label>
                 </div>
-                <p style={styles.fileName}>Optional — PDF, Word, or text up to 10 MB.</p>
+                <p style={styles.fileName}>Resume is required. Cover letter is optional — PDF, Word, or text up to 10 MB.</p>
                 <Button variant="secondary" onClick={handleApply} disabled={applying || expired}>
                   {applying ? 'Submitting...' : 'Submit application'}
                 </Button>

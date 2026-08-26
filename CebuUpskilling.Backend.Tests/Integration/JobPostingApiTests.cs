@@ -136,7 +136,11 @@ public class JobPostingApiTests : ProductionApiTestBase
         var learnerToken = await RegisterLearnerAsync("job.employer.learner@example.com");
         var learner = AuthorizedClient(learnerToken);
 
-        var applyResponse = await learner.PostAsJsonAsync("/api/applications", new { postId });
+        var applyResponse = await learner.PostAsJsonAsync("/api/applications", new
+        {
+            postId,
+            resumeUrl = "/uploads/documents/resume.pdf",
+        });
         Assert.Equal(HttpStatusCode.Created, applyResponse.StatusCode);
         var applied = await ReadJsonAsync(applyResponse);
 
@@ -211,7 +215,11 @@ public class JobPostingApiTests : ProductionApiTestBase
         var postId = await CreatePostAsync(recruiterToken, new { title = "Data Analyst" });
 
         var learnerToken = await RegisterLearnerAsync("job.other.learner@example.com");
-        await AuthorizedClient(learnerToken).PostAsJsonAsync("/api/applications", new { postId });
+        await AuthorizedClient(learnerToken).PostAsJsonAsync("/api/applications", new
+        {
+            postId,
+            resumeUrl = "https://storage.example/resume.pdf",
+        });
 
         var (otherToken, _, _) = await RegisterRecruiterAsync("job.other.recruiter2@example.com");
         var other = AuthorizedClient(otherToken);
@@ -233,7 +241,11 @@ public class JobPostingApiTests : ProductionApiTestBase
         var postId = await CreatePostAsync(recruiterToken, new { title = "Support Engineer" });
 
         var learnerToken = await RegisterLearnerAsync("job.invalid.learner@example.com");
-        await AuthorizedClient(learnerToken).PostAsJsonAsync("/api/applications", new { postId });
+        await AuthorizedClient(learnerToken).PostAsJsonAsync("/api/applications", new
+        {
+            postId,
+            resumeUrl = "https://storage.example/resume.pdf",
+        });
 
         using (var scope = Factory.Services.CreateScope())
         {
