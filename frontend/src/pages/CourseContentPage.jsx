@@ -166,7 +166,7 @@ export default function CourseContentPage() {
   return (
     <div style={styles.container}>
       <div style={styles.breadcrumb}>
-        <span style={styles.breadcrumbLink} onClick={() => navigate('/')}>
+        <span style={styles.breadcrumbLink} onClick={() => navigate('/dashboard')}>
           My pathway
         </span>
         <span style={styles.breadcrumbSeparator}>/</span>

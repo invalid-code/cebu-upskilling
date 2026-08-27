@@ -111,7 +111,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const user = await login(email, password);
-      navigate(isRecruiter(user) ? '/business-dashboard' : '/');
+      navigate(isRecruiter(user) ? '/business-dashboard' : '/dashboard');
     } catch (err) {
       setError(err.message || 'Login failed');
     } finally {
@@ -124,7 +124,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const user = await loginWithGoogle(idToken);
-      navigate(isRecruiter(user) ? '/business-dashboard' : '/');
+      navigate(isRecruiter(user) ? '/business-dashboard' : '/dashboard');
     } catch (err) {
       setError(err.message || 'Google sign-in failed');
     } finally {

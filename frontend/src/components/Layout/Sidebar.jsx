@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 
 const learnerPathwayNav = [
-  { to: '/', icon: LayoutDashboard, label: 'Overview' },
+  { to: '/dashboard', icon: LayoutDashboard, label: 'Overview' },
   { to: '/skills', icon: Orbit, label: 'Skill profile' },
   { to: '/jobs', icon: BriefcaseBusiness, label: 'Find work' },
   { to: '/courses', icon: BookOpenCheck, label: 'Learn' },
@@ -138,7 +138,8 @@ function NavItem({ to, icon: Icon, label }) {
   return (
     <NavLink
       to={to}
-      end={to === '/'}
+      // Only dashboard uses exact matching; recruiter routes intentionally stay active for nested paths
+      end={to === '/dashboard'}
       style={({ isActive }) => ({
         ...styles.navLink,
         background: isActive ? 'rgba(30, 100, 80, 0.48)' : 'transparent',

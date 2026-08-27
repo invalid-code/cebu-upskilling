@@ -253,7 +253,7 @@ export default function RegisterPage() {
       } else {
         showToast('Account created');
       }
-      navigate('/');
+      navigate('/dashboard');
     } catch (err) {
       setError(err.message || 'Registration failed');
     } finally {
@@ -268,7 +268,7 @@ export default function RegisterPage() {
       // Pass the selected role so a brand-new Google account is provisioned
       // with it; existing accounts keep their current role.
       const user = await loginWithGoogle(idToken, role === 'recruiter' ? 'Recruiter' : 'Learner');
-      navigate(isRecruiter(user) ? '/business-dashboard' : '/');
+      navigate(isRecruiter(user) ? '/business-dashboard' : '/dashboard');
     } catch (err) {
       setError(err.message || 'Google sign-up failed');
     } finally {

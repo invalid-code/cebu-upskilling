@@ -10,6 +10,7 @@ import MobileNav from './components/Layout/MobileNav';
 import Footer from './components/Layout/Footer';
 import CookieBanner from './components/shared/CookieBanner';
 import { LearnerRoute, RecruiterRoute } from './components/RoleRoute';
+import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ConfirmEmailPage from './pages/ConfirmEmailPage';
@@ -72,8 +73,14 @@ function ProtectedRoute() {
 
 function PublicRoute() {
   const { user } = useAuth();
-  if (user) return <Navigate to={isRecruiter(user) ? '/business-dashboard' : '/'} replace />;
+  if (user) return <Navigate to={isRecruiter(user) ? '/business-dashboard' : '/dashboard'} replace />;
   return <Outlet />;
+}
+
+function RootRoute() {
+  const { user } = useAuth();
+  if (user) return <Navigate to={isRecruiter(user) ? '/business-dashboard' : '/dashboard'} replace />;
+  return <LandingPage />;
 }
 
 export default function App() {
@@ -85,6 +92,7 @@ export default function App() {
             <ApplicationsProvider>
               <ToastProvider>
                 <Routes>
+                  <Route path="/" element={<RootRoute />} />
                   <Route element={<PublicRoute />}>
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/register" element={<RegisterPage />} />
@@ -94,7 +102,7 @@ export default function App() {
                   </Route>
                   <Route element={<ProtectedRoute />}>
                     <Route element={<LearnerRoute />}>
-                      <Route path="/" element={<OverviewPage />} />
+                      <Route path="/dashboard" element={<OverviewPage />} />
                       <Route path="/skills" element={<SkillsPage />} />
                       <Route path="/jobs" element={<JobsPage />} />
                       <Route path="/jobs/:postId" element={<JobDetailPage />} />

@@ -2,10 +2,10 @@ import { test, expect } from './fixtures.js';
 import { setAuth, mockApi, mockLearnerShell, mockRecruiterShell, learnerUser, recruiterUser } from './helpers.js';
 
 test.describe('Authentication — login & registration', () => {
-  test('redirects unauthenticated users to /login', async ({ page }) => {
+  test('shows public landing page to unauthenticated users', async ({ page }) => {
     await page.goto('/');
-    await expect(page).toHaveURL(/\/login/);
-    await expect(page.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
+    await expect(page).toHaveURL('http://localhost:5173/');
+    await expect(page.getByRole('heading', { name: /your next opportunity starts with knowing/i })).toBeVisible();
   });
 
   test('redirects unauthenticated direct access to learner routes', async ({ page }) => {
@@ -94,7 +94,7 @@ test.describe('Authentication — login & registration', () => {
     await page.getByPlaceholder('Password', { exact: true }).fill('secret123');
     await page.getByRole('button', { name: 'Sign in' }).click();
 
-    await expect(page).toHaveURL('http://localhost:5173/');
+    await expect(page).toHaveURL(/\/dashboard/);
     await expect(page.getByText('Your next move is clear.')).toBeVisible();
   });
 
@@ -147,7 +147,7 @@ test.describe('Authentication — login & registration', () => {
     await setAuth(page, { user: learnerUser });
     await mockLearnerShell(page);
     await page.goto('/login');
-    await expect(page).toHaveURL('http://localhost:5173/');
+    await expect(page).toHaveURL(/\/dashboard/);
     await expect(page.getByText('Your next move is clear.')).toBeVisible();
   });
 
@@ -177,14 +177,17 @@ test.describe('Authentication — login & registration', () => {
       },
       { user: learnerUser, token: 'e2e-test-token' },
     );
-    await page.goto('/');
+    await page.goto('/dashboard');
     await expect(page.getByText('Your next move is clear.')).toBeVisible();
 
     await page.getByLabel('Sign out').click();
     await expect(page).toHaveURL(/\/login/);
-    // user should be cleared – visiting / again stays on login (no re-seed)
-    await page.goto('/');
+    // user should be cleared – protected route redirects to login, public / shows landing
+    await page.goto('/dashboard');
     await expect(page).toHaveURL(/\/login/);
+    await page.goto('/');
+    await expect(page).toHaveURL('http://localhost:5173/');
+    await expect(page.getByRole('heading', { name: /your next opportunity starts with knowing/i })).toBeVisible();
   });
 });
 
@@ -267,7 +270,7 @@ test.describe('Authentication — registration', () => {
     await page.getByPlaceholder('Password', { exact: true }).fill('secret123');
     await page.getByPlaceholder('Confirm password').fill('secret123');
     await page.getByRole('button', { name: 'Create account' }).click();
-    await expect(page).toHaveURL('http://localhost:5173/');
+    await expect(page).toHaveURL(/\/dashboard/);
     await expect(page.getByText('Your next move is clear.')).toBeVisible();
   });
 

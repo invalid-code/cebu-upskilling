@@ -28,7 +28,7 @@ test.describe('Navigation — Sidebar & Topbar', () => {
   test('learner sidebar shows learner nav items', async ({ page }) => {
     await setAuth(page, { user: learnerUser });
     await mockLearnerShell(page);
-    await page.goto('/');
+    await page.goto('/dashboard');
     const rail = page.locator('aside.rail');
     // Sidebar labels – use exact to avoid matching breadcrumb "My pathway / Overview"
     await expect(page.getByText('My pathway', { exact: true }).first()).toBeVisible();
@@ -64,7 +64,7 @@ test.describe('Navigation — Sidebar & Topbar', () => {
   test('sidebar navigation changes route', async ({ page }) => {
     await setAuth(page, { user: learnerUser });
     await mockLearnerShell(page);
-    await page.goto('/');
+    await page.goto('/dashboard');
     await page.getByRole('link', { name: 'Find work' }).click();
     await expect(page).toHaveURL(/\/jobs/);
     await expect(page.getByRole('heading', { name: 'Find work that fits.' })).toBeVisible();
@@ -80,7 +80,7 @@ test.describe('Navigation — Sidebar & Topbar', () => {
   test('topbar shows user initials and profile link', async ({ page }) => {
     await setAuth(page, { user: learnerUser });
     await mockLearnerShell(page);
-    await page.goto('/');
+    await page.goto('/dashboard');
     // Sidebar avatar shows initials JR
     await expect(page.getByText('JR').first()).toBeVisible();
     await expect(page.getByText('Jose').first()).toBeVisible();
