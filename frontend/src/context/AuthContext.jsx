@@ -1,106 +1,31 @@
-import { createContext, useContext, useState } from 'react';
-import { api } from '../api/client';
-import { hasValidSession } from '../lib/jwt';
+import { createContext, useContext, useEffect } from 'react';
+import { useAuthStore, getInitialUser } from '../stores/authStore';
+import { isLearner as isLearnerStore, isRecruiter as isRecruiterStore } from '../stores/authStore';
 
 const AuthContext = createContext(null);
 
+/**
+ * AuthProvider delegates state to Zustand (useAuthStore) while preserving
+ * React Context for backwards compatibility. The initial user is derived
+ * synchronously from localStorage so the first render reflects the current
+ * storage (important for tests that set localStorage before rendering).
+ */
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    if (!hasValidSession()) return null;
-    const saved = localStorage.getItem('user');
-    return saved ? JSON.parse(saved) : null;
-  });
-  const [loading] = useState(false);
+  const store = useAuthStore();
 
-  const login = async (email, password) => {
-    const res = await api.post('/auth/login', { emailAddress: email, password });
-    localStorage.setItem('token', res.token);
-    localStorage.setItem('user', JSON.stringify(res));
-    setUser(res);
-    return res;
-  };
+  // Derive initial user synchronously from localStorage so first render reflects
+  // current storage (important for tests that set localStorage before rendering).
+  const initialUser = getInitialUser();
+  const needsSync = JSON.stringify(store.user) !== JSON.stringify(initialUser);
 
-  const loginWithGoogle = async (idToken, role) => {
-    const res = await api.post('/auth/google', role ? { idToken, role } : { idToken });
-    localStorage.setItem('token', res.token);
-    localStorage.setItem('user', JSON.stringify(res));
-    setUser(res);
-    return res;
-  };
+  useEffect(() => {
+    if (needsSync) store.setUser(initialUser);
+  }, [needsSync, initialUser, store]);
 
-  const register = async (data) => {
-    const res = await api.post('/auth/register', data);
-    localStorage.setItem('token', res.token);
-    localStorage.setItem('user', JSON.stringify(res));
-    setUser(res);
-    return res;
-  };
-
-  const registerCompany = async (data) => {
-    const res = await api.post('/auth/register-company', data);
-    localStorage.setItem('token', res.token);
-    localStorage.setItem('user', JSON.stringify(res));
-    setUser(res);
-    return res;
-  };
-
-  const updateProfile = async (data) => {
-    const res = await api.patch('/auth/profile', data);
-    localStorage.setItem('user', JSON.stringify(res));
-    setUser(res);
-    return res;
-  };
-
-  const logout = async () => {
-    const token = localStorage.getItem('token');
-    // Discard the token from the client immediately so it can't be reused,
-    // even if the server revocation call below fails.
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setUser(null);
-
-    if (token) {
-      try {
-        // The token was just removed from storage, so pass it explicitly.
-        await api.post('/auth/logout', undefined, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-      } catch {
-        // Server-side revocation is best-effort; the client token is already gone.
-      }
-    }
-  };
-
-  const confirmEmail = (email, token) =>
-    api.post('/auth/confirm-email', { email, token });
-
-  const resendConfirmation = (email) =>
-    api.post('/auth/resend-confirmation', { email });
-
-  const forgotPassword = (email) =>
-    api.post('/auth/forgot-password', { email });
-
-  const resetPassword = (email, token, newPassword) =>
-    api.post('/auth/reset-password', { email, token, newPassword });
+  const value = needsSync ? { ...store, user: initialUser } : store;
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        setUser,
-        loading,
-        login,
-        loginWithGoogle,
-        register,
-        registerCompany,
-        logout,
-        updateProfile,
-        confirmEmail,
-        resendConfirmation,
-        forgotPassword,
-        resetPassword,
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
@@ -108,14 +33,17 @@ export function AuthProvider({ children }) {
 
 export function useAuth() {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
-  return ctx;
+  const store = useAuthStore();
+  if (ctx) return ctx;
+  // Fallback to Zustand directly when no provider is present
+  return store;
 }
 
+// Re-export helpers
 export function isLearner(user) {
-  return user?.role?.toLowerCase() === 'learner';
+  return isLearnerStore(user);
 }
 
 export function isRecruiter(user) {
-  return user?.role?.toLowerCase() === 'recruiter';
+  return isRecruiterStore(user);
 }

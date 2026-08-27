@@ -1,9 +1,12 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
-import { AuthProvider, useAuth, isRecruiter } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { EnrollmentsProvider } from './context/EnrollmentsContext';
 import { ApplicationsProvider } from './context/ApplicationsContext';
 import { ToastProvider } from './context/ToastContext';
 import { CookieConsentProvider } from './context/CookieConsentContext';
+// Zustand stores – direct usage is also available for new code:
+// import { useAuthStore, isRecruiter } from './stores/authStore';
+import { isRecruiter } from './stores/authStore';
 import Sidebar from './components/Layout/Sidebar';
 import Topbar from './components/Layout/Topbar';
 import MobileNav from './components/Layout/MobileNav';
@@ -54,6 +57,7 @@ const appStyles = {
 };
 
 function ProtectedRoute() {
+  // useAuth now delegates to Zustand (useAuthStore) – see src/stores/authStore.js
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
   return (
