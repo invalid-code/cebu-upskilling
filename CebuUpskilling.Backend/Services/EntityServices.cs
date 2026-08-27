@@ -110,18 +110,29 @@ public class PostService : BaseEntityService<Post>, IPostService
     private readonly IPostRepository _postRepository;
     private readonly IPostSkillRepository _postSkills;
     private readonly IRoleSkillRepository _roleSkills;
+    private readonly ISkillRepository _skills;
 
     public PostService(
         IPostRepository repository,
         IPostSkillRepository postSkills,
         IRoleSkillRepository roleSkills,
+        ISkillRepository skills,
         ILogger<PostService> logger)
         : base(repository, logger, "Post")
     {
         _postRepository = repository;
         _postSkills = postSkills;
         _roleSkills = roleSkills;
+        _skills = skills;
     }
+
+    private static string NormalizeSchedule(string? schedule) => schedule switch
+    {
+        "Part-time" => "Part-time",
+        "Side-hustle" => "Side-hustle",
+        "Full-time" => "Full-time",
+        _ => "Full-time",
+    };
 
     public override async Task<Post> CreateAsync(Post entity)
     {
@@ -162,12 +173,19 @@ public class PostService : BaseEntityService<Post>, IPostService
         if (existing == null) return false;
 
         var targetRole = existing.TargetRole;
+
+        // Atomic: remove PostSkills and Post in single SaveChanges where possible.
+        // IPostSkillRepository and Post share the same DbContext; we defer SaveChanges until after both removals.
         var postSkills = await _postSkills.GetByPostIdAsync(id);
         foreach (var ps in postSkills)
             _postSkills.Remove(ps);
 
-        await _postSkills.SaveChangesAsync();
-        await base.DeleteAsync(id);
+        var postEntity = await _repository.GetByIdAsync(id);
+        if (postEntity != null)
+            _repository.Remove(postEntity);
+
+        // Single SaveChanges is atomic for this DbContext (PostSkills + Post share context)
+        await _repository.SaveChangesAsync();
 
         await SyncRoleSkillsForRoleAsync(targetRole);
         return true;
@@ -195,10 +213,18 @@ public class PostService : BaseEntityService<Post>, IPostService
     private async Task SyncPostSkillsAsync(Post post, List<RequiredSkillInput> required)
     {
         var validItems = required
-            .Where(r => r.SkillId > 0)
+            .Where(r => r.SkillId > 0 && r.RequiredLevel >= 1 && r.RequiredLevel <= 5)
             .GroupBy(r => r.SkillId)
             .Select(g => new RequiredSkillInput(g.Key, g.Max(r => r.RequiredLevel)))
             .ToList();
+
+        if (validItems.Count == 0) return;
+
+        // Validate SkillId existence to avoid FK violation 500; silently drop unknown ids.
+        var skillIds = validItems.Select(r => r.SkillId).Distinct().ToList();
+        var existingSkillIds = (await _skills.GetByIdsAsync(skillIds)).Select(s => s.SkillId).ToHashSet();
+        validItems = validItems.Where(r => existingSkillIds.Contains(r.SkillId)).ToList();
+        if (validItems.Count == 0) return;
 
         var existingById = (await _postSkills.GetByPostIdAsync(post.PostId)).ToDictionary(ps => ps.SkillId);
         var requestedIds = validItems.Select(r => r.SkillId).ToHashSet();
@@ -233,9 +259,7 @@ public class PostService : BaseEntityService<Post>, IPostService
     {
         if (string.IsNullOrWhiteSpace(targetRole)) return;
 
-        var all = (await ((IPostRepository)_repository).GetAllAsync())
-            .Where(p => string.Equals(p.TargetRole, targetRole, StringComparison.OrdinalIgnoreCase))
-            .ToList();
+        var all = await _postRepository.GetByTargetRoleAsync(targetRole);
 
         var requiredBySkill = new Dictionary<int, int>();
         foreach (var post in all)
@@ -310,12 +334,19 @@ public class PostService : BaseEntityService<Post>, IPostService
             ExpiresAt = request.ExpiresAt,
             IsActive = request.IsActive,
             CompanyLogoUrl = request.CompanyLogoUrl,
-            Schedule = "Full-time",
+            Schedule = NormalizeSchedule(request.Schedule),
             CreatedAt = DateTime.UtcNow,
         };
 
         await _repository.AddAsync(post);
         await _repository.SaveChangesAsync();
+
+        if (request.RequiredSkills is { Count: > 0 })
+        {
+            await SyncPostSkillsAsync(post, request.RequiredSkills);
+            await SyncRoleSkillsForRoleAsync(post.TargetRole);
+        }
+
         _logger.LogInformation("Created post {PostId} for company {CompanyId}", post.PostId, companyId);
 
         var created = await _repository.GetByIdAsync(post.PostId);
@@ -332,6 +363,7 @@ public class PostService : BaseEntityService<Post>, IPostService
             return null;
         }
 
+        var oldTargetRole = existing.TargetRole;
         existing.Title = request.Title ?? existing.Title;
         existing.Description = request.Description;
         existing.TargetRole = string.IsNullOrWhiteSpace(request.TargetRole)
@@ -347,8 +379,18 @@ public class PostService : BaseEntityService<Post>, IPostService
         existing.ExpiresAt = request.ExpiresAt;
         existing.IsActive = request.IsActive;
         existing.CompanyLogoUrl = request.CompanyLogoUrl;
+        if (!string.IsNullOrWhiteSpace(request.Schedule))
+            existing.Schedule = NormalizeSchedule(request.Schedule);
 
         await _repository.SaveChangesAsync();
+
+        if (request.RequiredSkills != null)
+        {
+            await SyncPostSkillsAsync(existing, request.RequiredSkills);
+            await SyncRoleSkillsForRoleAsync(existing.TargetRole);
+            if (!string.Equals(oldTargetRole, existing.TargetRole, StringComparison.OrdinalIgnoreCase))
+                await SyncRoleSkillsForRoleAsync(oldTargetRole);
+        }
         _logger.LogInformation("Updated post {PostId}", id);
 
         var updated = await _repository.GetByIdAsync(id);
@@ -373,7 +415,9 @@ public class PostService : BaseEntityService<Post>, IPostService
             post.ExpiresAt,
             post.IsActive,
             post.CompanyLogoUrl,
-            post.CreatedAt);
+            post.CreatedAt,
+            post.Schedule ?? "Full-time",
+            post.PostSkills?.Select(ps => new RequiredSkillDto(ps.SkillId, ps.Skill?.Name ?? string.Empty, ps.Skill?.Category, ps.RequiredLevel)).ToList() ?? new List<RequiredSkillDto>());
 }
 
 public class AppUserService : BaseEntityService<AppUser>

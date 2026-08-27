@@ -9,6 +9,7 @@ public interface IPostRepository : IEntityRepository<Post>
 {
     Task<int> CountAsync();
     Task<(List<Post> Items, int Total)> SearchAsync(PostQueryParams query);
+    Task<List<Post>> GetByTargetRoleAsync(string targetRole);
 }
 
 public class PostRepository : EntityRepository<Post>, IPostRepository
@@ -30,6 +31,12 @@ public class PostRepository : EntityRepository<Post>, IPostRepository
             .FirstOrDefaultAsync(p => p.PostId == id);
 
     public async Task<int> CountAsync() => await _dbSet.CountAsync();
+
+    public async Task<List<Post>> GetByTargetRoleAsync(string targetRole)
+        => await _dbSet
+            .Include(p => p.PostSkills)
+            .Where(p => p.TargetRole.ToLower() == targetRole.ToLower())
+            .ToListAsync();
 
     public async Task<(List<Post> Items, int Total)> SearchAsync(PostQueryParams query)
     {

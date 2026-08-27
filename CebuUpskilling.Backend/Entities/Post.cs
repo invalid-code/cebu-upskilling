@@ -57,5 +57,6 @@ public class Post
     public ICollection<PostSkill> PostSkills { get; set; } = new List<PostSkill>();
 
     [NotMapped]
+    [System.Text.Json.Serialization.JsonIgnore]
     public List<RequiredSkillInput>? RequiredSkills { get; set; }
 }

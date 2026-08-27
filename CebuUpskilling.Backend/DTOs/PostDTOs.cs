@@ -13,7 +13,9 @@ public record PostRequest(
     bool IsRemote = false,
     DateTime? ExpiresAt = null,
     bool IsActive = true,
-    string? CompanyLogoUrl = null
+    string? CompanyLogoUrl = null,
+    string? Schedule = null,
+    List<RequiredSkillInput>? RequiredSkills = null
 );
 
 public record PostResponse(
@@ -33,7 +35,9 @@ public record PostResponse(
     DateTime? ExpiresAt,
     bool IsActive,
     string? CompanyLogoUrl,
-    DateTime CreatedAt
+    DateTime CreatedAt,
+    string Schedule,
+    List<RequiredSkillDto> RequiredSkills
 );
 
 public record PostQueryParams(

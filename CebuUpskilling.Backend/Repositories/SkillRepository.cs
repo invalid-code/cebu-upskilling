@@ -9,6 +9,7 @@ public interface ISkillRepository : IRepository<Skill>
     Task<Skill?> GetByIdAsync(int skillId);
     Task<List<Skill>> GetByNamesAsync(IEnumerable<string> names);
     Task<List<Skill>> ListAllAsync();
+    Task<List<Skill>> GetByIdsAsync(IEnumerable<int> skillIds);
 }
 
 public class SkillRepository : Repository<Skill>, ISkillRepository
@@ -30,4 +31,7 @@ public class SkillRepository : Repository<Skill>, ISkillRepository
 
     public async Task<List<Skill>> ListAllAsync()
         => await _dbSet.OrderBy(s => s.Name).ToListAsync();
+
+    public async Task<List<Skill>> GetByIdsAsync(IEnumerable<int> skillIds)
+        => await _dbSet.Where(s => skillIds.Contains(s.SkillId)).ToListAsync();
 }

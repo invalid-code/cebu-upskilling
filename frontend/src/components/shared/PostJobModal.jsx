@@ -78,8 +78,6 @@ export default function PostJobModal({ companyId, recruiterId, onClose, onCreate
     setSubmitting(true);
     try {
       const post = await api.post('/posts', {
-        recruiterId,
-        companyId,
         title: title.trim(),
         targetRole: targetRole.trim() || title.trim(),
         description: description.trim() || null,
@@ -97,7 +95,7 @@ export default function PostJobModal({ companyId, recruiterId, onClose, onCreate
 
   return (
     <div style={styles.overlay} onClick={onClose}>
-      <div style={styles.modal} onClick={(e) => e.preventDefault()}>
+      <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div style={styles.header}>
           <h3 style={styles.title}>Post a job</h3>
           <button style={styles.closeBtn} onClick={onClose} aria-label="Close">

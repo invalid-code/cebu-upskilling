@@ -16,7 +16,7 @@ namespace CebuUpskilling.Backend.Migrations
                 type: "character varying(50)",
                 maxLength: 50,
                 nullable: false,
-                defaultValue: "");
+                defaultValue: "Full-time");
 
             migrationBuilder.CreateTable(
                 name: "PostSkills",
