@@ -308,6 +308,7 @@ export default function AssessmentsPage() {
   const [assessmentOpen, setAssessmentOpen] = useState(false);
   const [currentAssessmentId, setCurrentAssessmentId] = useState(null);
   const [currentSkillName, setCurrentSkillName] = useState('');
+  const [currentProctored, setCurrentProctored] = useState(true);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -345,8 +346,9 @@ export default function AssessmentsPage() {
   async function handleStartAssessment(skillId, skillName) {
     setCurrentSkillName(skillName);
     setDeviceCheck('idle');
-
     const assessment = available?.assessments?.find((a) => a.skillId === skillId);
+    setCurrentProctored(assessment?.proctored !== false);
+
     if (assessment && assessment.proctored === false) {
       await confirmStartAssessment(skillId);
       return;
@@ -356,6 +358,8 @@ export default function AssessmentsPage() {
   }
 
   async function confirmStartAssessment(skillId) {
+    const assessment = available?.assessments?.find((a) => a.skillId === skillId);
+    if (assessment) setCurrentProctored(assessment.proctored !== false);
     try {
       const response = await api.post('/assessments/start', { skillId });
       setCurrentAssessmentId(response.assessmentId);
@@ -623,6 +627,7 @@ export default function AssessmentsPage() {
         onClose={() => { setAssessmentOpen(false); setCurrentAssessmentId(null); }}
         assessmentId={currentAssessmentId}
         skillName={currentSkillName}
+        proctored={currentProctored}
       />
     </div>
   );
