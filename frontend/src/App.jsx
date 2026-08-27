@@ -78,8 +78,6 @@ function PublicRoute() {
 }
 
 function RootRoute() {
-  const { user } = useAuth();
-  if (user) return <Navigate to={isRecruiter(user) ? '/business-dashboard' : '/dashboard'} replace />;
   return <LandingPage />;
 }
 
