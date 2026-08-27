@@ -4,7 +4,6 @@ import { useAuth, isRecruiter } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 
 const routeLabels = {
-  '/': 'Home',
   '/dashboard': 'Overview',
   '/skills': 'Skill profile',
   '/jobs': 'Find work',
@@ -15,9 +14,19 @@ const routeLabels = {
   '/help': 'Help center',
   '/profile': 'Profile',
   '/business-dashboard': 'Business dashboard',
+  '/post-job': 'Post a job',
+  '/job-applications': 'Applications',
   '/login': 'Login',
   '/register': 'Register',
 };
+
+function getLabel(pathname) {
+  if (routeLabels[pathname]) return routeLabels[pathname];
+  if (pathname.startsWith('/jobs/')) return 'Job detail';
+  if (pathname.startsWith('/courses/')) return 'Learn';
+  if (pathname.startsWith('/edit-job/')) return 'Edit job';
+  return 'Page';
+}
 
 const styles = {
   topbar: {
@@ -72,7 +81,7 @@ export default function Topbar() {
   const { user } = useAuth();
   const { showToast } = useToast();
 
-  const label = routeLabels[location.pathname] || 'Page';
+  const label = getLabel(location.pathname);
   const initials = user
     ? `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`
     : 'U';

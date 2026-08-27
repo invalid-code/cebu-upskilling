@@ -52,6 +52,7 @@ export default function MobileNav() {
         <NavLink
           key={to}
           to={to}
+          // Exact only for /dashboard; other routes remain active on nested paths
           end={to === '/dashboard'}
           style={({ isActive }) => ({
             ...styles.link,

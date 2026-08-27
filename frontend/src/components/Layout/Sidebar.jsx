@@ -138,6 +138,7 @@ function NavItem({ to, icon: Icon, label }) {
   return (
     <NavLink
       to={to}
+      // Only dashboard uses exact matching; recruiter routes intentionally stay active for nested paths
       end={to === '/dashboard'}
       style={({ isActive }) => ({
         ...styles.navLink,

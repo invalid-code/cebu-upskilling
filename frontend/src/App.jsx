@@ -77,6 +77,12 @@ function PublicRoute() {
   return <Outlet />;
 }
 
+function RootRoute() {
+  const { user } = useAuth();
+  if (user) return <Navigate to={isRecruiter(user) ? '/business-dashboard' : '/dashboard'} replace />;
+  return <LandingPage />;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -86,7 +92,7 @@ export default function App() {
             <ApplicationsProvider>
               <ToastProvider>
                 <Routes>
-                  <Route path="/" element={<LandingPage />} />
+                  <Route path="/" element={<RootRoute />} />
                   <Route element={<PublicRoute />}>
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/register" element={<RegisterPage />} />
