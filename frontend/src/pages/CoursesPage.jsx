@@ -4,6 +4,8 @@ import CourseCard from '../components/shared/CourseCard';
 import CourseDetailPanel from '../components/shared/CourseDetailPanel';
 import { useAuth } from '../context/AuthContext';
 import { useApplications } from '../context/ApplicationsContext';
+import { useToast } from '../context/ToastContext';
+import { ErrorCard } from '../components/ui/ErrorState';
 import { api } from '../api/client';
 import { Flame, CheckCircle, Award, ArrowRight } from 'lucide-react';
 
@@ -190,8 +192,10 @@ export default function CoursesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
+  const { showToast } = useToast();
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [categoryTabs, setCategoryTabs] = useState(DEFAULT_CATEGORY_TABS);
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -204,18 +208,22 @@ export default function CoursesPage() {
         setCertificatesEarned(data.certificatesEarned || 0);
         const available = Array.isArray(data.availableCategories) ? data.availableCategories : [];
         setCategoryTabs(['All', ...available]);
+        setError('');
       })
       .catch((err) => {
         if (err?.name === 'AbortError') return;
-        setError(err.message || 'Could not load courses');
+        const msg = err.message || 'Could not load courses';
+        setError(msg);
         setEnrolledCourses([]);
         setRecommendedCourses([]);
+        showToast(msg, 'error');
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, []);
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
+  }, [retryKey]);
 
   useEffect(() => {
     const profileTargetRole = user?.targetRole?.trim() || '';
@@ -279,7 +287,7 @@ export default function CoursesPage() {
       const data = await api.get(`/courses/${courseId}/detail`);
       setSelectedCourse(data);
     } catch (err) {
-      console.error('Failed to load course details:', err);
+      showToast(err.message || 'Could not load course details', 'error');
     }
   };
 
@@ -489,12 +497,15 @@ export default function CoursesPage() {
         </>
       )}
 
-      {!loading && enrolledCourses.length === 0 && recommendedCourses.length === 0 && (
-        <div style={styles.empty}>
-          {error
-            ? `Couldn't load courses. Check back later.`
-            : 'No courses available yet. Enroll in courses to start learning.'}
-        </div>
+      {!loading && error && enrolledCourses.length === 0 && recommendedCourses.length === 0 && (
+        <ErrorCard
+          title="Couldn’t load courses"
+          description={error}
+          onRetry={() => { setError(''); setLoading(true); setRetryKey((k) => k + 1); }}
+        />
+      )}
+      {!loading && !error && enrolledCourses.length === 0 && recommendedCourses.length === 0 && (
+        <div style={styles.empty}>No courses available yet. Enroll in courses to start learning.</div>
       )}
 
       {selectedCourse && (

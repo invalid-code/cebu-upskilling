@@ -101,7 +101,7 @@ describe('CourseContentPage', () => {
 
     renderPage();
 
-    expect(await screen.findByText('Network error')).toBeInTheDocument();
+    expect((await screen.findAllByText('Network error')).length).toBeGreaterThan(0);
   });
 
   it('navigates back to the courses list', async () => {

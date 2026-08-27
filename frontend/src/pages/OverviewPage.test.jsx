@@ -166,6 +166,6 @@ describe('OverviewPage', () => {
     renderOverview();
     const enroll = await screen.findAllByRole('button', { name: '→ Enroll free' });
     fireEvent.click(enroll[0]);
-    expect(await screen.findByText('Course added to your pathway')).toBeInTheDocument();
+    expect(await screen.findByText(/Course added to your pathway|Enrolled in/)).toBeInTheDocument();
   });
 });

@@ -143,17 +143,17 @@ export default function CourseCard({
 
   const handleEnroll = async () => {
     if (!course.courseId) {
-      showToast('Course not available for enrollment');
+      showToast('Course not available for enrollment', 'error');
       return;
     }
     setEnrolling(true);
     try {
       await api.post('/enrollments', { courseId: course.courseId });
       refreshEnrollments();
-      showToast('Course added to your pathway');
+      showToast(`Course added to your pathway — "${course.name}"`, 'success');
       if (onStart) onStart();
     } catch (err) {
-      showToast(err.message || 'Enrollment failed');
+      showToast(err.message || 'Enrollment failed', 'error');
     } finally {
       setEnrolling(false);
     }

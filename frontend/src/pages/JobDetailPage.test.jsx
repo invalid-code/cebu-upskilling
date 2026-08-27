@@ -145,7 +145,7 @@ describe('JobDetailPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Submit application' }));
 
     await waitFor(() => {
-      expect(screen.getByText('A resume is required to apply for this job')).toBeInTheDocument();
+      expect((screen.getAllByText('A resume is required to apply for this job').length)).toBeGreaterThan(0);
     });
     expect(api.upload).not.toHaveBeenCalled();
     expect(api.post).not.toHaveBeenCalled();
@@ -155,6 +155,7 @@ describe('JobDetailPage', () => {
     api.get.mockRejectedValue(new Error('Not found'));
     renderDetail();
     expect(await screen.findByText('Job unavailable')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /Try again|Retry/ })).toBeInTheDocument();
   });
 
   it('shows upload error when the resume upload fails', async () => {
@@ -170,7 +171,7 @@ describe('JobDetailPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Submit application' }));
 
     await waitFor(() => {
-      expect(screen.getByText('Network error — file was not uploaded')).toBeInTheDocument();
+      expect((screen.getAllByText('Network error — file was not uploaded').length)).toBeGreaterThan(0);
     });
     expect(api.post).not.toHaveBeenCalled();
   });
@@ -190,7 +191,7 @@ describe('JobDetailPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Submit application' }));
 
     await waitFor(() => {
-      expect(screen.getByText('Upload did not complete')).toBeInTheDocument();
+      expect((screen.getAllByText(/Upload did not complete/).length)).toBeGreaterThan(0);
     });
     expect(api.post).not.toHaveBeenCalled();
   });

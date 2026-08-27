@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Button from '../components/ui/Button';
 import Tabs from '../components/ui/Tabs';
 import JobCard from '../components/shared/JobCard';
+import { ErrorCard } from '../components/ui/ErrorState';
 import { api } from '../api/client';
 import { useToast } from '../context/ToastContext';
 import { BellPlus } from 'lucide-react';
@@ -175,6 +176,7 @@ export default function JobsPage() {
   const [pageSize] = useState(9);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [retryKey, setRetryKey] = useState(0);
   const [activeTab, setActiveTab] = useState('all');
   const [search, setSearch] = useState('');
   const [jobType, setJobType] = useState('');
@@ -185,6 +187,7 @@ export default function JobsPage() {
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
+    if (retryKey === -1) { /* no-op to include retryKey in deps */ }
     const query = buildQuery({ tab: activeTab, search, jobType, location, isRemote, page, pageSize });
     api.get(`/posts?${query}`, { signal: controller.signal })
       .then((data) => {
@@ -194,11 +197,14 @@ export default function JobsPage() {
         setError('');
       })
       .catch((err) => {
-        if (err.name !== 'AbortError') setError(err.message || 'Could not load jobs');
+        if (err.name === 'AbortError') return;
+        const msg = err.message || 'Could not load jobs';
+        setError(msg);
+        showToast(msg, 'error');
       })
       .finally(() => setLoading(false));
     return () => controller.abort();
-  }, [activeTab, search, jobType, location, isRemote, page, pageSize]);
+  }, [activeTab, search, jobType, location, isRemote, page, pageSize, retryKey, showToast]);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
@@ -222,7 +228,7 @@ export default function JobsPage() {
             Corporate roles and local opportunities stay visible side by side.
           </p>
         </div>
-        <Button variant="primary" onClick={() => showToast('Job alert saved')}>
+        <Button variant="primary" onClick={() => showToast('Job alert saved — we’ll notify you of new matches', 'success')}>
           <BellPlus size={14} /> Save alert
         </Button>
       </div>
@@ -276,10 +282,16 @@ export default function JobsPage() {
         </div>
       )}
 
-      {!loading && jobs.length === 0 && (
-        <div style={styles.empty}>
-          {error ? "Couldn't load jobs. Check back later." : 'No jobs match your search.'}
-        </div>
+      {!loading && error && jobs.length === 0 && (
+        <ErrorCard
+          title="Couldn’t load jobs"
+          description={error.includes('429') || error.toLowerCase().includes('too many') ? 'You’ve been rate-limited. Please wait a moment and try again.' : `${error} — try adjusting your filters or retry.`}
+          onRetry={() => { setError(''); setRetryKey((k) => k + 1); }}
+          retryLabel="Retry"
+        />
+      )}
+      {!loading && !error && jobs.length === 0 && (
+        <div style={styles.empty}>No jobs match your search.</div>
       )}
 
       {!loading && jobs.length > 0 && (

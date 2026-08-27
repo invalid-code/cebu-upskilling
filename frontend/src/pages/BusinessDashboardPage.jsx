@@ -6,6 +6,7 @@ import Tag from '../components/ui/Tag';
 import EmptyState from '../components/shared/EmptyState';
 import StatCard from '../components/shared/StatCard';
 import BarList from '../components/shared/BarList';
+import { ErrorCard } from '../components/ui/ErrorState';
 import { api } from '../api/client';
 import { useToast } from '../context/ToastContext';
 
@@ -38,12 +39,19 @@ export default function BusinessDashboardPage() {
   const [deletingId, setDeletingId] = useState(null);
   const { showToast } = useToast();
 
+  const [retryKey, setRetryKey] = useState(0);
   useEffect(() => {
+    setLoading(true);
+    setError(null);
     api.get('/stats/business')
       .then(setStats)
-      .catch((err) => setError(err.message || 'Unable to load business dashboard.'))
+      .catch((err) => {
+        const msg = err.message || 'Unable to load business dashboard.';
+        setError(msg);
+        showToast(msg, 'error');
+      })
       .finally(() => setLoading(false));
-  }, []);
+  }, [retryKey, showToast]);
 
   const handleDelete = (post) => {
     if (deletingId) return;
@@ -52,15 +60,15 @@ export default function BusinessDashboardPage() {
     // NOTE: path is relative to the API base ("/api") — never prefix it with "/api".
     api.delete(`/posts/${post.postId}`)
       .then(() => {
-        showToast('Job posting deleted');
+        showToast('Job posting deleted', 'success');
         return api.get('/stats/business').then(setStats).catch(() => {});
       })
-      .catch((err) => showToast(err.message || 'Failed to delete posting'))
+      .catch((err) => showToast(err.message || 'Failed to delete posting', 'error'))
       .finally(() => setDeletingId(null));
   };
 
   if (loading) return <div style={styles.loading}>Loading business dashboard...</div>;
-  if (error) return <Panel><EmptyState title="Business dashboard unavailable" description={error} /></Panel>;
+  if (error) return <div style={{ padding: 20 }}><ErrorCard title="Business dashboard unavailable" description={error} onRetry={() => setRetryKey((k) => k + 1)} /></div>;
 
   const postings = stats?.jobPostings || [];
   const skills = stats?.skillDemand || [];

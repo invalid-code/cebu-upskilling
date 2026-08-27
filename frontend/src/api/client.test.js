@@ -102,7 +102,7 @@ describe('api client', () => {
     const promise = api.get('/boom');
     respond(lastRequest(), { status: 502, body: '<html>bad gateway</html>' });
 
-    await expect(promise).rejects.toThrow('HTTP 502');
+    await expect(promise).rejects.toThrow('Server error');
   });
 
   it('rejects with a network error when the request fails', async () => {

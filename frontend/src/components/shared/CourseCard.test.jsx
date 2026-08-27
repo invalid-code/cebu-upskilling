@@ -59,7 +59,7 @@ describe('CourseCard', () => {
     api.post.mockResolvedValue({ message: 'Enrolled' });
     renderCourse();
     fireEvent.click(screen.getByRole('button', { name: /enroll free/i }));
-    expect(await screen.findByText('Course added to your pathway')).toBeInTheDocument();
+    expect(await screen.findByText(/Course added to your pathway/)).toBeInTheDocument();
     expect(api.post).toHaveBeenCalledWith('/enrollments', { courseId: 1 });
   });
 

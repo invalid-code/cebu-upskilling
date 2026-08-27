@@ -7,6 +7,8 @@ import LessonResources from '../components/shared/LessonResources';
 import VideoPlayer from '../components/shared/VideoPlayer';
 import ProgressBar from '../components/ui/ProgressBar';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
+import { ErrorCard } from '../components/ui/ErrorState';
 import { api } from '../api/client';
 
 const styles = {
@@ -102,6 +104,7 @@ export default function CourseContentPage() {
   useAuth();
   const { courseId, lessonId } = useParams();
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [courseData, setCourseData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -121,9 +124,10 @@ export default function CourseContentPage() {
           navigate(`/courses/${courseId}/learn/${data.currentLesson.lessonId}`, { replace: true });
         }
       } catch (err) {
-        if (err.name !== 'AbortError') {
-          setError(err.message || 'Could not load course content');
-        }
+        if (err.name === 'AbortError') return;
+        const msg = err.message || 'Could not load course content';
+        setError(msg);
+        showToast(msg, 'error');
       } finally {
         setLoading(false);
       }
@@ -131,7 +135,7 @@ export default function CourseContentPage() {
 
     fetchCourseContent();
     return () => controller.abort();
-  }, [courseId, lessonId, navigate]);
+  }, [courseId, lessonId, navigate, showToast]);
 
   const handleLessonClick = (id) => {
     navigate(`/courses/${courseId}/learn/${id}`);
@@ -147,8 +151,13 @@ export default function CourseContentPage() {
 
   if (error || !courseData) {
     return (
-      <div style={styles.loading}>
-        {error || 'Course not found'}
+      <div style={{ padding: 20 }}>
+        <ErrorCard
+          title={error?.toLowerCase().includes('not found') ? 'Course not found' : 'Couldn’t load course content'}
+          description={error || 'This course could not be found — it may have been removed or you may need to enroll first.'}
+          onRetry={() => { setError(''); setLoading(true); window.location.reload(); }}
+          retryLabel="Retry"
+        />
       </div>
     );
   }
@@ -210,6 +219,8 @@ export default function CourseContentPage() {
             lessonName={courseData.currentLesson.name}
             totalLessons={courseData.totalLessons}
             currentIndex={currentLessonIndex >= 0 ? currentLessonIndex : 0}
+            lessonId={courseData.currentLesson.lessonId}
+            onProgress={(p) => setCourseData((d) => d ? { ...d, progressPercent: Math.max(d.progressPercent, p) } : d)}
           />
           <LessonContent
             lesson={courseData.currentLesson}

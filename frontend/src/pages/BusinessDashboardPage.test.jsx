@@ -43,7 +43,7 @@ describe('BusinessDashboardPage', () => {
     api.get.mockRejectedValue(new Error('Network error'));
     renderPage();
     expect(await screen.findByText('Business dashboard unavailable')).toBeInTheDocument();
-    expect(screen.getByText('Network error')).toBeInTheDocument();
+    expect((await screen.findAllByText('Network error')).length).toBeGreaterThan(0);
   });
 
   it('deletes a posting via the base-relative path and refreshes without reload', async () => {

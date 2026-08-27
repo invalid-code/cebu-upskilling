@@ -10,6 +10,8 @@ import { useAuth } from '../context/AuthContext';
 import { useApplications } from '../context/ApplicationsContext';
 import { api } from '../api/client';
 import { TrendingUp, Shield, Target, Camera, Mic, Maximize, Check, AlertCircle, Loader2 } from 'lucide-react';
+import { useToast } from '../context/ToastContext';
+import { ErrorCard } from '../components/ui/ErrorState';
 
 const styles = {
   heading: {
@@ -306,15 +308,19 @@ export default function AssessmentsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [deviceCheck, setDeviceCheck] = useState('idle');
   const [assessmentOpen, setAssessmentOpen] = useState(false);
+  const { showToast } = useToast();
   const [currentAssessmentId, setCurrentAssessmentId] = useState(null);
   const [currentSkillName, setCurrentSkillName] = useState('');
   const [currentProctored, setCurrentProctored] = useState(true);
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
     let failed = false;
+    setLoading(true);
     Promise.all([
-      api.get('/assessments/available', { signal: controller.signal }).catch(() => {
+      api.get('/assessments/available', { signal: controller.signal }).catch((err) => {
+        if (err?.name === 'AbortError') return null;
         failed = true;
         return null;
       }),
@@ -324,10 +330,11 @@ export default function AssessmentsPage() {
         setError(failed);
         setAvailable(avail);
         setResults(res || []);
+        if (failed) showToast('Could not load assessments — please retry', 'error');
       })
       .finally(() => setLoading(false));
     return () => controller.abort();
-  }, []);
+  }, [retryKey, showToast]);
 
   const targetRole = user?.targetRole?.trim()
     || applications.find((a) => a.targetRole?.trim())?.targetRole?.trim();
@@ -365,9 +372,11 @@ export default function AssessmentsPage() {
       setCurrentAssessmentId(response.assessmentId);
       setModalOpen(false);
       setAssessmentOpen(true);
-    } catch {
+      showToast(`${assessment?.skillName || currentSkillName || 'Assessment'} started — good luck!`, 'success');
+    } catch (err) {
       setDeviceCheck('idle');
       setModalOpen(false);
+      showToast(err?.message || 'Could not start assessment', 'error');
     }
   }
 
@@ -428,11 +437,17 @@ export default function AssessmentsPage() {
 
           {loading ? (
             <div style={styles.loading}>Loading...</div>
+          ) : error ? (
+            <ErrorCard
+              title="Couldn’t load assessments"
+              description="We couldn’t reach the assessment service. Check your connection and try again."
+              onRetry={() => setRetryKey((k) => k + 1)}
+            />
           ) : !available?.assessments?.length ? (
             <Panel>
               <EmptyState
-                title={targetRole && !error ? 'All skills matched' : 'No available assessments'}
-                description={targetRole && !error
+                title={targetRole ? 'All skills matched' : 'No available assessments'}
+                description={targetRole
                   ? 'You have no remaining skill gaps for your target role.'
                   : 'Set a target role to see which assessments to take.'}
               />

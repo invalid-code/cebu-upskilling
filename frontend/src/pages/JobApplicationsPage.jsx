@@ -223,9 +223,9 @@ export default function JobApplicationsPage() {
         prev.map((app) => (app.applicationId === application.applicationId ? { ...app, status } : app)),
       );
       if (detail?.applicationId === application.applicationId) setDetail((d) => (d ? { ...d, status } : d));
-      showToast(`Application marked as ${status}`);
+      showToast(`Application marked as ${status}`, 'success');
     } catch (err) {
-      showToast(err?.message || 'Could not update status');
+      showToast(err?.message || 'Could not update status', 'error');
     } finally {
       setUpdatingId(null);
     }

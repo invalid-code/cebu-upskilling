@@ -96,7 +96,7 @@ export default function Topbar() {
           className="icon-btn"
           style={styles.iconBtn}
           aria-label="Search"
-          onClick={() => showToast('Search coming soon')}
+          onClick={() => showToast('Search coming soon', 'info')}
         >
           <Search size={18} />
         </button>
@@ -104,7 +104,7 @@ export default function Topbar() {
           className="icon-btn"
           style={styles.iconBtn}
           aria-label="Notifications"
-          onClick={() => showToast('No new notifications')}
+          onClick={() => showToast('No new notifications', 'info')}
         >
           <Bell size={18} />
         </button>
