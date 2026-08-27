@@ -22,7 +22,7 @@ public class AuthFlowsRegressionApiTests : ProductionApiTestBase
     // Email confirmation
     // ------------------------------------------------------------------ //
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task ConfirmEmail_WithValidToken_ConfirmsAndClearsStoredToken()
     {
         await SeedUserAsync(
@@ -47,7 +47,7 @@ public class AuthFlowsRegressionApiTests : ProductionApiTestBase
         Assert.Null(user.EmailConfirmationTokenExpiry);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task ConfirmEmail_WithWrongToken_ReturnsBadRequest()
     {
         await SeedUserAsync(
@@ -70,7 +70,7 @@ public class AuthFlowsRegressionApiTests : ProductionApiTestBase
         Assert.False(user.EmailConfirmed);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task ConfirmEmail_WithExpiredToken_ReturnsBadRequest()
     {
         await SeedUserAsync(
@@ -87,7 +87,7 @@ public class AuthFlowsRegressionApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task ConfirmEmail_ForUnknownEmail_ReturnsBadRequest()
     {
         var response = await Client.PostAsJsonAsync("/api/auth/confirm-email", new
@@ -99,7 +99,7 @@ public class AuthFlowsRegressionApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task ConfirmEmail_WhenAlreadyConfirmed_ReturnsOk()
     {
         await SeedUserAsync("authflow.confirm.done@example.com", emailConfirmed: true);
@@ -113,7 +113,7 @@ public class AuthFlowsRegressionApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task ResendConfirmation_ForUnconfirmedUser_RegeneratesToken()
     {
         await SeedUserAsync(
@@ -138,7 +138,7 @@ public class AuthFlowsRegressionApiTests : ProductionApiTestBase
         Assert.True(user.EmailConfirmationTokenExpiry > DateTime.UtcNow);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task ResendConfirmation_ForConfirmedUser_DoesNotRegenerateToken()
     {
         await SeedUserAsync(
@@ -159,7 +159,7 @@ public class AuthFlowsRegressionApiTests : ProductionApiTestBase
         Assert.Equal(HashToken("stale-confirm-token"), user.EmailConfirmationTokenHash);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task ResendConfirmation_ForUnknownEmail_ReturnsOkMessageWithoutLeaking()
     {
         var response = await Client.PostAsJsonAsync("/api/auth/resend-confirmation", new
@@ -174,7 +174,7 @@ public class AuthFlowsRegressionApiTests : ProductionApiTestBase
     // Password reset
     // ------------------------------------------------------------------ //
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task ForgotPassword_ForExistingUser_SetsResetToken()
     {
         await SeedUserAsync("authflow.forgot.existing@example.com");
@@ -195,7 +195,7 @@ public class AuthFlowsRegressionApiTests : ProductionApiTestBase
         Assert.True(user.PasswordResetTokenExpiry > DateTime.UtcNow);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task ForgotPassword_ForUnknownEmail_ReturnsOkMessageWithoutLeaking()
     {
         var response = await Client.PostAsJsonAsync("/api/auth/forgot-password", new
@@ -206,7 +206,7 @@ public class AuthFlowsRegressionApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task ResetPassword_WithValidToken_UpdatesPasswordAndAllowsNewLogin()
     {
         await SeedUserAsync(
@@ -240,7 +240,7 @@ public class AuthFlowsRegressionApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.OK, newLogin.StatusCode);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task ResetPassword_WithInvalidToken_ReturnsBadRequest()
     {
         await SeedUserAsync(
@@ -260,7 +260,7 @@ public class AuthFlowsRegressionApiTests : ProductionApiTestBase
         Assert.Equal("Invalid or expired reset token.", body.GetProperty("error").GetString());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task ResetPassword_WithExpiredToken_ReturnsBadRequest()
     {
         await SeedUserAsync(
@@ -278,7 +278,7 @@ public class AuthFlowsRegressionApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task ResetPassword_ForUnknownEmail_ReturnsBadRequest()
     {
         var response = await Client.PostAsJsonAsync("/api/auth/reset-password", new
@@ -291,7 +291,7 @@ public class AuthFlowsRegressionApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task ResetPassword_WithWeakPassword_ReturnsBadRequest()
     {
         await SeedUserAsync(
@@ -313,7 +313,7 @@ public class AuthFlowsRegressionApiTests : ProductionApiTestBase
     // Logout / token revocation
     // ------------------------------------------------------------------ //
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task Logout_RevokesToken_SubsequentRequestsAreRejected()
     {
         var token = await RegisterLearnerAsync("authflow.logout.revoked@example.com");
@@ -333,7 +333,7 @@ public class AuthFlowsRegressionApiTests : ProductionApiTestBase
         Assert.Equal("Token has been revoked. Please log in again.", afterBody.GetProperty("error").GetString());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task Logout_DoesNotAffectOtherUsersTokens()
     {
         var firstToken = await RegisterLearnerAsync("authflow.logout.first@example.com");
@@ -346,7 +346,7 @@ public class AuthFlowsRegressionApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.OK, secondResponse.StatusCode);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task Logout_WithoutAuth_ReturnsUnauthorized()
     {
         var response = await Client.PostAsync("/api/auth/logout", null);
@@ -357,7 +357,7 @@ public class AuthFlowsRegressionApiTests : ProductionApiTestBase
     // Company registration
     // ------------------------------------------------------------------ //
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task RegisterCompany_CreatesCompanyAndRecruiter_ReturnsToken()
     {
         var response = await Client.PostAsJsonAsync("/api/auth/register-company", new
@@ -389,7 +389,7 @@ public class AuthFlowsRegressionApiTests : ProductionApiTestBase
         Assert.Equal(company.CompanyId, user.CompanyId);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task RegisterCompany_DuplicateEmail_ReturnsBadRequest()
     {
         var request = new
@@ -418,7 +418,7 @@ public class AuthFlowsRegressionApiTests : ProductionApiTestBase
         Assert.Equal("Email already registered", body.GetProperty("error").GetString());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task RegisterCompany_DuplicateCompanyName_ReturnsBadRequest()
     {
         var request = new

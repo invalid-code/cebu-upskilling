@@ -20,6 +20,14 @@ export function AuthProvider({ children }) {
     return res;
   };
 
+  const loginWithGoogle = async (idToken, role) => {
+    const res = await api.post('/auth/google', role ? { idToken, role } : { idToken });
+    localStorage.setItem('token', res.token);
+    localStorage.setItem('user', JSON.stringify(res));
+    setUser(res);
+    return res;
+  };
+
   const register = async (data) => {
     const res = await api.post('/auth/register', data);
     localStorage.setItem('token', res.token);
@@ -82,6 +90,7 @@ export function AuthProvider({ children }) {
         setUser,
         loading,
         login,
+        loginWithGoogle,
         register,
         registerCompany,
         logout,

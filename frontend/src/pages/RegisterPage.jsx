@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, isRecruiter } from '../context/AuthContext';
 import { validateEmail, validatePassword, validatePasswordConfirm, validateRequired, validateBirthday } from '../utils/validation';
 import { useToast } from '../context/ToastContext';
 import Button from '../components/ui/Button';
+import GoogleSignInButton from '../components/GoogleSignInButton';
 import { extractResumeText } from '../utils/resumeText';
 
 const styles = {
@@ -164,7 +165,7 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [resumeFile, setResumeFile] = useState(null);
   const [confirmPassword, setConfirmPassword] = useState('');
-const { register, registerCompany } = useAuth();
+  const { register, registerCompany, loginWithGoogle } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
 
@@ -255,6 +256,21 @@ const { register, registerCompany } = useAuth();
       navigate('/');
     } catch (err) {
       setError(err.message || 'Registration failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSuccess = async (idToken) => {
+    setError('');
+    setLoading(true);
+    try {
+      // Pass the selected role so a brand-new Google account is provisioned
+      // with it; existing accounts keep their current role.
+      const user = await loginWithGoogle(idToken, role === 'recruiter' ? 'Recruiter' : 'Learner');
+      navigate(isRecruiter(user) ? '/business-dashboard' : '/');
+    } catch (err) {
+      setError(err.message || 'Google sign-up failed');
     } finally {
       setLoading(false);
     }
@@ -416,6 +432,12 @@ const { register, registerCompany } = useAuth();
             {loading ? 'Creating account...' : 'Create account'}
           </Button>
         </form>
+
+        <GoogleSignInButton
+          onSuccess={handleGoogleSuccess}
+          onError={(err) => setError(err.message)}
+          text="signup_with"
+        />
 
         <p style={styles.link}>
           Already have an account? <Link to="/login">Sign in</Link>

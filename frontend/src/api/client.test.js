@@ -74,21 +74,21 @@ describe('api client', () => {
     const promise = api.get('/skillgaps');
     respond(lastRequest(), { body: '{"a":1}' });
 
-    expect(promise).resolves.toEqual({ a: 1 });
+    await expect(promise).resolves.toEqual({ a: 1 });
   });
 
   it('resolves with raw text when the body is not JSON', async () => {
     const promise = api.get('/plain');
     respond(lastRequest(), { body: 'hello' });
 
-    expect(promise).resolves.toBe('hello');
+    await expect(promise).resolves.toBe('hello');
   });
 
   it('resolves with null on 204 No Content', async () => {
     const promise = api.delete('/posts/1');
     respond(lastRequest(), { status: 204, body: '' });
 
-    expect(promise).resolves.toBeNull();
+    await expect(promise).resolves.toBeNull();
   });
 
   it('rejects with the server error message', async () => {
@@ -139,7 +139,7 @@ describe('api client', () => {
     const promise = api.get('/courses');
     respond(lastRequest(), { status: 401, body: '{"error":"Unauthorized"}' });
 
-    expect(promise).resolves.toBeNull();
+    await expect(promise).resolves.toBeNull();
     expect(localStorage.getItem('token')).toBeNull();
     expect(window.location.href).toBe('/login');
   });

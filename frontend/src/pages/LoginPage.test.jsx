@@ -10,6 +10,14 @@ vi.mock('../api/client', () => ({
   },
 }));
 
+// Stand-in for the real GIS-backed button: clicking it simulates the Google
+// credential callback with a fixed ID token.
+vi.mock('../components/GoogleSignInButton', () => ({
+  default: ({ onSuccess }) => (
+    <button onClick={() => onSuccess('google-fake-id-token')}>Continue with Google</button>
+  ),
+}));
+
 import { api } from '../api/client';
 
 function MockDestination() {
@@ -163,5 +171,38 @@ describe('LoginPage', () => {
     });
 
     expect(screen.queryByText('Please enter a valid email address')).not.toBeInTheDocument();
+  });
+
+  it('signs in with Google, stores the token and redirects learners', async () => {
+    api.post.mockResolvedValue({ token: 'g-token', firstName: 'Ana', role: 'Learner' });
+    renderLogin();
+
+    fireEvent.click(screen.getByRole('button', { name: /continue with google/i }));
+
+    await waitFor(() => {
+      expect(api.post).toHaveBeenCalledWith('/auth/google', { idToken: 'google-fake-id-token' });
+    });
+    expect(localStorage.getItem('token')).toBe('g-token');
+    expect(await screen.findByText('Learner home')).toBeInTheDocument();
+  });
+
+  it('redirects Google recruiters to the business dashboard', async () => {
+    api.post.mockResolvedValue({ token: 'g-token', firstName: 'Maria', role: 'Recruiter' });
+    renderLogin();
+
+    fireEvent.click(screen.getByRole('button', { name: /continue with google/i }));
+
+    expect(await screen.findByText('Business dashboard')).toBeInTheDocument();
+  });
+
+  it('shows an error when Google sign-in fails on the backend', async () => {
+    api.post.mockRejectedValue(new Error('Invalid Google credential'));
+    renderLogin();
+
+    fireEvent.click(screen.getByRole('button', { name: /continue with google/i }));
+
+    expect(await screen.findByText('Invalid Google credential')).toBeInTheDocument();
+    expect(localStorage.getItem('token')).toBeNull();
+    expect(screen.queryByText('Learner home')).not.toBeInTheDocument();
   });
 });

@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth, isRecruiter } from '../context/AuthContext';
 import { validateEmail, validatePassword } from '../utils/validation';
 import Button from '../components/ui/Button';
+import GoogleSignInButton from '../components/GoogleSignInButton';
 
 const styles = {
   container: {
@@ -91,7 +92,7 @@ export default function LoginPage() {
   const [fieldErrors, setFieldErrors] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
 
   const validateForm = () => {
@@ -113,6 +114,19 @@ export default function LoginPage() {
       navigate(isRecruiter(user) ? '/business-dashboard' : '/');
     } catch (err) {
       setError(err.message || 'Login failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSuccess = async (idToken) => {
+    setError('');
+    setLoading(true);
+    try {
+      const user = await loginWithGoogle(idToken);
+      navigate(isRecruiter(user) ? '/business-dashboard' : '/');
+    } catch (err) {
+      setError(err.message || 'Google sign-in failed');
     } finally {
       setLoading(false);
     }
@@ -173,6 +187,8 @@ export default function LoginPage() {
             {loading ? 'Signing in...' : 'Sign in'}
           </Button>
         </form>
+
+        <GoogleSignInButton onSuccess={handleGoogleSuccess} onError={(err) => setError(err.message)} />
 
         <p style={styles.link}>
           <Link to="/forgot-password">Forgot your password?</Link>

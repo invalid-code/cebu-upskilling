@@ -22,9 +22,10 @@ public class AppUser : AuditableEntity
     [Required, MaxLength(255)]
     public string EmailAddress { get; set; } = string.Empty;
 
-    [Required, MaxLength(500)]
+    // Nullable: users who only ever sign in with Google have no local password.
+    [MaxLength(500)]
     [JsonIgnore]
-    public string PasswordHash { get; set; } = string.Empty;
+    public string? PasswordHash { get; set; }
 
     [MaxLength(50)]
     public string Role { get; set; } = "Learner";

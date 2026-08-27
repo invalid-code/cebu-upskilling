@@ -29,6 +29,7 @@ builder.Services.AddHealthChecks()
 
 builder.Services.Configure<R2Options>(builder.Configuration.GetSection(R2Options.SectionName));
 builder.Services.Configure<GoogleAiOptions>(builder.Configuration.GetSection(GoogleAiOptions.SectionName));
+builder.Services.Configure<GoogleOAuthOptions>(builder.Configuration.GetSection(GoogleOAuthOptions.SectionName));
 
 var googleAiOptions = builder.Configuration.GetSection(GoogleAiOptions.SectionName).Get<GoogleAiOptions>();
 builder.Services.AddHttpClient<IGoogleAiService, GoogleAiService>(client =>
@@ -73,6 +74,7 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IGoogleTokenVerifier, GoogleTokenVerifier>();
 builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection(EmailOptions.SectionName));
 var emailOptions = builder.Configuration.GetSection(EmailOptions.SectionName).Get<EmailOptions>();
 if (!string.IsNullOrWhiteSpace(emailOptions?.ApiKey))

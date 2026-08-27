@@ -10,7 +10,7 @@ public class BusinessStatsApiTests : ProductionApiTestBase
 {
     public BusinessStatsApiTests(ProductionApiFactory factory) : base(factory) { }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task BusinessStats_AsRecruiter_ReturnsCompanyAggregates()
     {
         var (token, companyId) = await RegisterRecruiterAsync("business.stats@example.com", "Acme Corp");
@@ -29,7 +29,7 @@ public class BusinessStatsApiTests : ProductionApiTestBase
         Assert.NotEmpty(body.GetProperty("skillDemand").EnumerateArray());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task BusinessStats_IsScopedToTheRecruitersCompany()
     {
         var (firstToken, firstCompanyId) = await RegisterRecruiterAsync("business.first@example.com", "First Co");
@@ -44,7 +44,7 @@ public class BusinessStatsApiTests : ProductionApiTestBase
         Assert.Equal("First role", postings[0].GetProperty("title").GetString());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task BusinessStats_RejectsLearners_AndRecruitersWithoutCompanies()
     {
         var learnerToken = await RegisterLearnerAsync("business.learner@example.com");
