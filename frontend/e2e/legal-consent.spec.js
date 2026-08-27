@@ -113,7 +113,7 @@ test.describe('Cookie consent banner', () => {
     await mockLearnerShell(page);
 
     await page.setViewportSize({ width: 1280, height: 800 });
-    await page.goto('/');
+    await page.goto('/dashboard');
     const banner = page.getByRole('region', { name: 'Cookie notice' });
     await expect(banner).toBeVisible();
 
@@ -151,7 +151,7 @@ test.describe('Footer and legal pages', () => {
   test('footer renders for learner with working legal links', async ({ page }) => {
     await setAuth(page, { user: learnerUser });
     await mockLearnerShell(page);
-    await page.goto('/');
+    await page.goto('/dashboard');
 
     const footer = page.locator('footer.app-footer');
     await expect(footer).toBeVisible();
@@ -180,7 +180,7 @@ test.describe('Footer and legal pages', () => {
   test('footer help center link navigates to /help', async ({ page }) => {
     await setAuth(page, { user: learnerUser });
     await mockLearnerShell(page);
-    await page.goto('/');
+    await page.goto('/dashboard');
     await page.locator('footer.app-footer').getByRole('link', { name: 'Help Center' }).click();
     await expect(page).toHaveURL(/\/help$/);
   });
@@ -307,7 +307,7 @@ test.describe('Registration — confirm password and AI resume parsing flow', ()
     expect(registerPayload.resume).toBeTruthy();
     expect(registerPayload.emailAddress).toBe('qa.ai@example.com');
     expect(registerPayload.confirmPassword).toBeUndefined();
-    await expect(page).toHaveURL('http://localhost:5173/');
+    await expect(page).toHaveURL(/\/dashboard/);
   });
 
   test('AI agent path: registration still succeeds when parser returns zero skills', async ({ page }) => {
@@ -341,7 +341,7 @@ test.describe('Registration — confirm password and AI resume parsing flow', ()
 
     await expect(page.getByText('Account created')).toBeVisible();
     expect(registerHadResume).toBe(false);
-    await expect(page).toHaveURL('http://localhost:5173/');
+    await expect(page).toHaveURL(/\/dashboard/);
   });
 
   test('employer registration hides resume upload and birthday', async ({ page }) => {

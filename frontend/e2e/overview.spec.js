@@ -38,7 +38,7 @@ test.describe('Overview page (learner)', () => {
   test('renders hero and pathway rail', async ({ page }) => {
     await setAuth(page, { user: learnerUser });
     await mockOverview(page, { courses: sampleCourses, skillGaps: sampleGaps, recommended: { skillName: 'JavaScript' } });
-    await page.goto('/');
+    await page.goto('/dashboard');
     await expect(page.getByText('Your next move is clear.')).toBeVisible();
     await expect(page.getByText(/of the way to your target role/)).toBeVisible();
     await expect(page.getByText('Pathway rail')).toBeVisible();
@@ -48,7 +48,7 @@ test.describe('Overview page (learner)', () => {
   test('shows empty skill gaps when no target role', async ({ page }) => {
     await setAuth(page, { user: bareLearner });
     await mockOverview(page, { courses: [], skillGaps: [] });
-    await page.goto('/');
+    await page.goto('/dashboard');
     await expect(page.getByText('Set a target role to see your gaps')).toBeVisible();
     await expect(page.getByText('No score yet')).toBeVisible();
   });
@@ -56,7 +56,7 @@ test.describe('Overview page (learner)', () => {
   test('shows skill gaps when target role present', async ({ page }) => {
     await setAuth(page, { user: learnerUser });
     await mockOverview(page, { courses: [], skillGaps: sampleGaps });
-    await page.goto('/');
+    await page.goto('/dashboard');
     await expect(page.getByRole('heading', { name: 'JavaScript' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'TypeScript' })).toBeVisible();
   });
@@ -64,7 +64,7 @@ test.describe('Overview page (learner)', () => {
   test('renders weekly stats', async ({ page }) => {
     await setAuth(page, { user: learnerUser });
     await mockOverview(page, { weekly: { learningTimeHours: 5, coursesActive: 2, jobsWorthApplying: 4 } });
-    await page.goto('/');
+    await page.goto('/dashboard');
     await expect(page.getByText('5h')).toBeVisible();
     await expect(page.getByText('learning time')).toBeVisible();
     await expect(page.getByText('courses active')).toBeVisible();
@@ -74,7 +74,7 @@ test.describe('Overview page (learner)', () => {
   test('renders recommended courses', async ({ page }) => {
     await setAuth(page, { user: learnerUser });
     await mockOverview(page, { courses: sampleCourses });
-    await page.goto('/');
+    await page.goto('/dashboard');
     await expect(page.getByText('Modern JavaScript for Frontend Work')).toBeVisible();
     await expect(page.getByText('TypeScript from Zero to Confident')).toBeVisible();
   });
@@ -82,10 +82,10 @@ test.describe('Overview page (learner)', () => {
   test('navigates to skills and courses via buttons/links', async ({ page }) => {
     await setAuth(page, { user: learnerUser });
     await mockOverview(page, { courses: [], skillGaps: [] });
-    await page.goto('/');
+    await page.goto('/dashboard');
     await page.getByRole('button', { name: 'Update skills' }).click();
     await expect(page).toHaveURL(/\/skills/);
-    await page.goto('/');
+    await page.goto('/dashboard');
     await page.getByRole('button', { name: 'Browse courses' }).click();
     await expect(page).toHaveURL(/\/courses/);
   });
@@ -93,7 +93,7 @@ test.describe('Overview page (learner)', () => {
   test('employer overview not shown to learner', async ({ page }) => {
     await setAuth(page, { user: learnerUser });
     await mockOverview(page);
-    await page.goto('/');
+    await page.goto('/dashboard');
     await expect(page.getByText('Your next move is clear.')).toBeVisible();
     await expect(page.getByText('Welcome back.')).not.toBeVisible();
   });
