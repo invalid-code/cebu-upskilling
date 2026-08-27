@@ -1,4 +1,11 @@
 .env
+# dotenv variants (keep the example template tracked)
+.env.*
+!.env.example
+# secret stores / credential files
+secrets.json
+*.pem
+*.key
 # Logs
 logs
 *.log

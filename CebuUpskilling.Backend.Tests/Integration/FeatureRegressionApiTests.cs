@@ -395,7 +395,11 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.OK, emptyResponse.StatusCode);
         Assert.Empty((await ReadJsonAsync(emptyResponse)).EnumerateArray().ToList());
 
-        var applyResponse = await authorized.PostAsJsonAsync("/api/applications", new { postId });
+        var applyResponse = await authorized.PostAsJsonAsync("/api/applications", new
+        {
+            postId,
+            resumeUrl = "https://storage.example/resume.pdf",
+        });
         Assert.Equal(HttpStatusCode.Created, applyResponse.StatusCode);
         var created = await ReadJsonAsync(applyResponse);
         Assert.Equal(postId, created.GetProperty("postId").GetInt32());
@@ -403,7 +407,11 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         Assert.Equal("Acme Corp", created.GetProperty("company").GetString());
         Assert.Equal("applied", created.GetProperty("status").GetString());
 
-        var duplicateResponse = await authorized.PostAsJsonAsync("/api/applications", new { postId });
+        var duplicateResponse = await authorized.PostAsJsonAsync("/api/applications", new
+        {
+            postId,
+            resumeUrl = "https://storage.example/resume.pdf",
+        });
         Assert.Equal(HttpStatusCode.OK, duplicateResponse.StatusCode);
 
         var patchResponse = await authorized.PatchAsJsonAsync(
@@ -425,9 +433,28 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
     {
         var token = await RegisterLearnerAsync("regr.apps.missing@example.com");
 
-        var response = await AuthorizedClient(token).PostAsJsonAsync("/api/applications", new { postId = 9999 });
+        var response = await AuthorizedClient(token).PostAsJsonAsync("/api/applications", new
+        {
+            postId = 9999,
+            resumeUrl = "https://storage.example/resume.pdf",
+        });
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Applications_WithoutResume_ReturnsBadRequest()
+    {
+        var token = await RegisterLearnerAsync("regr.apps.noresume@example.com");
+        var (recruiterToken, _, companyId) =
+            await RegisterRecruiterWithCompanyAsync("regr.apps.noresume.recruiter@example.com");
+        var postId = await CreatePostAsync(recruiterToken, companyId, "Resume Required Role");
+
+        var response = await AuthorizedClient(token).PostAsJsonAsync("/api/applications", new { postId });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var body = await ReadJsonAsync(response);
+        Assert.Contains("resume", body.GetProperty("error").GetString(), StringComparison.OrdinalIgnoreCase);
     }
 
     // ------------------------------------------------------------------ //

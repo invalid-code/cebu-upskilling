@@ -62,6 +62,9 @@ function fillForm() {
   fireEvent.change(screen.getByPlaceholderText('Password'), {
     target: { value: formData.password },
   });
+  fireEvent.change(screen.getByPlaceholderText('Confirm password'), {
+    target: { value: formData.password },
+  });
   fireEvent.change(screen.getByPlaceholderText('Address (optional)'), {
     target: { value: formData.address },
   });
@@ -83,6 +86,7 @@ describe('RegisterPage', () => {
     expect(screen.getByPlaceholderText('Last name')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Email address')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Password')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Confirm password')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Address (optional)')).toBeInTheDocument();
     expect(screen.getByLabelText('Birthday')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Create account' })).toBeInTheDocument();
@@ -116,6 +120,80 @@ describe('RegisterPage', () => {
     renderRegister();
     fireEvent.click(screen.getByRole('button', { name: 'Employer' }));
     expect(screen.getByPlaceholderText('Company name')).toBeInTheDocument();
+  });
+
+  it('shows a field error for mismatched passwords and does not call the API', async () => {
+    renderRegister();
+
+    fireEvent.change(screen.getByPlaceholderText('First name'), {
+      target: { value: 'Jose' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Last name'), {
+      target: { value: 'Rizal' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Email address'), {
+      target: { value: 'jose@example.com' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Password'), {
+      target: { value: 'secret123' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Confirm password'), {
+      target: { value: 'different123' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+
+    expect(await screen.findByText('Passwords do not match')).toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('shows a field error for an empty confirm password and does not call the API', async () => {
+    renderRegister();
+
+    fireEvent.change(screen.getByPlaceholderText('First name'), {
+      target: { value: 'Jose' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Last name'), {
+      target: { value: 'Rizal' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Email address'), {
+      target: { value: 'jose@example.com' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Password'), {
+      target: { value: 'secret123' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+
+    expect(await screen.findByText('Confirm password is required')).toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('clears the confirm password field error as the user types', async () => {
+    renderRegister();
+
+    fireEvent.change(screen.getByPlaceholderText('First name'), {
+      target: { value: 'Jose' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Last name'), {
+      target: { value: 'Rizal' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Email address'), {
+      target: { value: 'jose@example.com' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Password'), {
+      target: { value: 'secret123' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Confirm password'), {
+      target: { value: 'different123' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+
+    expect(await screen.findByText('Passwords do not match')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText('Confirm password'), {
+      target: { value: 'secret123' },
+    });
+
+    expect(screen.queryByText('Passwords do not match')).not.toBeInTheDocument();
   });
 
   it('shows a field error for an invalid email and does not call the API', async () => {
@@ -201,6 +279,9 @@ describe('RegisterPage', () => {
       target: { value: companyFormData.emailAddress },
     });
     fireEvent.change(screen.getByPlaceholderText('Password'), {
+      target: { value: companyFormData.password },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Confirm password'), {
       target: { value: companyFormData.password },
     });
 

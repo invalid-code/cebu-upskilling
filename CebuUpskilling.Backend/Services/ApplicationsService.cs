@@ -10,6 +10,7 @@ public enum ApplyFailure
     NoLearnerProfile,
     PostNotFound,
     AlreadyApplied,
+    ResumeRequired,
 }
 
 public record ApplyOutcome(bool Success, ApplyFailure? Failure = null, ApplicationSummary? Application = null);
@@ -85,6 +86,13 @@ public class ApplicationsService : IApplicationsService
     public async Task<ApplyOutcome> ApplyAsync(int userId, int postId, string? resumeUrl = null, string? coverLetterUrl = null)
     {
         _logger.LogInformation("User {UserId} applying to post {PostId}", userId, postId);
+
+        // A resume is mandatory: server-side enforcement so direct API calls cannot bypass it.
+        if (string.IsNullOrWhiteSpace(resumeUrl))
+        {
+            _logger.LogWarning("User {UserId} application to post {PostId} rejected: no resume attached", userId, postId);
+            return new ApplyOutcome(false, ApplyFailure.ResumeRequired);
+        }
 
         var learner = await _learners.GetByUserIdAsync(userId);
         if (learner == null)

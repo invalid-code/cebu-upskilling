@@ -28,7 +28,11 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
             await RegisterRecruiterWithCompanyAsync("secreg.apps.recruiter@example.com");
         var postId = await CreatePostAsync(recruiterToken, companyId, recruiterId, "Security App Role");
 
-        var applyA = await AuthorizedClient(learnerA).PostAsJsonAsync("/api/applications", new { postId });
+        var applyA = await AuthorizedClient(learnerA).PostAsJsonAsync("/api/applications", new
+        {
+            postId,
+            resumeUrl = "https://storage.example/resume.pdf",
+        });
         Assert.Equal(HttpStatusCode.Created, applyA.StatusCode);
 
         var patchB = await AuthorizedClient(learnerB).PatchAsJsonAsync(
@@ -182,6 +186,7 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
             postId,
             status = "hired",
             userId = 1,
+            resumeUrl = "https://storage.example/resume.pdf",
         });
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);

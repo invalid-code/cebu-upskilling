@@ -131,13 +131,21 @@ function upload(path, file) {
         reject(new Error(message));
         return;
       }
+      let data = null;
       try {
-        resolve(JSON.parse(xhr.responseText));
+        data = JSON.parse(xhr.responseText);
       } catch {
-        resolve(xhr.responseText);
+        data = null;
       }
+      if (!data || typeof data.url !== 'string' || !data.url) {
+        console.warn(`[API] ${method} ${path} → ${xhr.status}: response missing file url`);
+        reject(new Error('Upload did not complete — the server did not confirm the file. Please try again.'));
+        return;
+      }
+      console.debug(`[API] ${method} ${path} → ${xhr.status} url=${data.url}`);
+      resolve(data);
     };
-    xhr.onerror = () => reject(new Error('Network error'));
+    xhr.onerror = () => reject(new Error('Network error — file was not uploaded'));
 
     const form = new FormData();
     form.append('file', file);

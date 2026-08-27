@@ -8,6 +8,7 @@ import EmptyState from '../components/shared/EmptyState';
 import Button from '../components/ui/Button';
 import { api } from '../api/client';
 import { useToast } from '../context/ToastContext';
+import { resolveFileUrl } from '../utils/fileUrl';
 
 const styles = {
   heading: {
@@ -271,10 +272,10 @@ export default function JobApplicationsPage() {
                     <div style={styles.links}>
                       <span style={styles.postTitle}>{application.postTitle}</span>
                       {application.resumeUrl && (
-                        <a style={styles.link} href={application.resumeUrl} target="_blank" rel="noreferrer">Resume</a>
+                        <a style={styles.link} href={resolveFileUrl(application.resumeUrl)} target="_blank" rel="noreferrer">Resume</a>
                       )}
                       {application.coverLetterUrl && (
-                        <a style={styles.link} href={application.coverLetterUrl} target="_blank" rel="noreferrer">Cover letter</a>
+                        <a style={styles.link} href={resolveFileUrl(application.coverLetterUrl)} target="_blank" rel="noreferrer">Cover letter</a>
                       )}
                     </div>
                   </div>
@@ -319,12 +320,12 @@ export default function JobApplicationsPage() {
             ) : (
               <div style={styles.docButtons}>
                 {detail.resumeUrl && (
-                  <a style={styles.docButton} href={detail.resumeUrl} target="_blank" rel="noreferrer">
+                  <a style={styles.docButton} href={resolveFileUrl(detail.resumeUrl)} target="_blank" rel="noreferrer">
                     <FileText size={15} /> Resume
                   </a>
                 )}
                 {detail.coverLetterUrl && (
-                  <a style={styles.docButton} href={detail.coverLetterUrl} target="_blank" rel="noreferrer">
+                  <a style={styles.docButton} href={resolveFileUrl(detail.coverLetterUrl)} target="_blank" rel="noreferrer">
                     <FileText size={15} /> Cover letter
                   </a>
                 )}

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures.js';
 import { setAuth } from './helpers.js';
 
 const learnerUser = { firstName: 'Jose', lastName: 'Rizal', role: 'Learner' };

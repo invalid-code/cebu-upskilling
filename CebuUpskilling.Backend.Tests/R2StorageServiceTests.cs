@@ -1,25 +1,12 @@
 using CebuUpskilling.Backend.Options;
 using CebuUpskilling.Backend.Services;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
 
 namespace CebuUpskilling.Backend.Tests;
 
 [Trait("Category", "ExternalIntegration")]
 public class R2StorageServiceTests
 {
-    private sealed class StubEnvironment : IWebHostEnvironment
-    {
-        public string ApplicationName { get; set; } = "Tests";
-        public IFileProvider WebRootFileProvider { get; set; } = null!;
-        public string WebRootPath { get; set; } = Path.Combine(Path.GetTempPath(), "r2tests", "wwwroot");
-        public string EnvironmentName { get; set; } = "Testing";
-        public string ContentRootPath { get; set; } = Path.GetTempPath();
-        public IFileProvider ContentRootFileProvider { get; set; } = null!;
-    }
-
     private static R2StorageService CreateService(string publicBaseUrl) => new(
         Microsoft.Extensions.Options.Options.Create(new R2Options
         {
@@ -29,8 +16,7 @@ public class R2StorageServiceTests
             BucketName = "test-bucket",
             PublicBaseUrl = publicBaseUrl,
         }),
-        NullLogger<R2StorageService>.Instance,
-        new StubEnvironment()
+        NullLogger<R2StorageService>.Instance
     );
 
     [Fact]
@@ -54,20 +40,48 @@ public class R2StorageServiceTests
     }
 
     [Fact]
-    public async Task UploadAsync_FallsBackToLocalDisk_WhenR2IsNotConfigured()
+    public async Task UploadAsync_ThrowsWhenR2IsNotConfigured_StrictR2Only()
     {
         var service = new R2StorageService(
             Microsoft.Extensions.Options.Options.Create(new R2Options()),
-            NullLogger<R2StorageService>.Instance,
-            new StubEnvironment()
+            NullLogger<R2StorageService>.Instance
         );
 
         await using var stream = new MemoryStream("resume bytes"u8.ToArray());
-        var url = await service.UploadAsync("documents/abc.pdf", stream, "application/pdf");
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.UploadAsync("documents/abc.pdf", stream, "application/pdf"));
 
-        Assert.StartsWith("/uploads/documents/", url);
-        var filePath = Path.Combine(Path.GetTempPath(), "r2tests", "wwwroot", "uploads", "documents", "abc.pdf");
-        Assert.True(File.Exists(filePath), "Local fallback file should exist on disk");
-        File.Delete(filePath);
+        Assert.Contains("temporarily disabled", ex.Message);
+        // Ensure no secrets or internal config details are leaked
+        Assert.DoesNotContain("R2__", ex.Message);
+        Assert.DoesNotContain("AccountId", ex.Message);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_ThrowsWhenR2IsNotConfigured_StrictR2Only()
+    {
+        var service = new R2StorageService(
+            Microsoft.Extensions.Options.Options.Create(new R2Options()),
+            NullLogger<R2StorageService>.Instance
+        );
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.DeleteAsync("documents/abc.pdf"));
+
+        Assert.Contains("temporarily disabled", ex.Message);
+        Assert.DoesNotContain("R2__", ex.Message);
+    }
+
+    [Fact]
+    public void GetPublicUrl_ThrowsWhenR2IsNotConfigured_StrictR2Only()
+    {
+        var service = new R2StorageService(
+            Microsoft.Extensions.Options.Options.Create(new R2Options()),
+            NullLogger<R2StorageService>.Instance
+        );
+
+        var ex = Assert.Throws<InvalidOperationException>(() => service.GetPublicUrl("documents/abc.pdf"));
+        Assert.Contains("temporarily disabled", ex.Message);
+        Assert.DoesNotContain("R2__", ex.Message);
     }
 }
