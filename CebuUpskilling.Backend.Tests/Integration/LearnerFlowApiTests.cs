@@ -133,8 +133,7 @@ public class LearnerFlowApiTests : ProductionApiTestBase
             await db.SaveChangesAsync();
             companyId = company.CompanyId;
             var user = await db.Users.FindAsync(recruiterUserId);
-            user!.CompanyId = companyId;
-            await db.SaveChangesAsync();
+            user!.CompanyId = companyId;            await db.SaveChangesAsync();
         }
 
         int postId;

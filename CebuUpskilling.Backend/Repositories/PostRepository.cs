@@ -9,6 +9,7 @@ public interface IPostRepository : IEntityRepository<Post>
 {
     Task<int> CountAsync();
     Task<(List<Post> Items, int Total)> SearchAsync(PostQueryParams query);
+    Task<List<Post>> GetByTargetRoleAsync(string targetRole);
 }
 
 public class PostRepository : EntityRepository<Post>, IPostRepository
@@ -16,12 +17,26 @@ public class PostRepository : EntityRepository<Post>, IPostRepository
     public PostRepository(ApplicationDbContext context) : base(context) { }
 
     public override async Task<List<Post>> GetAllAsync()
-        => await _dbSet.Include(p => p.Company).ToListAsync();
+        => await _dbSet
+            .Include(p => p.Company)
+            .Include(p => p.PostSkills)
+                .ThenInclude(ps => ps.Skill)
+            .ToListAsync();
 
     public override async Task<Post?> GetByIdAsync(int id)
-        => await _dbSet.Include(p => p.Company).FirstOrDefaultAsync(p => p.PostId == id);
+        => await _dbSet
+            .Include(p => p.Company)
+            .Include(p => p.PostSkills)
+                .ThenInclude(ps => ps.Skill)
+            .FirstOrDefaultAsync(p => p.PostId == id);
 
     public async Task<int> CountAsync() => await _dbSet.CountAsync();
+
+    public async Task<List<Post>> GetByTargetRoleAsync(string targetRole)
+        => await _dbSet
+            .Include(p => p.PostSkills)
+            .Where(p => p.TargetRole.ToLower() == targetRole.ToLower())
+            .ToListAsync();
 
     public async Task<(List<Post> Items, int Total)> SearchAsync(PostQueryParams query)
     {

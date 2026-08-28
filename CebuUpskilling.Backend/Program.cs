@@ -93,6 +93,7 @@ builder.Services.AddSingleton<ITokenRevocationStore, InMemoryTokenRevocationStor
 builder.Services.AddScoped<ICourseRepository, CourseRepository>();
 builder.Services.AddScoped<ILessonRepository, LessonRepository>();
 builder.Services.AddScoped<IPostRepository, PostRepository>();
+builder.Services.AddScoped<IPostSkillRepository, PostSkillRepository>();
 builder.Services.AddScoped<ILearnerRepository, LearnerRepository>();
 builder.Services.AddScoped<ISkillRepository, SkillRepository>();
 builder.Services.AddScoped<IAppUserRepository, AppUserRepository>();
@@ -129,7 +130,8 @@ var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationExcep
 
 if (jwtKey.Length < 32)
 {
-    throw new InvalidOperationException("Jwt:Key must be at least 32 characters long for HMAC-SHA256.");
+    throw new InvalidOperationException(
+        "Jwt:Key must be at least 32 characters (256 bits) for HMAC-SHA256. Provide a base64-encoded value of at least 32 bytes (e.g. 43-character base64 strings are typical). Set Jwt:Key in appsettings.json or the Jwt__Key environment variable.");
 }
 builder.Services.AddAuthentication(options =>
 {
