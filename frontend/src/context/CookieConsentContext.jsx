@@ -1,25 +1,22 @@
 /* eslint-disable react/only-export-components */
-import { createContext, useContext, useState, useCallback } from 'react';
-
-const STORAGE_KEY = 'cebu-cookie-consent';
+import { createContext, useContext, useEffect } from 'react';
+import { useCookieConsentStore, getInitialConsent } from '../stores/cookieConsentStore';
 
 const CookieConsentContext = createContext(null);
 
 export function CookieConsentProvider({ children }) {
-  const [consent, setConsent] = useState(() => localStorage.getItem(STORAGE_KEY));
+  const store = useCookieConsentStore();
+  const initial = getInitialConsent();
+  const needsSync = store.consent !== initial;
 
-  const accept = useCallback(() => {
-    localStorage.setItem(STORAGE_KEY, 'accepted');
-    setConsent('accepted');
-  }, []);
+  useEffect(() => {
+    if (needsSync) store.hydrate();
+  }, [needsSync, store]);
 
-  const decline = useCallback(() => {
-    localStorage.setItem(STORAGE_KEY, 'declined');
-    setConsent('declined');
-  }, []);
+  const value = needsSync ? { ...store, consent: initial } : store;
 
   return (
-    <CookieConsentContext.Provider value={{ consent, accept, decline }}>
+    <CookieConsentContext.Provider value={value}>
       {children}
     </CookieConsentContext.Provider>
   );
@@ -27,6 +24,7 @@ export function CookieConsentProvider({ children }) {
 
 export function useCookieConsent() {
   const ctx = useContext(CookieConsentContext);
-  if (!ctx) throw new Error('useCookieConsent must be used within CookieConsentProvider');
-  return ctx;
+  const store = useCookieConsentStore();
+  if (ctx) return ctx;
+  return store;
 }
