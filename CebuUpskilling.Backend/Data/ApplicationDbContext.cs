@@ -52,6 +52,12 @@ public class ApplicationDbContext : DbContext
             .WithMany(g => g.Courses)
             .HasForeignKey(c => c.GenreId);
 
+        modelBuilder.Entity<Course>()
+            .HasOne(c => c.Company)
+            .WithMany(c => c.Courses)
+            .HasForeignKey(c => c.CompanyId)
+            .IsRequired(false);
+
         modelBuilder.Entity<CourseModule>()
             .HasOne(m => m.Course)
             .WithMany(c => c.Modules)
