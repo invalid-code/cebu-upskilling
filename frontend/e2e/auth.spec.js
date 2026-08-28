@@ -138,7 +138,7 @@ test.describe('Authentication — login & registration', () => {
     await page.getByPlaceholder('Password', { exact: true }).fill('wrong123');
     await page.getByRole('button', { name: 'Sign in' }).click();
 
-    await expect(page.getByText('Invalid credentials')).toBeVisible();
+    await expect(page.getByRole('alert').getByText('Invalid credentials').first()).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
     await expect(page).toHaveURL(/\/login/);
   });
@@ -334,7 +334,7 @@ test.describe('Authentication — registration', () => {
     await page.getByPlaceholder('Password', { exact: true }).fill('secret123');
     await page.getByPlaceholder('Confirm password').fill('secret123');
     await page.getByRole('button', { name: 'Create account' }).click();
-    await expect(page.getByText('Email already in use')).toBeVisible();
+    await expect(page.getByRole('alert').getByText('Email already in use').first()).toBeVisible();
   });
 
   test('resume must be PDF or DOCX', async ({ page }) => {
@@ -345,6 +345,6 @@ test.describe('Authentication — registration', () => {
     // Create a dummy .txt file buffer via evaluate: use DataTransfer not trivial, use setInputFiles with Buffer
     const buffer = Buffer.from('fake text file');
     await fileInput.setInputFiles({ name: 'resume.txt', mimeType: 'text/plain', buffer });
-    await expect(page.getByText('Resume must be a PDF or DOCX file only')).toBeVisible();
+    await expect(page.getByRole('alert').getByText('Resume must be a PDF or DOCX file only').first()).toBeVisible();
   });
 });

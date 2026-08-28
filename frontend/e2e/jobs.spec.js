@@ -203,7 +203,8 @@ test.describe('Jobs page', () => {
   test('shows error state when API fails', async ({ page }) => {
     await mockPostsRoute(page, { error: true });
     await page.goto('/jobs');
-    await expect(page.getByText("Couldn't load jobs. Check back later.")).toBeVisible();
+    await expect(page.getByText(/Couldn.t load jobs/)).toBeVisible();
+    await expect(page.getByRole('button', { name: /Retry|Try again/ })).toBeVisible();
   });
 
   test('pagination next/previous', async ({ page }) => {

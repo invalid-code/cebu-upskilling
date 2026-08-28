@@ -192,7 +192,7 @@ export default function SkillsPage() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: 12 }}>
-          <Button variant="primary" onClick={() => showToast('Assessment flow opened')}>
+          <Button variant="primary" onClick={() => showToast('Assessment flow opened — pick a skill to verify', 'info')}>
             Assess a skill
           </Button>
         </div>

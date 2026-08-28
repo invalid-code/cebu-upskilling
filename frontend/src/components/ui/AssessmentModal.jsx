@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Clock, X, Award, CheckCircle, RotateCcw, Loader2, AlertTriangle } from 'lucide-react';
 import Button from './Button';
 import { api } from '../../api/client';
+import { useToast } from '../../context/ToastContext';
 import { createProctor } from '../../lib/proctoring';
 
 const styles = {
@@ -331,6 +332,7 @@ function formatTime(seconds) {
 const LETTERS = ['A', 'B', 'C', 'D'];
 
 export default function AssessmentModal({ open, onClose, assessmentId, skillName: initialSkillName, proctored = false }) {
+  const { showToast } = useToast();
   const [questions, setQuestions] = useState([]);
   const [skillName, setSkillName] = useState(initialSkillName || 'Assessment');
   const [source, setSource] = useState('');
@@ -499,12 +501,17 @@ export default function AssessmentModal({ open, onClose, assessmentId, skillName
 
       setResult(response);
       setCompleted(true);
+      const pct = response?.scorePercent ?? 0;
+      const lvl = response?.scoredLevel ?? response?.level ?? '';
+      const label = response?.levelLabel ? ` · ${response.levelLabel}` : '';
+      showToast(`Assessment submitted — ${pct}%${lvl ? ` · Level ${lvl}${label}` : ''}`, 'success');
     } catch {
       setError('Failed to submit assessment');
+      showToast('Could not submit assessment — please try again', 'error');
     } finally {
       setSubmitting(false);
     }
-  }, [assessmentId, answers, submitting, completed]);
+  }, [assessmentId, answers, submitting, completed, showToast]);
 
   useEffect(() => {
     if (!open || completed || submitting || timeLeft <= 0) return;

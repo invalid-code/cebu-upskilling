@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Button from '../ui/Button';
+import { ErrorBanner, FieldError } from '../ui/ErrorState';
 
 const styles = {
   form: {
@@ -85,18 +86,29 @@ export default function JobPostForm({ initial, onSubmit, submitting, error, subm
     companyLogoUrl: initial?.companyLogoUrl || '',
     isActive: initial?.isActive ?? true,
   }));
+  const [fieldError, setFieldError] = useState('');
 
   const set = (key) => (event) => {
     const value = event.target.type === 'checkbox' ? event.target.checked : event.target.value;
     setForm((prev) => ({ ...prev, [key]: value }));
+    if (fieldError) setFieldError('');
   };
 
   const handleSubmit = (event) => {
     event.preventDefault();
+    if (!form.title.trim()) {
+      setFieldError('Job title is required — learners need it to find your role');
+      return;
+    }
+    if (form.companyLogoUrl && !/^https?:\/\/.+/i.test(form.companyLogoUrl.trim())) {
+      setFieldError('Logo URL must start with http:// or https://');
+      return;
+    }
+    setFieldError('');
     const payload = {
-      title: form.title,
+      title: form.title.trim(),
       description: form.description,
-      targetRole: form.targetRole || form.title,
+      targetRole: (form.targetRole || form.title).trim(),
       location: form.location,
       salaryRange: form.salaryRange,
       jobType: form.jobType,
@@ -105,17 +117,18 @@ export default function JobPostForm({ initial, onSubmit, submitting, error, subm
       benefits: form.benefits,
       isRemote: form.isRemote,
       expiresAt: form.expiresAt ? new Date(`${form.expiresAt}T00:00:00`).toISOString() : null,
-      companyLogoUrl: form.companyLogoUrl,
+      companyLogoUrl: form.companyLogoUrl.trim(),
       isActive: form.isActive,
     };
     onSubmit(payload);
   };
 
   return (
-    <form style={styles.form} onSubmit={handleSubmit}>
+    <form style={styles.form} onSubmit={handleSubmit} noValidate>
+      {fieldError && <FieldError>{fieldError}</FieldError>}
       <div style={styles.field}>
         <label style={styles.label} htmlFor="job-title">Job title *</label>
-        <input id="job-title" style={styles.input} value={form.title} onChange={set('title')} required />
+        <input id="job-title" style={{ ...styles.input, borderColor: fieldError && !form.title.trim() ? 'var(--danger)' : 'var(--line)', background: fieldError && !form.title.trim() ? 'var(--danger-soft)' : 'var(--surface2)' }} value={form.title} onChange={set('title')} required aria-invalid={!!(fieldError && !form.title.trim())} />
       </div>
 
       <div style={styles.field}>
@@ -189,7 +202,8 @@ export default function JobPostForm({ initial, onSubmit, submitting, error, subm
         </label>
       </div>
 
-      {error && <p style={styles.error}>{error}</p>}
+      {error && <ErrorBanner title="Couldn’t save job" description={error} />}
+      {fieldError && !error && <FieldError>{fieldError}</FieldError>}
 
       <div style={styles.actions}>
         <Button type="submit" variant="primary" disabled={submitting}>

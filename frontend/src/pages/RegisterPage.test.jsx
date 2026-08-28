@@ -121,7 +121,9 @@ describe('RegisterPage', () => {
     fillForm();
     fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
 
-    expect(await screen.findByText('Email already in use')).toBeInTheDocument();
+    const matches = await screen.findAllByText('Email already in use');
+    expect(matches.length).toBeGreaterThan(0);
+    expect(matches[0]).toBeInTheDocument();
   });
 
   it('shows company name field when Employer role is selected', () => {

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Panel from '../components/ui/Panel';
 import EmptyState from '../components/shared/EmptyState';
 import JobPostForm from '../components/jobs/JobPostForm';
+import { useToast } from '../context/ToastContext';
 import { api } from '../api/client';
 
 const styles = {
@@ -33,6 +34,7 @@ const styles = {
 export default function EditJobPage() {
   const { postId } = useParams();
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [initial, setInitial] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -50,9 +52,12 @@ export default function EditJobPage() {
     setError('');
     try {
       await api.put(`/posts/${postId}`, payload);
+      showToast('Job posting updated successfully', 'success');
       navigate('/business-dashboard');
     } catch (err) {
-      setError(err?.message || 'Could not update the job posting');
+      const msg = err?.message || 'Could not update the job posting';
+      setError(msg);
+      showToast(msg, 'error');
     } finally {
       setSubmitting(false);
     }

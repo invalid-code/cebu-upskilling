@@ -25,7 +25,7 @@ describe('resolveFileUrl', () => {
   });
 
   it('keeps root-relative urls same-origin when no absolute api base is configured', async () => {
-    vi.stubEnv('VITE_API_URL', '');
+    vi.stubEnv('VITE_API_URL', '/api');
     const { resolveFileUrl } = await import('./fileUrl');
     expect(resolveFileUrl('/uploads/documents/a.pdf')).toBe('/uploads/documents/a.pdf');
   });

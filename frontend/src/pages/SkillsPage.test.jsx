@@ -73,7 +73,7 @@ describe('SkillsPage', () => {
   it('shows a toast when Assess a skill is clicked', () => {
     renderSkills();
     fireEvent.click(screen.getByRole('button', { name: 'Assess a skill' }));
-    expect(screen.getByText('Assessment flow opened')).toBeInTheDocument();
+    expect(screen.getByText(/Assessment flow opened/)).toBeInTheDocument();
   });
 
   it('displays the learner address in the target role card', () => {

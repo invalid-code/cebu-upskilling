@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth, isRecruiter } from '../context/AuthContext';
 import { validateEmail, validatePassword, validatePasswordConfirm, validateRequired, validateBirthday } from '../utils/validation';
 import { useToast } from '../context/ToastContext';
+import { ErrorBanner, FieldError } from '../components/ui/ErrorState';
 import Button from '../components/ui/Button';
 import GoogleSignInButton from '../components/GoogleSignInButton';
 import { extractResumeText } from '../utils/resumeText';
@@ -176,7 +177,9 @@ export default function RegisterPage() {
     const isDocx = file.name.toLowerCase().endsWith('.docx');
     if (!allowed.includes(file.type) && !isDocx) {
       setResumeFile(null);
-      setError('Resume must be a PDF or DOCX file only');
+      const msg = 'Resume must be a PDF or DOCX file only';
+      setError(msg);
+      showToast(msg, 'error');
       e.target.value = '';
       return;
     }
@@ -215,9 +218,12 @@ export default function RegisterPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    if (!validateForm()) return;
+    if (!validateForm()) {
+      showToast('Please correct the highlighted fields', 'error');
+      return;
+    }
     setLoading(true);
-    showToast('Creating your account and parsing your resume…');
+    showToast('Creating your account and parsing your resume…', 'info');
     try {
       if (role === 'recruiter') {
         await registerCompany({
@@ -229,6 +235,7 @@ export default function RegisterPage() {
           address: form.address,
           birthday: form.birthday,
         });
+        showToast(`Welcome, ${form.firstName}! Your employer account is ready.`, 'success');
         navigate('/business-dashboard');
         return;
       }
@@ -236,7 +243,9 @@ export default function RegisterPage() {
       if (resumeFile) {
         const resumeText = await extractResumeText(resumeFile);
         if (!resumeText) {
-          setError('Could not read the resume. Ensure it contains selectable text.');
+          const msg = 'Could not read the resume. Ensure it contains selectable text.';
+          setError(msg);
+          showToast(msg, 'error');
           setLoading(false);
           return;
         }
@@ -248,14 +257,17 @@ export default function RegisterPage() {
       if (parsed > 0) {
         showToast(
           `Parsed ${parsed} skill${parsed === 1 ? '' : 's'}` +
-          (assessments > 0 ? ` · ${assessments} assessment${assessments === 1 ? '' : 's'} ready to verify` : '')
+          (assessments > 0 ? ` · ${assessments} assessment${assessments === 1 ? '' : 's'} ready to verify` : ''),
+          'success'
         );
       } else {
-        showToast('Account created');
+        showToast('Account created — welcome to Cebu Upskilling!', 'success');
       }
       navigate('/dashboard');
     } catch (err) {
-      setError(err.message || 'Registration failed');
+      const msg = err.message || 'Registration failed';
+      setError(msg);
+      showToast(msg, 'error');
     } finally {
       setLoading(false);
     }
@@ -268,9 +280,12 @@ export default function RegisterPage() {
       // Pass the selected role so a brand-new Google account is provisioned
       // with it; existing accounts keep their current role.
       const user = await loginWithGoogle(idToken, role === 'recruiter' ? 'Recruiter' : 'Learner');
+      showToast(`Signed in with Google — welcome, ${user?.firstName || 'there'}!`, 'success');
       navigate(isRecruiter(user) ? '/business-dashboard' : '/dashboard');
     } catch (err) {
-      setError(err.message || 'Google sign-up failed');
+      const msg = err.message || 'Google sign-up failed';
+      setError(msg);
+      showToast(msg, 'error');
     } finally {
       setLoading(false);
     }
@@ -288,7 +303,11 @@ export default function RegisterPage() {
         <h2 style={styles.title}>Create your account</h2>
         <p style={styles.subtitle}>Start your career pathway today</p>
 
-        {error && <div style={styles.error}>{error}</div>}
+        {error && (
+          <div style={{ marginBottom: 12 }}>
+            <ErrorBanner title="Registration failed" description={error} onDismiss={() => setError('')} />
+          </div>
+        )}
 
         <div style={styles.roleToggle}>
           <button
@@ -317,74 +336,65 @@ export default function RegisterPage() {
           {role === 'recruiter' && (
             <>
               <input
-                style={styles.field}
+                style={{ ...styles.field, borderColor: fieldErrors.companyName ? 'var(--danger)' : 'var(--line)', background: fieldErrors.companyName ? 'var(--danger-soft)' : 'var(--surface)' }}
                 placeholder="Company name"
                 value={form.companyName}
                 onChange={update('companyName')}
                 aria-invalid={!!fieldErrors.companyName}
+                aria-describedby={fieldErrors.companyName ? 'company-error' : undefined}
               />
-              {fieldErrors.companyName && (
-                <div style={styles.fieldError}>{fieldErrors.companyName}</div>
-              )}
+              {fieldErrors.companyName && <FieldError id="company-error">{fieldErrors.companyName}</FieldError>}
             </>
           )}
           <div style={styles.row}>
             <div>
               <input
-                style={styles.field}
+                style={{ ...styles.field, borderColor: fieldErrors.firstName ? 'var(--danger)' : 'var(--line)', background: fieldErrors.firstName ? 'var(--danger-soft)' : 'var(--surface)' }}
                 placeholder="First name"
                 value={form.firstName}
                 onChange={update('firstName')}
                 aria-invalid={!!fieldErrors.firstName}
               />
-              {fieldErrors.firstName && (
-                <div style={styles.fieldError}>{fieldErrors.firstName}</div>
-              )}
+              {fieldErrors.firstName && <FieldError>{fieldErrors.firstName}</FieldError>}
             </div>
             <div>
               <input
-                style={styles.field}
+                style={{ ...styles.field, borderColor: fieldErrors.lastName ? 'var(--danger)' : 'var(--line)', background: fieldErrors.lastName ? 'var(--danger-soft)' : 'var(--surface)' }}
                 placeholder="Last name"
                 value={form.lastName}
                 onChange={update('lastName')}
                 aria-invalid={!!fieldErrors.lastName}
               />
-              {fieldErrors.lastName && (
-                <div style={styles.fieldError}>{fieldErrors.lastName}</div>
-              )}
+              {fieldErrors.lastName && <FieldError>{fieldErrors.lastName}</FieldError>}
             </div>
           </div>
           <input
-            style={styles.field}
+            style={{ ...styles.field, borderColor: fieldErrors.emailAddress ? 'var(--danger)' : 'var(--line)', background: fieldErrors.emailAddress ? 'var(--danger-soft)' : 'var(--surface)' }}
             type="email"
             placeholder="Email address"
             value={form.emailAddress}
             onChange={update('emailAddress')}
             aria-invalid={!!fieldErrors.emailAddress}
           />
-          {fieldErrors.emailAddress && (
-            <div style={styles.fieldError}>{fieldErrors.emailAddress}</div>
-          )}
+          {fieldErrors.emailAddress && <FieldError>{fieldErrors.emailAddress}</FieldError>}
           <input
-            style={styles.field}
+            style={{ ...styles.field, borderColor: fieldErrors.password ? 'var(--danger)' : 'var(--line)', background: fieldErrors.password ? 'var(--danger-soft)' : 'var(--surface)' }}
             type="password"
             placeholder="Password"
             value={form.password}
             onChange={update('password')}
             aria-invalid={!!fieldErrors.password}
           />
-          {fieldErrors.password && <div style={styles.fieldError}>{fieldErrors.password}</div>}
+          {fieldErrors.password && <FieldError>{fieldErrors.password}</FieldError>}
           <input
-            style={styles.field}
+            style={{ ...styles.field, borderColor: fieldErrors.confirmPassword ? 'var(--danger)' : 'var(--line)', background: fieldErrors.confirmPassword ? 'var(--danger-soft)' : 'var(--surface)' }}
             type="password"
             placeholder="Confirm password"
             value={confirmPassword}
             onChange={handleConfirmPasswordChange}
             aria-invalid={!!fieldErrors.confirmPassword}
           />
-          {fieldErrors.confirmPassword && (
-            <div style={styles.fieldError}>{fieldErrors.confirmPassword}</div>
-          )}
+          {fieldErrors.confirmPassword && <FieldError>{fieldErrors.confirmPassword}</FieldError>}
           {role === 'learner' && (
             <>
               <div>
@@ -393,21 +403,19 @@ export default function RegisterPage() {
                 </label>
                 <input
                   id="birthday"
-                  style={styles.field}
+                  style={{ ...styles.field, borderColor: fieldErrors.birthday ? 'var(--danger)' : 'var(--line)', background: fieldErrors.birthday ? 'var(--danger-soft)' : 'var(--surface)' }}
                   type="date"
                   min="1900-01-01"
                   max={todayIso}
                   value={form.birthday}
                   onChange={update('birthday')}
                   aria-invalid={!!fieldErrors.birthday}
-                  aria-describedby="birthday-hint"
+                  aria-describedby={fieldErrors.birthday ? 'birthday-error' : 'birthday-hint'}
                 />
                 <div style={styles.fieldHint} id="birthday-hint">
                   Optional — used to match you with age-appropriate opportunities
                 </div>
-                {fieldErrors.birthday && (
-                  <div style={styles.fieldError}>{fieldErrors.birthday}</div>
-                )}
+                {fieldErrors.birthday && <FieldError id="birthday-error">{fieldErrors.birthday}</FieldError>}
               </div>
               <input
                 style={styles.field}
@@ -435,7 +443,7 @@ export default function RegisterPage() {
 
         <GoogleSignInButton
           onSuccess={handleGoogleSuccess}
-          onError={(err) => setError(err.message)}
+          onError={(err) => { const msg = err.message || 'Google sign-in failed'; setError(msg); showToast(msg, 'error'); }}
           text="signup_with"
         />
 

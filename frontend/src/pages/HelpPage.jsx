@@ -79,7 +79,7 @@ export default function HelpPage() {
             <h3 style={{ fontFamily: "'Space Grotesk', sans-serif", marginTop: 12 }}>{faq.title}</h3>
             <p style={{ color: 'var(--muted)', fontSize: 12 }}>{faq.desc}</p>
             {faq.hasButton && (
-              <Button variant="secondary" style={{ marginTop: 12 }} onClick={() => showToast('Support request started')}>
+              <Button variant="secondary" style={{ marginTop: 12 }} onClick={() => showToast('Support request started — our team will reply within 24 hours', 'success')}>
                 Contact support
               </Button>
             )}

@@ -4,6 +4,7 @@ import Panel from '../components/ui/Panel';
 import Tag from '../components/ui/Tag';
 import Button from '../components/ui/Button';
 import EmptyState from '../components/shared/EmptyState';
+import { ErrorCard, ErrorBanner } from '../components/ui/ErrorState';
 import { api } from '../api/client';
 import { useToast } from '../context/ToastContext';
 import { useApplications } from '../context/ApplicationsContext';
@@ -140,6 +141,7 @@ export default function JobDetailPage() {
   const [error, setError] = useState('');
   const [resumeFile, setResumeFile] = useState(null);
   const [coverFile, setCoverFile] = useState(null);
+  const [applyError, setApplyError] = useState('');
   const [applying, setApplying] = useState(false);
   const { showToast } = useToast();
   const { applyToJob, isApplied } = useApplications();
@@ -155,9 +157,11 @@ export default function JobDetailPage() {
   if (loading) return <div style={styles.loading}>Loading job...</div>;
   if (error || !job) {
     return (
-      <Panel>
-        <EmptyState title="Job unavailable" description={error || 'This posting could not be found.'} />
-      </Panel>
+      <ErrorCard
+        title="Job unavailable"
+        description={error || 'This posting could not be found. It may have been removed or the link is incorrect.'}
+        onRetry={() => { setError(''); setLoading(true); api.get(`/posts/${postId}`).then(setJob).catch((e) => setError(e.message || 'Could not load job')).finally(() => setLoading(false)); }}
+      />
     );
   }
 
@@ -166,11 +170,26 @@ export default function JobDetailPage() {
   const benefits = (job.benefits || '').split('\n').map((line) => line.trim()).filter(Boolean);
   const expired = job.expiresAt && new Date(job.expiresAt) < new Date();
 
+  const validateFile = (file) => {
+    if (!file) return null;
+    if (file.size > 10 * 1024 * 1024) return 'File must be ≤ 10 MB';
+    return null;
+  };
+
   const handleApply = async () => {
-    if (!resumeFile) {
-      showToast('A resume is required to apply for this job');
+    const fileErr = validateFile(resumeFile) || validateFile(coverFile);
+    if (fileErr) {
+      setApplyError(fileErr);
+      showToast(fileErr, 'error');
       return;
     }
+    if (!resumeFile) {
+      const msg = 'A resume is required to apply for this job';
+      setApplyError(msg);
+      showToast(msg, 'error');
+      return;
+    }
+    setApplyError('');
     setApplying(true);
     try {
       const uploaded = await api.upload('/media/documents', resumeFile);
@@ -185,9 +204,11 @@ export default function JobDetailPage() {
       }
 
       await applyToJob(job, { resumeUrl, coverLetterUrl });
-      showToast('Application submitted');
+      showToast('Application submitted — good luck!', 'success');
     } catch (err) {
-      showToast(err?.message || 'Could not submit application');
+      const msg = err?.message || 'Could not submit application';
+      setApplyError(msg);
+      showToast(msg, 'error');
     } finally {
       setApplying(false);
     }
@@ -254,6 +275,7 @@ export default function JobDetailPage() {
             ) : (
               <>
                 <h2 style={styles.sectionTitle}>Apply for this role</h2>
+                {applyError && <ErrorBanner title="Application failed" description={applyError} onDismiss={() => setApplyError('')} />}
                 <div style={styles.fileRow}>
                   <span style={styles.fileLabel}>Resume *</span>
                   <label style={styles.fileInput}>
@@ -262,7 +284,7 @@ export default function JobDetailPage() {
                       type="file"
                       accept=".pdf,.doc,.docx,.txt,.md,.png,.jpg,.jpeg"
                       style={{ display: 'none' }}
-                      onChange={(e) => setResumeFile(e.target.files?.[0] || null)}
+                      onChange={(e) => { setApplyError(''); setResumeFile(e.target.files?.[0] || null); }}
                     />
                   </label>
                 </div>
@@ -274,7 +296,7 @@ export default function JobDetailPage() {
                       type="file"
                       accept=".pdf,.doc,.docx,.txt,.md"
                       style={{ display: 'none' }}
-                      onChange={(e) => setCoverFile(e.target.files?.[0] || null)}
+                      onChange={(e) => { setApplyError(''); setCoverFile(e.target.files?.[0] || null); }}
                     />
                   </label>
                 </div>
