@@ -9,6 +9,6 @@ export function LearnerRoute() {
 
 export function RecruiterRoute() {
   const { user } = useAuth();
-  if (!isRecruiter(user)) return <Navigate to="/" replace />;
+  if (!isRecruiter(user)) return <Navigate to="/dashboard" replace />;
   return <Outlet />;
 }

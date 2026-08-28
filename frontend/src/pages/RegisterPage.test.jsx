@@ -11,6 +11,14 @@ vi.mock('../api/client', () => ({
   },
 }));
 
+// Stand-in for the real GIS-backed button: clicking it simulates the Google
+// credential callback with a fixed ID token.
+vi.mock('../components/GoogleSignInButton', () => ({
+  default: ({ onSuccess }) => (
+    <button onClick={() => onSuccess('google-fake-id-token')}>Continue with Google</button>
+  ),
+}));
+
 import { api } from '../api/client';
 
 const formData = {
@@ -45,7 +53,7 @@ function renderRegister() {
         <AuthProvider>
           <Routes>
             <Route path="/register" element={<RegisterPage />} />
-            <Route path="/" element={<div>Learner home</div>} />
+            <Route path="/dashboard" element={<div>Learner home</div>} />
             <Route path="/business-dashboard" element={<div>Business dashboard</div>} />
           </Routes>
         </AuthProvider>
@@ -65,6 +73,9 @@ function fillForm() {
     target: { value: formData.emailAddress },
   });
   fireEvent.change(screen.getByPlaceholderText('Password'), {
+    target: { value: formData.password },
+  });
+  fireEvent.change(screen.getByPlaceholderText('Confirm password'), {
     target: { value: formData.password },
   });
   fireEvent.change(screen.getByPlaceholderText('Address (optional)'), {
@@ -88,6 +99,7 @@ describe('RegisterPage', () => {
     expect(screen.getByPlaceholderText('Last name')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Email address')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Password')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Confirm password')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Address (optional)')).toBeInTheDocument();
     expect(screen.getByLabelText('Birthday')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Create account' })).toBeInTheDocument();
@@ -114,13 +126,89 @@ describe('RegisterPage', () => {
     fillForm();
     fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
 
-    expect(await screen.findByText('Email already in use')).toBeInTheDocument();
+    const matches = await screen.findAllByText('Email already in use');
+    expect(matches.length).toBeGreaterThan(0);
+    expect(matches[0]).toBeInTheDocument();
   });
 
   it('shows company name field when Employer role is selected', () => {
     renderRegister();
     fireEvent.click(screen.getByRole('button', { name: 'Employer' }));
     expect(screen.getByPlaceholderText('Company name')).toBeInTheDocument();
+  });
+
+  it('shows a field error for mismatched passwords and does not call the API', async () => {
+    renderRegister();
+
+    fireEvent.change(screen.getByPlaceholderText('First name'), {
+      target: { value: 'Jose' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Last name'), {
+      target: { value: 'Rizal' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Email address'), {
+      target: { value: 'jose@example.com' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Password'), {
+      target: { value: 'secret123' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Confirm password'), {
+      target: { value: 'different123' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+
+    expect(await screen.findByText('Passwords do not match')).toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('shows a field error for an empty confirm password and does not call the API', async () => {
+    renderRegister();
+
+    fireEvent.change(screen.getByPlaceholderText('First name'), {
+      target: { value: 'Jose' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Last name'), {
+      target: { value: 'Rizal' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Email address'), {
+      target: { value: 'jose@example.com' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Password'), {
+      target: { value: 'secret123' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+
+    expect(await screen.findByText('Confirm password is required')).toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('clears the confirm password field error as the user types', async () => {
+    renderRegister();
+
+    fireEvent.change(screen.getByPlaceholderText('First name'), {
+      target: { value: 'Jose' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Last name'), {
+      target: { value: 'Rizal' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Email address'), {
+      target: { value: 'jose@example.com' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Password'), {
+      target: { value: 'secret123' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Confirm password'), {
+      target: { value: 'different123' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+
+    expect(await screen.findByText('Passwords do not match')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText('Confirm password'), {
+      target: { value: 'secret123' },
+    });
+
+    expect(screen.queryByText('Passwords do not match')).not.toBeInTheDocument();
   });
 
   it('shows a field error for an invalid email and does not call the API', async () => {
@@ -208,6 +296,9 @@ describe('RegisterPage', () => {
     fireEvent.change(screen.getByPlaceholderText('Password'), {
       target: { value: companyFormData.password },
     });
+    fireEvent.change(screen.getByPlaceholderText('Confirm password'), {
+      target: { value: companyFormData.password },
+    });
 
     fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
 
@@ -228,6 +319,7 @@ describe('RegisterPage', () => {
     fireEvent.change(screen.getByPlaceholderText('Last name'), { target: { value: 'Santos' } });
     fireEvent.change(screen.getByPlaceholderText('Email address'), { target: { value: 'maria@tech.com' } });
     fireEvent.change(screen.getByPlaceholderText('Password'), { target: { value: 'secret123' } });
+    fireEvent.change(screen.getByPlaceholderText('Confirm password'), { target: { value: 'secret123' } });
     fireEvent.change(screen.getByPlaceholderText('Industry (optional)'), { target: { value: 'Apparel' } });
     fireEvent.change(screen.getByLabelText('Company size'), { target: { value: '11-50' } });
     fireEvent.change(screen.getByPlaceholderText('Website (optional)'), { target: { value: 'https://cebuprints.example.com' } });
@@ -289,5 +381,37 @@ describe('RegisterPage', () => {
     });
 
     expect(screen.queryByText('Password must be at least 6 characters')).not.toBeInTheDocument();
+  });
+
+  it('signs up with Google as Learner by default and navigates home', async () => {
+    api.post.mockResolvedValue({ token: 'g-token', firstName: 'Ana', role: 'Learner' });
+    renderRegister();
+
+    fireEvent.click(screen.getByRole('button', { name: /continue with google/i }));
+
+    await waitFor(() => {
+      expect(api.post).toHaveBeenCalledWith('/auth/google', {
+        idToken: 'google-fake-id-token',
+        role: 'Learner',
+      });
+    });
+    expect(localStorage.getItem('token')).toBe('g-token');
+    expect(await screen.findByText('Learner home')).toBeInTheDocument();
+  });
+
+  it('signs up with Google using the selected Employer role and navigates to the dashboard', async () => {
+    api.post.mockResolvedValue({ token: 'g-token2', firstName: 'Ana', role: 'Recruiter' });
+    renderRegister();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Employer' }));
+    fireEvent.click(screen.getByRole('button', { name: /continue with google/i }));
+
+    await waitFor(() => {
+      expect(api.post).toHaveBeenCalledWith('/auth/google', {
+        idToken: 'google-fake-id-token',
+        role: 'Recruiter',
+      });
+    });
+    expect(await screen.findByText('Business dashboard')).toBeInTheDocument();
   });
 });

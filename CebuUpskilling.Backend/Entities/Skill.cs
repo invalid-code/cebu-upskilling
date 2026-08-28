@@ -15,4 +15,5 @@ public class Skill
 
     public ICollection<RoleSkill> RoleSkills { get; set; } = new List<RoleSkill>();
     public ICollection<LearnerSkill> LearnerSkills { get; set; } = new List<LearnerSkill>();
+    public ICollection<PostSkill> PostSkills { get; set; } = new List<PostSkill>();
 }

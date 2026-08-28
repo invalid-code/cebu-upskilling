@@ -1,7 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Clock, X, Award, CheckCircle, RotateCcw, Loader2 } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { ChevronLeft, ChevronRight, Clock, X, Award, CheckCircle, RotateCcw, Loader2, AlertTriangle } from 'lucide-react';
 import Button from './Button';
 import { api } from '../../api/client';
+import { useToast } from '../../context/ToastContext';
+import { createProctor } from '../../lib/proctoring';
 
 const styles = {
   backdrop: {
@@ -214,6 +216,111 @@ const styles = {
     padding: '16px 22px',
     borderTop: '1px solid var(--line)',
   },
+  warnOverlay: {
+    position: 'fixed',
+    inset: 0,
+    background: 'rgba(20, 30, 25, 0.55)',
+    zIndex: 30,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 18,
+  },
+  warnCard: {
+    background: 'var(--surface)',
+    borderRadius: 18,
+    maxWidth: 420,
+    width: '100%',
+    boxShadow: 'var(--shadow)',
+    padding: '28px 26px',
+    textAlign: 'center',
+  },
+  warnIcon: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 56,
+    height: 56,
+    borderRadius: '50%',
+    background: 'var(--coral-soft)',
+    color: 'var(--coral)',
+    marginBottom: 14,
+  },
+  warnTitle: {
+    fontFamily: "'Space Grotesk', sans-serif",
+    fontSize: 18,
+    fontWeight: 700,
+    color: 'var(--ink)',
+    marginBottom: 8,
+  },
+  warnDesc: {
+    fontSize: 13,
+    color: 'var(--muted)',
+    lineHeight: 1.55,
+    marginBottom: 20,
+  },
+  proctorBar: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    padding: '10px 16px',
+    borderBottom: '1px solid var(--line)',
+    background: 'var(--surface2, #f6f8f7)',
+  },
+  proctorVideoWrap: {
+    position: 'relative',
+    width: 96,
+    height: 72,
+    borderRadius: 10,
+    overflow: 'hidden',
+    background: '#111',
+    flexShrink: 0,
+    border: '1px solid var(--line)',
+  },
+  proctorVideo: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover',
+    display: 'block',
+    transform: 'scaleX(-1)',
+  },
+  proctorDot: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 10,
+    height: 10,
+    borderRadius: '50%',
+    border: '2px solid #fff',
+    background: '#9aa5a0',
+  },
+  proctorDotActive: { background: '#14b87a' },
+  proctorDotInit: { background: '#e8a317' },
+  proctorDotIdle: { background: '#9aa5a0' },
+  proctorInfo: { flex: 1, minWidth: 0 },
+  proctorTitle: {
+    fontSize: 12,
+    fontWeight: 700,
+    color: 'var(--ink)',
+    letterSpacing: '0.02em',
+  },
+  proctorSubtext: {
+    fontSize: 11,
+    color: 'var(--muted)',
+    lineHeight: 1.45,
+    marginTop: 2,
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  },
+  proctorNotice: {
+    fontSize: 10,
+    fontWeight: 700,
+    letterSpacing: '0.06em',
+    textTransform: 'uppercase',
+    color: 'var(--muted)',
+    flexShrink: 0,
+  },
 };
 
 function formatTime(seconds) {
@@ -224,7 +331,8 @@ function formatTime(seconds) {
 
 const LETTERS = ['A', 'B', 'C', 'D'];
 
-export default function AssessmentModal({ open, onClose, assessmentId, skillName: initialSkillName }) {
+export default function AssessmentModal({ open, onClose, assessmentId, skillName: initialSkillName, proctored = false }) {
+  const { showToast } = useToast();
   const [questions, setQuestions] = useState([]);
   const [skillName, setSkillName] = useState(initialSkillName || 'Assessment');
   const [source, setSource] = useState('');
@@ -238,6 +346,14 @@ export default function AssessmentModal({ open, onClose, assessmentId, skillName
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const [leftWarning, setLeftWarning] = useState(false);
+  const leftWhileActive = useRef(false);
+  // Browser proctoring (MediaPipe face + object) — port of the Python YOLOv8/MediaPipe app
+  const videoRef = useRef(null);
+  const proctorRef = useRef(null);
+  const proctorLastEmitRef = useRef({});
+  const [proctorStatus, setProctorStatus] = useState('idle');
+  const [proctorFlagCount, setProctorFlagCount] = useState(0);
   const question = questions[current];
 
   useEffect(() => {
@@ -249,6 +365,8 @@ export default function AssessmentModal({ open, onClose, assessmentId, skillName
     setResult(null);
     setError(null);
     setLoading(true);
+    setLeftWarning(false);
+    leftWhileActive.current = false;
 
     const controller = new AbortController();
 
@@ -269,6 +387,101 @@ export default function AssessmentModal({ open, onClose, assessmentId, skillName
     return () => controller.abort();
   }, [open, assessmentId, initialSkillName]);
 
+  useEffect(() => {
+    if (!open || completed || loading || error) return;
+
+    const onVisibilityChange = () => {
+      if (document.hidden) {
+        leftWhileActive.current = true;
+        Promise.resolve(api.post(`/assessments/${assessmentId}/integrity-event`, {
+          eventType: 'TabLeft',
+          detail: `Learner left the assessment tab for ${skillName || 'assessment'}`,
+        })).catch(() => {});
+      } else if (leftWhileActive.current) {
+        leftWhileActive.current = false;
+        setLeftWarning(true);
+      }
+    };
+
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, [open, completed, loading, error, assessmentId, skillName]);
+
+  // Reset proctor state on new assessment
+  useEffect(() => {
+    if (!open || !assessmentId) return;
+    setProctorFlagCount(0);
+    proctorLastEmitRef.current = {};
+    setProctorStatus('idle');
+  }, [open, assessmentId]);
+
+  // Browser gaze/face/phone proctoring — browser port of
+  // github.com/AaravMehta-07/Exam-Cheating-Detection-Application-Using-Python
+  useEffect(() => {
+    if (!open || completed || loading || error) return;
+    if (!proctored) return;
+    if (!assessmentId) return;
+
+    let cancelled = false;
+    setProctorStatus('initializing');
+
+    const waitForVideo = async () => {
+      for (let i = 0; i < 24 && !videoRef.current; i++) {
+        await new Promise((r) => setTimeout(r, 50));
+      }
+      return videoRef.current;
+    };
+
+    const start = async () => {
+      const video = await waitForVideo();
+      if (cancelled || !video) {
+        if (!cancelled) setProctorStatus('idle');
+        return;
+      }
+      try {
+        const ctrl = await createProctor({
+          videoEl: video,
+          onEvent: (eventType, detail) => {
+            const now = Date.now();
+            const last = proctorLastEmitRef.current[eventType] ?? 0;
+            if (now - last < 12000) return;
+            proctorLastEmitRef.current[eventType] = now;
+            setProctorFlagCount((c) => c + 1);
+            Promise.resolve(
+              api.post(`/assessments/${assessmentId}/integrity-event`, { eventType, detail }),
+            ).catch(() => {});
+          },
+          onStatus: (s) => { if (!cancelled) setProctorStatus(s); },
+        });
+        if (cancelled) { ctrl.stop(); return; }
+        proctorRef.current = ctrl;
+      } catch (e) {
+        if (!cancelled) {
+          const denied = e?.name === 'NotAllowedError' || /denied|permission/i.test(e?.message ?? '');
+          setProctorStatus(denied ? 'denied' : 'error');
+        }
+      }
+    };
+
+    start();
+
+    return () => {
+      cancelled = true;
+      try { proctorRef.current?.stop(); } catch {}
+      proctorRef.current = null;
+      setProctorStatus('idle');
+    };
+  }, [open, completed, loading, error, proctored, assessmentId]);
+
+  // Stop webcam when the assessment completes
+  useEffect(() => {
+    if (completed) {
+      try { proctorRef.current?.stop(); } catch {}
+      proctorRef.current = null;
+      setProctorStatus('idle');
+    }
+  }, [completed]);
+
   const select = useCallback((questionId, idx) => {
     setAnswers(prev => ({ ...prev, [questionId]: idx }));
   }, []);
@@ -288,12 +501,17 @@ export default function AssessmentModal({ open, onClose, assessmentId, skillName
 
       setResult(response);
       setCompleted(true);
+      const pct = response?.scorePercent ?? 0;
+      const lvl = response?.scoredLevel ?? response?.level ?? '';
+      const label = response?.levelLabel ? ` · ${response.levelLabel}` : '';
+      showToast(`Assessment submitted — ${pct}%${lvl ? ` · Level ${lvl}${label}` : ''}`, 'success');
     } catch {
       setError('Failed to submit assessment');
+      showToast('Could not submit assessment — please try again', 'error');
     } finally {
       setSubmitting(false);
     }
-  }, [assessmentId, answers, submitting, completed]);
+  }, [assessmentId, answers, submitting, completed, showToast]);
 
   useEffect(() => {
     if (!open || completed || submitting || timeLeft <= 0) return;
@@ -326,9 +544,10 @@ export default function AssessmentModal({ open, onClose, assessmentId, skillName
   if (!open) return null;
 
   return (
-    <div style={styles.backdrop} onClick={onClose}>
-      <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
-        {loading ? (
+    <>
+      <div style={styles.backdrop} onClick={onClose}>
+        <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+          {loading ? (
           <div style={styles.loading}>
             <div style={styles.loadingSpinner}><Loader2 size={24} /></div>
             <div style={styles.loadingText}>Preparing your assessment...</div>
@@ -362,6 +581,50 @@ export default function AssessmentModal({ open, onClose, assessmentId, skillName
                 {formatTime(timeLeft)}
               </div>
             </div>
+
+            {proctored && (
+              <div style={styles.proctorBar} data-testid="proctor-bar">
+                <div style={styles.proctorVideoWrap}>
+                  <video ref={videoRef} autoPlay muted playsInline style={styles.proctorVideo} data-testid="proctor-video" />
+                  <div
+                    aria-hidden
+                    style={{
+                      ...styles.proctorDot,
+                      ...(proctorStatus === 'active' ? styles.proctorDotActive : proctorStatus === 'initializing' ? styles.proctorDotInit : styles.proctorDotIdle),
+                    }}
+                  />
+                </div>
+                <div style={styles.proctorInfo}>
+                  <div style={styles.proctorTitle}>
+                    {proctored && proctorStatus === 'active'
+                      ? 'Proctoring active'
+                      : proctorStatus === 'initializing'
+                        ? 'Starting camera…'
+                        : proctorStatus === 'denied'
+                          ? 'Camera access denied'
+                          : proctorStatus === 'unsupported'
+                            ? 'Camera unavailable'
+                            : proctorStatus === 'error'
+                              ? 'Proctoring error'
+                              : 'Monitoring paused'}
+                  </div>
+                  <div style={styles.proctorSubtext}>
+                    {proctorStatus === 'active'
+                      ? proctorFlagCount
+                        ? `${proctorFlagCount} flag${proctorFlagCount === 1 ? '' : 's'} sent for review`
+                        : 'Gaze and presence monitored (MediaPipe). Flags are throttled and logged via integrity events.'
+                      : proctorStatus === 'denied'
+                        ? 'Allow camera access to continue the proctored assessment.'
+                        : proctorStatus === 'initializing'
+                          ? 'Loading face & object models…'
+                          : proctorStatus === 'error'
+                            ? 'Proctoring failed to start; your attempt is still recorded.'
+                            : ' '}
+                  </div>
+                </div>
+                <div style={styles.proctorNotice}>Gaze · Face · Phone</div>
+              </div>
+            )}
 
             <div style={styles.body}>
               {question && (
@@ -459,5 +722,22 @@ export default function AssessmentModal({ open, onClose, assessmentId, skillName
         )}
       </div>
     </div>
+
+    {leftWarning && (
+      <div style={styles.warnOverlay} onClick={(e) => e.stopPropagation()}>
+        <div style={styles.warnCard}>
+          <div style={styles.warnIcon}><AlertTriangle size={28} /></div>
+          <div style={styles.warnTitle}>You left the assessment tab</div>
+          <div style={styles.warnDesc}>
+            Switching tabs or leaving this window during an assessment may be flagged for review.
+            Stay on this tab until you finish or submit.
+          </div>
+          <Button variant="primary" onClick={() => setLeftWarning(false)}>
+            Resume assessment
+          </Button>
+        </div>
+      </div>
+    )}
+    </>
   );
 }

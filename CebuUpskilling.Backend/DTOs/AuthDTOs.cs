@@ -42,6 +42,11 @@ public record LoginRequest(
     string Password
 );
 
+public record GoogleAuthRequest(
+    [Required] string IdToken,
+    string? Role = null
+);
+
 public record AuthResponse(
     int UserId,
     string FirstName,

@@ -29,6 +29,7 @@ builder.Services.AddHealthChecks()
 
 builder.Services.Configure<R2Options>(builder.Configuration.GetSection(R2Options.SectionName));
 builder.Services.Configure<GoogleAiOptions>(builder.Configuration.GetSection(GoogleAiOptions.SectionName));
+builder.Services.Configure<GoogleOAuthOptions>(builder.Configuration.GetSection(GoogleOAuthOptions.SectionName));
 
 var googleAiOptions = builder.Configuration.GetSection(GoogleAiOptions.SectionName).Get<GoogleAiOptions>();
 builder.Services.AddHttpClient<IGoogleAiService, GoogleAiService>(client =>
@@ -73,6 +74,7 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IGoogleTokenVerifier, GoogleTokenVerifier>();
 builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection(EmailOptions.SectionName));
 var emailOptions = builder.Configuration.GetSection(EmailOptions.SectionName).Get<EmailOptions>();
 if (!string.IsNullOrWhiteSpace(emailOptions?.ApiKey))
@@ -91,6 +93,7 @@ builder.Services.AddSingleton<ITokenRevocationStore, InMemoryTokenRevocationStor
 builder.Services.AddScoped<ICourseRepository, CourseRepository>();
 builder.Services.AddScoped<ILessonRepository, LessonRepository>();
 builder.Services.AddScoped<IPostRepository, PostRepository>();
+builder.Services.AddScoped<IPostSkillRepository, PostSkillRepository>();
 builder.Services.AddScoped<ILearnerRepository, LearnerRepository>();
 builder.Services.AddScoped<ISkillRepository, SkillRepository>();
 builder.Services.AddScoped<IAppUserRepository, AppUserRepository>();
@@ -129,7 +132,8 @@ var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationExcep
 
 if (jwtKey.Length < 32)
 {
-    throw new InvalidOperationException("Jwt:Key must be at least 32 characters long for HMAC-SHA256.");
+    throw new InvalidOperationException(
+        "Jwt:Key must be at least 32 characters (256 bits) for HMAC-SHA256. Provide a base64-encoded value of at least 32 bytes (e.g. 43-character base64 strings are typical). Set Jwt:Key in appsettings.json or the Jwt__Key environment variable.");
 }
 builder.Services.AddAuthentication(options =>
 {

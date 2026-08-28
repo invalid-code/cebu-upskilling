@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Panel from '../components/ui/Panel';
 import JobPostForm from '../components/jobs/JobPostForm';
+import { useToast } from '../context/ToastContext';
 import { api } from '../api/client';
 
 const styles = {
@@ -25,6 +26,7 @@ const styles = {
 
 export default function PostJobPage() {
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -33,9 +35,12 @@ export default function PostJobPage() {
     setError('');
     try {
       const created = await api.post('/posts', payload);
+      showToast(`Job posted — "${payload.title || created?.title || 'New role'}" is now live`, 'success');
       navigate(created?.postId ? `/edit-job/${created.postId}` : '/business-dashboard');
     } catch (err) {
-      setError(err?.message || 'Could not save the job posting');
+      const msg = err?.message || 'Could not save the job posting';
+      setError(msg);
+      showToast(msg, 'error');
     } finally {
       setSubmitting(false);
     }

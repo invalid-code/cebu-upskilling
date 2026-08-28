@@ -12,6 +12,7 @@ function renderRoute(role, initialPath, element) {
       <AuthProvider>
         <Routes>
           <Route path="/" element={<>HomePlaceholder</>} />
+          <Route path="/dashboard" element={<>LearnerDashboardPlaceholder</>} />
           <Route path="/business-dashboard" element={<>DashboardPlaceholder</>} />
           <Route path="/protected" element={element}>
             <Route index element={<div>ProtectedContent</div>} />
@@ -42,10 +43,10 @@ describe('RoleRoute', () => {
     expect(screen.getByText('ProtectedContent')).toBeInTheDocument();
   });
 
-  it('RecruiterRoute redirects learners to the home page', () => {
+  it('RecruiterRoute redirects learners to the dashboard', () => {
     renderRoute('Learner', '/protected', <RecruiterRoute />);
 
-    expect(screen.getByText('HomePlaceholder')).toBeInTheDocument();
+    expect(screen.getByText('LearnerDashboardPlaceholder')).toBeInTheDocument();
     expect(screen.queryByText('ProtectedContent')).not.toBeInTheDocument();
   });
 });

@@ -42,4 +42,5 @@ public class Company
 
     public ICollection<AppUser> Users { get; set; } = new List<AppUser>();
     public ICollection<Post> Posts { get; set; } = new List<Post>();
+    public ICollection<Course> Courses { get; set; } = new List<Course>();
 }

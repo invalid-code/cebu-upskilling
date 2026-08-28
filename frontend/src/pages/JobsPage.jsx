@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Button from '../components/ui/Button';
 import Tabs from '../components/ui/Tabs';
 import JobCard from '../components/shared/JobCard';
+import { ErrorCard } from '../components/ui/ErrorState';
 import { api } from '../api/client';
 import { useToast } from '../context/ToastContext';
 import { BellPlus } from 'lucide-react';
@@ -99,8 +100,13 @@ const jobTypes = ['Full-time', 'Part-time', 'Contract', 'Side-hustle'];
 
 function parsePost(post) {
   const jobType = post.jobType || 'Full-time';
-  const isSme = jobType !== 'Full-time';
-  return {
+  const description = post.description || '';
+  const schedule = post.schedule || 'Full-time';
+  let isSme = jobType !== 'Full-time';
+  // Side-hustle detection also via schedule
+  if (schedule === 'Side-hustle') isSme = true;
+
+  const job = {
     id: post.postId,
     title: post.title,
     company: post.companyName || 'Unknown',
@@ -117,9 +123,39 @@ function parsePost(post) {
     isActive: post.isActive,
     companyLogoUrl: post.companyLogoUrl || '',
     createdAt: post.createdAt || null,
-    kind: isSme ? 'sme' : 'corporate',
-    kindLabel: isSme ? 'Side Hustle & Local SME' : 'Corporate & Full-Time',
+    schedule,
+    skills: [],
+    requiredSkillLevels: [],
   };
+
+  // Description fallback parsing for legacy posts without structured skills
+  const lines = description.split('\n');
+  for (const line of lines) {
+    if (!line) continue;
+    const salaryMatch = line.match(/^(salary|rate):\s*(.*)$/i);
+    if (salaryMatch) {
+      job.salaryRange = job.salaryRange || salaryMatch[2];
+      continue;
+    }
+    const skillsMatch = line.match(/^skills:\s*(.*)$/i);
+    if (skillsMatch) {
+      job.skills = skillsMatch[1].split(',').map((skill) => skill.trim()).filter(Boolean);
+      continue;
+    }
+  }
+
+  // Employer-declared required skills (taxonomy with proficiency levels)
+  if (Array.isArray(post.requiredSkills) && post.requiredSkills.length > 0) {
+    job.skills = post.requiredSkills.map((skill) => skill.skillName);
+    job.requiredSkillLevels = post.requiredSkills.map((skill) => ({
+      name: skill.skillName,
+      level: skill.requiredLevel,
+    }));
+  }
+
+  job.kind = isSme ? 'sme' : 'corporate';
+  job.kindLabel = isSme ? 'Side Hustle & Local SME' : 'Corporate & Full-Time';
+  return job;
 }
 
 function buildQuery({ tab, search, jobType, location, isRemote, page, pageSize }) {
@@ -141,6 +177,7 @@ export default function JobsPage() {
   const [pageSize] = useState(9);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [retryKey, setRetryKey] = useState(0);
   const [activeTab, setActiveTab] = useState('all');
   const [search, setSearch] = useState('');
   const [jobType, setJobType] = useState('');
@@ -151,6 +188,7 @@ export default function JobsPage() {
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
+    if (retryKey === -1) { /* no-op to include retryKey in deps */ }
     const query = buildQuery({ tab: activeTab, search, jobType, location, isRemote, page, pageSize });
     api.get(`/posts?${query}`, { signal: controller.signal })
       .then((data) => {
@@ -160,11 +198,14 @@ export default function JobsPage() {
         setError('');
       })
       .catch((err) => {
-        if (err.name !== 'AbortError') setError(err.message || 'Could not load jobs');
+        if (err.name === 'AbortError') return;
+        const msg = err.message || 'Could not load jobs';
+        setError(msg);
+        showToast(msg, 'error');
       })
       .finally(() => setLoading(false));
     return () => controller.abort();
-  }, [activeTab, search, jobType, location, isRemote, page, pageSize]);
+  }, [activeTab, search, jobType, location, isRemote, page, pageSize, retryKey, showToast]);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
@@ -188,7 +229,7 @@ export default function JobsPage() {
             Corporate roles and local opportunities stay visible side by side.
           </p>
         </div>
-        <Button variant="primary" onClick={() => showToast('Job alert saved')}>
+        <Button variant="primary" onClick={() => showToast('Job alert saved — we’ll notify you of new matches', 'success')}>
           <BellPlus size={14} /> Save alert
         </Button>
       </div>
@@ -242,10 +283,16 @@ export default function JobsPage() {
         </div>
       )}
 
-      {!loading && jobs.length === 0 && (
-        <div style={styles.empty}>
-          {error ? "Couldn't load jobs. Check back later." : 'No jobs match your search.'}
-        </div>
+      {!loading && error && jobs.length === 0 && (
+        <ErrorCard
+          title="Couldn’t load jobs"
+          description={error.includes('429') || error.toLowerCase().includes('too many') ? 'You’ve been rate-limited. Please wait a moment and try again.' : `${error} — try adjusting your filters or retry.`}
+          onRetry={() => { setError(''); setRetryKey((k) => k + 1); }}
+          retryLabel="Retry"
+        />
+      )}
+      {!loading && !error && jobs.length === 0 && (
+        <div style={styles.empty}>No jobs match your search.</div>
       )}
 
       {!loading && jobs.length > 0 && (

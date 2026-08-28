@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
+import { CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { validatePassword } from '../utils/validation';
+import { ErrorBanner, FieldError } from '../components/ui/ErrorState';
 import Button from '../components/ui/Button';
 
 const styles = {
@@ -78,12 +81,27 @@ const styles = {
     marginBottom: 12,
   },
   success: {
-    background: 'rgba(34, 139, 34, 0.12)',
-    color: 'rgb(30, 110, 30)',
-    padding: '10px 12px',
-    borderRadius: 10,
-    fontSize: 12,
+    background: 'var(--teal-soft)',
+    color: 'var(--teal)',
+    padding: '14px 14px',
+    borderRadius: 12,
+    fontSize: 13,
+    fontWeight: 600,
     marginBottom: 12,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    border: '1px solid rgba(26,107,90,0.14)',
+  },
+  successIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: '50%',
+    background: 'var(--teal)',
+    color: 'var(--surface)',
+    display: 'grid',
+    placeItems: 'center',
+    flexShrink: 0,
   },
   link: {
     textAlign: 'center',
@@ -97,6 +115,7 @@ export default function ResetPasswordPage() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const { resetPassword } = useAuth();
+  const { showToast } = useToast();
   const email = params.get('email') || '';
   const token = params.get('token') || '';
 
@@ -115,10 +134,15 @@ export default function ResetPasswordPage() {
       confirm: password !== confirm ? 'Passwords do not match' : '',
     };
     setFieldErrors(errors);
-    if (errors.password || errors.confirm) return;
+    if (errors.password || errors.confirm) {
+      showToast(errors.password || errors.confirm, 'error');
+      return;
+    }
 
     if (!email || !token) {
-      setError('Missing email or token. Use the link from your email.');
+      const msg = 'Missing email or token. Use the link from your email.';
+      setError(msg);
+      showToast(msg, 'error');
       return;
     }
 
@@ -126,8 +150,11 @@ export default function ResetPasswordPage() {
     try {
       await resetPassword(email, token, password);
       setSuccess(true);
+      showToast('Password reset — you can now sign in', 'success');
     } catch (err) {
-      setError(err.message || 'This reset link is invalid or has expired.');
+      const msg = err.message || 'This reset link is invalid or has expired.';
+      setError(msg);
+      showToast(msg, 'error');
     } finally {
       setLoading(false);
     }
@@ -147,7 +174,10 @@ export default function ResetPasswordPage() {
 
         {success ? (
           <>
-            <div style={styles.success}>Your password has been reset. You can now sign in.</div>
+            <div style={styles.success} role="status" aria-live="polite">
+              <span style={styles.successIcon} aria-hidden="true"><CheckCircle2 size={16} /></span>
+              <span>Your password has been reset. You can now sign in.</span>
+            </div>
             <Button
               variant="primary"
               style={{ width: '100%', marginTop: 8 }}
@@ -158,9 +188,9 @@ export default function ResetPasswordPage() {
           </>
         ) : (
           <form onSubmit={handleSubmit} noValidate>
-            {error && <div style={styles.error}>{error}</div>}
+            {error && <ErrorBanner title="Couldn’t reset password" description={error} onDismiss={() => setError('')} />}
             <input
-              style={styles.field}
+              style={{ ...styles.field, borderColor: fieldErrors.password ? 'var(--danger)' : 'var(--line)', background: fieldErrors.password ? 'var(--danger-soft)' : 'var(--surface)' }}
               type="password"
               placeholder="New password"
               value={password}
@@ -169,10 +199,11 @@ export default function ResetPasswordPage() {
                 if (fieldErrors.password) setFieldErrors((p) => ({ ...p, password: '' }));
               }}
               aria-invalid={!!fieldErrors.password}
+              aria-describedby={fieldErrors.password ? 'reset-password-error' : undefined}
             />
-            {fieldErrors.password && <div style={styles.fieldError}>{fieldErrors.password}</div>}
+            {fieldErrors.password && <FieldError id="reset-password-error">{fieldErrors.password}</FieldError>}
             <input
-              style={styles.field}
+              style={{ ...styles.field, marginTop: 12, borderColor: fieldErrors.confirm ? 'var(--danger)' : 'var(--line)', background: fieldErrors.confirm ? 'var(--danger-soft)' : 'var(--surface)' }}
               type="password"
               placeholder="Confirm new password"
               value={confirm}
@@ -181,8 +212,9 @@ export default function ResetPasswordPage() {
                 if (fieldErrors.confirm) setFieldErrors((p) => ({ ...p, confirm: '' }));
               }}
               aria-invalid={!!fieldErrors.confirm}
+              aria-describedby={fieldErrors.confirm ? 'reset-confirm-error' : undefined}
             />
-            {fieldErrors.confirm && <div style={styles.fieldError}>{fieldErrors.confirm}</div>}
+            {fieldErrors.confirm && <FieldError id="reset-confirm-error">{fieldErrors.confirm}</FieldError>}
             <Button
               variant="primary"
               style={{ width: '100%', marginTop: 8 }}

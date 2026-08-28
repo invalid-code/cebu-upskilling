@@ -140,6 +140,20 @@ public class LoginRequestValidator : AbstractValidator<LoginRequest>
     }
 }
 
+public class GoogleAuthRequestValidator : AbstractValidator<GoogleAuthRequest>
+{
+    public GoogleAuthRequestValidator()
+    {
+        RuleFor(x => x.IdToken)
+            .NotEmpty().WithMessage("Google ID token is required");
+
+        RuleFor(x => x.Role)
+            .Must(r => r == null || r == "Learner" || r == "Recruiter")
+            .WithMessage("Role must be 'Learner' or 'Recruiter'")
+            .When(x => x.Role != null);
+    }
+}
+
 public class UpdateProfileRequestValidator : AbstractValidator<UpdateProfileRequest>
 {
     public UpdateProfileRequestValidator()

@@ -33,7 +33,13 @@ function seedRecruiter() {
 }
 
 describe('App routing', () => {
-  it('redirects unauthenticated users to the login page', () => {
+  it('renders the public landing page at the root path', () => {
+    render(<App />);
+    expect(screen.getByRole('heading', { name: /your next opportunity starts with knowing/i })).toBeInTheDocument();
+  });
+
+  it('redirects unauthenticated users to the login page from protected routes', () => {
+    window.history.pushState({}, '', '/dashboard');
     render(<App />);
     expect(screen.getByRole('heading', { name: 'Welcome back' })).toBeInTheDocument();
   });
@@ -44,14 +50,16 @@ describe('App routing', () => {
       JSON.stringify({ firstName: 'Jose', role: 'learner' }),
     );
     localStorage.setItem('token', 'abc');
+    window.history.pushState({}, '', '/dashboard');
     render(<App />);
     expect(await screen.findByText('Your next move is clear.')).toBeInTheDocument();
   });
 
   it('renders the employer overview for recruiter users', async () => {
     seedRecruiter();
+    window.history.pushState({}, '', '/business-dashboard');
     render(<App />);
-    expect(await screen.findByRole('heading', { name: 'Welcome back.' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Business Dashboard' })).toBeInTheDocument();
     expect(screen.queryByText('Your next move is clear.')).not.toBeInTheDocument();
   });
 

@@ -286,6 +286,7 @@ describe('AssessmentsPage', () => {
 
     renderAssessments();
 
-    expect(await screen.findByText('No available assessments')).toBeInTheDocument();
+    expect(await screen.findByText(/Couldn.t load assessments/)).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Try again' })).toBeInTheDocument();
   });
 });

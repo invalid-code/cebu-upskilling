@@ -13,7 +13,9 @@ public record PostRequest(
     bool IsRemote = false,
     DateTime? ExpiresAt = null,
     bool IsActive = true,
-    string? CompanyLogoUrl = null
+    string? CompanyLogoUrl = null,
+    string? Schedule = null,
+    List<RequiredSkillInput>? RequiredSkills = null
 );
 
 public record PostResponse(
@@ -35,7 +37,9 @@ public record PostResponse(
     string? CompanyLogoUrl,
     string? CompanyIndustry,
     string? CompanySize,
-    DateTime CreatedAt
+    DateTime CreatedAt,
+    string Schedule,
+    List<RequiredSkillDto> RequiredSkills
 );
 
 public record PostQueryParams(
@@ -57,3 +61,11 @@ public record PagedPostsResponse(
     int Page,
     int PageSize
 );
+
+public record RequiredSkillInput(int SkillId, int RequiredLevel);
+
+public record RequiredSkillDto(
+    int SkillId,
+    string SkillName,
+    string? Category,
+    int RequiredLevel);

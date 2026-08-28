@@ -5,6 +5,7 @@ import Tag from '../components/ui/Tag';
 import EmptyState from '../components/shared/EmptyState';
 import StatCard from '../components/shared/StatCard';
 import BarList from '../components/shared/BarList';
+import { ErrorCard } from '../components/ui/ErrorState';
 import { api } from '../api/client';
 import { useToast } from '../context/ToastContext';
 
@@ -31,20 +32,42 @@ const styles = {
 };
 
 export default function BusinessDashboardPage() {
-  const { showToast } = useToast();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
+  const { showToast } = useToast();
 
+  const [retryKey, setRetryKey] = useState(0);
   useEffect(() => {
+    setLoading(true);
+    setError(null);
     api.get('/stats/business')
       .then(setStats)
-      .catch((err) => setError(err.message || 'Unable to load business dashboard.'))
+      .catch((err) => {
+        const msg = err.message || 'Unable to load business dashboard.';
+        setError(msg);
+        showToast(msg, 'error');
+      })
       .finally(() => setLoading(false));
-  }, []);
+  }, [retryKey, showToast]);
+
+  const handleDelete = (post) => {
+    if (deletingId) return;
+    if (!confirm('Are you sure you want to delete this job posting?')) return;
+    setDeletingId(post.postId);
+    // NOTE: path is relative to the API base ("/api") — never prefix it with "/api".
+    api.delete(`/posts/${post.postId}`)
+      .then(() => {
+        showToast('Job posting deleted', 'success');
+        return api.get('/stats/business').then(setStats).catch(() => {});
+      })
+      .catch((err) => showToast(err.message || 'Failed to delete posting', 'error'))
+      .finally(() => setDeletingId(null));
+  };
 
   if (loading) return <div style={styles.loading}>Loading business dashboard...</div>;
-  if (error) return <Panel><EmptyState title="Business dashboard unavailable" description={error} /></Panel>;
+  if (error) return <div style={{ padding: 20 }}><ErrorCard title="Business dashboard unavailable" description={error} onRetry={() => setRetryKey((k) => k + 1)} /></div>;
 
   const postings = stats?.jobPostings || [];
   const skills = stats?.skillDemand || [];
@@ -96,23 +119,13 @@ export default function BusinessDashboardPage() {
                       <div style={{ marginTop: 8 }}><Link to={`/edit-job/${post.postId}`} style={styles.postingLink}>Edit posting</Link></div>
                       <button
                         style={{ marginLeft: 8, background: 'var(--danger)', color: 'white', border: 'none', padding: '6px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}
+                        disabled={deletingId === post.postId}
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (confirm('Are you sure you want to delete this job posting?')) {
-                            api.delete(`/posts/${post.postId}`).then(() => {
-                              showToast('Job posting deleted.');
-                              setStats((prev) => prev && {
-                                ...prev,
-                                company: { ...prev.company, jobPostings: prev.company.jobPostings - 1 },
-                                jobPostings: (prev.jobPostings || []).filter((p) => p.postId !== post.postId),
-                              });
-                            }).catch((err) => {
-                              showToast(err.message || 'Failed to delete posting');
-                            });
-                          }
+                          handleDelete(post);
                         }}
                       >
-                        Delete
+                        {deletingId === post.postId ? 'Deleting…' : 'Delete'}
                       </button>
                     </td>
                     <td style={styles.td}>{post.jobType || '—'}</td>

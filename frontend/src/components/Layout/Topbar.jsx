@@ -4,7 +4,7 @@ import { useAuth, isRecruiter } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 
 const routeLabels = {
-  '/': 'Overview',
+  '/dashboard': 'Overview',
   '/skills': 'Skill profile',
   '/jobs': 'Find work',
   '/courses': 'Learn',
@@ -15,10 +15,20 @@ const routeLabels = {
   '/profile': 'Profile',
   '/business-dashboard': 'Business dashboard',
   '/post-job': 'Post a job',
-  '/job-applications': 'Job applications',
+  '/job-applications': 'Applications',
+  '/company-profile': 'Company profile',
+  '/company-courses': 'Courses',
   '/login': 'Login',
   '/register': 'Register',
 };
+
+function getLabel(pathname) {
+  if (routeLabels[pathname]) return routeLabels[pathname];
+  if (pathname.startsWith('/jobs/')) return 'Job detail';
+  if (pathname.startsWith('/courses/')) return 'Learn';
+  if (pathname.startsWith('/edit-job/')) return 'Edit job';
+  return 'Page';
+}
 
 const styles = {
   topbar: {
@@ -73,9 +83,7 @@ export default function Topbar() {
   const { user } = useAuth();
   const { showToast } = useToast();
 
-  const label = location.pathname.startsWith('/edit-job/')
-    ? 'Edit job'
-    : routeLabels[location.pathname] || 'Page';
+  const label = getLabel(location.pathname);
   const initials = user
     ? `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`
     : 'U';
@@ -90,7 +98,7 @@ export default function Topbar() {
           className="icon-btn"
           style={styles.iconBtn}
           aria-label="Search"
-          onClick={() => showToast('Search coming soon')}
+          onClick={() => showToast('Search coming soon', 'info')}
         >
           <Search size={18} />
         </button>
@@ -98,7 +106,7 @@ export default function Topbar() {
           className="icon-btn"
           style={styles.iconBtn}
           aria-label="Notifications"
-          onClick={() => showToast('No new notifications')}
+          onClick={() => showToast('No new notifications', 'info')}
         >
           <Bell size={18} />
         </button>

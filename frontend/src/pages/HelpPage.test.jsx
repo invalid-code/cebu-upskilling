@@ -57,6 +57,6 @@ describe('HelpPage', () => {
   it('shows toast when Contact support button is clicked', () => {
     renderHelp();
     fireEvent.click(screen.getByRole('button', { name: 'Contact support' }));
-    expect(screen.getByText('Support request started')).toBeInTheDocument();
+    expect(screen.getByText(/Support request started/)).toBeInTheDocument();
   });
 });

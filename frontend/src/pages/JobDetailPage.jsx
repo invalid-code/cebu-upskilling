@@ -5,6 +5,7 @@ import Tag from '../components/ui/Tag';
 import Button from '../components/ui/Button';
 import EmptyState from '../components/shared/EmptyState';
 import CompanyAvatar from '../components/shared/CompanyAvatar';
+import { ErrorCard, ErrorBanner } from '../components/ui/ErrorState';
 import { api } from '../api/client';
 import { useToast } from '../context/ToastContext';
 import { useApplications } from '../context/ApplicationsContext';
@@ -101,6 +102,7 @@ const styles = {
   },
   fileInput: {
     fontSize: 12,
+    cursor: 'pointer',
   },
   fileName: {
     fontSize: 11,
@@ -163,6 +165,7 @@ export default function JobDetailPage() {
   const [error, setError] = useState('');
   const [resumeFile, setResumeFile] = useState(null);
   const [coverFile, setCoverFile] = useState(null);
+  const [applyError, setApplyError] = useState('');
   const [applying, setApplying] = useState(false);
   const { showToast } = useToast();
   const { applyToJob, isApplied } = useApplications();
@@ -191,9 +194,11 @@ export default function JobDetailPage() {
   if (loading) return <div style={styles.loading}>Loading job...</div>;
   if (error || !job) {
     return (
-      <Panel>
-        <EmptyState title="Job unavailable" description={error || 'This posting could not be found.'} />
-      </Panel>
+      <ErrorCard
+        title="Job unavailable"
+        description={error || 'This posting could not be found. It may have been removed or the link is incorrect.'}
+        onRetry={() => { setError(''); setLoading(true); api.get(`/posts/${postId}`).then(setJob).catch((e) => setError(e.message || 'Could not load job')).finally(() => setLoading(false)); }}
+      />
     );
   }
 
@@ -202,23 +207,45 @@ export default function JobDetailPage() {
   const benefits = (job.benefits || '').split('\n').map((line) => line.trim()).filter(Boolean);
   const expired = job.expiresAt && new Date(job.expiresAt) < new Date();
 
+  const validateFile = (file) => {
+    if (!file) return null;
+    if (file.size > 10 * 1024 * 1024) return 'File must be ≤ 10 MB';
+    return null;
+  };
+
   const handleApply = async () => {
+    const fileErr = validateFile(resumeFile) || validateFile(coverFile);
+    if (fileErr) {
+      setApplyError(fileErr);
+      showToast(fileErr, 'error');
+      return;
+    }
+    if (!resumeFile) {
+      const msg = 'A resume is required to apply for this job';
+      setApplyError(msg);
+      showToast(msg, 'error');
+      return;
+    }
+    setApplyError('');
     setApplying(true);
     try {
-      let resumeUrl = null;
+      const uploaded = await api.upload('/media/documents', resumeFile);
+      if (!uploaded?.url) throw new Error('Resume upload did not complete — please try again');
+      const resumeUrl = uploaded.url;
+
       let coverLetterUrl = null;
-      if (resumeFile) {
-        const uploaded = await api.upload('/media/documents', resumeFile);
-        resumeUrl = uploaded?.url;
-      }
       if (coverFile) {
-        const uploaded = await api.upload('/media/documents', coverFile);
-        coverLetterUrl = uploaded?.url;
+        const coverUploaded = await api.upload('/media/documents', coverFile);
+        if (!coverUploaded?.url) throw new Error('Cover letter upload did not complete — please try again');
+        coverLetterUrl = coverUploaded.url;
       }
+
       await applyToJob(job, { resumeUrl, coverLetterUrl });
-      showToast('Application submitted');
+      showToast('Application submitted — good luck!', 'success');
     } catch (err) {
-      showToast(err?.message || 'Could not submit application');
+      const msg = err?.message || 'Could not submit application';
+      setApplyError(msg);
+      showToast(msg, 'error');
     } finally {
       setApplying(false);
     }
@@ -329,15 +356,16 @@ export default function JobDetailPage() {
             ) : (
               <>
                 <h2 style={styles.sectionTitle}>Apply for this role</h2>
+                {applyError && <ErrorBanner title="Application failed" description={applyError} onDismiss={() => setApplyError('')} />}
                 <div style={styles.fileRow}>
-                  <span style={styles.fileLabel}>Resume</span>
+                  <span style={styles.fileLabel}>Resume *</span>
                   <label style={styles.fileInput}>
                     <Upload size={13} /> {resumeFile ? resumeFile.name : 'Choose file'}
                     <input
                       type="file"
                       accept=".pdf,.doc,.docx,.txt,.md,.png,.jpg,.jpeg"
                       style={{ display: 'none' }}
-                      onChange={(e) => setResumeFile(e.target.files?.[0] || null)}
+                      onChange={(e) => { setApplyError(''); setResumeFile(e.target.files?.[0] || null); }}
                     />
                   </label>
                 </div>
@@ -349,11 +377,11 @@ export default function JobDetailPage() {
                       type="file"
                       accept=".pdf,.doc,.docx,.txt,.md"
                       style={{ display: 'none' }}
-                      onChange={(e) => setCoverFile(e.target.files?.[0] || null)}
+                      onChange={(e) => { setApplyError(''); setCoverFile(e.target.files?.[0] || null); }}
                     />
                   </label>
                 </div>
-                <p style={styles.fileName}>Optional — PDF, Word, or text up to 10 MB.</p>
+                <p style={styles.fileName}>Resume is required. Cover letter is optional — PDF, Word, or text up to 10 MB.</p>
                 <Button variant="secondary" onClick={handleApply} disabled={applying || expired}>
                   {applying ? 'Submitting...' : 'Submit application'}
                 </Button>

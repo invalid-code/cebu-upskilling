@@ -22,7 +22,7 @@ public class LearnerFlowApiTests : ProductionApiTestBase
         return (user.UserId, learner.LearnerId);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task SkillGaps_WithTargetRole_ReturnsRoleSkillsAsGaps()
     {
         var token = await RegisterLearnerAsync("flow.gaps@example.com", "Frontend Developer");
@@ -42,7 +42,7 @@ public class LearnerFlowApiTests : ProductionApiTestBase
         Assert.False(javascript.GetProperty("verified").GetBoolean());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task SkillGaps_WithoutTargetRole_ReturnsEmpty()
     {
         var token = await RegisterLearnerAsync("flow.norole@example.com");
@@ -54,7 +54,7 @@ public class LearnerFlowApiTests : ProductionApiTestBase
         Assert.Empty(gaps);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task SkillGaps_WhenAllSkillsMatched_ReturnsZeroGaps()
     {
         var email = "flow.matched@example.com";
@@ -72,7 +72,7 @@ public class LearnerFlowApiTests : ProductionApiTestBase
         Assert.All(gaps, g => Assert.Equal(0, g.GetProperty("gap").GetInt32()));
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task SkillGapGroups_WithTargetRole_ReturnsRoleGroup()
     {
         var token = await RegisterLearnerAsync("flow.groups.role@example.com", "Frontend Developer");
@@ -96,7 +96,7 @@ public class LearnerFlowApiTests : ProductionApiTestBase
         Assert.False(javascript.GetProperty("verified").GetBoolean());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task SkillGapGroups_WithoutTargetRoleOrApplications_ReturnsEmpty()
     {
         var token = await RegisterLearnerAsync("flow.groups.none@example.com");
@@ -108,7 +108,7 @@ public class LearnerFlowApiTests : ProductionApiTestBase
         Assert.Empty(groups);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task SkillGapGroups_DerivesGroupFromAppliedJobTargetRole()
     {
         var registerResponse = await RegisterCompanyAsync(new
@@ -141,7 +141,11 @@ public class LearnerFlowApiTests : ProductionApiTestBase
         }
 
         var learnerToken = await RegisterLearnerAsync("flow.groups.learner@example.com");
-        var applyResponse = await AuthorizedClient(learnerToken).PostAsJsonAsync("/api/applications", new { postId });
+        var applyResponse = await AuthorizedClient(learnerToken).PostAsJsonAsync("/api/applications", new
+        {
+            postId,
+            resumeUrl = "https://storage.example/resume.pdf",
+        });
         Assert.Equal(HttpStatusCode.Created, applyResponse.StatusCode);
 
         var groupsResponse = await AuthorizedClient(learnerToken).GetAsync("/api/skillgaps/groups");
@@ -155,7 +159,7 @@ public class LearnerFlowApiTests : ProductionApiTestBase
         Assert.Equal(6, group.GetProperty("gaps").EnumerateArray().ToList().Count);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task RecommendedAssessment_TopGap_IsReturned()
     {
         var token = await RegisterLearnerAsync("flow.recommended@example.com", "Frontend Developer");
@@ -170,7 +174,7 @@ public class LearnerFlowApiTests : ProductionApiTestBase
         Assert.Equal("Advanced", body.GetProperty("targetLevelLabel").GetString());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task RecommendedAssessment_NoTargetRole_ReturnsNull()
     {
         var token = await RegisterLearnerAsync("flow.norecommendation@example.com");
@@ -181,7 +185,7 @@ public class LearnerFlowApiTests : ProductionApiTestBase
         Assert.Equal(string.Empty, (await response.Content.ReadAsStringAsync()).Trim());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task RecommendedAssessment_NoGapsRemaining_ReturnsNull()
     {
         var email = "flow.nogaps@example.com";
@@ -196,7 +200,7 @@ public class LearnerFlowApiTests : ProductionApiTestBase
         Assert.Equal(string.Empty, (await response.Content.ReadAsStringAsync()).Trim());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task AssessmentResults_OnlyVerified_OrderedNewestFirst()
     {
         var email = "flow.results@example.com";
@@ -249,7 +253,7 @@ public class LearnerFlowApiTests : ProductionApiTestBase
         Assert.Equal("Advanced", results[1].GetProperty("levelLabel").GetString());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task AssessmentResults_WithoutAssessments_ReturnsEmpty()
     {
         var token = await RegisterLearnerAsync("flow.noresults@example.com");
@@ -260,7 +264,7 @@ public class LearnerFlowApiTests : ProductionApiTestBase
         Assert.Empty((await ReadJsonAsync(response)).EnumerateArray().ToList());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task Enrollments_EnrollListAndReEnroll()
     {
         var token = await RegisterLearnerAsync("flow.enroll@example.com");
@@ -283,7 +287,7 @@ public class LearnerFlowApiTests : ProductionApiTestBase
         Assert.Equal("Already enrolled", body.GetProperty("message").GetString());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task Enrollments_UnknownCourse_ReturnsNotFound()
     {
         var token = await RegisterLearnerAsync("flow.enrollmissing@example.com");
@@ -293,7 +297,7 @@ public class LearnerFlowApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task Posts_CreateAndList()
     {
         var registerResponse = await RegisterCompanyAsync(new
@@ -329,7 +333,7 @@ public class LearnerFlowApiTests : ProductionApiTestBase
         Assert.Equal("Acme Corp", posts[0].GetProperty("companyName").GetString());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task Posts_WithoutAuth_ReturnsUnauthorized()
     {
         var response = await Client.GetAsync("/api/posts");

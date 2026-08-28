@@ -102,7 +102,12 @@ public class AuthTokenReuseTests
     {
         var fakeAi = new FakeGoogleAiService();
         var agent = new JobseekerSkillParserAgent(fakeAi, new SkillRepository(ctx), new LearnerRepository(ctx), new LearnerSkillRepository(ctx), new LearnerAssessmentRepository(ctx), new AppUserRepository(ctx), new RoleSkillRepository(ctx), new AssessmentQuestionRepository(ctx), NullLogger<JobseekerSkillParserAgent>.Instance);
-        return new AuthService(ctx, agent, new JwtTokenService(Config(), NullLogger<JwtTokenService>.Instance), new LoggingEmailService(NullLogger<LoggingEmailService>.Instance), store, NullLogger<AuthService>.Instance);
+        return new AuthService(ctx, agent, new JwtTokenService(Config(), NullLogger<JwtTokenService>.Instance), new LoggingEmailService(NullLogger<LoggingEmailService>.Instance), store, new RejectingGoogleVerifier(), NullLogger<AuthService>.Instance);
+    }
+
+    private class RejectingGoogleVerifier : IGoogleTokenVerifier
+    {
+        public Task<GoogleUserInfo> VerifyIdTokenAsync(string idToken) => throw new UnauthorizedAccessException("Invalid Google credential");
     }
 
     private class FakeGoogleAiService : IGoogleAiService
@@ -211,12 +216,17 @@ public class MassAssignmentRegressionTests
             new FakeAi(), new SkillRepository(ctx), new LearnerRepository(ctx), new LearnerSkillRepository(ctx), new LearnerAssessmentRepository(ctx),
             new AppUserRepository(ctx), new RoleSkillRepository(ctx), new AssessmentQuestionRepository(ctx), NullLogger<JobseekerSkillParserAgent>.Instance),
             new JwtTokenService(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Jwt:Key"] = "test-secret-key-that-is-at-least-32-characters-long", ["Jwt:Issuer"] = "CebuUpskilling", ["Jwt:Audience"] = "CebuUpskilling.Web" }).Build(), NullLogger<JwtTokenService>.Instance),
-            new LoggingEmailService(NullLogger<LoggingEmailService>.Instance), store, NullLogger<AuthService>.Instance);
+            new LoggingEmailService(NullLogger<LoggingEmailService>.Instance), store, new RejectingGoogleVerifier(), NullLogger<AuthService>.Instance);
 
         var resp = await svc.CompanyRegisterAsync(new CompanyRegisterRequest("Overpost Corp", "Maria", "Santos", null, null, "overpost.role@example.com", "P@ssw0rd!", null));
         Assert.Equal("Recruiter", resp.Role);
         var user = await ctx.Users.SingleAsync(u => u.EmailAddress == "overpost.role@example.com");
         Assert.Equal("Recruiter", user.Role);
+    }
+
+    private class RejectingGoogleVerifier : IGoogleTokenVerifier
+    {
+        public Task<GoogleUserInfo> VerifyIdTokenAsync(string idToken) => throw new UnauthorizedAccessException("Invalid Google credential");
     }
 
     private class FakeAi : IGoogleAiService

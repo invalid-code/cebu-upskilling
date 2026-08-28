@@ -19,7 +19,7 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
     // Object-level authorization (IDOR)
     // ------------------------------------------------------------------ //
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task Applications_AreScopedToTheCaller()
     {
         var learnerA = await RegisterLearnerAsync("secreg.apps.a@example.com");
@@ -28,7 +28,11 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
             await RegisterRecruiterWithCompanyAsync("secreg.apps.recruiter@example.com");
         var postId = await CreatePostAsync(recruiterToken, companyId, recruiterId, "Security App Role");
 
-        var applyA = await AuthorizedClient(learnerA).PostAsJsonAsync("/api/applications", new { postId });
+        var applyA = await AuthorizedClient(learnerA).PostAsJsonAsync("/api/applications", new
+        {
+            postId,
+            resumeUrl = "https://storage.example/resume.pdf",
+        });
         Assert.Equal(HttpStatusCode.Created, applyA.StatusCode);
 
         var patchB = await AuthorizedClient(learnerB).PatchAsJsonAsync(
@@ -42,7 +46,7 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
         Assert.Single(listA.EnumerateArray().ToList());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task AssessmentQuestionsAndSubmit_AreScopedToTheCaller()
     {
         var learnerA = await RegisterLearnerAsync("secreg.assess.a@example.com");
@@ -63,7 +67,7 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.BadRequest, submitB.StatusCode);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task CourseContent_IsScopedToEnrolledLearner()
     {
         var enrolled = await RegisterLearnerAsync("secreg.content.enrolled@example.com");
@@ -82,7 +86,7 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.NotFound, progressOutsider.StatusCode);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task Posts_UpdateAndDelete_AreScopedToOwningRecruiter()
     {
         var (recruiterAToken, companyA, recruiterA) =
@@ -116,7 +120,7 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
     // Mass assignment / over-posting
     // ------------------------------------------------------------------ //
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task Register_IgnoresPrivilegeFieldsInBody()
     {
         var response = await RegisterAsync(new
@@ -146,7 +150,7 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
         Assert.False(learner.IsPremium);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task UpdateProfile_IgnoresPrivilegeFieldsInBody()
     {
         var token = await RegisterLearnerAsync("secreg.overpost.profile@example.com");
@@ -169,7 +173,7 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
         Assert.Equal("Learner", user.Role);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task Apply_IgnoresExtraStatusAndUserFields()
     {
         var token = await RegisterLearnerAsync("secreg.overpost.apply@example.com");
@@ -182,6 +186,7 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
             postId,
             status = "hired",
             userId = 1,
+            resumeUrl = "https://storage.example/resume.pdf",
         });
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
@@ -189,7 +194,7 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
         Assert.Equal("applied", body.GetProperty("status").GetString());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task CreateCompany_IgnoresUnknownFields()
     {
         var (token, _, _) = await RegisterRecruiterWithCompanyAsync("secreg.overpost.company@example.com");
@@ -210,7 +215,7 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
     // Stored content (XSS surface)
     // ------------------------------------------------------------------ //
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task PostWithHtml_IsStoredAndReturnedAsJsonData()
     {
         var (token, companyId, recruiterId) =
@@ -241,7 +246,7 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
         Assert.Equal(payload, body.GetProperty("title").GetString());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task CourseWithHtmlName_IsReturnedLiteral()
     {
         var token = await RegisterLearnerAsync("secreg.xss.course@example.com");
@@ -264,7 +269,7 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
         Assert.Contains(payload, raw);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task CompanyQuestionWithHtml_IsReturnedLiteral()
     {
         var (token, _, _) = await RegisterRecruiterWithCompanyAsync("secreg.xss.question@example.com");
@@ -290,7 +295,7 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
     // Media upload hardening
     // ------------------------------------------------------------------ //
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task Media_UploadNonVideoContentType_ReturnsBadRequest()
     {
         var token = await RegisterLearnerAsync("secreg.media.fakevideo@example.com");
@@ -309,7 +314,7 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
         Assert.Equal("Only video files are allowed", body.GetProperty("error").GetString());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task Media_UploadFilenameWithTraversal_IsSanitizedInStorageKey()
     {
         var token = await RegisterLearnerAsync("secreg.media.traversal@example.com");
@@ -331,7 +336,7 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
         Assert.DoesNotContain("etc/passwd", path);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task Media_UploadToLesson_WhenNotEnrolled_ReturnsNotFound()
     {
         var token = await RegisterLearnerAsync("secreg.media.notenrolled@example.com");
@@ -349,7 +354,7 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
         Assert.Equal("Lesson not found or not enrolled", body.GetProperty("error").GetString());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task Media_UploadByRecruiter_ReturnsNotFound()
     {
         var (token, _, _) = await RegisterRecruiterWithCompanyAsync("secreg.media.recruiter@example.com");
@@ -365,7 +370,7 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task Media_UploadToLesson_WhenEnrolled_ReturnsCreated()
     {
         var token = await RegisterLearnerAsync("secreg.media.enrolled@example.com");

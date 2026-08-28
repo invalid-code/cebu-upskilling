@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures.js';
 import { setAuth } from './helpers.js';
 
 const learnerUser = { firstName: 'Jose', lastName: 'Rizal', role: 'Learner' };
@@ -28,18 +28,19 @@ test.describe('Navigation — Sidebar & Topbar', () => {
   test('learner sidebar shows learner nav items', async ({ page }) => {
     await setAuth(page, { user: learnerUser });
     await mockLearnerShell(page);
-    await page.goto('/');
+    await page.goto('/dashboard');
+    const rail = page.locator('aside.rail');
     // Sidebar labels – use exact to avoid matching breadcrumb "My pathway / Overview"
     await expect(page.getByText('My pathway', { exact: true }).first()).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Overview' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Skill profile' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Find work' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Learn' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Applications' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Assessments' })).toBeVisible();
+    await expect(rail.getByRole('link', { name: 'Overview' })).toBeVisible();
+    await expect(rail.getByRole('link', { name: 'Skill profile' })).toBeVisible();
+    await expect(rail.getByRole('link', { name: 'Find work' })).toBeVisible();
+    await expect(rail.getByRole('link', { name: 'Learn' })).toBeVisible();
+    await expect(rail.getByRole('link', { name: 'Applications' })).toBeVisible();
+    await expect(rail.getByRole('link', { name: 'Assessments' })).toBeVisible();
     await expect(page.getByText('Account', { exact: true })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Credentials' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Help center' })).toBeVisible();
+    await expect(rail.getByRole('link', { name: 'Credentials' })).toBeVisible();
+    await expect(rail.getByRole('link', { name: 'Help center' })).toBeVisible();
     // Recruiter items should not appear
     await expect(page.getByRole('link', { name: 'Business dashboard' })).not.toBeVisible();
     await expect(page.getByRole('link', { name: 'Post a job' })).not.toBeVisible();
@@ -63,7 +64,7 @@ test.describe('Navigation — Sidebar & Topbar', () => {
   test('sidebar navigation changes route', async ({ page }) => {
     await setAuth(page, { user: learnerUser });
     await mockLearnerShell(page);
-    await page.goto('/');
+    await page.goto('/dashboard');
     await page.getByRole('link', { name: 'Find work' }).click();
     await expect(page).toHaveURL(/\/jobs/);
     await expect(page.getByRole('heading', { name: 'Find work that fits.' })).toBeVisible();
@@ -72,14 +73,14 @@ test.describe('Navigation — Sidebar & Topbar', () => {
     await expect(page).toHaveURL(/\/courses/);
     await expect(page.getByRole('heading', { name: 'Courses' })).toBeVisible();
 
-    await page.getByRole('link', { name: 'Help center' }).click();
+    await page.locator('aside.rail').getByRole('link', { name: 'Help center' }).click();
     await expect(page).toHaveURL(/\/help/);
   });
 
   test('topbar shows user initials and profile link', async ({ page }) => {
     await setAuth(page, { user: learnerUser });
     await mockLearnerShell(page);
-    await page.goto('/');
+    await page.goto('/dashboard');
     // Sidebar avatar shows initials JR
     await expect(page.getByText('JR').first()).toBeVisible();
     await expect(page.getByText('Jose').first()).toBeVisible();

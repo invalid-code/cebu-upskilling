@@ -49,6 +49,8 @@ public class ApplicationsController : ControllerBase
             return NotFound(new { error = "Post not found" });
         if (outcome.Failure == ApplyFailure.AlreadyApplied)
             return Ok(outcome.Application);
+        if (outcome.Failure == ApplyFailure.ResumeRequired)
+            return BadRequest(new { error = "A resume is required to apply for this job" });
 
         return StatusCode(201, outcome.Application);
     }

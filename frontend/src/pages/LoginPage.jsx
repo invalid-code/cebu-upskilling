@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth, isRecruiter } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { validateEmail, validatePassword } from '../utils/validation';
+import { ErrorBanner, FieldError } from '../components/ui/ErrorState';
 import Button from '../components/ui/Button';
+import GoogleSignInButton from '../components/GoogleSignInButton';
 
 const styles = {
   container: {
@@ -91,7 +94,8 @@ export default function LoginPage() {
   const [fieldErrors, setFieldErrors] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
+  const { showToast } = useToast();
   const navigate = useNavigate();
 
   const validateForm = () => {
@@ -106,13 +110,35 @@ export default function LoginPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    if (!validateForm()) return;
+    if (!validateForm()) {
+      showToast('Please fix the highlighted fields', 'error');
+      return;
+    }
     setLoading(true);
     try {
       const user = await login(email, password);
-      navigate(isRecruiter(user) ? '/business-dashboard' : '/');
+      showToast(`Welcome back, ${user?.firstName || 'there'}!`, 'success');
+      navigate(isRecruiter(user) ? '/business-dashboard' : '/dashboard');
     } catch (err) {
-      setError(err.message || 'Login failed');
+      const msg = err.message || 'Login failed';
+      setError(msg);
+      showToast(msg, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSuccess = async (idToken) => {
+    setError('');
+    setLoading(true);
+    try {
+      const user = await loginWithGoogle(idToken);
+      showToast(`Signed in with Google — welcome, ${user?.firstName || 'there'}!`, 'success');
+      navigate(isRecruiter(user) ? '/business-dashboard' : '/dashboard');
+    } catch (err) {
+      const msg = err.message || 'Google sign-in failed';
+      setError(msg);
+      showToast(msg, 'error');
     } finally {
       setLoading(false);
     }
@@ -144,27 +170,37 @@ export default function LoginPage() {
         <h2 style={styles.title}>Welcome back</h2>
         <p style={styles.subtitle}>Sign in to your career pathway</p>
 
-        {error && <div style={styles.error}>{error}</div>}
+        {error && (
+          <div style={{ marginBottom: 12 }}>
+            <ErrorBanner
+              title={error.includes('429') || error.toLowerCase().includes('too many') ? 'Too many attempts' : 'Sign in failed'}
+              description={error}
+              onDismiss={() => setError('')}
+            />
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} noValidate>
           <input
-            style={styles.field}
+            style={{ ...styles.field, borderColor: fieldErrors.email ? 'var(--danger)' : 'var(--line)', background: fieldErrors.email ? 'var(--danger-soft)' : 'var(--surface)' }}
             type="email"
             placeholder="Email address"
             value={email}
             onChange={handleEmailChange}
             aria-invalid={!!fieldErrors.email}
+            aria-describedby={fieldErrors.email ? 'login-email-error' : undefined}
           />
-          {fieldErrors.email && <div style={styles.fieldError}>{fieldErrors.email}</div>}
+          {fieldErrors.email && <FieldError id="login-email-error">{fieldErrors.email}</FieldError>}
           <input
-            style={styles.field}
+            style={{ ...styles.field, marginTop: 12, borderColor: fieldErrors.password ? 'var(--danger)' : 'var(--line)', background: fieldErrors.password ? 'var(--danger-soft)' : 'var(--surface)' }}
             type="password"
             placeholder="Password"
             value={password}
             onChange={handlePasswordChange}
             aria-invalid={!!fieldErrors.password}
+            aria-describedby={fieldErrors.password ? 'login-password-error' : undefined}
           />
-          {fieldErrors.password && <div style={styles.fieldError}>{fieldErrors.password}</div>}
+          {fieldErrors.password && <FieldError id="login-password-error">{fieldErrors.password}</FieldError>}
           <Button
             variant="primary"
             style={{ width: '100%', marginTop: 8 }}
@@ -173,6 +209,8 @@ export default function LoginPage() {
             {loading ? 'Signing in...' : 'Sign in'}
           </Button>
         </form>
+
+        <GoogleSignInButton onSuccess={handleGoogleSuccess} onError={(err) => setError(err.message)} />
 
         <p style={styles.link}>
           <Link to="/forgot-password">Forgot your password?</Link>

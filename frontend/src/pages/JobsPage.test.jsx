@@ -171,7 +171,8 @@ describe('JobsPage', () => {
 
     renderJobs();
 
-    expect(await screen.findByText("Couldn't load jobs. Check back later.")).toBeInTheDocument();
+    expect(await screen.findByText(/Couldn.t load jobs/)).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Retry' })).toBeInTheDocument();
   });
 
   it('shows save alert button', async () => {

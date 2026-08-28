@@ -1,12 +1,19 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
-import { AuthProvider, useAuth, isRecruiter } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { EnrollmentsProvider } from './context/EnrollmentsContext';
 import { ApplicationsProvider } from './context/ApplicationsContext';
 import { ToastProvider } from './context/ToastContext';
+import { CookieConsentProvider } from './context/CookieConsentContext';
+// Zustand stores – direct usage is also available for new code:
+// import { useAuthStore, isRecruiter } from './stores/authStore';
+import { isRecruiter } from './stores/authStore';
 import Sidebar from './components/Layout/Sidebar';
 import Topbar from './components/Layout/Topbar';
 import MobileNav from './components/Layout/MobileNav';
+import Footer from './components/Layout/Footer';
+import CookieBanner from './components/shared/CookieBanner';
 import { LearnerRoute, RecruiterRoute } from './components/RoleRoute';
+import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ConfirmEmailPage from './pages/ConfirmEmailPage';
@@ -30,6 +37,9 @@ import NotFoundPage from './pages/NotFoundPage';
 import ProfilePage from './pages/ProfilePage';
 import CompanyProfilePage from './pages/CompanyProfilePage';
 import CompanyProfileEditPage from './pages/CompanyProfileEditPage';
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
+import TermsOfServicePage from './pages/TermsOfServicePage';
+import CourseManagementPage from './pages/CourseManagementPage';
 
 const appStyles = {
   app: {
@@ -50,6 +60,7 @@ const appStyles = {
 };
 
 function ProtectedRoute() {
+  // useAuth now delegates to Zustand (useAuthStore) – see src/stores/authStore.js
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
   return (
@@ -60,6 +71,7 @@ function ProtectedRoute() {
         <div className="page-content" style={appStyles.content}>
           <Outlet />
         </div>
+        <Footer />
       </main>
       <MobileNav />
     </div>
@@ -68,54 +80,67 @@ function ProtectedRoute() {
 
 function PublicRoute() {
   const { user } = useAuth();
-  if (user) return <Navigate to={isRecruiter(user) ? '/business-dashboard' : '/'} replace />;
+  if (user) return <Navigate to={isRecruiter(user) ? '/business-dashboard' : '/dashboard'} replace />;
   return <Outlet />;
+}
+
+function RootRoute() {
+  return <LandingPage />;
 }
 
 export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <EnrollmentsProvider>
-          <ApplicationsProvider>
-            <ToastProvider>
-            <Routes>
-            <Route element={<PublicRoute />}>
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/register" element={<RegisterPage />} />
-              <Route path="/confirm-email" element={<ConfirmEmailPage />} />
-              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-              <Route path="/reset-password" element={<ResetPasswordPage />} />
-            </Route>
-            <Route element={<ProtectedRoute />}>
-              <Route path="/" element={<OverviewPage />} />
-              <Route element={<LearnerRoute />}>
-                <Route path="/skills" element={<SkillsPage />} />
-                <Route path="/jobs" element={<JobsPage />} />
-                <Route path="/jobs/:postId" element={<JobDetailPage />} />
-                <Route path="/courses" element={<CoursesPage />} />
-                <Route path="/courses/:courseId/learn" element={<CourseContentPage />} />
-                <Route path="/courses/:courseId/learn/:lessonId" element={<CourseContentPage />} />
-                <Route path="/applications" element={<ApplicationsPage />} />
-                <Route path="/assessments" element={<AssessmentsPage />} />
-                <Route path="/credentials" element={<CredentialsPage />} />
-              </Route>
-              <Route element={<RecruiterRoute />}>
-                <Route path="/business-dashboard" element={<BusinessDashboardPage />} />
-                <Route path="/post-job" element={<PostJobPage />} />
-                <Route path="/edit-job/:postId" element={<EditJobPage />} />
-                <Route path="/job-applications" element={<JobApplicationsPage />} />
-                <Route path="/company-profile" element={<CompanyProfileEditPage />} />
-              </Route>
-              <Route path="/profile" element={<ProfilePage />} />
-              <Route path="/help" element={<HelpPage />} />
-            </Route>
-            <Route path="/companies/:companyId" element={<CompanyProfilePage />} />
-            <Route path="*" element={<NotFoundPage />} />
-          </Routes>
-          </ToastProvider>
-          </ApplicationsProvider>
-        </EnrollmentsProvider>
+        <CookieConsentProvider>
+          <EnrollmentsProvider>
+            <ApplicationsProvider>
+              <ToastProvider>
+                <Routes>
+                  <Route path="/" element={<RootRoute />} />
+                  <Route element={<PublicRoute />}>
+                    <Route path="/login" element={<LoginPage />} />
+                    <Route path="/register" element={<RegisterPage />} />
+                    <Route path="/confirm-email" element={<ConfirmEmailPage />} />
+                    <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                    <Route path="/reset-password" element={<ResetPasswordPage />} />
+                  </Route>
+                  <Route element={<ProtectedRoute />}>
+                    <Route element={<LearnerRoute />}>
+                      <Route path="/dashboard" element={<OverviewPage />} />
+                      <Route path="/skills" element={<SkillsPage />} />
+                      <Route path="/jobs" element={<JobsPage />} />
+                      <Route path="/jobs/:postId" element={<JobDetailPage />} />
+                      <Route path="/courses" element={<CoursesPage />} />
+                      <Route path="/courses/:courseId/learn" element={<CourseContentPage />} />
+                      <Route path="/courses/:courseId/learn/:lessonId" element={<CourseContentPage />} />
+                      <Route path="/applications" element={<ApplicationsPage />} />
+                      <Route path="/assessments" element={<AssessmentsPage />} />
+                      <Route path="/credentials" element={<CredentialsPage />} />
+                    </Route>
+                    <Route element={<RecruiterRoute />}>
+                      <Route path="/business-dashboard" element={<BusinessDashboardPage />} />
+                      <Route path="/post-job" element={<PostJobPage />} />
+                      <Route path="/edit-job/:postId" element={<EditJobPage />} />
+                      <Route path="/job-applications" element={<JobApplicationsPage />} />
+                      <Route path="/company-courses" element={<CourseManagementPage />} />
+                      <Route path="/company-courses/new" element={<CourseManagementPage />} />
+                      <Route path="/company-courses/:courseId/edit" element={<CourseManagementPage />} />
+                      <Route path="/company-profile" element={<CompanyProfileEditPage />} />
+                    </Route>
+                    <Route path="/profile" element={<ProfilePage />} />
+                    <Route path="/help" element={<HelpPage />} />
+                  </Route>
+                  <Route path="/companies/:companyId" element={<CompanyProfilePage />} />
+                  <Route path="/privacy" element={<PrivacyPolicyPage />} />
+                  <Route path="/terms" element={<TermsOfServicePage />} />
+                  <Route path="*" element={<NotFoundPage />} />
+                </Routes>
+                <CookieBanner />
+              </ToastProvider>
+            </ApplicationsProvider>
+          </EnrollmentsProvider>
+        </CookieConsentProvider>
       </AuthProvider>
     </BrowserRouter>
   );

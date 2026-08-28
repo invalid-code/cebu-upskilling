@@ -5,6 +5,7 @@ import Panel from '../components/ui/Panel';
 import Button from '../components/ui/Button';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { ErrorBanner } from '../components/ui/ErrorState';
 import { api } from '../api/client';
 
 const inputStyle = {
@@ -34,6 +35,7 @@ export default function ProfilePage() {
   const { showToast } = useToast();
   const [form, setForm] = useState({ targetRole: '', address: '', remoteFriendly: false });
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   useEffect(() => {
     setForm({ targetRole: user?.targetRole || '', address: user?.address || '', remoteFriendly: Boolean(user?.remoteFriendly) });
@@ -48,13 +50,16 @@ export default function ProfilePage() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setSaving(true);
+    setSaveError('');
     try {
       const updated = await api.patch('/auth/profile', form);
       localStorage.setItem('user', JSON.stringify(updated));
       setUser(updated);
-      showToast('Profile updated successfully');
+      showToast('Profile updated successfully', 'success');
     } catch (error) {
-      showToast(error.message || 'Could not update your profile');
+      const msg = error.message || 'Could not update your profile';
+      setSaveError(msg);
+      showToast(msg, 'error');
     } finally {
       setSaving(false);
     }
@@ -96,6 +101,7 @@ export default function ProfilePage() {
 
       <Panel>
         <div style={{ marginBottom: 22 }}><p style={{ margin: 0, color: 'var(--coral)', fontSize: 11, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Pathway preferences</p><h2 style={{ margin: '6px 0 0', fontFamily: "'Space Grotesk', sans-serif", fontSize: 21 }}>Shape the opportunities you see</h2><p style={{ margin: '6px 0 0', color: 'var(--muted)', fontSize: 13 }}>Keep these details current so recommendations feel relevant.</p></div>
+        {saveError && <ErrorBanner title="Couldn’t save profile" description={saveError} onDismiss={() => setSaveError('')} />}
         <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 18 }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16 }}>
             <Field label="Target role" name="targetRole" value={form.targetRole} onChange={update('targetRole')} hint="The role you are working toward" />

@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
+import { CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import Button from '../components/ui/Button';
 
 const styles = {
@@ -60,12 +62,28 @@ const styles = {
     marginBottom: 16,
   },
   success: {
-    background: 'rgba(34, 139, 34, 0.12)',
-    color: 'rgb(30, 110, 30)',
-    padding: '10px 12px',
-    borderRadius: 10,
-    fontSize: 12,
+    background: 'var(--teal-soft)',
+    color: 'var(--teal)',
+    padding: '14px 14px',
+    borderRadius: 12,
+    fontSize: 13,
+    fontWeight: 600,
     marginBottom: 16,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    justifyContent: 'center',
+    border: '1px solid rgba(26,107,90,0.14)',
+  },
+  successIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: '50%',
+    background: 'var(--teal)',
+    color: 'var(--surface)',
+    display: 'grid',
+    placeItems: 'center',
+    flexShrink: 0,
   },
   link: {
     marginTop: 18,
@@ -78,6 +96,7 @@ export default function ConfirmEmailPage() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const { confirmEmail, resendConfirmation } = useAuth();
+  const { showToast } = useToast();
   const email = params.get('email') || '';
   const token = params.get('token') || '';
 
@@ -98,17 +117,21 @@ export default function ConfirmEmailPage() {
         if (active) {
           setStatus('success');
           setMessage('Your email has been confirmed. You can now sign in.');
+          showToast('Email confirmed — you can now sign in', 'success');
         }
       })
       .catch((err) => {
         if (active) {
+          const msg = err.message || 'This confirmation link is invalid or has expired.';
           setStatus('error');
-          setMessage(err.message || 'This confirmation link is invalid or has expired.');
+          setMessage(msg);
+          showToast(msg, 'error');
         }
       });
     return () => {
       active = false;
     };
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [email, token, confirmEmail]);
 
   const handleResend = async () => {
@@ -117,8 +140,9 @@ export default function ConfirmEmailPage() {
     try {
       await resendConfirmation(email);
       setResendSent(true);
-    } catch {
-      // keep the error state; resend is best-effort
+      showToast('Confirmation email sent', 'success');
+    } catch (err) {
+      showToast(err?.message || 'Could not resend email', 'error');
     } finally {
       setResending(false);
     }
@@ -143,6 +167,9 @@ export default function ConfirmEmailPage() {
 
         {status === 'success' && (
           <>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }} aria-hidden="true">
+              <span style={styles.successIcon}><CheckCircle2 size={18} /></span>
+            </div>
             <h2 style={styles.title}>Email confirmed</h2>
             <p style={styles.subtitle}>{message}</p>
             <Button

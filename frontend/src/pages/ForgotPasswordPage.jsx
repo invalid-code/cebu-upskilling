@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { validateEmail } from '../utils/validation';
+import { ErrorBanner, FieldError } from '../components/ui/ErrorState';
 import Button from '../components/ui/Button';
 
 const styles = {
@@ -79,12 +82,27 @@ const styles = {
     marginBottom: 12,
   },
   success: {
-    background: 'rgba(34, 139, 34, 0.12)',
-    color: 'rgb(30, 110, 30)',
-    padding: '10px 12px',
-    borderRadius: 10,
-    fontSize: 12,
+    background: 'var(--teal-soft)',
+    color: 'var(--teal)',
+    padding: '14px 14px',
+    borderRadius: 12,
+    fontSize: 13,
+    fontWeight: 600,
     marginBottom: 12,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    border: '1px solid rgba(26,107,90,0.14)',
+  },
+  successIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: '50%',
+    background: 'var(--teal)',
+    color: 'var(--surface)',
+    display: 'grid',
+    placeItems: 'center',
+    flexShrink: 0,
   },
   link: {
     textAlign: 'center',
@@ -101,6 +119,7 @@ export default function ForgotPasswordPage() {
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
   const { forgotPassword } = useAuth();
+  const { showToast } = useToast();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -108,6 +127,7 @@ export default function ForgotPasswordPage() {
     const err = validateEmail(email);
     if (err) {
       setFieldError(err);
+      showToast(err, 'error');
       return;
     }
     setFieldError('');
@@ -115,8 +135,11 @@ export default function ForgotPasswordPage() {
     try {
       await forgotPassword(email.trim());
       setSuccess(true);
+      showToast('Reset link sent — check your inbox', 'success');
     } catch (err) {
-      setError(err.message || 'Something went wrong. Please try again.');
+      const msg = err.message || 'Something went wrong. Please try again.';
+      setError(msg);
+      showToast(msg, 'error');
     } finally {
       setLoading(false);
     }
@@ -138,8 +161,9 @@ export default function ForgotPasswordPage() {
 
         {success ? (
           <>
-            <div style={styles.success}>
-              If an account exists for that email, a password reset link has been sent.
+            <div style={styles.success} role="status" aria-live="polite">
+              <span style={styles.successIcon} aria-hidden="true"><CheckCircle2 size={16} /></span>
+              <span>If an account exists for that email, a password reset link has been sent.</span>
             </div>
             <p style={styles.link}>
               <Link to="/login">Back to sign in</Link>
@@ -147,9 +171,9 @@ export default function ForgotPasswordPage() {
           </>
         ) : (
           <form onSubmit={handleSubmit} noValidate>
-            {error && <div style={styles.error}>{error}</div>}
+            {error && <ErrorBanner title="Couldn’t send reset link" description={error} onDismiss={() => setError('')} />}
             <input
-              style={styles.field}
+              style={{ ...styles.field, borderColor: fieldError ? 'var(--danger)' : 'var(--line)', background: fieldError ? 'var(--danger-soft)' : 'var(--surface)' }}
               type="email"
               placeholder="Email address"
               value={email}
@@ -158,8 +182,9 @@ export default function ForgotPasswordPage() {
                 if (fieldError) setFieldError('');
               }}
               aria-invalid={!!fieldError}
+              aria-describedby={fieldError ? 'forgot-email-error' : undefined}
             />
-            {fieldError && <div style={styles.fieldError}>{fieldError}</div>}
+            {fieldError && <FieldError id="forgot-email-error">{fieldError}</FieldError>}
             <Button
               variant="primary"
               style={{ width: '100%', marginTop: 8 }}

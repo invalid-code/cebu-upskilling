@@ -208,7 +208,8 @@ describe('CoursesPage', () => {
 
     renderCourses();
 
-    expect(await screen.findByText("Couldn't load courses. Check back later.")).toBeInTheDocument();
+    expect(await screen.findByText(/Couldn.t load courses/)).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Try again' })).toBeInTheDocument();
   });
 
   it('shows empty state when no courses available', async () => {

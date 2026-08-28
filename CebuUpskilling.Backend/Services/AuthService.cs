@@ -62,6 +62,7 @@ public interface IAuthService
     Task<AuthResponse> RegisterAsync(RegisterRequest request);
     Task<CompanyRegisterResponse> CompanyRegisterAsync(CompanyRegisterRequest request);
     Task<AuthResponse> LoginAsync(LoginRequest request);
+    Task<AuthResponse> GoogleAuthAsync(GoogleAuthRequest request);
     Task<AuthResponse> UpdateProfileAsync(int userId, UpdateProfileRequest request);
 
     Task LogoutAsync(string? jti);
@@ -78,6 +79,7 @@ public class AuthService : IAuthService
     private readonly IJwtTokenService _tokenService;
     private readonly IEmailService _emailService;
     private readonly ITokenRevocationStore _revocationStore;
+    private readonly IGoogleTokenVerifier _googleTokenVerifier;
     private readonly ILogger<AuthService> _logger;
 
     private const string FrontendBaseUrl = "http://localhost:5173";
@@ -88,6 +90,7 @@ public class AuthService : IAuthService
         IJwtTokenService tokenService,
         IEmailService emailService,
         ITokenRevocationStore revocationStore,
+        IGoogleTokenVerifier googleTokenVerifier,
         ILogger<AuthService> logger)
     {
         _context = context;
@@ -95,6 +98,7 @@ public class AuthService : IAuthService
         _tokenService = tokenService;
         _emailService = emailService;
         _revocationStore = revocationStore;
+        _googleTokenVerifier = googleTokenVerifier;
         _logger = logger;
     }
 
@@ -326,13 +330,71 @@ public class AuthService : IAuthService
             throw new UnauthorizedAccessException("Invalid credentials");
         }
 
-        if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
+        if (string.IsNullOrEmpty(user.PasswordHash)
+            || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
         {
             _logger.LogWarning("Login failed: invalid password for user {UserId} ({Email})", user.UserId, user.EmailAddress);
             throw new UnauthorizedAccessException("Invalid credentials");
         }
 
         _logger.LogInformation("User logged in successfully: {UserId} ({Email}), Role: {Role}", user.UserId, user.EmailAddress, user.Role);
+
+        var token = _tokenService.GenerateToken(user);
+
+        return BuildAuthResponse(user, token, companyId: user.CompanyId, companyName: user.Company?.Name);
+    }
+
+    public async Task<AuthResponse> GoogleAuthAsync(GoogleAuthRequest request)
+    {
+        // Sign up and sign in share one endpoint: a verified Google ID token either
+        // matches an existing account (login) or provisions a new one (signup).
+        var role = request.Role ?? "Learner";
+        if (role != "Learner" && role != "Recruiter")
+        {
+            _logger.LogWarning("Google auth failed: role '{Role}' is not allowed", role);
+            throw new InvalidOperationException($"Role '{role}' is not allowed");
+        }
+
+        var googleUser = await _googleTokenVerifier.VerifyIdTokenAsync(request.IdToken);
+
+        _logger.LogInformation("Google auth attempt for email {Email}", googleUser.Email);
+
+        var user = await _context.Users
+            .Include(u => u.Company)
+            .FirstOrDefaultAsync(u => u.EmailAddress == googleUser.Email);
+
+        if (user == null)
+        {
+            user = new AppUser
+            {
+                FirstName = string.IsNullOrWhiteSpace(googleUser.FirstName)
+                    ? googleUser.Email.Split('@')[0]
+                    : googleUser.FirstName,
+                LastName = string.IsNullOrWhiteSpace(googleUser.LastName)
+                    ? string.Empty
+                    : googleUser.LastName,
+                EmailAddress = googleUser.Email,
+                // The email was already verified by Google, so no confirmation flow is needed.
+                EmailConfirmed = true,
+                PasswordHash = null,
+                Role = role,
+            };
+
+            _context.Users.Add(user);
+            await _context.SaveChangesAsync();
+            _logger.LogInformation("User registered via Google: {UserId} ({Email}), Role: {Role}", user.UserId, user.EmailAddress, user.Role);
+
+            if (role == "Learner")
+            {
+                _context.Learners.Add(new Learner { UserId = user.UserId, IsPremium = false });
+                await _context.SaveChangesAsync();
+                _logger.LogInformation("Learner profile created for Google user {UserId}", user.UserId);
+            }
+        }
+        else
+        {
+            _logger.LogInformation("Existing user logged in via Google: {UserId} ({Email})", user.UserId, user.EmailAddress);
+        }
 
         var token = _tokenService.GenerateToken(user);
 
@@ -402,9 +464,14 @@ public class AuthService : IAuthService
     public async Task<bool> ConfirmEmailAsync(string email, string token)
     {
         var user = await _context.Users.FirstOrDefaultAsync(u => u.EmailAddress == email);
-        if (user == null || user.EmailConfirmed)
+        if (user == null)
         {
-            return user?.EmailConfirmed ?? false;
+            _logger.LogWarning("Confirmation failed: user {Email} not found", email);
+            return false;
+        }
+        if (user.EmailConfirmed)
+        {
+            return true;
         }
 
         if (string.IsNullOrWhiteSpace(token)

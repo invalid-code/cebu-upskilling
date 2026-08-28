@@ -66,8 +66,22 @@ function request(path, options = {}) {
         } catch {
           // ignore non-JSON error bodies
         }
+        // Map common failing states to friendly, actionable messages
+        if (xhr.status === 429) {
+          message = message.includes('429') || message.startsWith('HTTP') ? 'Too many requests — please wait a moment and try again' : message;
+        } else if (xhr.status === 403) {
+          message = message.startsWith('HTTP') ? 'You don’t have permission to do that' : message;
+        } else if (xhr.status === 404) {
+          message = message.startsWith('HTTP') ? 'Not found — the item may have been removed' : message;
+        } else if (xhr.status >= 500) {
+          message = message.startsWith('HTTP') ? 'Server error — please try again in a moment' : message;
+        } else if (!message || message.startsWith('HTTP')) {
+          message = 'Request failed — please try again';
+        }
         console.warn(`[API] ${method} ${path} → ${xhr.status}: ${message}`);
-        reject(new Error(message));
+        const err = new Error(message);
+        err.status = xhr.status;
+        reject(err);
         return;
       }
 
@@ -87,7 +101,9 @@ function request(path, options = {}) {
 
     xhr.onerror = () => {
       console.error(`[API] ${method} ${path} → network error`);
-      reject(new Error('Network error'));
+      const err = new Error('Network error — check your connection and try again');
+      err.status = 0;
+      reject(err);
     };
 
     xhr.onabort = () => {
@@ -128,16 +144,37 @@ function upload(path, file) {
         } catch {
           // ignore non-JSON error bodies
         }
-        reject(new Error(message));
+        if (xhr.status === 429) {
+          message = message.includes('429') || message.startsWith('HTTP') ? 'Too many requests — please wait a moment and try again' : message;
+        } else if (xhr.status === 413) {
+          message = 'File too large — must be ≤ 10 MB';
+        } else if (xhr.status >= 500) {
+          message = message.startsWith('HTTP') ? 'Server error — please try again in a moment' : message;
+        }
+        const err = new Error(message);
+        err.status = xhr.status;
+        reject(err);
         return;
       }
+      let data = null;
       try {
-        resolve(JSON.parse(xhr.responseText));
+        data = JSON.parse(xhr.responseText);
       } catch {
-        resolve(xhr.responseText);
+        data = null;
       }
+      if (!data || typeof data.url !== 'string' || !data.url) {
+        console.warn(`[API] ${method} ${path} → ${xhr.status}: response missing file url`);
+        reject(new Error('Upload did not complete — the server did not confirm the file. Please try again.'));
+        return;
+      }
+      console.debug(`[API] ${method} ${path} → ${xhr.status} url=${data.url}`);
+      resolve(data);
     };
-    xhr.onerror = () => reject(new Error('Network error'));
+    xhr.onerror = () => {
+      const err = new Error('Network error — check your connection, file was not uploaded');
+      err.status = 0;
+      reject(err);
+    };
 
     const form = new FormData();
     form.append('file', file);

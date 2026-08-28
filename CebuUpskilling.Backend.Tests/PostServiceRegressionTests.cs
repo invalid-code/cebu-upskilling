@@ -16,7 +16,7 @@ namespace CebuUpskilling.Backend.Tests;
 public class PostServiceRegressionTests
 {
     private static PostService Create(ApplicationDbContext ctx) =>
-        new(new PostRepository(ctx), NullLogger<PostService>.Instance);
+        new(new PostRepository(ctx), new PostSkillRepository(ctx), new RoleSkillRepository(ctx), new SkillRepository(ctx), NullLogger<PostService>.Instance);
 
     private static async Task<Company> CreateCompanyAsync(ApplicationDbContext ctx, string name = "Acme Corp")
     {
@@ -215,7 +215,7 @@ public class PostServiceRegressionTests
         var company = await CreateCompanyAsync(ctx);
         // Use BaseEntityService.CreateAsync(Post entity) path
         var repo = new PostRepository(ctx);
-        var svc = new PostService(repo, NullLogger<PostService>.Instance);
+        var svc = new PostService(repo, new PostSkillRepository(ctx), new RoleSkillRepository(ctx), new SkillRepository(ctx), NullLogger<PostService>.Instance);
         var post = new Post { CompanyId = company.CompanyId, Title = "Entity Title", TargetRole = "", CreatedAt = DateTime.UtcNow };
         var created = await svc.CreateAsync(post);
         Assert.Equal("Entity Title", created.TargetRole);

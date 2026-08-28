@@ -22,6 +22,16 @@ export function validatePassword(value) {
   return undefined;
 }
 
+export function validatePasswordConfirm(confirmValue, passwordValue) {
+  if (!confirmValue) {
+    return 'Confirm password is required';
+  }
+  if (confirmValue !== passwordValue) {
+    return 'Passwords do not match';
+  }
+  return undefined;
+}
+
 export function validateRequired(value, label) {
   if (!value || !value.toString().trim()) {
     return `${label} is required`;

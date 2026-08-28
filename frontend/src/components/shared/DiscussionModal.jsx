@@ -166,10 +166,10 @@ export default function DiscussionModal({ open, onClose, lessonId }) {
       const created = await api.post(`/discussions/lessons/${lessonId}/posts`, { content: trimmed });
       setPosts((prev) => [...prev, created]);
       setContent('');
-      showToast('Posted to discussion');
+      showToast('Posted to discussion', 'success');
     } catch (err) {
       setError(err.message || 'Failed to post');
-      showToast(err.message || 'Failed to post');
+      showToast(err.message || 'Failed to post', 'error');
     } finally {
       setPosting(false);
     }

@@ -9,13 +9,15 @@ vi.mock('../api/client', () => ({
 import { api } from '../api/client';
 
 function AuthProbe() {
-  const { user, login, register, registerCompany, logout, confirmEmail, resendConfirmation, forgotPassword, resetPassword } = useAuth();
+  const { user, login, loginWithGoogle, register, registerCompany, logout, confirmEmail, resendConfirmation, forgotPassword, resetPassword } = useAuth();
   return (
     <div>
       <span data-testid="user">
         {user ? `${user.firstName}:${user.role}` : 'none'}
       </span>
       <button onClick={() => login('ada@example.com', 'secret')}>login</button>
+      <button onClick={() => loginWithGoogle('google-id-token')}>google-login</button>
+      <button onClick={() => loginWithGoogle('google-id-token', 'Recruiter')}>google-login-recruiter</button>
       <button onClick={() => register({ emailAddress: 'new@example.com' })}>register</button>
       <button onClick={() => registerCompany({ name: 'Acme' })}>register-company</button>
       <button onClick={() => logout()}>logout</button>
@@ -62,6 +64,28 @@ describe('AuthContext', () => {
     expect(api.post).toHaveBeenCalledWith('/auth/login', { emailAddress: 'ada@example.com', password: 'secret' });
     expect(localStorage.getItem('token')).toBe('jwt-token');
     expect(JSON.parse(localStorage.getItem('user')).firstName).toBe('Ada');
+  });
+
+  it('loginWithGoogle posts the ID token and stores the session', async () => {
+    api.post.mockResolvedValue({ token: 'g-token', firstName: 'Ana', role: 'Learner' });
+
+    renderWithAuth();
+    fireEvent.click(screen.getByText('google-login'));
+
+    await waitFor(() => expect(screen.getByTestId('user')).toHaveTextContent('Ana:Learner'));
+    expect(api.post).toHaveBeenCalledWith('/auth/google', { idToken: 'google-id-token' });
+    expect(localStorage.getItem('token')).toBe('g-token');
+    expect(JSON.parse(localStorage.getItem('user')).firstName).toBe('Ana');
+  });
+
+  it('loginWithGoogle forwards the role when provided (signup)', async () => {
+    api.post.mockResolvedValue({ token: 'g-token2', firstName: 'Ana', role: 'Recruiter' });
+
+    renderWithAuth();
+    fireEvent.click(screen.getByText('google-login-recruiter'));
+
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/auth/google', { idToken: 'google-id-token', role: 'Recruiter' }));
+    await waitFor(() => expect(screen.getByTestId('user')).toHaveTextContent('Ana:Recruiter'));
   });
 
   it('register posts the profile and sets the current user', async () => {

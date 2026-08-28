@@ -275,13 +275,13 @@ public class CompanyIdentityUnitTests
     // ------------------------------------------------------------------ //
 
     private static PostService CreatePostService(ApplicationDbContext ctx) =>
-        new(new PostRepository(ctx), NullLogger<PostService>.Instance);
+        new(new PostRepository(ctx), new PostSkillRepository(ctx), new RoleSkillRepository(ctx), new SkillRepository(ctx), NullLogger<PostService>.Instance);
 
     private static PostRequest PostReq(string title, string? companyLogoUrl = null) =>
         new(title, "Test description.", null, null, null, null, null, null, null, CompanyLogoUrl: companyLogoUrl);
 
     private static CompanyService CreateCompanyService(ApplicationDbContext ctx, FakeObjectStorage storage) =>
-        new(ctx, new PostService(new PostRepository(ctx), NullLogger<PostService>.Instance), storage, NullLogger<CompanyService>.Instance);
+        new(ctx, new PostService(new PostRepository(ctx), new PostSkillRepository(ctx), new RoleSkillRepository(ctx), new SkillRepository(ctx), NullLogger<PostService>.Instance), storage, NullLogger<CompanyService>.Instance);
 
     private static async Task<Company> SeedCompanyAsync(ApplicationDbContext ctx, string name = "Acme Corp", string? logoUrl = null)
     {

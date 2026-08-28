@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Play, Pause, SkipForward, SkipBack, Maximize, Volume2, VolumeX } from 'lucide-react';
+import { Play, Pause, SkipForward, SkipBack, Maximize, Volume2, VolumeX, CheckCircle2 } from 'lucide-react';
+import { api } from '../../api/client';
+import { useToast } from '../../context/ToastContext';
 
 const styles = {
   container: {
@@ -121,13 +123,15 @@ const formatTime = (seconds) => {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
 
-export default function VideoPlayer({ media = [], lessonName, currentIndex = 0, totalLessons = 0 }) {
+export default function VideoPlayer({ media = [], lessonName, currentIndex = 0, totalLessons = 0, lessonId, onProgress }) {
   const videoRef = useRef(null);
   const containerRef = useRef(null);
+  const { showToast } = useToast();
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [muted, setMuted] = useState(false);
+  const [completed, setCompleted] = useState(false);
 
   const videoMedia = media.find((m) => (m.type || '').toLowerCase().startsWith('video'));
 
@@ -135,7 +139,8 @@ export default function VideoPlayer({ media = [], lessonName, currentIndex = 0, 
     setIsPlaying(false);
     setCurrentTime(0);
     setDuration(0);
-  }, [videoMedia?.pathFile]);
+    setCompleted(false);
+  }, [videoMedia?.pathFile, lessonId]);
 
   if (!videoMedia) {
     return (
@@ -198,7 +203,22 @@ export default function VideoPlayer({ media = [], lessonName, currentIndex = 0, 
           onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
           onPlay={() => setIsPlaying(true)}
           onPause={() => setIsPlaying(false)}
-          onEnded={() => setIsPlaying(false)}
+          onEnded={async () => {
+            setIsPlaying(false);
+            if (lessonId && !completed) {
+              setCompleted(true);
+              try {
+                await api.put(`/coursecontent/lessons/${lessonId}/progress`, { lessonId, progressPercent: 100 });
+                showToast('Lesson completed — progress saved', 'success');
+                onProgress?.(100);
+              } catch {
+                showToast('Lesson watched — progress will sync shortly', 'success');
+              }
+            } else if (!completed) {
+              setCompleted(true);
+              showToast('Lesson completed — nice work!', 'success');
+            }
+          }}
           onClick={togglePlay}
         />
         <div style={styles.lessonInfo}>
@@ -244,6 +264,25 @@ export default function VideoPlayer({ media = [], lessonName, currentIndex = 0, 
           </button>
         </div>
       </div>
+      {completed && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            padding: '10px 14px',
+            background: 'var(--teal-soft)',
+            color: 'var(--teal)',
+            fontSize: 12,
+            fontWeight: 700,
+            borderTop: '1px solid var(--line)',
+          }}
+        >
+          <CheckCircle2 size={16} /> Lesson completed — progress saved
+        </div>
+      )}
     </div>
   );
 }

@@ -84,7 +84,6 @@ namespace CebuUpskilling.Backend.Migrations
                         .HasColumnType("character varying(255)");
 
                     b.Property<string>("PasswordHash")
-                        .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
@@ -295,6 +294,9 @@ namespace CebuUpskilling.Backend.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("CourseId"));
 
+                    b.Property<int?>("CompanyId")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -321,6 +323,11 @@ namespace CebuUpskilling.Backend.Migrations
                     b.Property<int?>("Price")
                         .HasColumnType("integer");
 
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<int>("TechnicalLevel")
                         .HasColumnType("integer");
 
@@ -331,6 +338,8 @@ namespace CebuUpskilling.Backend.Migrations
                         .HasColumnType("text");
 
                     b.HasKey("CourseId");
+
+                    b.HasIndex("CompanyId");
 
                     b.HasIndex("GenreId");
 
@@ -852,6 +861,11 @@ namespace CebuUpskilling.Backend.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<string>("Schedule")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
                     b.Property<string>("TargetRole")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -884,6 +898,23 @@ namespace CebuUpskilling.Backend.Migrations
                     b.ToTable("PostCourseRequireds");
                 });
 
+            modelBuilder.Entity("CebuUpskilling.Backend.Entities.PostSkill", b =>
+                {
+                    b.Property<int>("PostId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SkillId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("RequiredLevel")
+                        .HasColumnType("integer");
+
+                    b.HasKey("PostId", "SkillId");
+
+                    b.HasIndex("SkillId");
+
+                    b.ToTable("PostSkills");
+                });
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.RoleSkill", b =>
                 {
                     b.Property<int>("RoleSkillId")
@@ -1018,11 +1049,17 @@ namespace CebuUpskilling.Backend.Migrations
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.Course", b =>
                 {
+                    b.HasOne("CebuUpskilling.Backend.Entities.Company", "Company")
+                        .WithMany("Courses")
+                        .HasForeignKey("CompanyId");
+
                     b.HasOne("CebuUpskilling.Backend.Entities.Genre", "Genre")
                         .WithMany("Courses")
                         .HasForeignKey("GenreId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Company");
 
                     b.Navigation("Genre");
                 });
@@ -1248,6 +1285,24 @@ namespace CebuUpskilling.Backend.Migrations
                     b.Navigation("Post");
                 });
 
+            modelBuilder.Entity("CebuUpskilling.Backend.Entities.PostSkill", b =>
+                {
+                    b.HasOne("CebuUpskilling.Backend.Entities.Post", "Post")
+                        .WithMany("PostSkills")
+                        .HasForeignKey("PostId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CebuUpskilling.Backend.Entities.Skill", "Skill")
+                        .WithMany("PostSkills")
+                        .HasForeignKey("SkillId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Post");
+
+                    b.Navigation("Skill");
+                });
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.RoleSkill", b =>
                 {
                     b.HasOne("CebuUpskilling.Backend.Entities.Skill", "Skill")
@@ -1277,6 +1332,8 @@ namespace CebuUpskilling.Backend.Migrations
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.Company", b =>
                 {
+                    b.Navigation("Courses");
+
                     b.Navigation("Posts");
 
                     b.Navigation("Users");
@@ -1342,11 +1399,15 @@ namespace CebuUpskilling.Backend.Migrations
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.Post", b =>
                 {
                     b.Navigation("PostCourseRequireds");
+
+                    b.Navigation("PostSkills");
                 });
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.Skill", b =>
                 {
                     b.Navigation("LearnerSkills");
+
+                    b.Navigation("PostSkills");
 
                     b.Navigation("RoleSkills");
                 });

@@ -1,44 +1,26 @@
 /* eslint-disable react/only-export-components */
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { api } from '../api/client';
-import { useAuth, isRecruiter } from './AuthContext';
+import { createContext, useContext, useEffect } from 'react';
+import { useEnrollmentsStore } from '../stores/enrollmentsStore';
+import { useAuth } from './AuthContext';
 
 const EnrollmentsContext = createContext(null);
 
 export function EnrollmentsProvider({ children }) {
+  const { enrollments, fetchEnrollments, isEnrolled } = useEnrollmentsStore();
   const { user } = useAuth();
-  const [enrollments, setEnrollments] = useState([]);
-
-  const fetchEnrollments = useCallback(async (signal) => {
-    if (!user || isRecruiter(user)) {
-      setEnrollments([]);
-      return;
-    }
-    try {
-      const data = await api.get('/enrollments', { signal });
-      setEnrollments(data || []);
-    } catch (err) {
-      if (err?.name === 'AbortError') return;
-      console.warn('[Enrollments] Failed to fetch enrollments:', err?.message || err);
-      setEnrollments([]);
-    }
-  }, [user]);
 
   useEffect(() => {
     const controller = new AbortController();
-    fetchEnrollments(controller.signal);
+    fetchEnrollments(controller.signal, user);
     return () => controller.abort();
-  }, [fetchEnrollments]);
+  }, [user, fetchEnrollments]);
 
-  const isEnrolled = useCallback(
-    (courseId) => enrollments.some((e) => e.courseId === courseId),
-    [enrollments],
-  );
+  const refreshEnrollments = (signal) => fetchEnrollments(signal, user);
 
-  const refreshEnrollments = useCallback(() => fetchEnrollments(), [fetchEnrollments]);
+  const value = { enrollments, isEnrolled, refreshEnrollments, fetchEnrollments };
 
   return (
-    <EnrollmentsContext.Provider value={{ enrollments, isEnrolled, refreshEnrollments }}>
+    <EnrollmentsContext.Provider value={value}>
       {children}
     </EnrollmentsContext.Provider>
   );
@@ -46,6 +28,7 @@ export function EnrollmentsProvider({ children }) {
 
 export function useEnrollments() {
   const ctx = useContext(EnrollmentsContext);
-  if (!ctx) throw new Error('useEnrollments must be used within EnrollmentsProvider');
-  return ctx;
+  const store = useEnrollmentsStore();
+  if (ctx) return ctx;
+  return store;
 }

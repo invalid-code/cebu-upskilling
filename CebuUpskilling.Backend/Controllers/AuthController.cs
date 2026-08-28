@@ -110,6 +110,30 @@ public class AuthController : BaseEntityController<AppUser>
         }
     }
 
+    [AllowAnonymous]
+    [EnableRateLimiting("auth")]
+    [HttpPost("google")]
+    public async Task<ActionResult<AuthResponse>> GoogleAuth(GoogleAuthRequest request)
+    {
+        _logger.LogInformation("HTTP POST /api/auth/google called");
+        try
+        {
+            var result = await _authService.GoogleAuthAsync(request);
+            _logger.LogInformation("Google auth successful for {Email}, UserId: {UserId}", result.EmailAddress, result.UserId);
+            return Ok(result);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            _logger.LogWarning("Google auth failed: invalid credential");
+            return Unauthorized(new { error = "Invalid Google credential" });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning("Google auth failed: {Error}", ex.Message);
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
     [HttpPatch("profile")]
     public async Task<ActionResult<AuthResponse>> UpdateProfile(UpdateProfileRequest request)
     {

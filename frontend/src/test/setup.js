@@ -51,7 +51,36 @@ if (isBrokenStorage(globalThis.sessionStorage)) {
   });
 }
 
-afterEach(() => {
+if (typeof globalThis.matchMedia !== 'function') {
+  globalThis.matchMedia = (query) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addEventListener() {},
+    removeEventListener() {},
+    addListener() {},
+    removeListener() {},
+    dispatchEvent() { return false; },
+  });
+}
+
+afterEach(async () => {
   cleanup();
   localStorage.clear();
+  // Reset Zustand stores so tests remain isolated (stores are singletons).
+  // Dynamic imports ensure polyfill has run before store evaluation.
+  try {
+    const { useAuthStore } = await import('../stores/authStore');
+    const { useEnrollmentsStore } = await import('../stores/enrollmentsStore');
+    const { useApplicationsStore } = await import('../stores/applicationsStore');
+    const { useToastStore } = await import('../stores/toastStore');
+    const { useCookieConsentStore } = await import('../stores/cookieConsentStore');
+    useAuthStore.getState()._reset();
+    useEnrollmentsStore.getState()._reset();
+    useApplicationsStore.getState()._reset();
+    useToastStore.getState()._reset();
+    useCookieConsentStore.getState()._reset();
+  } catch {
+    // ignore if stores not yet loaded
+  }
 });

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures.js';
 import { setAuth, clearAuth, mockApi } from './helpers.js';
 
 const learnerUser = { firstName: 'Jose', lastName: 'Rizal', role: 'Learner' };
@@ -60,7 +60,7 @@ test.describe('Routing and role guards', () => {
     await setAuth(page, { user: learnerUser });
     await mockLearnerShell(page);
     await page.goto('/business-dashboard');
-    await expect(page).toHaveURL('http://localhost:5173/');
+    await expect(page).toHaveURL(/\/dashboard/);
     await expect(page.getByText('Your next move is clear.')).toBeVisible();
   });
 
@@ -83,7 +83,7 @@ test.describe('Routing and role guards', () => {
     await setAuth(page, { user: learnerUser });
     await mockLearnerShell(page);
     await page.goto('/post-job');
-    await expect(page).toHaveURL('http://localhost:5173/');
+    await expect(page).toHaveURL(/\/dashboard/);
   });
 
   test('not-found route shows NotFoundPage', async ({ page }) => {
@@ -96,7 +96,7 @@ test.describe('Routing and role guards', () => {
     await setAuth(page, { user: learnerUser });
     await mockLearnerShell(page);
     await page.goto('/register');
-    await expect(page).toHaveURL('http://localhost:5173/');
+    await expect(page).toHaveURL(/\/dashboard/);
   });
 
   test('public routes redirect authenticated recruiter to business dashboard', async ({ page }) => {
@@ -121,9 +121,12 @@ test.describe('Routing and role guards', () => {
       return `${header}.${body}.sig`;
     })();
     await setAuth(page, { user: learnerUser, token: expiredToken });
-    // App should clear token and redirect to login
-    await page.goto('/');
+    // App should clear token – protected route redirects to login, public / stays landing
+    await page.goto('/dashboard');
     await expect(page).toHaveURL(/\/login/);
+    await page.goto('/');
+    await expect(page).toHaveURL('http://localhost:5173/');
+    await expect(page.getByRole('heading', { name: /your next opportunity starts with knowing/i })).toBeVisible();
   });
 
   test('company profile page is publicly viewable without auth', async ({ page }) => {

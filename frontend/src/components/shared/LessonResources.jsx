@@ -273,10 +273,10 @@ export default function LessonResources({ media, lessonId, courseId }) {
           setCourseNotes(courseData?.notes || []);
         } catch { /* ignore */ }
       }
-      showToast('Note saved');
+      showToast('Note saved', 'success');
     } catch (err) {
       setError(err.message || 'Failed to save note');
-      showToast(err.message || 'Failed to save note');
+      showToast(err.message || 'Failed to save note', 'error');
     } finally {
       setSaving(false);
     }
