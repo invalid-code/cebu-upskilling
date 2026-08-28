@@ -296,7 +296,14 @@ export default function LandingPage() {
           </nav>
 
           <div className="nav__cta">
-            <Link className="btn btn--primary btn--sm" to={dashboardPath}>Go to Dashboard</Link>
+            {user ? (
+              <Link className="btn btn--primary btn--sm" to={dashboardPath}>Go to Dashboard</Link>
+            ) : (
+              <>
+                <Link className="btn btn--ghost btn--sm" to="/login">Log in</Link>
+                <Link className="btn btn--primary btn--sm" to="/register">Get Started</Link>
+              </>
+            )}
             <button className="burger" id="burger" aria-label={navOpen ? 'Close menu' : 'Open menu'} aria-expanded={String(navOpen)} aria-controls="drawer" onClick={handleBurger}>
               <span></span><span></span><span></span>
             </button>
@@ -314,7 +321,14 @@ export default function LandingPage() {
             <li><a href="#about" onClick={closeDrawer}>About &amp; Team <i>07</i></a></li>
           </ul>
           <div style={{ padding: '16px clamp(20px, 5vw, 56px) 20px', borderTop: '1px solid var(--line)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <Link className="btn btn--primary" to={dashboardPath} onClick={closeDrawer}>Go to Dashboard</Link>
+            {user ? (
+              <Link className="btn btn--primary" to={dashboardPath} onClick={closeDrawer}>Go to Dashboard</Link>
+            ) : (
+              <>
+                <Link className="btn btn--ghost" to="/login" onClick={closeDrawer}>Log in</Link>
+                <Link className="btn btn--primary" to="/register" onClick={closeDrawer}>Get Started</Link>
+              </>
+            )}
           </div>
         </div>
       </header>
