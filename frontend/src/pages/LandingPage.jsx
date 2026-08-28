@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth, isRecruiter } from '../context/AuthContext';
 import './LandingPage.css';
 
 const ROLES = [
@@ -53,6 +54,7 @@ function getBand(v) {
 }
 
 export default function LandingPage() {
+  const { user } = useAuth();
   const [selectedRole, setSelectedRole] = useState(0);
   const [score, setScore] = useState(72);
   const [skillView, setSkillView] = useState(true);
@@ -270,6 +272,7 @@ export default function LandingPage() {
   const band = getBand(score);
   const bandIdx = BANDS.indexOf(band);
   const filled = 5 - bandIdx;
+  const dashboardPath = isRecruiter(user) ? '/business-dashboard' : '/dashboard';
 
   const handleBurger = () => setNavOpen((o) => !o);
   const closeDrawer = () => setNavOpen(false);
@@ -293,8 +296,7 @@ export default function LandingPage() {
           </nav>
 
           <div className="nav__cta">
-            <Link className="btn btn--ghost btn--sm" to="/login">Sign in</Link>
-            <Link className="btn btn--primary btn--sm" to="/register">Get started</Link>
+            <Link className="btn btn--primary btn--sm" to={dashboardPath}>Go to Dashboard</Link>
             <button className="burger" id="burger" aria-label={navOpen ? 'Close menu' : 'Open menu'} aria-expanded={String(navOpen)} aria-controls="drawer" onClick={handleBurger}>
               <span></span><span></span><span></span>
             </button>
@@ -311,6 +313,9 @@ export default function LandingPage() {
             <li><a href="#pilot" onClick={closeDrawer}>Development &amp; Validation Pilot <i>06</i></a></li>
             <li><a href="#about" onClick={closeDrawer}>About &amp; Team <i>07</i></a></li>
           </ul>
+          <div style={{ padding: '16px clamp(20px, 5vw, 56px) 20px', borderTop: '1px solid var(--line)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <Link className="btn btn--primary" to={dashboardPath} onClick={closeDrawer}>Go to Dashboard</Link>
+          </div>
         </div>
       </header>
 
@@ -337,11 +342,19 @@ export default function LandingPage() {
                 opportunities into one clear career pathway. Pick the job you want. See exactly what you're missing. Close
                 the gap.</p>
               <div className="hero__cta rv" style={{ '--i': '3' }}>
-                <a className="btn btn--primary" href="#pilot">Join the Pilot <svg className="btn__arrow" width="15" height="15"
-                  viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"
-                  strokeLinejoin="round">
-                  <path d="M5 12h13M13 6l6 6-6 6" />
-                </svg></a>
+                {user ? (
+                  <Link className="btn btn--primary" to={dashboardPath}>Go to Dashboard <svg className="btn__arrow" width="15" height="15"
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"
+                    strokeLinejoin="round">
+                    <path d="M5 12h13M13 6l6 6-6 6" />
+                  </svg></Link>
+                ) : (
+                  <a className="btn btn--primary" href="#pilot">Join the Pilot <svg className="btn__arrow" width="15" height="15"
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"
+                    strokeLinejoin="round">
+                    <path d="M5 12h13M13 6l6 6-6 6" />
+                  </svg></a>
+                )}
                 <a className="btn btn--ghost" href="#pathway">See how it works</a>
               </div>
               <div className="hero__meta rv" style={{ '--i': '4' }}>
@@ -1306,12 +1319,25 @@ export default function LandingPage() {
             <p className="rv" style={{ '--i': '1' }}>Whether you're building your career, hiring talent, or preparing people for work,
               Cebu Upskilling is building a clearer path from skills to opportunity. Start in Cebu. Built to travel.</p>
             <div className="cta__btns rv" style={{ '--i': '2' }}>
-              <a className="btn btn--onDark" href="mailto:hello@cebuupskilling.ph?subject=Pilot%20interest">Join the Pilot <svg
-                className="btn__arrow" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M5 12h13M13 6l6 6-6 6" />
-              </svg></a>
-              <a className="btn btn--ghostDark" href="mailto:hello@cebuupskilling.ph?subject=Partnership">Partner with us</a>
+              {user ? (
+                <>
+                  <Link className="btn btn--onDark" to={dashboardPath}>Go to Dashboard <svg
+                    className="btn__arrow" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M5 12h13M13 6l6 6-6 6" />
+                  </svg></Link>
+                  <Link className="btn btn--ghostDark" to={dashboardPath}>View your pathway</Link>
+                </>
+              ) : (
+                <>
+                  <a className="btn btn--onDark" href="mailto:hello@cebuupskilling.ph?subject=Pilot%20interest">Join the Pilot <svg
+                    className="btn__arrow" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M5 12h13M13 6l6 6-6 6" />
+                  </svg></a>
+                  <a className="btn btn--ghostDark" href="mailto:hello@cebuupskilling.ph?subject=Partnership">Partner with us</a>
+                </>
+              )}
             </div>
           </div>
         </section>
