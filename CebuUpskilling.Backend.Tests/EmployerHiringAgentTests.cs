@@ -36,6 +36,8 @@ public class EmployerHiringAgentTests
 
         public Task<DraftJobPostResponse?> DraftJobPostAsync(DraftJobPostRequest request, CancellationToken ct = default)
             => Task.FromResult(Draft);
+
+        public Task<CourseGenerationResult?> GenerateCourseOutlineAsync(CourseGenerationPromptContext context, CancellationToken ct = default) => Task.FromResult<CourseGenerationResult?>(null);
     }
 
     private static EmployerHiringAgent CreateAgent(ApplicationDbContext context, FakeGoogleAiService ai) => new(

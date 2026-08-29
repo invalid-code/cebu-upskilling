@@ -39,6 +39,7 @@ import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import TermsOfServicePage from './pages/TermsOfServicePage';
 import CourseManagementPage from './pages/CourseManagementPage';
 import ProviderDashboardPage from './pages/ProviderDashboardPage';
+import CourseGenerationPage from './pages/CourseGenerationPage';
 
 const appStyles = {
   app: {
@@ -129,6 +130,7 @@ export default function App() {
                     </Route>
                     <Route element={<CourseStudioRoute />}>
                       <Route path="/company-courses" element={<CourseManagementPage />} />
+                      <Route path="/company-courses/generate" element={<CourseGenerationPage />} />
                       <Route path="/company-courses/new" element={<CourseManagementPage />} />
                       <Route path="/company-courses/:courseId/edit" element={<CourseManagementPage />} />
                     </Route>
