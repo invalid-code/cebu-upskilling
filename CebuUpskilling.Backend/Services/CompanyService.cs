@@ -61,7 +61,7 @@ public class CompanyService : ICompanyService
     public async Task<CompanyResponse> CreateAsync(CreateCompanyRequest request)
     {
         var name = request.Name.Trim();
-        if (await _context.Companies.AnyAsync(c => c.Name == name))
+        if (await _context.Companies.AnyAsync(c => c.Name.ToLower() == name.ToLower()))
         {
             _logger.LogWarning("Company creation failed: name {CompanyName} already exists", name);
             throw new InvalidOperationException("Company name already registered");
@@ -70,18 +70,31 @@ public class CompanyService : ICompanyService
         var company = new Company
         {
             Name = name,
-            Tagline = request.Tagline,
-            Description = request.Description,
-            Industry = request.Industry,
-            Website = request.Website,
-            LinkedInUrl = request.LinkedInUrl,
-            FacebookUrl = request.FacebookUrl,
-            Location = request.Location,
-            CompanySize = request.CompanySize,
+            // Same null/whitespace/trim semantics as ApplyUpdate so registration
+            // and profile-update cannot produce different stored shapes ('' vs null).
+            Tagline = NormalizeOptional(request.Tagline),
+            Description = NormalizeOptional(request.Description),
+            Industry = NormalizeOptional(request.Industry),
+            Website = NormalizeOptional(request.Website),
+            LinkedInUrl = NormalizeOptional(request.LinkedInUrl),
+            FacebookUrl = NormalizeOptional(request.FacebookUrl),
+            Location = NormalizeOptional(request.Location),
+            CompanySize = NormalizeOptional(request.CompanySize),
         };
 
         _context.Companies.Add(company);
-        await _context.SaveChangesAsync();
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            // App-level case-insensitive uniqueness is not enforced by the DB
+            // (Companies.Name has a case-sensitive unique index), so a concurrent
+            // insert of a differently-cased duplicate can race past AnyAsync above.
+            // Close the race by translating the constraint failure.
+            throw new InvalidOperationException("Company name already registered");
+        }
         _logger.LogInformation("Company created: {CompanyId} ({CompanyName})", company.CompanyId, company.Name);
 
         return ToResponse(company);
@@ -95,13 +108,16 @@ public class CompanyService : ICompanyService
             throw new KeyNotFoundException($"No company is linked to user {userId}");
         }
 
-        var company = await _context.Companies.FirstAsync(c => c.CompanyId == user.Company.CompanyId);
+        // user.Company is already tracked via the Include above - no need to re-query.
+        var company = user.Company!;
 
         if (!string.IsNullOrWhiteSpace(request.Name))
         {
             var newName = request.Name.Trim();
-            if (!string.Equals(newName, company.Name, StringComparison.Ordinal)
-                && await _context.Companies.AnyAsync(c => c.Name == newName))
+            // Case-insensitive uniqueness so "Acme" and "acme" cannot coexist.
+            if (!string.Equals(newName, company.Name, StringComparison.OrdinalIgnoreCase)
+                && await _context.Companies.AnyAsync(c => c.CompanyId != company.CompanyId
+                    && c.Name.ToLower() == newName.ToLower()))
             {
                 throw new InvalidOperationException("Company name already registered");
             }
@@ -165,7 +181,11 @@ public class CompanyService : ICompanyService
         await using var stream = file.OpenReadStream();
         var publicUrl = await _storage.UploadAsync(key, stream, file.ContentType, CancellationToken.None);
 
-        var company = await _context.Companies.FirstAsync(c => c.CompanyId == companyId);
+        var company = await _context.Companies.FirstOrDefaultAsync(c => c.CompanyId == companyId);
+        if (company == null)
+        {
+            throw new KeyNotFoundException($"Company {companyId} is not linked to user {userId}");
+        }
         await DeletePreviousImageAsync(existingUrlSelector(company), key);
         applyUrl(company, publicUrl);
         await _context.SaveChangesAsync();
@@ -205,11 +225,19 @@ public class CompanyService : ICompanyService
         => incoming == null ? current : (string.IsNullOrWhiteSpace(incoming) ? null : incoming.Trim());
 
     /// <summary>
+    /// Create-path counterpart of <see cref="ApplyUpdate"/>: optional fields are
+    /// stored as null when blank and trimmed otherwise, so a created company and
+    /// an updated company never diverge on stored shape ('' vs null).
+    /// </summary>
+    private static string? NormalizeOptional(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    /// <summary>
     /// Best-effort reverse of <see cref="IObjectStorageService.GetPublicUrl"/> so superseded
     /// logo objects can be cleaned up. Only URLs produced by our own storage service are
     /// recognized; anything else (e.g. externally hosted images) returns null and is left alone.
     /// </summary>
-    private static string? TryExtractStorageKey(string publicUrl)
+    private string? TryExtractStorageKey(string publicUrl)
     {
         foreach (var prefix in new[] { "/uploads/", "uploads/" })
         {
@@ -220,10 +248,24 @@ public class CompanyService : ICompanyService
             }
         }
 
-        if (Uri.TryCreate(publicUrl, UriKind.Absolute, out var uri))
+        // Absolute URLs are only recognized when they point at our own storage
+        // public base URL - keys must never be harvested from arbitrary external
+        // hosts (e.g. an unrelated CDN path) and deleted from our bucket.
+        string? storageBaseUrl = null;
+        try
         {
-            var path = uri.AbsolutePath.TrimStart('/');
-            return path.Length > 0 && path.Contains('/') ? path : null;
+            storageBaseUrl = _storage.GetPublicUrl(string.Empty);
+        }
+        catch (InvalidOperationException)
+        {
+            // Storage not configured; nothing is ours to delete.
+        }
+
+        if (!string.IsNullOrEmpty(storageBaseUrl)
+            && publicUrl.StartsWith(storageBaseUrl, StringComparison.OrdinalIgnoreCase)
+            && publicUrl.Length > storageBaseUrl.Length)
+        {
+            return publicUrl[storageBaseUrl.Length..].TrimStart('/');
         }
 
         return null;

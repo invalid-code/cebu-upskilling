@@ -114,9 +114,12 @@ export default function CompanyProfileEditPage() {
   const { showToast } = useToast();
   const [form, setForm] = useState(null);
   const [logoUrl, setLogoUrl] = useState('');
+  const [coverUrl, setCoverUrl] = useState('');
+  const [profileCompleteness, setProfileCompleteness] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -130,13 +133,18 @@ export default function CompanyProfileEditPage() {
       .then((data) => {
         setForm({
           name: data?.name || '',
+          tagline: data?.tagline || '',
           description: data?.description || '',
           industry: data?.industry || '',
           website: data?.website || '',
+          linkedInUrl: data?.linkedInUrl || '',
+          facebookUrl: data?.facebookUrl || '',
           location: data?.location || '',
           companySize: data?.companySize || '',
         });
         setLogoUrl(data?.logoUrl || '');
+        setCoverUrl(data?.coverImageUrl || '');
+        setProfileCompleteness(data?.profileCompleteness ?? 0);
       })
       .catch((err) => setError(err.message || 'Could not load your company profile'))
       .finally(() => setLoading(false));
@@ -149,19 +157,25 @@ export default function CompanyProfileEditPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const payload = {};
-      for (const key of Object.keys(form)) {
-        payload[key] = form[key] === '' ? null : form[key];
-      }
+      // Send values as-is: the backend treats '' (or whitespace) as "clear this field"
+      // and only a missing/null key as "leave unchanged". Mapping '' to
+      // null here used to make clearing fields a silent no-op.
+      const payload = { ...form };
       const updated = await api.put('/companies/me', payload);
       setForm({
         name: updated.name || '',
+        tagline: updated.tagline || '',
         description: updated.description || '',
         industry: updated.industry || '',
         website: updated.website || '',
+        linkedInUrl: updated.linkedInUrl || '',
+        facebookUrl: updated.facebookUrl || '',
         location: updated.location || '',
         companySize: updated.companySize || '',
       });
+      setLogoUrl(updated.logoUrl || logoUrl);
+      setCoverUrl(updated.coverImageUrl || coverUrl);
+      if (updated.profileCompleteness != null) setProfileCompleteness(updated.profileCompleteness);
       showToast('Company profile saved');
     } catch (err) {
       showToast(err?.message || 'Could not save company profile');
@@ -183,6 +197,24 @@ export default function CompanyProfileEditPage() {
       showToast(err?.message || 'Could not upload logo');
     } finally {
       setUploadingLogo(false);
+    }
+  };
+
+  const handleCoverFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setUploadingCover(true);
+    try {
+      const res = await api.upload('/companies/me/cover', file);
+      // Backend returns { logoUrl: coverUrl } via UploadLogoResponse for both endpoints
+      const url = res?.logoUrl || res?.coverImageUrl || res?.coverUrl || '';
+      setCoverUrl(url);
+      showToast('Cover image uploaded');
+    } catch (err) {
+      showToast(err?.message || 'Could not upload cover image');
+    } finally {
+      setUploadingCover(false);
     }
   };
 
@@ -213,6 +245,21 @@ export default function CompanyProfileEditPage() {
       </div>
 
       <Panel>
+        {profileCompleteness > 0 && (
+          <div style={{ marginBottom: 18 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)' }}>Profile completeness</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: profileCompleteness === 100 ? 'var(--teal)' : 'var(--muted)' }}>{profileCompleteness}%</span>
+            </div>
+            <div style={{ height: 8, background: 'var(--line)', borderRadius: 999, overflow: 'hidden' }}>
+              <div style={{ width: `${profileCompleteness}%`, height: '100%', background: profileCompleteness === 100 ? 'var(--teal)' : 'var(--coral)', transition: 'width 0.3s' }} />
+            </div>
+            <p style={{ ...styles.hint, marginTop: 6 }}>
+              {profileCompleteness === 100 ? 'Your profile is complete!' : 'Complete your profile to attract more candidates.'}
+            </p>
+          </div>
+        )}
+
         <div style={styles.heroRow}>
           <CompanyAvatar name={form.name} src={logoUrl} size={64} />
           <div>
@@ -223,9 +270,26 @@ export default function CompanyProfileEditPage() {
                 accept=".png,.jpg,.jpeg,.webp"
                 style={{ display: 'none' }}
                 onChange={handleLogoFile}
+                aria-label="Upload logo"
               />
             </label>
             <p style={styles.hint}>PNG, JPG or WEBP up to 2 MB.</p>
+          </div>
+          {coverUrl ? (
+            <img src={coverUrl} alt="Company cover" style={{ width: 120, height: 68, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--line)' }} />
+          ) : null}
+          <div>
+            <label style={styles.logoButtonLabel}>
+              {uploadingCover ? 'Uploading...' : 'Upload cover'}
+              <input
+                type="file"
+                accept=".png,.jpg,.jpeg,.webp"
+                style={{ display: 'none' }}
+                onChange={handleCoverFile}
+                aria-label="Upload cover"
+              />
+            </label>
+            <p style={styles.hint}>Cover PNG/JPG/WEBP up to 2 MB.</p>
           </div>
         </div>
 
@@ -233,6 +297,11 @@ export default function CompanyProfileEditPage() {
           <div style={styles.fullWidth}>
             <label style={styles.label} htmlFor="company-name">Company name</label>
             <input id="company-name" style={styles.field} value={form.name} onChange={update('name')} />
+          </div>
+          <div style={styles.fullWidth}>
+            <label style={styles.label} htmlFor="company-tagline">Tagline</label>
+            <input id="company-tagline" style={styles.field} placeholder="e.g. Print your dreams" value={form.tagline} onChange={update('tagline')} maxLength={160} />
+            <p style={styles.hint}>{form.tagline.length}/160 characters</p>
           </div>
           <div>
             <label style={styles.label} htmlFor="company-industry">Industry</label>
@@ -254,6 +323,14 @@ export default function CompanyProfileEditPage() {
           <div>
             <label style={styles.label} htmlFor="company-website">Website</label>
             <input id="company-website" style={styles.field} type="url" placeholder="https://…" value={form.website} onChange={update('website')} />
+          </div>
+          <div>
+            <label style={styles.label} htmlFor="company-linkedin">LinkedIn URL</label>
+            <input id="company-linkedin" style={styles.field} type="url" placeholder="https://linkedin.com/company/…" value={form.linkedInUrl} onChange={update('linkedInUrl')} />
+          </div>
+          <div>
+            <label style={styles.label} htmlFor="company-facebook">Facebook URL</label>
+            <input id="company-facebook" style={styles.field} type="url" placeholder="https://facebook.com/…" value={form.facebookUrl} onChange={update('facebookUrl')} />
           </div>
           <div style={styles.fullWidth}>
             <label style={styles.label} htmlFor="company-description">About the company</label>

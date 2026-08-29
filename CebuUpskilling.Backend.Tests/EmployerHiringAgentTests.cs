@@ -113,7 +113,7 @@ public class EmployerHiringAgentTests
         var post = await CreatePostAsync(context, company);
         var agent = CreateAgent(context, new FakeGoogleAiService());
 
-        var result = await agent.RankApplicantsAsync(recruiter.UserId, post.PostId);
+        var result = await agent.RankApplicantsAsync(recruiter.UserId, post.PostId, company.CompanyId);
 
         Assert.False(result.AiRanked);
         Assert.Empty(result.Candidates);
@@ -126,7 +126,7 @@ public class EmployerHiringAgentTests
         var (_, recruiter) = await CreateRecruiterAsync(context);
         var agent = CreateAgent(context, new FakeGoogleAiService());
 
-        var result = await agent.RankApplicantsAsync(recruiter.UserId, postId: 9999);
+        var result = await agent.RankApplicantsAsync(recruiter.UserId, postId: 9999, companyId: 1);
 
         Assert.False(result.AiRanked);
         Assert.Empty(result.Candidates);
@@ -157,7 +157,7 @@ public class EmployerHiringAgentTests
         };
         var agent = CreateAgent(context, ai);
 
-        var result = await agent.RankApplicantsAsync(recruiter.UserId, post.PostId);
+        var result = await agent.RankApplicantsAsync(recruiter.UserId, post.PostId, company.CompanyId);
 
         Assert.True(result.AiRanked);
         Assert.Equal(2, result.Candidates.Count);
@@ -185,7 +185,7 @@ public class EmployerHiringAgentTests
 
         var agent = CreateAgent(context, new FakeGoogleAiService());
 
-        var result = await agent.RankApplicantsAsync(recruiter.UserId, post.PostId);
+        var result = await agent.RankApplicantsAsync(recruiter.UserId, post.PostId, company.CompanyId);
 
         Assert.False(result.AiRanked);
         var candidate = Assert.Single(result.Candidates);
@@ -251,7 +251,7 @@ public class EmployerHiringAgentTests
         var ai = new FakeGoogleAiService { Questions = questions };
         var agent = CreateAgent(context, ai);
 
-        var result = await agent.GenerateScreeningQuestionsAsync(recruiter.UserId, post.PostId);
+        var result = await agent.GenerateScreeningQuestionsAsync(recruiter.UserId, post.PostId, company.CompanyId);
 
         Assert.Equal(2, result.Questions.Count);
         Assert.All(result.Questions, q =>
@@ -272,9 +272,53 @@ public class EmployerHiringAgentTests
         var ai = new FakeGoogleAiService { Questions = new List<GeneratedAssessmentQuestion> { new("Q", "a", "b", "c", "d", 0) } };
         var agent = CreateAgent(context, ai);
 
-        var result = await agent.GenerateScreeningQuestionsAsync(recruiter.UserId, post.PostId);
+        var result = await agent.GenerateScreeningQuestionsAsync(recruiter.UserId, post.PostId, company.CompanyId);
 
         Assert.Empty(result.Questions);
         Assert.Equal(0, ai.QuestionCalls);
+    }
+
+    [Fact]
+    public async Task RankApplicantsAsync_PostOwnedByOtherCompany_ReturnsEmptyWithoutCallingAi()
+    {
+        var context = TestDbContextFactory.Create();
+        var (companyA, recruiterA) = await CreateRecruiterAsync(context);
+        var companyB = new Company { Name = "Other Corp" };
+        context.Companies.Add(companyB);
+        await context.SaveChangesAsync();
+        var post = await CreatePostAsync(context, companyB);
+
+        var ai = new FakeGoogleAiService();
+        var agent = CreateAgent(context, ai);
+
+        var result = await agent.RankApplicantsAsync(recruiterA.UserId, post.PostId, companyA.CompanyId);
+
+        Assert.False(result.AiRanked);
+        Assert.Empty(result.Candidates);
+    }
+
+    [Fact]
+    public async Task GenerateScreeningQuestionsAsync_PostOwnedByOtherCompany_CreatesNothing()
+    {
+        var context = TestDbContextFactory.Create();
+        var (companyA, recruiterA) = await CreateRecruiterAsync(context);
+        var companyB = new Company { Name = "Rival Corp" };
+        context.Companies.Add(companyB);
+        await context.SaveChangesAsync();
+        var post = await CreatePostAsync(context, companyB);
+
+        var skill = new Skill { Name = "JavaScript", Category = "Language" };
+        context.Skills.Add(skill);
+        context.RoleSkills.Add(new RoleSkill { TargetRole = post.TargetRole, SkillId = skill.SkillId, RequiredLevel = 3 });
+        await context.SaveChangesAsync();
+
+        var ai = new FakeGoogleAiService { Questions = new List<GeneratedAssessmentQuestion> { new("Q", "a", "b", "c", "d", 0) } };
+        var agent = CreateAgent(context, ai);
+
+        var result = await agent.GenerateScreeningQuestionsAsync(recruiterA.UserId, post.PostId, companyA.CompanyId);
+
+        Assert.Empty(result.Questions);
+        Assert.Equal(0, ai.QuestionCalls);
+        Assert.Empty(context.AssessmentQuestions);
     }
 }

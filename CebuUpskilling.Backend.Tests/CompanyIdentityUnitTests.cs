@@ -237,10 +237,149 @@ public class CompanyIdentityUnitTests
     }
 
     [Fact]
+    public async Task CreateAsync_DuplicateNameDifferentCase_Throws()
+    {
+        var ctx = TestDbContextFactory.Create();
+        await SeedCompanyAsync(ctx, name: "Acme Corp");
+        var svc = CreateCompanyService(ctx, new FakeObjectStorage());
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => svc.CreateAsync(new CreateCompanyRequest("acme corp")));
+
+        Assert.Equal("Company name already registered", ex.Message);
+    }
+
+    [Fact]
+    public async Task UpdateForUserAsync_RenameToExistingNameDifferentCase_Throws()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var existing = await SeedCompanyAsync(ctx, name: "Taken Name");
+        var (user, company) = await SeedRecruiterWithCompanyAsync(ctx, "renamer2@example.com", "Renamable Corp");
+        var svc = CreateCompanyService(ctx, new FakeObjectStorage());
+        _ = existing;
+        _ = company;
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => svc.UpdateForUserAsync(user.UserId, new UpdateCompanyRequest(Name: "taken name")));
+
+        Assert.Equal("Company name already registered", ex.Message);
+    }
+
+    [Fact]
+    public async Task UpdateForUserAsync_RenameToSameNameDifferentCase_Succeeds()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var (user, company) = await SeedRecruiterWithCompanyAsync(ctx, "recase@example.com", "Recase Corp");
+        var svc = CreateCompanyService(ctx, new FakeObjectStorage());
+        _ = company;
+
+        var res = await svc.UpdateForUserAsync(user.UserId, new UpdateCompanyRequest(Name: "recase CORP"));
+
+        Assert.Equal("recase CORP", res.Name);
+    }
+
+    [Fact]
+    public async Task UpdateForUserAsync_EmptyStringClearsField_NullLeavesUnchanged()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var (user, company) = await SeedRecruiterWithCompanyAsync(ctx, "clears@example.com", "Clearable Corp");
+        company.Tagline = "Print shop";
+        company.Industry = "Apparel";
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateCompanyService(ctx, new FakeObjectStorage());
+        var res = await svc.UpdateForUserAsync(user.UserId, new UpdateCompanyRequest(Tagline: "", Industry: null));
+
+        Assert.Null(res.Tagline);
+        Assert.Equal("Apparel", res.Industry);
+    }
+
+    [Fact]
+    public async Task UpdateForUserAsync_WhitespaceOnlyValueClearsField()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var (user, company) = await SeedRecruiterWithCompanyAsync(ctx, "whitespace@example.com", "Whitespace Corp");
+        company.Tagline = "Print shop";
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateCompanyService(ctx, new FakeObjectStorage());
+        var res = await svc.UpdateForUserAsync(user.UserId, new UpdateCompanyRequest(Tagline: "   "));
+
+        // Whitespace-only must clear (null), never store a trimmed/blank string.
+        Assert.Null(res.Tagline);
+    }
+
+    [Fact]
+    public void UpdateValidator_WhitespaceOnlyOptionalFields_AreTreatedAsClear()
+    {
+        var result = UpdateValidator().TestValidate(new UpdateCompanyRequest(
+            Website: "   ",
+            Tagline: " ",
+            Description: " "));
+
+        result.ShouldNotHaveAnyValidationErrors();
+    }
+
+    [Fact]
+    public void UpdateValidator_OverLengthWhitespaceOnlyFields_AreSkipped()
+    {
+        // Discriminates .When(!IsNullOrWhiteSpace) from the old .When(x != null):
+        // these exceed their MaximumLength rules (255/160/2000) and would fail if
+        // the rules ran; whitespace-only values are treated as "clear" and skipped.
+        var result = UpdateValidator().TestValidate(new UpdateCompanyRequest(
+            Website: new string(' ', 300),
+            Tagline: new string(' ', 200),
+            Description: new string(' ', 2100)));
+
+        result.ShouldNotHaveAnyValidationErrors();
+    }
+
+    [Fact]
+    public void UpdateValidator_OverLengthRealValue_StillValidated()
+    {
+        // Proves the rules themselves still run when the value has content.
+        var result = UpdateValidator().TestValidate(new UpdateCompanyRequest(
+            Website: "https://" + new string('a', 300)));
+
+        result.ShouldHaveValidationErrorFor(x => x.Website);
+    }
+
+    [Fact]
+    public async Task CreateAsync_WhitespaceOnlyOptionalFields_AreStoredAsNull_AndOthersTrimmed()
+    {
+        // Create-path normalization must mirror ApplyUpdate so a created company
+        // and an updated company never diverge on stored shape ('' vs null).
+        var ctx = TestDbContextFactory.Create();
+        var svc = CreateCompanyService(ctx, new FakeObjectStorage());
+
+        var res = await svc.CreateAsync(new CreateCompanyRequest(
+            "Normalized Corp",
+            Tagline: "   ",
+            Website: "  https://ok.example.com  "));
+
+        Assert.Null(res.Tagline);
+        Assert.Equal("https://ok.example.com", res.Website);
+    }
+
+    [Fact]
     public void RegisterValidator_RejectsInvalidCompanyWebsite()
     {
         var validator = new CompanyRegisterRequestValidator();
         var request = NewCompanyRegister() with { CompanyWebsite = "not a url" };
+        var result = validator.TestValidate(request);
+        result.ShouldHaveValidationErrorFor(x => x.CompanyWebsite);
+    }
+
+    [Fact]
+    public void RegisterValidator_WhitespaceOnlyWebsite_StillValidated()
+    {
+        // Contrast with the company profile validators (which skip whitespace-only
+        // values via .When(!IsNullOrWhiteSpace)): the register validator still uses
+        // .When(x != null), so an over-length whitespace-only website is validated
+        // and rejected on MaximumLength. Registration-level blanks are normalized
+        // to null by CompanyService.CreateAsync instead.
+        var validator = new CompanyRegisterRequestValidator();
+        var request = NewCompanyRegister() with { CompanyWebsite = new string(' ', 300) };
         var result = validator.TestValidate(request);
         result.ShouldHaveValidationErrorFor(x => x.CompanyWebsite);
     }

@@ -47,6 +47,15 @@ const styles = {
     margin: '0 auto',
     padding: '34px clamp(20px, 4vw, 56px) 80px',
   },
+  coverBanner: {
+    width: '100%',
+    height: 180,
+    borderRadius: 14,
+    objectFit: 'cover',
+    display: 'block',
+    marginBottom: 18,
+    border: '1px solid var(--line)',
+  },
   hero: {
     display: 'flex',
     gap: 20,
@@ -166,10 +175,16 @@ export default function CompanyProfilePage() {
         ) : (
           <>
             <Panel>
+              {company.coverImageUrl && (
+                <img src={company.coverImageUrl} alt={`${company.name} cover`} style={styles.coverBanner} />
+              )}
               <div style={styles.hero}>
                 <CompanyAvatar name={company.name} src={company.logoUrl} size={76} />
                 <div>
                   <h1 style={styles.h1}>{company.name}</h1>
+                  {company.tagline && (
+                    <p style={{ ...styles.metaLine, fontStyle: 'italic', color: 'var(--coral)', fontWeight: 600 }}>{company.tagline}</p>
+                  )}
                   {metaParts.length > 0 && (
                     <p style={styles.metaLine}>{metaParts.join(' · ')}</p>
                   )}
@@ -178,6 +193,14 @@ export default function CompanyProfilePage() {
                     {company.companySize && <Tag variant="sand">{company.companySize} employees</Tag>}
                     {company.location && <Tag variant="sand">{company.location}</Tag>}
                   </div>
+                  {company.profileCompleteness != null && (
+                    <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ flex: 1, maxWidth: 180, height: 6, background: 'var(--line)', borderRadius: 999, overflow: 'hidden' }}>
+                        <div style={{ width: `${company.profileCompleteness}%`, height: '100%', background: company.profileCompleteness === 100 ? 'var(--teal)' : 'var(--coral)' }} />
+                      </div>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)' }}>{company.profileCompleteness}% complete</span>
+                    </div>
+                  )}
                 </div>
               </div>
               {company.website && (
@@ -186,6 +209,20 @@ export default function CompanyProfilePage() {
                   <a href={company.website} target="_blank" rel="noreferrer noopener" style={{ color: 'var(--teal)', fontWeight: 700 }}>
                     {company.website.replace(/^https?:\/\//, '')}
                   </a>
+                </p>
+              )}
+              {(company.linkedInUrl || company.facebookUrl) && (
+                <p style={{ ...styles.metaLine, marginTop: 8, display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+                  {company.linkedInUrl && (
+                    <a href={company.linkedInUrl} target="_blank" rel="noreferrer noopener" style={{ color: 'var(--teal)', fontWeight: 700 }}>
+                      LinkedIn
+                    </a>
+                  )}
+                  {company.facebookUrl && (
+                    <a href={company.facebookUrl} target="_blank" rel="noreferrer noopener" style={{ color: 'var(--teal)', fontWeight: 700 }}>
+                      Facebook
+                    </a>
+                  )}
                 </p>
               )}
               {company.description && (

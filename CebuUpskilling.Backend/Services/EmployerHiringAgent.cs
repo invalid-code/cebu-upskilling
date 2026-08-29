@@ -11,9 +11,9 @@ namespace CebuUpskilling.Backend.Services;
 /// </summary>
 public interface IEmployerHiringAgent
 {
-    Task<RankCandidatesResponse> RankApplicantsAsync(int userId, int postId, CancellationToken ct = default);
+    Task<RankCandidatesResponse> RankApplicantsAsync(int userId, int postId, int companyId, CancellationToken ct = default);
     Task<DraftJobPostResponse?> DraftJobPostAsync(int userId, DraftJobPostRequest request, CancellationToken ct = default);
-    Task<ScreeningQuestionsResponse> GenerateScreeningQuestionsAsync(int userId, int postId, int perSkill = 3, CancellationToken ct = default);
+    Task<ScreeningQuestionsResponse> GenerateScreeningQuestionsAsync(int userId, int postId, int companyId, int perSkill = 3, CancellationToken ct = default);
 }
 
 public class EmployerHiringAgent : IEmployerHiringAgent
@@ -41,10 +41,12 @@ public class EmployerHiringAgent : IEmployerHiringAgent
         _logger = logger;
     }
 
-    public async Task<RankCandidatesResponse> RankApplicantsAsync(int userId, int postId, CancellationToken ct = default)
+    public async Task<RankCandidatesResponse> RankApplicantsAsync(int userId, int postId, int companyId, CancellationToken ct = default)
     {
         var post = await _posts.GetByIdAsync(postId);
-        if (post == null)
+        // Defense in depth: the controller already validates ownership; repeat the
+        // check here so this service can never touch another company's post.
+        if (post == null || post.CompanyId != companyId)
             return new RankCandidatesResponse(postId, AiRanked: false, Candidates: new List<RankedCandidateDto>());
 
         var applications = await _applications.GetByPostIdWithLearnerAndSkillsAsync(postId);
@@ -90,11 +92,13 @@ public class EmployerHiringAgent : IEmployerHiringAgent
     }
 
     public async Task<ScreeningQuestionsResponse> GenerateScreeningQuestionsAsync(
-        int userId, int postId, int perSkill = 3, CancellationToken ct = default)
+        int userId, int postId, int companyId, int perSkill = 3, CancellationToken ct = default)
     {
         perSkill = Math.Clamp(perSkill, 1, 5);
         var post = await _posts.GetByIdAsync(postId);
-        if (post == null || string.IsNullOrWhiteSpace(post.TargetRole))
+        // Defense in depth: the controller already validates ownership; repeat the
+        // check here so this service can never create questions for another company's post.
+        if (post == null || string.IsNullOrWhiteSpace(post.TargetRole) || post.CompanyId != companyId)
             return new ScreeningQuestionsResponse(postId, new List<CreatedCompanyQuestionResponse>());
 
         var roleSkills = await _roleSkills.GetByTargetRoleWithSkillAsync(post.TargetRole);
@@ -105,36 +109,38 @@ public class EmployerHiringAgent : IEmployerHiringAgent
             return new ScreeningQuestionsResponse(postId, new List<CreatedCompanyQuestionResponse>());
         }
 
-        var created = new List<CreatedCompanyQuestionResponse>();
+        var questionsToAdd = new List<AssessmentQuestion>();
         foreach (var roleSkill in roleSkills.Take(4))
         {
             var generated = await _ai.GenerateAssessmentQuestionsAsync(roleSkill.Skill.Name, perSkill, ct);
-            foreach (var q in generated.Where(IsValidQuestion))
+            questionsToAdd.AddRange(generated.Where(IsValidQuestion).Select(quest => new AssessmentQuestion
             {
-                var question = new AssessmentQuestion
-                {
-                    SkillId = roleSkill.SkillId,
-                    Text = q.Text.Trim(),
-                    OptionA = q.OptionA.Trim(),
-                    OptionB = q.OptionB.Trim(),
-                    OptionC = q.OptionC.Trim(),
-                    OptionD = q.OptionD.Trim(),
-                    CorrectOption = q.CorrectOption,
-                    Source = AssessmentSource.Company,
-                    CompanyId = post.CompanyId,
-                };
-
-                await _assessmentQuestions.AddAsync(question);
-                await _assessmentQuestions.SaveChangesAsync(ct);
-
-                created.Add(new CreatedCompanyQuestionResponse(
-                    question.AssessmentQuestionId,
-                    question.SkillId,
-                    question.Text,
-                    "Company",
-                    post.Company?.Name ?? string.Empty));
-            }
+                SkillId = roleSkill.SkillId,
+                Text = quest.Text.Trim(),
+                OptionA = quest.OptionA.Trim(),
+                OptionB = quest.OptionB.Trim(),
+                OptionC = quest.OptionC.Trim(),
+                OptionD = quest.OptionD.Trim(),
+                CorrectOption = quest.CorrectOption,
+                Source = AssessmentSource.Company,
+                CompanyId = post.CompanyId,
+            }));
         }
+
+        // One batched save instead of one round-trip per question, so a failure
+        // cannot leave a half-persisted batch of company questions behind.
+        _assessmentQuestions.AddRange(questionsToAdd);
+        await _assessmentQuestions.SaveChangesAsync(ct);
+
+        var companyName = post.Company?.Name ?? string.Empty;
+        var created = questionsToAdd
+            .Select(quest => new CreatedCompanyQuestionResponse(
+                quest.AssessmentQuestionId,
+                quest.SkillId,
+                quest.Text,
+                "Company",
+                companyName))
+            .ToList();
 
         _logger.LogInformation("User {UserId} generated {Count} screening questions for post {PostId}",
             userId, created.Count, postId);

@@ -195,6 +195,9 @@ public class ApplicationDbContext : DbContext
             .WithMany()
             .HasForeignKey(q => q.CompanyId);
 
+        modelBuilder.Entity<Post>()
+            .HasIndex(p => new { p.CompanyId, p.IsActive, p.CreatedAt });
+
         modelBuilder.Entity<Application>(entity =>
         {
             entity.Property(a => a.AppliedAt)

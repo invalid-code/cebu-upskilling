@@ -165,7 +165,9 @@ export default function JobPostForm({ initial, onSubmit, submitting, error, subm
       requirements: form.requirements,
       benefits: form.benefits,
       isRemote: form.isRemote,
-      expiresAt: form.expiresAt ? new Date(`${form.expiresAt}T00:00:00Z`).toISOString() : null,
+      // End of the chosen day in the recruiter's local timezone, so the post stays
+      // open for the full day (T00:00:00Z would close it 8h early in Asia/Manila).
+      expiresAt: form.expiresAt ? new Date(`${form.expiresAt}T23:59:59`).toISOString() : null,
       companyLogoUrl: form.companyLogoUrl.trim(),
       isActive: form.isActive,
     };

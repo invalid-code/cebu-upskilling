@@ -94,6 +94,23 @@ describe('CompanyProfileEditPage', () => {
     });
   });
 
+  it('sends empty strings for cleared fields so the backend clears them', async () => {
+    api.get.mockResolvedValue(company);
+    api.put.mockResolvedValue({ ...company, description: '' });
+
+    renderPage();
+    await screen.findByDisplayValue('Cebu Prints');
+
+    fireEvent.change(screen.getByLabelText(/About the company/), { target: { value: '' } });
+    fireEvent.click(screen.getByRole('button', { name: /Save changes/i }));
+
+    await waitFor(() => {
+      expect(api.put).toHaveBeenCalledWith('/companies/me', expect.objectContaining({
+        description: '',
+      }));
+    });
+  });
+
   it('shows a hint when the account has no linked company', async () => {
     localStorage.setItem('user', JSON.stringify({ firstName: 'Maria', role: 'Recruiter' }));
     render(
