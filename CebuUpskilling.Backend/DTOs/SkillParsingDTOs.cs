@@ -56,6 +56,8 @@ public record ScreeningQuestionsResponse(
     List<CreatedCompanyQuestionResponse> Questions
 );
 
+public record ParseSkillsRequest(string? ResumeText);
+
 public record ParsedSkillResult(
     string SkillName,
     int SkillId,

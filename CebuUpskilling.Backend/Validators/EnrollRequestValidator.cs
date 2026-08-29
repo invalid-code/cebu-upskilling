@@ -1,9 +1,9 @@
-using CebuUpskilling.Backend.Entities;
+using CebuUpskilling.Backend.DTOs;
 using FluentValidation;
 
 namespace CebuUpskilling.Backend.Validators;
 
-public class EnrollRequestValidator : AbstractValidator<LearnerStudyCourse>
+public class EnrollRequestValidator : AbstractValidator<EnrollRequest>
 {
     public EnrollRequestValidator()
     {

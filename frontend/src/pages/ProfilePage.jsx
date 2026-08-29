@@ -5,8 +5,9 @@ import Panel from '../components/ui/Panel';
 import Button from '../components/ui/Button';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { ErrorBanner } from '../components/ui/ErrorState';
+import { ErrorBanner, FieldError } from '../components/ui/ErrorState';
 import { api } from '../api/client';
+import { validateMaxLength } from '../utils/validation';
 
 const inputStyle = {
   width: '100%',
@@ -36,6 +37,7 @@ export default function ProfilePage() {
   const [form, setForm] = useState({ targetRole: '', address: '', remoteFriendly: false });
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [fieldError, setFieldError] = useState('');
 
   useEffect(() => {
     setForm({ targetRole: user?.targetRole || '', address: user?.address || '', remoteFriendly: Boolean(user?.remoteFriendly) });
@@ -45,10 +47,21 @@ export default function ProfilePage() {
   const fullName = `${user?.firstName || 'User'} ${user?.lastName || ''}`.trim();
 
   const reset = () => setForm({ targetRole: user?.targetRole || '', address: user?.address || '', remoteFriendly: Boolean(user?.remoteFriendly) });
-  const update = (key) => (event) => setForm((current) => ({ ...current, [key]: event.target.value }));
+  const update = (key) => (event) => {
+    setForm((current) => ({ ...current, [key]: event.target.value }));
+    if (fieldError) setFieldError('');
+  };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    const err =
+      validateMaxLength(form.targetRole, 100, 'Target role') ||
+      validateMaxLength(form.address, 255, 'Address');
+    if (err) {
+      setFieldError(err);
+      return;
+    }
+    setFieldError('');
     setSaving(true);
     setSaveError('');
     try {
@@ -102,6 +115,7 @@ export default function ProfilePage() {
       <Panel>
         <div style={{ marginBottom: 22 }}><p style={{ margin: 0, color: 'var(--coral)', fontSize: 11, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Pathway preferences</p><h2 style={{ margin: '6px 0 0', fontFamily: "'Space Grotesk', sans-serif", fontSize: 21 }}>Shape the opportunities you see</h2><p style={{ margin: '6px 0 0', color: 'var(--muted)', fontSize: 13 }}>Keep these details current so recommendations feel relevant.</p></div>
         {saveError && <ErrorBanner title="Couldn’t save profile" description={saveError} onDismiss={() => setSaveError('')} />}
+        {fieldError && <FieldError>{fieldError}</FieldError>}
         <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 18 }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16 }}>
             <Field label="Target role" name="targetRole" value={form.targetRole} onChange={update('targetRole')} hint="The role you are working toward" />

@@ -1,5 +1,9 @@
 namespace CebuUpskilling.Backend.DTOs;
 
+public record EnrollRequest(int CourseId);
+
+public record CreateCompanyDto(string Name);
+
 public record ApplicationSummary(
     int PostId,
     string Title,

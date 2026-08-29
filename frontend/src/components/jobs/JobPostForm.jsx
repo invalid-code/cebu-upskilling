@@ -2,6 +2,13 @@ import { useState } from 'react';
 import Button from '../ui/Button';
 import { api } from '../../api/client';
 import { ErrorBanner, FieldError } from '../ui/ErrorState';
+import {
+  validateHttpUrl,
+  validateJobType,
+  validateExperienceLevel,
+  validateMaxLength,
+  validateRequired,
+} from '../../utils/validation';
 
 const styles = {
   form: {
@@ -145,12 +152,27 @@ export default function JobPostForm({ initial, onSubmit, submitting, error, subm
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    if (!form.title.trim()) {
-      setFieldError('Job title is required — learners need it to find your role');
+    const titleErr = validateRequired(form.title, 'Job title');
+    if (titleErr) {
+      setFieldError(titleErr + ' — learners need it to find your role');
       return;
     }
-    if (form.companyLogoUrl && !/^https?:\/\/.+/i.test(form.companyLogoUrl.trim())) {
-      setFieldError('Logo URL must start with http:// or https://');
+    const logoErr = validateHttpUrl(form.companyLogoUrl);
+    if (logoErr) {
+      setFieldError(logoErr);
+      return;
+    }
+    const fieldErr =
+      validateMaxLength(form.description, 10_000, 'Description') ||
+      validateMaxLength(form.requirements, 5_000, 'Requirements') ||
+      validateMaxLength(form.benefits, 5_000, 'Benefits') ||
+      validateMaxLength(form.salaryRange, 100, 'Salary range') ||
+      validateMaxLength(form.location, 255, 'Location') ||
+      validateMaxLength(form.targetRole, 100, 'Target role') ||
+      validateJobType(form.jobType) ||
+      validateExperienceLevel(form.experienceLevel);
+    if (fieldErr) {
+      setFieldError(fieldErr);
       return;
     }
     setFieldError('');

@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using CebuUpskilling.Backend.DTOs;
 using CebuUpskilling.Backend.Entities;
 using CebuUpskilling.Backend.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -6,24 +7,24 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace CebuUpskilling.Backend.Controllers;
 
-public class EnrollmentsController : BaseEntityController<LearnerStudyCourse>
+[ApiController]
+[Route("api/enrollments")]
+[Authorize(Roles = "Learner")]
+public class EnrollmentsController : ControllerBase
 {
     private readonly IEnrollmentsService _enrollmentsService;
+    private readonly ILogger<EnrollmentsController> _logger;
 
     public EnrollmentsController(
-        IEntityService<LearnerStudyCourse> service,
         IEnrollmentsService enrollmentsService,
         ILogger<EnrollmentsController> logger)
-        : base(service, logger, "Enrollments")
     {
         _enrollmentsService = enrollmentsService;
+        _logger = logger;
     }
 
-    protected override int GetId(LearnerStudyCourse entity) => entity.CourseId;
-
     [HttpGet]
-    [Authorize(Roles = "Learner")]
-    public override async Task<ActionResult<List<LearnerStudyCourse>>> GetAll()
+    public async Task<ActionResult<List<LearnerStudyCourse>>> GetAll()
     {
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
         _logger.LogInformation("HTTP GET /api/enrollments called by user {UserId}", userId);
@@ -36,13 +37,12 @@ public class EnrollmentsController : BaseEntityController<LearnerStudyCourse>
     }
 
     [HttpPost]
-    [Authorize(Roles = "Learner")]
-    public override async Task<ActionResult<LearnerStudyCourse>> Create(LearnerStudyCourse entity)
+    public async Task<ActionResult> Create([FromBody] EnrollRequest request)
     {
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        _logger.LogInformation("HTTP POST /api/enrollments called by user {UserId} for course {CourseId}", userId, entity.CourseId);
+        _logger.LogInformation("HTTP POST /api/enrollments called by user {UserId} for course {CourseId}", userId, request.CourseId);
 
-        var outcome = await _enrollmentsService.EnrollAsync(userId, entity.CourseId);
+        var outcome = await _enrollmentsService.EnrollAsync(userId, request.CourseId);
 
         if (outcome.Failure == EnrollFailure.NoLearnerProfile)
         {
@@ -52,13 +52,13 @@ public class EnrollmentsController : BaseEntityController<LearnerStudyCourse>
 
         if (outcome.Failure == EnrollFailure.CourseNotFound)
         {
-            _logger.LogWarning("Course {CourseId} not found", entity.CourseId);
+            _logger.LogWarning("Course {CourseId} not found", request.CourseId);
             return NotFound(new { error = "Course not found" });
         }
 
         if (outcome.Failure == EnrollFailure.AlreadyEnrolled)
         {
-            _logger.LogInformation("User {UserId} already enrolled in course {CourseId}", userId, entity.CourseId);
+            _logger.LogInformation("User {UserId} already enrolled in course {CourseId}", userId, request.CourseId);
             return Ok(new { message = "Already enrolled" });
         }
 

@@ -7,6 +7,14 @@ import {
   validateMinLength,
   validateBirthday,
   validatePasswordConfirm,
+  validateHttpUrl,
+  validateJobType,
+  validateExperienceLevel,
+  validateEmployerApplicationStatus,
+  validateLearnerApplicationStatus,
+  validatePrice,
+  validateTechnicalLevel,
+  validateProgressPercent,
 } from './validation';
 
 describe('validateEmail', () => {
@@ -124,5 +132,147 @@ describe('validatePasswordConfirm', () => {
 
   it('accepts matching passwords', () => {
     expect(validatePasswordConfirm('secret123', 'secret123')).toBeUndefined();
+  });
+});
+
+describe('validateHttpUrl', () => {
+  it('treats an empty value as optional', () => {
+    expect(validateHttpUrl('')).toBeUndefined();
+    expect(validateHttpUrl(null)).toBeUndefined();
+  });
+
+  it('requires a value when { required: true }', () => {
+    expect(validateHttpUrl('', { required: true })).toMatch(/required/);
+  });
+
+  it('accepts http and https URLs', () => {
+    expect(validateHttpUrl('https://acme.com/logo.png')).toBeUndefined();
+    expect(validateHttpUrl('http://acme.com/x')).toBeUndefined();
+  });
+
+  it('rejects non-http schemes', () => {
+    expect(validateHttpUrl('javascript:alert(1)')).toMatch(/http/);
+    expect(validateHttpUrl('ftp://example.com/x')).toMatch(/http/);
+    expect(validateHttpUrl('data:text/html,<script>alert(1)</script>')).toMatch(/http/);
+  });
+
+  it('rejects garbage', () => {
+    expect(validateHttpUrl('not-a-url')).toMatch(/http/);
+  });
+
+  it('rejects URLs longer than 2048 characters', () => {
+    const long = 'https://acme.com/' + 'a'.repeat(2050);
+    expect(validateHttpUrl(long)).toMatch(/exceed/);
+  });
+});
+
+describe('validateJobType', () => {
+  it('accepts an empty value', () => {
+    expect(validateJobType('')).toBeUndefined();
+    expect(validateJobType(null)).toBeUndefined();
+  });
+
+  it('accepts the allowlist', () => {
+    for (const t of ['Full-time', 'Part-time', 'Contract', 'Side-hustle']) {
+      expect(validateJobType(t)).toBeUndefined();
+    }
+  });
+
+  it('rejects unknown values', () => {
+    expect(validateJobType('HackerTime')).toMatch(/Job type/);
+  });
+});
+
+describe('validateExperienceLevel', () => {
+  it('accepts an empty value (means "any")', () => {
+    expect(validateExperienceLevel('')).toBeUndefined();
+  });
+
+  it('accepts the allowlist', () => {
+    for (const l of ['Entry', 'Junior', 'Mid', 'Senior', 'Lead']) {
+      expect(validateExperienceLevel(l)).toBeUndefined();
+    }
+  });
+
+  it('rejects unknown levels', () => {
+    expect(validateExperienceLevel('Principal')).toMatch(/Experience level/);
+  });
+});
+
+describe('validateEmployerApplicationStatus', () => {
+  it('requires a value', () => {
+    expect(validateEmployerApplicationStatus('')).toMatch(/required/);
+    expect(validateEmployerApplicationStatus(null)).toMatch(/required/);
+  });
+
+  it('accepts the allowlist', () => {
+    for (const s of ['applied', 'reviewing', 'interview', 'rejected', 'hired']) {
+      expect(validateEmployerApplicationStatus(s)).toBeUndefined();
+    }
+  });
+
+  it('rejects arbitrary values (including SQL-flavored)', () => {
+    expect(validateEmployerApplicationStatus('banana')).toMatch(/must be one of/);
+    expect(validateEmployerApplicationStatus("' OR 1=1; --")).toMatch(/must be one of/);
+  });
+});
+
+describe('validateLearnerApplicationStatus', () => {
+  it('requires a value', () => {
+    expect(validateLearnerApplicationStatus('')).toMatch(/required/);
+  });
+
+  it('accepts the learner allowlist', () => {
+    for (const s of ['applied', 'saved', 'withdrawn']) {
+      expect(validateLearnerApplicationStatus(s)).toBeUndefined();
+    }
+  });
+
+  it('rejects recruiter-only statuses (server-enforced but client should filter)', () => {
+    expect(validateLearnerApplicationStatus('hired')).toMatch(/must be one of/);
+  });
+});
+
+describe('validatePrice', () => {
+  it('treats empty as optional', () => {
+    expect(validatePrice('')).toBeUndefined();
+    expect(validatePrice(null)).toBeUndefined();
+  });
+
+  it('accepts non-negative numbers', () => {
+    expect(validatePrice(0)).toBeUndefined();
+    expect(validatePrice(99.99)).toBeUndefined();
+  });
+
+  it('rejects negatives', () => {
+    expect(validatePrice(-1)).toMatch(/negative/);
+  });
+
+  it('rejects absurdly large values', () => {
+    expect(validatePrice(1_000_001)).toMatch(/exceed/);
+  });
+
+  it('rejects non-numeric strings', () => {
+    expect(validatePrice('abc')).toMatch(/number/);
+  });
+});
+
+describe('validateTechnicalLevel', () => {
+  it.each([1, 2, 3, 4, 5])('accepts %i', (n) => {
+    expect(validateTechnicalLevel(n)).toBeUndefined();
+  });
+
+  it.each([0, 6, -1, 1.5, 'x'])('rejects %s', (v) => {
+    expect(validateTechnicalLevel(v)).toMatch(/between 1 and 5/);
+  });
+});
+
+describe('validateProgressPercent', () => {
+  it.each([0, 25, 50, 99.5, 100])('accepts %s', (v) => {
+    expect(validateProgressPercent(v)).toBeUndefined();
+  });
+
+  it.each([-1, 101, 200, 'x'])('rejects %s', (v) => {
+    expect(validateProgressPercent(v)).toMatch(/between 0 and 100/);
   });
 });

@@ -254,14 +254,21 @@ public class EnrollRequestValidatorTests
     [Fact]
     public void ValidCourseId_Passes()
     {
-        var result = _validator.Validate(new LearnerStudyCourse { CourseId = 1 });
+        var result = _validator.Validate(new EnrollRequest(CourseId: 1));
         Assert.True(result.IsValid);
     }
 
     [Fact]
     public void ZeroCourseId_Fails()
     {
-        var result = _validator.Validate(new LearnerStudyCourse { CourseId = 0 });
+        var result = _validator.Validate(new EnrollRequest(CourseId: 0));
+        Assert.False(result.IsValid);
+    }
+
+    [Fact]
+    public void NegativeCourseId_Fails()
+    {
+        var result = _validator.Validate(new EnrollRequest(CourseId: -3));
         Assert.False(result.IsValid);
     }
 }
