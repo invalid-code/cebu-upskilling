@@ -32,6 +32,11 @@ describe('Topbar', () => {
     expect(screen.getByText('Employer / Business dashboard')).toBeInTheDocument();
   });
 
+  it('shows the provider crumb for CourseProviders', () => {
+    renderTopbar('/provider-dashboard', { firstName: 'Ana', role: 'CourseProvider' });
+    expect(screen.getByText('Provider / Provider dashboard')).toBeInTheDocument();
+  });
+
   it('falls back to Page for unknown routes', () => {
     renderTopbar('/nowhere', { firstName: 'Juan', role: 'Learner' });
 

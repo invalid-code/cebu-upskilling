@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Search, Bell } from 'lucide-react';
-import { useAuth, isRecruiter } from '../../context/AuthContext';
+import { useAuth, isRecruiter, isCourseProvider } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 
 const routeLabels = {
@@ -14,6 +14,7 @@ const routeLabels = {
   '/help': 'Help center',
   '/profile': 'Profile',
   '/business-dashboard': 'Business dashboard',
+  '/provider-dashboard': 'Provider dashboard',
   '/post-job': 'Post a job',
   '/job-applications': 'Applications',
   '/company-profile': 'Company profile',
@@ -91,7 +92,7 @@ export default function Topbar() {
   return (
     <header className="topbar" style={styles.topbar}>
       <div className="crumb" style={styles.crumb}>
-        {isRecruiter(user) ? 'Employer' : 'My pathway'} / {label}
+        {isCourseProvider(user) ? 'Provider' : isRecruiter(user) ? 'Employer' : 'My pathway'} / {label}
       </div>
       <div className="top-actions" style={styles.actions}>
         <button

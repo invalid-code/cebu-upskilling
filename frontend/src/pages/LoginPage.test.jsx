@@ -32,6 +32,7 @@ function renderLogin() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/dashboard" element={<div>Learner home</div>} />
           <Route path="/business-dashboard" element={<div>Business dashboard</div>} />
+          <Route path="/provider-dashboard" element={<div>Provider dashboard</div>} />
           <Route path="*" element={<MockDestination />} />
         </Routes>
       </AuthProvider>
@@ -204,5 +205,21 @@ describe('LoginPage', () => {
     expect(await screen.findByText('Invalid Google credential')).toBeInTheDocument();
     expect(localStorage.getItem('token')).toBeNull();
     expect(screen.queryByText('Learner home')).not.toBeInTheDocument();
+  });
+
+  it('navigates CourseProviders to provider dashboard after login', async () => {
+    api.post.mockResolvedValue({ token: 'abc', firstName: 'Ana', role: 'CourseProvider' });
+    renderLogin();
+    fireEvent.change(screen.getByPlaceholderText('Email address'), { target: { value: 'ana@example.com' } });
+    fireEvent.change(screen.getByPlaceholderText('Password'), { target: { value: 'secret123' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    expect(await screen.findByText('Provider dashboard')).toBeInTheDocument();
+  });
+
+  it('redirects Google CourseProviders to provider dashboard', async () => {
+    api.post.mockResolvedValue({ token: 'g-token', firstName: 'Ana', role: 'CourseProvider' });
+    renderLogin();
+    fireEvent.click(screen.getByRole('button', { name: /continue with google/i }));
+    expect(await screen.findByText('Provider dashboard')).toBeInTheDocument();
   });
 });

@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Orbit, BriefcaseBusiness, BookOpenCheck, ClipboardList, ChartBar, CircleHelp, Inbox, PlusCircle, Building2 } from 'lucide-react';
-import { useAuth, isRecruiter } from '../../context/AuthContext';
+import { LayoutDashboard, Orbit, BriefcaseBusiness, BookOpenCheck, ClipboardList, ChartBar, CircleHelp, Inbox, PlusCircle, Building2, Library, LayoutGrid } from 'lucide-react';
+import { useAuth, isRecruiter, isCourseProvider } from '../../context/AuthContext';
 
 const learnerLinks = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Home' },
@@ -15,6 +15,12 @@ const recruiterLinks = [
   { to: '/post-job', icon: PlusCircle, label: 'Post' },
   { to: '/job-applications', icon: Inbox, label: 'Apps' },
   { to: '/company-profile', icon: Building2, label: 'Company' },
+  { to: '/help', icon: CircleHelp, label: 'Help' },
+];
+
+const providerLinks = [
+  { to: '/provider-dashboard', icon: LayoutGrid, label: 'Dashboard' },
+  { to: '/company-courses', icon: Library, label: 'Courses' },
   { to: '/help', icon: CircleHelp, label: 'Help' },
 ];
 
@@ -47,7 +53,7 @@ const styles = {
 
 export default function MobileNav() {
   const { user } = useAuth();
-  const links = isRecruiter(user) ? recruiterLinks : learnerLinks;
+  const links = isCourseProvider(user) ? providerLinks : isRecruiter(user) ? recruiterLinks : learnerLinks;
 
   return (
     <nav className="mobile-nav" style={styles.nav}>

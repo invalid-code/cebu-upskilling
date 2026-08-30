@@ -3,7 +3,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import App from './App';
 
 vi.mock('./api/client', () => ({
-  api: { get: vi.fn().mockResolvedValue([]), post: vi.fn() },
+  api: { get: vi.fn().mockResolvedValue([]), post: vi.fn(), delete: vi.fn(), put: vi.fn(), patch: vi.fn() },
 }));
 
 import { api } from './api/client';
@@ -68,5 +68,39 @@ describe('App routing', () => {
     window.history.pushState({}, '', '/skills');
     render(<App />);
     expect(await screen.findByRole('heading', { name: 'Business Dashboard' })).toBeInTheDocument();
+  });
+
+  it('renders provider dashboard for CourseProvider users', async () => {
+    localStorage.setItem('user', JSON.stringify({ firstName: 'Prov', role: 'CourseProvider' }));
+    localStorage.setItem('token', 'abc');
+    api.get.mockResolvedValue([]);
+    window.history.pushState({}, '', '/provider-dashboard');
+    render(<App />);
+    expect(await screen.findByText('Course provider')).toBeInTheDocument();
+  });
+
+  it('redirects learner away from provider dashboard', async () => {
+    localStorage.setItem('user', JSON.stringify({ firstName: 'Jose', role: 'learner' }));
+    localStorage.setItem('token', 'abc');
+    window.history.pushState({}, '', '/provider-dashboard');
+    render(<App />);
+    expect(await screen.findByText('Your next move is clear.')).toBeInTheDocument();
+  });
+
+  it('allows CourseProvider to access course studio', async () => {
+    localStorage.setItem('user', JSON.stringify({ firstName: 'Prov', role: 'CourseProvider' }));
+    localStorage.setItem('token', 'abc');
+    api.get.mockResolvedValue([]);
+    window.history.pushState({}, '', '/company-courses');
+    render(<App />);
+    expect(await screen.findByRole('heading', { name: 'Course studio' })).toBeInTheDocument();
+  });
+
+  it('redirects public route to correct dashboard per role', async () => {
+    localStorage.setItem('user', JSON.stringify({ firstName: 'Prov', role: 'CourseProvider' }));
+    localStorage.setItem('token', 'abc');
+    window.history.pushState({}, '', '/login');
+    render(<App />);
+    expect(await screen.findByText('Course provider')).toBeInTheDocument();
   });
 });

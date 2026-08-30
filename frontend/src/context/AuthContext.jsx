@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect } from 'react';
 import { useAuthStore, getInitialUser } from '../stores/authStore';
-import { isLearner as isLearnerStore, isRecruiter as isRecruiterStore } from '../stores/authStore';
+import { isLearner as isLearnerStore, isRecruiter as isRecruiterStore, isCourseProvider as isCourseProviderStore } from '../stores/authStore';
 
 const AuthContext = createContext(null);
 
@@ -49,5 +49,11 @@ export function isRecruiter(user) {
 }
 
 export function isCourseProvider(user) {
-  return user?.role?.toLowerCase() === 'courseprovider';
+  return isCourseProviderStore(user);
+}
+
+export function getDashboardPath(user) {
+  if (isRecruiterStore(user)) return '/business-dashboard';
+  if (isCourseProviderStore(user)) return '/provider-dashboard';
+  return '/dashboard';
 }

@@ -4,15 +4,13 @@ import { EnrollmentsProvider } from './context/EnrollmentsContext';
 import { ApplicationsProvider } from './context/ApplicationsContext';
 import { ToastProvider } from './context/ToastContext';
 import { CookieConsentProvider } from './context/CookieConsentContext';
-// Zustand stores – direct usage is also available for new code:
-// import { useAuthStore, isRecruiter } from './stores/authStore';
-import { isRecruiter } from './stores/authStore';
+import { getDashboardPath as getDashboardPathStore } from './context/AuthContext';
 import Sidebar from './components/Layout/Sidebar';
 import Topbar from './components/Layout/Topbar';
 import MobileNav from './components/Layout/MobileNav';
 import Footer from './components/Layout/Footer';
 import CookieBanner from './components/shared/CookieBanner';
-import { LearnerRoute, RecruiterRoute } from './components/RoleRoute';
+import { LearnerRoute, RecruiterRoute, CourseProviderRoute, CourseStudioRoute } from './components/RoleRoute';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
@@ -40,6 +38,7 @@ import CompanyProfileEditPage from './pages/CompanyProfileEditPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import TermsOfServicePage from './pages/TermsOfServicePage';
 import CourseManagementPage from './pages/CourseManagementPage';
+import ProviderDashboardPage from './pages/ProviderDashboardPage';
 
 const appStyles = {
   app: {
@@ -80,7 +79,7 @@ function ProtectedRoute() {
 
 function PublicRoute() {
   const { user } = useAuth();
-  if (user) return <Navigate to={isRecruiter(user) ? '/business-dashboard' : '/dashboard'} replace />;
+  if (user) return <Navigate to={getDashboardPathStore(user)} replace />;
   return <Outlet />;
 }
 
@@ -123,10 +122,15 @@ export default function App() {
                       <Route path="/post-job" element={<PostJobPage />} />
                       <Route path="/edit-job/:postId" element={<EditJobPage />} />
                       <Route path="/job-applications" element={<JobApplicationsPage />} />
+                      <Route path="/company-profile" element={<CompanyProfileEditPage />} />
+                    </Route>
+                    <Route element={<CourseProviderRoute />}>
+                      <Route path="/provider-dashboard" element={<ProviderDashboardPage />} />
+                    </Route>
+                    <Route element={<CourseStudioRoute />}>
                       <Route path="/company-courses" element={<CourseManagementPage />} />
                       <Route path="/company-courses/new" element={<CourseManagementPage />} />
                       <Route path="/company-courses/:courseId/edit" element={<CourseManagementPage />} />
-                      <Route path="/company-profile" element={<CompanyProfileEditPage />} />
                     </Route>
                     <Route path="/profile" element={<ProfilePage />} />
                     <Route path="/help" element={<HelpPage />} />
