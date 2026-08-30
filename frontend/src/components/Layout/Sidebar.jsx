@@ -3,7 +3,7 @@ import { useAuth, isRecruiter, isCourseProvider } from '../../context/AuthContex
 import {
   LayoutDashboard, Orbit, BriefcaseBusiness, BookOpenCheck, BookOpen,
   ClipboardList, ScanFace, BadgeCheck, CircleHelp, LogOut,
-  ChartBar, Inbox, PlusCircle, Building2, Library, LayoutGrid, Sparkles,
+  ChartBar, Inbox, PlusCircle, Building2, Library, LayoutGrid,
 } from 'lucide-react';
 
 const learnerPathwayNav = [
@@ -23,7 +23,6 @@ const learnerAccountNav = [
 const recruiterNav = [
   { to: '/business-dashboard', icon: ChartBar, label: 'Business dashboard' },
   { to: '/company-courses', icon: BookOpen, label: 'Course studio' },
-  { to: '/company-courses/generate', icon: Sparkles, label: 'AI course builder' },
   { to: '/post-job', icon: PlusCircle, label: 'Post a job' },
   { to: '/job-applications', icon: Inbox, label: 'Applications' },
   { to: '/company-profile', icon: Building2, label: 'Company profile' },

@@ -52,8 +52,9 @@ describe('Sidebar', () => {
 
     expect(screen.getByText('Employer tools')).toBeInTheDocument();
     expect(screen.getByText('Business dashboard')).toBeInTheDocument();
+    expect(screen.getByText('Course studio')).toBeInTheDocument();
     expect(screen.getByText('Help center')).toBeInTheDocument();
-
+    expect(screen.queryByText('AI course builder')).not.toBeInTheDocument();
     expect(screen.queryByText('My pathway')).not.toBeInTheDocument();
   });
 
@@ -71,6 +72,12 @@ describe('Sidebar', () => {
     renderSidebar(provider);
     expect(screen.queryByText('Business dashboard')).not.toBeInTheDocument();
     expect(screen.queryByText('Post a job')).not.toBeInTheDocument();
+  });
+
+  it('does not render AI course builder for any role', () => {
+    renderSidebar(learner);
+    expect(screen.queryByText('AI course builder')).not.toBeInTheDocument();
+    expect(screen.queryByText('Generate with AI')).not.toBeInTheDocument();
   });
 
   it('renders the user avatar initials, name and role', () => {

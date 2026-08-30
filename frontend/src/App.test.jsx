@@ -103,4 +103,12 @@ describe('App routing', () => {
     render(<App />);
     expect(await screen.findByText('Course provider')).toBeInTheDocument();
   });
+
+  it('does not expose AI course builder route and shows 404', async () => {
+    seedRecruiter();
+    window.history.pushState({}, '', '/company-courses/generate');
+    render(<App />);
+    expect(await screen.findByText(/Page not found|Not Found/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Generate a course with AI/)).not.toBeInTheDocument();
+  });
 });
