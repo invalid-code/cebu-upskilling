@@ -47,3 +47,7 @@ export function isLearner(user) {
 export function isRecruiter(user) {
   return isRecruiterStore(user);
 }
+
+export function isCourseProvider(user) {
+  return user?.role?.toLowerCase() === 'courseprovider';
+}

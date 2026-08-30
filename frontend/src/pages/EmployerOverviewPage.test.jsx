@@ -69,7 +69,7 @@ describe('EmployerOverviewPage', () => {
     renderPage();
 
     expect(await screen.findByText('No company profile yet')).toBeInTheDocument();
-    expect(screen.getByText(/Connect a company to your account/)).toBeInTheDocument();
+    expect(screen.getByText(/Complete your company profile/)).toBeInTheDocument();
   });
 
   it('navigates to the dashboard from the header button', async () => {

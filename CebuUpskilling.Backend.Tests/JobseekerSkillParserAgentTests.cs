@@ -37,6 +37,12 @@ public class JobseekerSkillParserAgentTests
             GenerationCalls++;
             return Task.FromResult(Questions ?? new List<GeneratedAssessmentQuestion>());
         }
+
+        public Task<List<CandidateRanking>> RankCandidatesAsync(string jobTitle, string targetRole, string? requirements, List<CandidateSkillProfile> candidates, CancellationToken ct = default)
+            => Task.FromResult(new List<CandidateRanking>());
+
+        public Task<DraftJobPostResponse?> DraftJobPostAsync(DraftJobPostRequest request, CancellationToken ct = default)
+            => Task.FromResult<DraftJobPostResponse?>(null);
     }
 
     private static JobseekerSkillParserAgent CreateAgent(ApplicationDbContext context, FakeGoogleAiService ai) => new(

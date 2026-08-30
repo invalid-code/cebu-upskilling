@@ -31,9 +31,11 @@ describe('MobileNav', () => {
     renderMobileNav('Recruiter');
 
     expect(screen.getByText('Dashboard')).toBeInTheDocument();
+    expect(screen.getByText('Post')).toBeInTheDocument();
+    expect(screen.getByText('Apps')).toBeInTheDocument();
     expect(screen.getByText('Help')).toBeInTheDocument();
     expect(screen.queryByText('Home')).not.toBeInTheDocument();
-    expect(screen.queryByText('Apps')).not.toBeInTheDocument();
+    expect(screen.queryByText('Skills')).not.toBeInTheDocument();
   });
 
   it('renders learner links by default when there is no user', () => {

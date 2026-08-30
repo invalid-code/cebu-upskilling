@@ -151,6 +151,30 @@ describe('JobDetailPage', () => {
     expect(api.post).not.toHaveBeenCalled();
   });
 
+  it('shows an about-the-employer panel when company details resolve', async () => {
+    api.get.mockImplementation((url) =>
+      url.startsWith('/posts/')
+        ? Promise.resolve({ ...post, companyId: 42 })
+        : Promise.resolve({
+            companyId: 42,
+            name: 'CloudNine',
+            industry: 'Cloud Services',
+            companySize: '11-50',
+            location: 'Cebu City',
+            website: 'https://cloudnine.example.com',
+            description: 'We keep clouds running since 2019.',
+            logoUrl: '',
+          }),
+    );
+
+    renderDetail();
+
+    expect(await screen.findByText('About the employer')).toBeInTheDocument();
+    expect(screen.getByText('We keep clouds running since 2019.')).toBeInTheDocument();
+    expect(screen.getByText(/View all roles at CloudNine/)).toBeInTheDocument();
+    expect(screen.getByText('Cloud Services · Cebu City')).toBeInTheDocument();
+  });
+
   it('shows error state when the post cannot be loaded', async () => {
     api.get.mockRejectedValue(new Error('Not found'));
     renderDetail();

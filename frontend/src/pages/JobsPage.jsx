@@ -110,6 +110,7 @@ function parsePost(post) {
     id: post.postId,
     title: post.title,
     company: post.companyName || 'Unknown',
+    companyId: post.companyId || null,
     targetRole: post.targetRole || post.title,
     location: post.location || '',
     salaryRange: post.salaryRange || '',

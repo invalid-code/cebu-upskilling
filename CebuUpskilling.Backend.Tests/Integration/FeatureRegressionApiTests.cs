@@ -589,30 +589,21 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
 
     private async Task<(string Token, int UserId, int CompanyId)> RegisterRecruiterWithCompanyAsync(string email)
     {
-        var response = await RegisterAsync(new
+        var response = await RegisterCompanyAsync(new
         {
+            companyName = "Acme Corp",
             firstName = "Maria",
             lastName = "Clara",
             emailAddress = email,
             password = "P@ssw0rd!",
-            role = "Recruiter",
         });
         response.EnsureSuccessStatusCode();
         var body = await ReadJsonAsync(response);
         var token = body.GetProperty("token").GetString()!;
         var userId = body.GetProperty("userId").GetInt32();
+        var companyId = body.GetProperty("companyId").GetInt32();
 
-        using var scope = Factory.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        var company = new Company { Name = "Acme Corp" };
-        db.Companies.Add(company);
-        await db.SaveChangesAsync();
-
-        var user = await db.Users.FindAsync(userId);
-        user!.CompanyId = company.CompanyId;
-        await db.SaveChangesAsync();
-
-        return (token, userId, company.CompanyId);
+        return (token, userId, companyId);
     }
 
     private async Task<int> CreatePostAsync(string token, int companyId, string title)

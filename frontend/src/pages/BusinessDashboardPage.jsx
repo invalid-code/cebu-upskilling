@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { BarChart3, BriefcaseBusiness, Inbox, PlusCircle, UserCheck, Users } from 'lucide-react';
+import { Link } from 'react-router-dom';import { BarChart3, BriefcaseBusiness, Inbox, PlusCircle, UserCheck, Users } from 'lucide-react';
 import Panel from '../components/ui/Panel';
 import Tag from '../components/ui/Tag';
 import EmptyState from '../components/shared/EmptyState';

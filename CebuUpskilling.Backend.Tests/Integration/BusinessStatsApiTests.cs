@@ -50,6 +50,7 @@ public class BusinessStatsApiTests : ProductionApiTestBase
         var learnerToken = await RegisterLearnerAsync("business.learner@example.com");
         Assert.Equal(HttpStatusCode.Forbidden, (await AuthorizedClient(learnerToken).GetAsync("/api/stats/business")).StatusCode);
 
+        // Self-service Recruiter registration is rejected outright...
         var recruiterResponse = await RegisterAsync(new
         {
             firstName = "No",
@@ -58,34 +59,40 @@ public class BusinessStatsApiTests : ProductionApiTestBase
             password = "P@ssw0rd!",
             role = "Recruiter",
         });
-        var recruiterToken = (await ReadJsonAsync(recruiterResponse)).GetProperty("token").GetString()!;
-        Assert.Equal(HttpStatusCode.BadRequest, (await AuthorizedClient(recruiterToken).GetAsync("/api/stats/business")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, recruiterResponse.StatusCode);
+
+        // ...and a recruiter account without a company (seeded directly) still gets 400.
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        db.Users.Add(new CebuUpskilling.Backend.Entities.AppUser
+        {
+            FirstName = "No",
+            LastName = "Company",
+            EmailAddress = "business.none.seeded@example.com",
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("P@ssw0rd!"),
+            Role = "Recruiter",
+        });
+        await db.SaveChangesAsync();
+        var login = await LoginAsync(new { emailAddress = "business.none.seeded@example.com", password = "P@ssw0rd!" });
+        var loginBody = await ReadJsonAsync(login);
+        var orphanToken = loginBody.GetProperty("token").GetString()!;
+        Assert.Equal(HttpStatusCode.BadRequest, (await AuthorizedClient(orphanToken).GetAsync("/api/stats/business")).StatusCode);
     }
 
     private async Task<(string token, int companyId)> RegisterRecruiterAsync(string email, string companyName)
     {
-        var registration = await RegisterAsync(new
+        var registration = await RegisterCompanyAsync(new
         {
+            companyName,
             firstName = "Employer",
             lastName = "Corp",
             emailAddress = email,
             password = "P@ssw0rd!",
-            role = "Recruiter",
         });
         registration.EnsureSuccessStatusCode();
         var body = await ReadJsonAsync(registration);
-        var userId = body.GetProperty("userId").GetInt32();
 
-        using var scope = Factory.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        var company = new Company { Name = companyName };
-        db.Companies.Add(company);
-        await db.SaveChangesAsync();
-        var user = await db.Users.FindAsync(userId);
-        user!.CompanyId = company.CompanyId;
-        await db.SaveChangesAsync();
-
-        return (body.GetProperty("token").GetString()!, company.CompanyId);
+        return (body.GetProperty("token").GetString()!, body.GetProperty("companyId").GetInt32());
     }
 
     private async Task AddPostAsync(int companyId, string title)

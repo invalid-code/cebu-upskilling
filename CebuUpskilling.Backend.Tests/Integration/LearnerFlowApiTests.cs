@@ -111,30 +111,18 @@ public class LearnerFlowApiTests : ProductionApiTestBase
     [RequiresPostgresFact]
     public async Task SkillGapGroups_DerivesGroupFromAppliedJobTargetRole()
     {
-        var registerResponse = await RegisterAsync(new
+        var registerResponse = await RegisterCompanyAsync(new
         {
+            companyName = "Groups Corp",
             firstName = "Recruiter",
             lastName = "ForGroups",
             emailAddress = "flow.groups.recruiter@example.com",
             password = "P@ssw0rd!",
-            role = "Recruiter",
         });
         registerResponse.EnsureSuccessStatusCode();
         var registerBody = await ReadJsonAsync(registerResponse);
         var recruiterToken = registerBody.GetProperty("token").GetString()!;
-        var recruiterUserId = registerBody.GetProperty("userId").GetInt32();
-
-        int companyId;
-        using (var scope = Factory.Services.CreateScope())
-        {
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            var company = new Company { Name = "Groups Corp" };
-            db.Companies.Add(company);
-            await db.SaveChangesAsync();
-            companyId = company.CompanyId;
-            var user = await db.Users.FindAsync(recruiterUserId);
-            user!.CompanyId = companyId;            await db.SaveChangesAsync();
-        }
+        var companyId = registerBody.GetProperty("companyId").GetInt32();
 
         int postId;
         using (var scope = Factory.Services.CreateScope())
@@ -312,34 +300,19 @@ public class LearnerFlowApiTests : ProductionApiTestBase
     [RequiresPostgresFact]
     public async Task Posts_CreateAndList()
     {
-        var registerResponse = await RegisterAsync(new
+        var registerResponse = await RegisterCompanyAsync(new
         {
+            companyName = "Acme Corp",
             firstName = "Maria",
             lastName = "Clara",
             emailAddress = "flow.recruiter@example.com",
             password = "P@ssw0rd!",
-            role = "Recruiter",
         });
         registerResponse.EnsureSuccessStatusCode();
         var registerBody = await ReadJsonAsync(registerResponse);
         var token = registerBody.GetProperty("token").GetString()!;
-        var userId = registerBody.GetProperty("userId").GetInt32();
         var authorized = AuthorizedClient(token);
-
-        int companyId;
-        using (var scope = Factory.Services.CreateScope())
-        {
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            var company = new Company { Name = "Acme Corp" };
-            db.Companies.Add(company);
-            await db.SaveChangesAsync();
-            companyId = company.CompanyId;
-
-            var user = await db.Users.FindAsync(userId);
-            user!.CompanyId = companyId;
-            await db.SaveChangesAsync();
-        }
-
+        var companyId = registerBody.GetProperty("companyId").GetInt32();
         using (var scope = Factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();

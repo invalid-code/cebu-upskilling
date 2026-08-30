@@ -152,6 +152,10 @@ public class ApplicationDbContext : DbContext
             .HasIndex(u => u.EmailAddress)
             .IsUnique();
 
+        modelBuilder.Entity<Company>()
+            .HasIndex(c => c.Name)
+            .IsUnique();
+
         modelBuilder.Entity<RoleSkill>()
             .HasOne(rs => rs.Skill)
             .WithMany(s => s.RoleSkills)
@@ -190,6 +194,9 @@ public class ApplicationDbContext : DbContext
             .HasOne(q => q.Company)
             .WithMany()
             .HasForeignKey(q => q.CompanyId);
+
+        modelBuilder.Entity<Post>()
+            .HasIndex(p => new { p.CompanyId, p.IsActive, p.CreatedAt });
 
         modelBuilder.Entity<Application>(entity =>
         {

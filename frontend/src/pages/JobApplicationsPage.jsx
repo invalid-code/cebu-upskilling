@@ -191,6 +191,9 @@ export default function JobApplicationsPage() {
   const [detail, setDetail] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState('');
+  const [rankings, setRankings] = useState({});
+  const [aiRanked, setAiRanked] = useState(false);
+  const [ranking, setRanking] = useState(false);
   const { showToast } = useToast();
 
   const load = () => {
@@ -202,6 +205,34 @@ export default function JobApplicationsPage() {
   };
 
   useEffect(load, []);
+
+  const rankWithAi = async () => {
+    const postIds = [...new Set(applications.map((app) => app.postId).filter(Boolean))];
+    if (postIds.length === 0) return;
+    setRanking(true);
+    try {
+      const merged = {};
+      for (const postId of postIds) {
+        // eslint-disable-next-line no-await-in-loop
+        const data = await api.get(`/hiring-agent/posts/${postId}/rank-applicants`);
+        (data?.candidates || []).forEach((candidate) => {
+          merged[candidate.applicationId] = { score: candidate.score, rationale: candidate.rationale };
+        });
+      }
+      setRankings(merged);
+      setAiRanked(true);
+      showToast('Candidates ranked by AI');
+    } catch (err) {
+      showToast(err?.message || 'Could not rank candidates');
+    } finally {
+      setRanking(false);
+    }
+  };
+
+  const rankedApplications = aiRanked
+    ? [...applications].sort((a, b) =>
+        (a.postTitle || '').localeCompare(b.postTitle || '') || (rankings[b.applicationId]?.score ?? 0) - (rankings[a.applicationId]?.score ?? 0))
+    : applications;
 
   const openProfile = (application) => {
     setSelected(application);
@@ -240,9 +271,14 @@ export default function JobApplicationsPage() {
           <div style={styles.eyebrow}>Keep the pipeline moving</div>
           <h1 style={styles.h1}>Job applications</h1>
         </div>
-        <Link to="/post-job" style={{ textDecoration: 'none' }}>
-          <Button variant="primary">Post a job</Button>
-        </Link>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <Button variant="ghost" disabled={ranking || applications.length === 0} onClick={rankWithAi}>
+            {ranking ? 'Ranking...' : '✨ Rank with AI'}
+          </Button>
+          <Link to="/post-job" style={{ textDecoration: 'none' }}>
+            <Button variant="primary">Post a job</Button>
+          </Link>
+        </div>
       </div>
 
       <Panel>
@@ -255,8 +291,9 @@ export default function JobApplicationsPage() {
           />
         ) : (
           <div style={styles.list}>
-            {applications.map((application, index) => {
-              const isLast = index === applications.length - 1;
+            {rankedApplications.map((application, index) => {
+              const isLast = index === rankedApplications.length - 1;
+              const rankingInfo = rankings[application.applicationId];
               return (
                 <div key={application.applicationId} style={isLast ? { ...styles.item, ...styles.itemLast } : styles.item}>
                   <div style={styles.info}>
@@ -269,6 +306,11 @@ export default function JobApplicationsPage() {
                       {application.learnerName}
                     </button>
                     <p style={styles.meta}>{application.learnerEmail} · Applied {formatDate(application.appliedAt)}</p>
+                    {rankingInfo && (
+                      <p style={{ ...styles.meta, fontWeight: 700 }} title={rankingInfo.rationale}>
+                        ✨ AI fit: {Math.round(rankingInfo.score)}% — {rankingInfo.rationale}
+                      </p>
+                    )}
                     <div style={styles.links}>
                       <span style={styles.postTitle}>{application.postTitle}</span>
                       {application.resumeUrl && (

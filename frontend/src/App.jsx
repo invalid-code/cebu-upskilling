@@ -35,6 +35,8 @@ import EditJobPage from './pages/EditJobPage';
 import JobApplicationsPage from './pages/JobApplicationsPage';
 import NotFoundPage from './pages/NotFoundPage';
 import ProfilePage from './pages/ProfilePage';
+import CompanyProfilePage from './pages/CompanyProfilePage';
+import CompanyProfileEditPage from './pages/CompanyProfileEditPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import TermsOfServicePage from './pages/TermsOfServicePage';
 import CourseManagementPage from './pages/CourseManagementPage';
@@ -124,10 +126,12 @@ export default function App() {
                       <Route path="/company-courses" element={<CourseManagementPage />} />
                       <Route path="/company-courses/new" element={<CourseManagementPage />} />
                       <Route path="/company-courses/:courseId/edit" element={<CourseManagementPage />} />
+                      <Route path="/company-profile" element={<CompanyProfileEditPage />} />
                     </Route>
                     <Route path="/profile" element={<ProfilePage />} />
                     <Route path="/help" element={<HelpPage />} />
                   </Route>
+                  <Route path="/companies/:companyId" element={<CompanyProfilePage />} />
                   <Route path="/privacy" element={<PrivacyPolicyPage />} />
                   <Route path="/terms" element={<TermsOfServicePage />} />
                   <Route path="*" element={<NotFoundPage />} />

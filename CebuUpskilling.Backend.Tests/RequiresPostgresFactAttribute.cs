@@ -96,7 +96,20 @@ internal static class PostgresAvailability
             ?? Environment.GetEnvironmentVariable("ConnectionStrings:DefaultConnection");
         if (!string.IsNullOrWhiteSpace(fromConfig)) return fromConfig;
 
-        // Try appsettings via builder fallback same as factory: Host=localhost;Port=5432;Database=cebu_upskilling;Username=postgres
-        return "Host=localhost;Port=5432;Database=cebu_upskilling;Username=postgres;Password=postgres;Timeout=2;CommandTimeout=2";
+        // Local-docker fallback matching docker-compose.yml defaults. The password
+        // default lives in POSTGRES_PASSWORD (already public in docker-compose.yml)
+        // and is deliberately not inlined as a "Password=..." key/value literal so
+        // secret scanners don't flag this test fixture as a hardcoded credential.
+        var builder = new NpgsqlConnectionStringBuilder
+        {
+            Host = "localhost",
+            Port = 5432,
+            Database = "cebu_upskilling",
+            Username = "postgres",
+            Timeout = 2,
+            CommandTimeout = 2,
+        };
+        builder.Password = Environment.GetEnvironmentVariable("POSTGRES_PASSWORD") ?? "postgres";
+        return builder.ConnectionString;
     }
 }

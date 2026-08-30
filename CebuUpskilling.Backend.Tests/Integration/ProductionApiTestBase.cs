@@ -37,6 +37,9 @@ public abstract class ProductionApiTestBase : IClassFixture<ProductionApiFactory
     protected Task<HttpResponseMessage> RegisterAsync(object request) =>
         Client.PostAsJsonAsync("/api/auth/register", request);
 
+    protected Task<HttpResponseMessage> RegisterCompanyAsync(object request) =>
+        Client.PostAsJsonAsync("/api/auth/register-company", request);
+
     protected Task<HttpResponseMessage> LoginAsync(object request) =>
         Client.PostAsJsonAsync("/api/auth/login", request);
 

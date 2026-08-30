@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Button from '../ui/Button';
+import { api } from '../../api/client';
 import { ErrorBanner, FieldError } from '../ui/ErrorState';
 
 const styles = {
@@ -60,6 +61,18 @@ const styles = {
     display: 'flex',
     gap: 10,
     justifyContent: 'flex-end',
+    alignItems: 'center',
+  },
+  aiBar: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    flexWrap: 'wrap',
+  },
+  aiNote: {
+    fontSize: 12,
+    color: 'var(--muted)',
+    margin: 0,
   },
   error: {
     color: 'var(--coral)',
@@ -94,6 +107,42 @@ export default function JobPostForm({ initial, onSubmit, submitting, error, subm
     if (fieldError) setFieldError('');
   };
 
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiNote, setAiNote] = useState('');
+
+  const draftWithAi = async () => {
+    if (!form.title || !form.targetRole) {
+      setAiNote('Enter a job title and target role first, then draft with AI.');
+      return;
+    }
+    setAiLoading(true);
+    setAiNote('Drafting with AI...');
+    try {
+      const draft = await api.post('/hiring-agent/posts/draft', {
+        title: form.title,
+        targetRole: form.targetRole,
+        jobType: form.jobType,
+        experienceLevel: form.experienceLevel || null,
+        location: form.location || null,
+        notes: null,
+      });
+      if (!draft) throw new Error('AI drafting is unavailable right now.');
+      setForm((prev) => ({
+        ...prev,
+        description: draft.description || prev.description,
+        requirements: draft.requirements || prev.requirements,
+        benefits: draft.benefits || prev.benefits,
+      }));
+      setAiNote(draft.suggestedSkills?.length
+        ? `AI draft applied. Suggested skills: ${draft.suggestedSkills.join(', ')}`
+        : 'AI draft applied.');
+    } catch (err) {
+      setAiNote(err?.message || 'AI drafting is unavailable right now.');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   const handleSubmit = (event) => {
     event.preventDefault();
     if (!form.title.trim()) {
@@ -116,7 +165,9 @@ export default function JobPostForm({ initial, onSubmit, submitting, error, subm
       requirements: form.requirements,
       benefits: form.benefits,
       isRemote: form.isRemote,
-      expiresAt: form.expiresAt ? new Date(`${form.expiresAt}T00:00:00`).toISOString() : null,
+      // End of the chosen day in the recruiter's local timezone, so the post stays
+      // open for the full day (T00:00:00Z would close it 8h early in Asia/Manila).
+      expiresAt: form.expiresAt ? new Date(`${form.expiresAt}T23:59:59`).toISOString() : null,
       companyLogoUrl: form.companyLogoUrl.trim(),
       isActive: form.isActive,
     };
@@ -126,9 +177,17 @@ export default function JobPostForm({ initial, onSubmit, submitting, error, subm
   return (
     <form style={styles.form} onSubmit={handleSubmit} noValidate>
       {fieldError && <FieldError>{fieldError}</FieldError>}
-      <div style={styles.field}>
-        <label style={styles.label} htmlFor="job-title">Job title *</label>
-        <input id="job-title" style={{ ...styles.input, borderColor: fieldError && !form.title.trim() ? 'var(--danger)' : 'var(--line)', background: fieldError && !form.title.trim() ? 'var(--danger-soft)' : 'var(--surface2)' }} value={form.title} onChange={set('title')} required aria-invalid={!!(fieldError && !form.title.trim())} />
+      <div style={styles.row}>
+        <div style={styles.field}>
+          <label style={styles.label} htmlFor="job-title">Job title *</label>
+          <input id="job-title" style={{ ...styles.input, borderColor: fieldError && !form.title.trim() ? 'var(--danger)' : 'var(--line)', background: fieldError && !form.title.trim() ? 'var(--danger-soft)' : 'var(--surface2)' }} value={form.title} onChange={set('title')} required aria-invalid={!!(fieldError && !form.title.trim())} />
+        </div>
+        <div style={{ ...styles.field, ...styles.aiBar, paddingTop: 22 }}>
+          <Button type="button" variant="secondary" disabled={aiLoading || submitting} onClick={draftWithAi}>
+            {aiLoading ? 'Drafting...' : '✨ Draft with AI'}
+          </Button>
+          {aiNote && <p style={styles.aiNote}>{aiNote}</p>}
+        </div>
       </div>
 
       <div style={styles.field}>

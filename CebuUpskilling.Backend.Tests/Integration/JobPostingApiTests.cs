@@ -12,32 +12,23 @@ public class JobPostingApiTests : ProductionApiTestBase
 {
     public JobPostingApiTests(ProductionApiFactory factory) : base(factory) { }
 
-    private async Task<(string token, int userId, int companyId)> RegisterRecruiterAsync(string email)
+    private async Task<(string token, int userId, int companyId)> RegisterRecruiterAsync(string email, string? companyName = null)
     {
-        var response = await RegisterAsync(new
+        var response = await RegisterCompanyAsync(new
         {
+            companyName = companyName ?? "Acme Corp",
             firstName = "Maria",
             lastName = "Clara",
             emailAddress = email,
             password = "P@ssw0rd!",
-            role = "Recruiter",
         });
         response.EnsureSuccessStatusCode();
         var body = await ReadJsonAsync(response);
         var token = body.GetProperty("token").GetString()!;
         var userId = body.GetProperty("userId").GetInt32();
+        var companyId = body.GetProperty("companyId").GetInt32();
 
-        using var scope = Factory.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        var company = new Company { Name = "Acme Corp" };
-        db.Companies.Add(company);
-        await db.SaveChangesAsync();
-
-        var user = await db.Users.FindAsync(userId);
-        user!.CompanyId = company.CompanyId;
-        await db.SaveChangesAsync();
-
-        return (token, userId, company.CompanyId);
+        return (token, userId, companyId);
     }
 
     private async Task<int> CreatePostAsync(string token, object body)
@@ -202,7 +193,7 @@ public class JobPostingApiTests : ProductionApiTestBase
             Assert.Equal("Platform Engineer", body.GetProperty("postTitle").GetString());
             Assert.Equal("applied", body.GetProperty("status").GetString());
 
-            var (otherToken, _, _) = await RegisterRecruiterAsync("job.profile.other@example.com");
+            var (otherToken, _, _) = await RegisterRecruiterAsync("job.profile.other@example.com", $"Rival Corp {Guid.NewGuid():N}");
             Assert.Equal(HttpStatusCode.Forbidden,
                 (await AuthorizedClient(otherToken).GetAsync($"/api/applications/employer/{applicationId}")).StatusCode);
         }
@@ -221,7 +212,7 @@ public class JobPostingApiTests : ProductionApiTestBase
             resumeUrl = "https://storage.example/resume.pdf",
         });
 
-        var (otherToken, _, _) = await RegisterRecruiterAsync("job.other.recruiter2@example.com");
+        var (otherToken, _, _) = await RegisterRecruiterAsync("job.other.recruiter2@example.com", $"Rival Corp {Guid.NewGuid():N}");
         var other = AuthorizedClient(otherToken);
 
         using (var scope = Factory.Services.CreateScope())

@@ -16,6 +16,8 @@ const routeLabels = {
   '/business-dashboard': 'Business dashboard',
   '/post-job': 'Post a job',
   '/job-applications': 'Applications',
+  '/company-profile': 'Company profile',
+  '/company-courses': 'Courses',
   '/login': 'Login',
   '/register': 'Register',
 };

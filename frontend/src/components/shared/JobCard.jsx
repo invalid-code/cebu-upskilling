@@ -1,6 +1,7 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Tag from '../ui/Tag';
 import Button from '../ui/Button';
+import CompanyAvatar from './CompanyAvatar';
 
 const styles = {
   card: {
@@ -20,6 +21,11 @@ const styles = {
     gap: 8,
     alignItems: 'center',
   },
+  titleRow: {
+    display: 'flex',
+    gap: 10,
+    alignItems: 'flex-start',
+  },
   title: {
     fontSize: 16,
     margin: '12px 0 5px',
@@ -28,6 +34,20 @@ const styles = {
     fontSize: 12,
     color: 'var(--muted)',
     margin: '0 0 8px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  companyLink: {
+    color: 'var(--teal)',
+    fontWeight: 700,
+    textDecoration: 'underline',
+    cursor: 'pointer',
+    background: 'none',
+    border: 'none',
+    padding: 0,
+    fontSize: 12,
   },
   salary: {
     fontFamily: "'Space Grotesk', sans-serif",
@@ -53,11 +73,19 @@ function formatSalary(salaryRange) {
 }
 
 export default function JobCard({ job }) {
+  const navigate = useNavigate();
   const remoteTag = job.isRemote ? (
     <Tag variant="good">Remote</Tag>
   ) : (
     <Tag variant="sand">On-site</Tag>
   );
+
+  const openCompany = (e) => {
+    if (!job.companyId) return;
+    e.preventDefault();
+    e.stopPropagation();
+    navigate(`/companies/${job.companyId}`);
+  };
 
   return (
     <Link to={`/jobs/${job.id}`} className="job" style={styles.card} data-kind={job.kind}>
@@ -67,9 +95,22 @@ export default function JobCard({ job }) {
         </Tag>
         {remoteTag}
       </div>
-      <h4 style={styles.title}>{job.title}</h4>
+      <div style={{ ...styles.titleRow }}>
+        {(job.companyLogoUrl || job.company) && (
+          <div style={{ marginTop: 12 }}>
+            <CompanyAvatar name={job.company} src={job.companyLogoUrl} size={38} />
+          </div>
+        )}
+        <h4 style={styles.title}>{job.title}</h4>
+      </div>
       <p style={styles.company}>
-        {job.company}
+        {job.companyId ? (
+          <button type="button" style={styles.companyLink} onClick={openCompany}>
+            {job.company}
+          </button>
+        ) : (
+          job.company
+        )}
         {job.location ? ` · ${job.location}` : ''}
       </p>
       <div>

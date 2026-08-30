@@ -55,7 +55,7 @@ describe('App routing', () => {
     expect(await screen.findByText('Your next move is clear.')).toBeInTheDocument();
   });
 
-  it('renders business dashboard for recruiter users', async () => {
+  it('renders the employer overview for recruiter users', async () => {
     seedRecruiter();
     window.history.pushState({}, '', '/business-dashboard');
     render(<App />);

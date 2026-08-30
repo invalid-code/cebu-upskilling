@@ -35,6 +35,8 @@ public record PostResponse(
     DateTime? ExpiresAt,
     bool IsActive,
     string? CompanyLogoUrl,
+    string? CompanyIndustry,
+    string? CompanySize,
     DateTime CreatedAt,
     string Schedule,
     List<RequiredSkillDto> RequiredSkills
@@ -46,6 +48,8 @@ public record PostQueryParams(
     string? JobType = null,
     string? Location = null,
     bool? IsRemote = null,
+    int? CompanyId = null,
+    bool? IsActive = null,
     string? SortBy = "newest",
     int Page = 1,
     int PageSize = 20

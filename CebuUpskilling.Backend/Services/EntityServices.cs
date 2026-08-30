@@ -331,7 +331,7 @@ public class PostService : BaseEntityService<Post>, IPostService
             Requirements = request.Requirements,
             Benefits = request.Benefits,
             IsRemote = request.IsRemote,
-            ExpiresAt = request.ExpiresAt,
+            ExpiresAt = NormalizeToUtc(request.ExpiresAt),
             IsActive = request.IsActive,
             CompanyLogoUrl = request.CompanyLogoUrl,
             Schedule = NormalizeSchedule(request.Schedule),
@@ -376,7 +376,7 @@ public class PostService : BaseEntityService<Post>, IPostService
         existing.Requirements = request.Requirements;
         existing.Benefits = request.Benefits;
         existing.IsRemote = request.IsRemote;
-        existing.ExpiresAt = request.ExpiresAt;
+        existing.ExpiresAt = NormalizeToUtc(request.ExpiresAt);
         existing.IsActive = request.IsActive;
         existing.CompanyLogoUrl = request.CompanyLogoUrl;
         if (!string.IsNullOrWhiteSpace(request.Schedule))
@@ -397,6 +397,18 @@ public class PostService : BaseEntityService<Post>, IPostService
         return ToResponse(updated!);
     }
 
+    private static DateTime? NormalizeToUtc(DateTime? value)
+    {
+        if (value is null) return null;
+        var dt = value.Value;
+        return dt.Kind switch
+        {
+            DateTimeKind.Utc => dt,
+            DateTimeKind.Local => dt.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(dt, DateTimeKind.Utc),
+        };
+    }
+
     private static PostResponse ToResponse(Post post)
         => new(
             post.PostId,
@@ -414,7 +426,9 @@ public class PostService : BaseEntityService<Post>, IPostService
             post.IsRemote,
             post.ExpiresAt,
             post.IsActive,
-            post.CompanyLogoUrl,
+            post.Company?.LogoUrl ?? post.CompanyLogoUrl,
+            post.Company?.Industry,
+            post.Company?.CompanySize,
             post.CreatedAt,
             post.Schedule ?? "Full-time",
             post.PostSkills?.Select(ps => new RequiredSkillDto(ps.SkillId, ps.Skill?.Name ?? string.Empty, ps.Skill?.Category, ps.RequiredLevel)).ToList() ?? new List<RequiredSkillDto>());

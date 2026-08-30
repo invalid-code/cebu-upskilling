@@ -91,6 +91,28 @@ public class CompanyRegisterRequestValidator : AbstractValidator<CompanyRegister
             .MaximumLength(255).WithMessage("Address must not exceed 255 characters")
             .When(x => x.Address != null);
 
+        RuleFor(x => x.CompanyDescription)
+            .MaximumLength(2000).WithMessage("Company description must not exceed 2000 characters")
+            .When(x => x.CompanyDescription != null);
+
+        RuleFor(x => x.CompanyIndustry)
+            .MaximumLength(100).WithMessage("Company industry must not exceed 100 characters")
+            .When(x => x.CompanyIndustry != null);
+
+        RuleFor(x => x.CompanyWebsite)
+            .MaximumLength(255).WithMessage("Company website must not exceed 255 characters")
+            .Must(CompanyFieldRules.IsValidWebsite).WithMessage("Company website must be a valid http(s) URL")
+            .When(x => x.CompanyWebsite != null);
+
+        RuleFor(x => x.CompanyLocation)
+            .MaximumLength(255).WithMessage("Company location must not exceed 255 characters")
+            .When(x => x.CompanyLocation != null);
+
+        RuleFor(x => x.CompanySize)
+            .Must(CompanyFieldRules.IsAllowedSize)
+            .WithMessage($"Company size must be one of: {string.Join(", ", CompanyFieldRules.AllowedSizes)}")
+            .When(x => x.CompanySize != null);
+
         RuleFor(x => x.Birthday)
             .Must(BeAValidPastDate).WithMessage("Birthday must be a valid date in the past")
             .When(x => x.Birthday != null);

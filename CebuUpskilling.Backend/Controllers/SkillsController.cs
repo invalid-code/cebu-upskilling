@@ -62,9 +62,10 @@ public class SkillsController : ControllerBase
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
         _logger.LogInformation("HTTP POST /api/skills/parse called by user {UserId}", userId);
 
-        if (string.IsNullOrWhiteSpace(request.ResumeText))
+        if (string.IsNullOrWhiteSpace(request?.ResumeText))
         {
-            return BadRequest(new { error = "ResumeText is required" });
+            _logger.LogInformation("Empty resume text for user {UserId}; returning empty skills", userId);
+            return Ok(new ParseSkillsResult(new List<ParsedSkillResult>()));
         }
 
         var result = await _jobseekerSkillParserAgent.ParseAndCreateAssessmentsAsync(userId, request.ResumeText, ct);

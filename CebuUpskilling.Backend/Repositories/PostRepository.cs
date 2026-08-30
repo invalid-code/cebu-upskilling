@@ -53,6 +53,12 @@ public class PostRepository : EntityRepository<Post>, IPostRepository
                 p.Company.Name.ToLower().Contains(search));
         }
 
+        if (query.CompanyId.HasValue)
+            q = q.Where(p => p.CompanyId == query.CompanyId.Value);
+
+        if (query.IsActive.HasValue)
+            q = q.Where(p => p.IsActive == query.IsActive.Value);
+
         if (!string.IsNullOrWhiteSpace(query.TargetRole))
             q = q.Where(p => p.TargetRole == query.TargetRole);
 
