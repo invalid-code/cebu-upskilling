@@ -50,6 +50,7 @@ public class GoogleAuthTests
         public Task<List<GeneratedAssessmentQuestion>> GenerateAssessmentQuestionsAsync(string s, int c = 5, CancellationToken ct = default) => Task.FromResult(new List<GeneratedAssessmentQuestion>());
         public Task<List<CandidateRanking>> RankCandidatesAsync(string j, string r, string? req, List<CandidateSkillProfile> cands, CancellationToken ct = default) => Task.FromResult(new List<CandidateRanking>());
         public Task<DraftJobPostResponse?> DraftJobPostAsync(DraftJobPostRequest request, CancellationToken ct = default) => Task.FromResult<DraftJobPostResponse?>(null);
+        public Task<CourseGenerationResult?> GenerateCourseOutlineAsync(CourseGenerationPromptContext context, CancellationToken ct = default) => Task.FromResult<CourseGenerationResult?>(null);
     }
 
     private static IConfiguration CreateConfig() => new ConfigurationBuilder()

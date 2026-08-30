@@ -32,6 +32,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<Application> Applications => Set<Application>();
     public DbSet<LearnerNote> LearnerNotes => Set<LearnerNote>();
     public DbSet<DiscussionPost> DiscussionPosts => Set<DiscussionPost>();
+    public DbSet<CourseSkill> CourseSkills => Set<CourseSkill>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -247,5 +248,23 @@ public class ApplicationDbContext : DbContext
             entity.Property(p => p.CreatedAt)
                 .HasColumnType("timestamp with time zone");
         });
+
+        modelBuilder.Entity<CourseSkill>()
+            .HasKey(cs => new { cs.CourseId, cs.SkillId });
+
+        modelBuilder.Entity<CourseSkill>()
+            .HasOne(cs => cs.Course)
+            .WithMany(c => c.CourseSkills)
+            .HasForeignKey(cs => cs.CourseId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<CourseSkill>()
+            .HasOne(cs => cs.Skill)
+            .WithMany(s => s.CourseSkills)
+            .HasForeignKey(cs => cs.SkillId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<CourseSkill>()
+            .HasIndex(cs => cs.SkillId);
     }
 }

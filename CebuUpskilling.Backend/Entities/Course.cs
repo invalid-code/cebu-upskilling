@@ -33,4 +33,5 @@ public class Course : AuditableEntity
     public ICollection<Lesson> Lessons { get; set; } = new List<Lesson>();
     public ICollection<LearnerStudyCourse> LearnerStudyCourses { get; set; } = new List<LearnerStudyCourse>();
     public ICollection<PostCourseRequired> PostCourseRequireds { get; set; } = new List<PostCourseRequired>();
+    public ICollection<CourseSkill> CourseSkills { get; set; } = new List<CourseSkill>();
 }

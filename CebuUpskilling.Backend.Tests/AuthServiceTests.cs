@@ -32,6 +32,9 @@ public class AuthServiceTests
 
         public Task<DraftJobPostResponse?> DraftJobPostAsync(DraftJobPostRequest request, CancellationToken ct = default)
             => Task.FromResult<DraftJobPostResponse?>(null);
+
+        public Task<CourseGenerationResult?> GenerateCourseOutlineAsync(CourseGenerationPromptContext context, CancellationToken ct = default)
+            => Task.FromResult<CourseGenerationResult?>(null);
     }
     private static IConfiguration CreateConfig() => new ConfigurationBuilder()
         .AddInMemoryCollection(new Dictionary<string, string?>

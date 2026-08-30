@@ -43,6 +43,9 @@ public class JobseekerSkillParserAgentTests
 
         public Task<DraftJobPostResponse?> DraftJobPostAsync(DraftJobPostRequest request, CancellationToken ct = default)
             => Task.FromResult<DraftJobPostResponse?>(null);
+
+        public Task<CourseGenerationResult?> GenerateCourseOutlineAsync(CourseGenerationPromptContext context, CancellationToken ct = default)
+            => Task.FromResult<CourseGenerationResult?>(null);
     }
 
     private static JobseekerSkillParserAgent CreateAgent(ApplicationDbContext context, FakeGoogleAiService ai) => new(

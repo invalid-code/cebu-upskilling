@@ -123,6 +123,7 @@ builder.Services.AddScoped<ICoursesPageService, CoursesPageService>();
 builder.Services.AddScoped<ICourseContentService, CourseContentService>();
 builder.Services.AddScoped<INotesService, NotesService>();
 builder.Services.AddScoped<IDiscussionService, DiscussionService>();
+builder.Services.AddScoped<ICourseGenerationAgent, CourseGenerationAgent>();
 builder.Services.AddScoped<IObjectStorageService, R2StorageService>();
 builder.Services.AddScoped<IMediaService, MediaService>();
 builder.Services.AddScoped<ICompanyService, CompanyService>();
