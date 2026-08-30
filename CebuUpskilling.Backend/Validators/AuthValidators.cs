@@ -31,8 +31,8 @@ public class RegisterRequestValidator : AbstractValidator<RegisterRequest>
 
         RuleFor(x => x.Role)
             .NotEmpty().WithMessage("Role is required")
-            .Must(r => r == "Learner" || r == "Recruiter")
-            .WithMessage("Role must be 'Learner' or 'Recruiter'");
+            .Must(r => r == "Learner" || r == "Recruiter" || r == "CourseProvider")
+            .WithMessage("Role must be 'Learner', 'Recruiter' or 'CourseProvider'");
 
         RuleFor(x => x.TargetRole)
             .MaximumLength(100).WithMessage("Target role must not exceed 100 characters")
@@ -148,8 +148,8 @@ public class GoogleAuthRequestValidator : AbstractValidator<GoogleAuthRequest>
             .NotEmpty().WithMessage("Google ID token is required");
 
         RuleFor(x => x.Role)
-            .Must(r => r == null || r == "Learner" || r == "Recruiter")
-            .WithMessage("Role must be 'Learner' or 'Recruiter'")
+            .Must(r => r == null || r == "Learner" || r == "Recruiter" || r == "CourseProvider")
+            .WithMessage("Role must be 'Learner', 'Recruiter' or 'CourseProvider'")
             .When(x => x.Role != null);
     }
 }

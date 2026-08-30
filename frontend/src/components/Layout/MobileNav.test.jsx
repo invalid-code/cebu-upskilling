@@ -51,4 +51,18 @@ describe('MobileNav', () => {
 
     expect(wrapper.getByText('Home')).toBeInTheDocument();
   });
+
+  it('renders provider navigation links', () => {
+    renderMobileNav('CourseProvider');
+    expect(screen.getByText('Dashboard')).toBeInTheDocument();
+    expect(screen.getByText('Courses')).toBeInTheDocument();
+    expect(screen.getByText('Help')).toBeInTheDocument();
+    expect(screen.queryByText('Home')).not.toBeInTheDocument();
+    expect(screen.queryByText('Post')).not.toBeInTheDocument();
+  });
+
+  it('provider links are case-insensitive', () => {
+    renderMobileNav('courseprovider');
+    expect(screen.getByText('Courses')).toBeInTheDocument();
+  });
 });

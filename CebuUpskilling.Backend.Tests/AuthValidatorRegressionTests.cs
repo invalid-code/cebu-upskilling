@@ -85,6 +85,7 @@ public class RegisterRequestValidatorRegressionTests
     [Theory]
     [InlineData("Learner")]
     [InlineData("Recruiter")]
+    [InlineData("CourseProvider")]
     public void Role_Valid_Passes(string role)
     {
         var r = Valid() with { Role = role };

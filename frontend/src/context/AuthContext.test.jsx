@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { AuthProvider, useAuth, isLearner, isRecruiter } from './AuthContext';
+import { AuthProvider, useAuth, isLearner, isRecruiter, isCourseProvider, getDashboardPath } from './AuthContext';
 
 vi.mock('../api/client', () => ({
   api: { post: vi.fn(), get: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn() },
@@ -179,5 +179,20 @@ describe('AuthContext', () => {
     expect(isRecruiter({ role: 'recruiter' })).toBe(true);
     expect(isRecruiter(null)).toBe(false);
     expect(isLearner(null)).toBe(false);
+  });
+
+  it('isCourseProvider matches CourseProvider case-insensitively', () => {
+    expect(isCourseProvider({ role: 'courseprovider' })).toBe(true);
+    expect(isCourseProvider({ role: 'CourseProvider' })).toBe(true);
+    expect(isCourseProvider({ role: 'Learner' })).toBe(false);
+    expect(isCourseProvider(null)).toBe(false);
+  });
+
+  it('getDashboardPath returns correct path per role', () => {
+    expect(getDashboardPath({ role: 'Recruiter' })).toBe('/business-dashboard');
+    expect(getDashboardPath({ role: 'CourseProvider' })).toBe('/provider-dashboard');
+    expect(getDashboardPath({ role: 'Learner' })).toBe('/dashboard');
+    expect(getDashboardPath(null)).toBe('/dashboard');
+    expect(getDashboardPath({ role: 'learner' })).toBe('/dashboard');
   });
 });

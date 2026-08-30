@@ -55,6 +55,7 @@ function renderRegister() {
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/dashboard" element={<div>Learner home</div>} />
             <Route path="/business-dashboard" element={<div>Business dashboard</div>} />
+            <Route path="/provider-dashboard" element={<div>Provider dashboard</div>} />
           </Routes>
         </AuthProvider>
       </ToastProvider>
@@ -413,5 +414,32 @@ describe('RegisterPage', () => {
       });
     });
     expect(await screen.findByText('Business dashboard')).toBeInTheDocument();
+  });
+
+  it('registers as CourseProvider and navigates to provider dashboard', async () => {
+    api.post.mockResolvedValue({ token: 'prov-token', firstName: 'Ana', role: 'CourseProvider' });
+    renderRegister();
+    fireEvent.click(screen.getByRole('button', { name: 'Course Provider' }));
+    fireEvent.change(screen.getByPlaceholderText('First name'), { target: { value: 'Ana' } });
+    fireEvent.change(screen.getByPlaceholderText('Last name'), { target: { value: 'Santos' } });
+    fireEvent.change(screen.getByPlaceholderText('Email address'), { target: { value: 'ana@prov.com' } });
+    fireEvent.change(screen.getByPlaceholderText('Password'), { target: { value: 'secret123' } });
+    fireEvent.change(screen.getByPlaceholderText('Confirm password'), { target: { value: 'secret123' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+    await waitFor(() => {
+      expect(api.post).toHaveBeenCalledWith('/auth/register', expect.objectContaining({ role: 'CourseProvider' }));
+    });
+    expect(await screen.findByText('Provider dashboard')).toBeInTheDocument();
+  });
+
+  it('signs up with Google using CourseProvider role and navigates to provider dashboard', async () => {
+    api.post.mockResolvedValue({ token: 'g-prov', firstName: 'Ana', role: 'CourseProvider' });
+    renderRegister();
+    fireEvent.click(screen.getByRole('button', { name: 'Course Provider' }));
+    fireEvent.click(screen.getByRole('button', { name: /continue with google/i }));
+    await waitFor(() => {
+      expect(api.post).toHaveBeenCalledWith('/auth/google', { idToken: 'google-fake-id-token', role: 'CourseProvider' });
+    });
+    expect(await screen.findByText('Provider dashboard')).toBeInTheDocument();
   });
 });

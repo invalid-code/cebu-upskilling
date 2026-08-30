@@ -349,7 +349,7 @@ public class AuthService : IAuthService
         // Sign up and sign in share one endpoint: a verified Google ID token either
         // matches an existing account (login) or provisions a new one (signup).
         var role = request.Role ?? "Learner";
-        if (role != "Learner" && role != "Recruiter")
+        if (role != "Learner" && role != "Recruiter" && role != "CourseProvider")
         {
             _logger.LogWarning("Google auth failed: role '{Role}' is not allowed", role);
             throw new InvalidOperationException($"Role '{role}' is not allowed");

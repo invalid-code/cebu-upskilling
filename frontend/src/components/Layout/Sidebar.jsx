@@ -1,9 +1,9 @@
 import { Link, NavLink } from 'react-router-dom';
-import { useAuth, isRecruiter } from '../../context/AuthContext';
+import { useAuth, isRecruiter, isCourseProvider } from '../../context/AuthContext';
 import {
   LayoutDashboard, Orbit, BriefcaseBusiness, BookOpenCheck, BookOpen,
   ClipboardList, ScanFace, BadgeCheck, CircleHelp, LogOut,
-  ChartBar, Inbox, PlusCircle, Building2,
+  ChartBar, Inbox, PlusCircle, Building2, Library, LayoutGrid,
 } from 'lucide-react';
 
 const learnerPathwayNav = [
@@ -26,6 +26,12 @@ const recruiterNav = [
   { to: '/post-job', icon: PlusCircle, label: 'Post a job' },
   { to: '/job-applications', icon: Inbox, label: 'Applications' },
   { to: '/company-profile', icon: Building2, label: 'Company profile' },
+  { to: '/help', icon: CircleHelp, label: 'Help center' },
+];
+
+const providerNav = [
+  { to: '/provider-dashboard', icon: LayoutGrid, label: 'Provider dashboard' },
+  { to: '/company-courses', icon: Library, label: 'Course studio' },
   { to: '/help', icon: CircleHelp, label: 'Help center' },
 ];
 
@@ -161,6 +167,7 @@ export default function Sidebar() {
     : 'U';
 
   const recruiter = isRecruiter(user);
+  const provider = isCourseProvider(user);
 
   return (
     <aside className="rail" style={styles.rail}>
@@ -172,7 +179,16 @@ export default function Sidebar() {
         </div>
       </div>
 
-      {recruiter ? (
+      {provider ? (
+        <>
+          <div style={styles.navLabel}>Provider studio</div>
+          <nav style={styles.nav}>
+            {providerNav.map((item) => (
+              <NavItem key={item.to} {...item} />
+            ))}
+          </nav>
+        </>
+      ) : recruiter ? (
         <>
           <div style={styles.navLabel}>Employer tools</div>
           <nav style={styles.nav}>

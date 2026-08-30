@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth, isRecruiter } from '../context/AuthContext';
+import { useAuth, getDashboardPath } from '../context/AuthContext';
 import { validateEmail, validatePassword, validatePasswordConfirm, validateRequired, validateBirthday } from '../utils/validation';
 import { useToast } from '../context/ToastContext';
 import { ErrorBanner, FieldError } from '../components/ui/ErrorState';
@@ -277,8 +277,9 @@ export default function RegisterPage() {
         return;
       }
       if (role === 'courseprovider') {
-        await register({ ...formWithoutCompanyFields(), birthday: form.birthday || null, role: 'CourseProvider' });
-        navigate('/');
+        const created = await register({ ...formWithoutCompanyFields(), birthday: form.birthday || null, role: 'CourseProvider' });
+        showToast(`Welcome, ${created?.firstName || form.firstName}! Your provider workspace is ready.`, 'success');
+        navigate('/provider-dashboard');
         return;
       }
       const payload = { ...formWithoutCompanyFields(), birthday: form.birthday || null };
@@ -319,11 +320,10 @@ export default function RegisterPage() {
     setError('');
     setLoading(true);
     try {
-      // Pass the selected role so a brand-new Google account is provisioned
-      // with it; existing accounts keep their current role.
-      const user = await loginWithGoogle(idToken, role === 'recruiter' ? 'Recruiter' : 'Learner');
+      const googleRole = role === 'recruiter' ? 'Recruiter' : role === 'courseprovider' ? 'CourseProvider' : 'Learner';
+      const user = await loginWithGoogle(idToken, googleRole);
       showToast(`Signed in with Google — welcome, ${user?.firstName || 'there'}!`, 'success');
-      navigate(isRecruiter(user) ? '/business-dashboard' : '/dashboard');
+      navigate(getDashboardPath(user));
     } catch (err) {
       const msg = err.message || 'Google sign-up failed';
       setError(msg);

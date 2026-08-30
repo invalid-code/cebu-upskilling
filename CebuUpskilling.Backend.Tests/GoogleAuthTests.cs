@@ -269,11 +269,27 @@ public class GoogleAuthTests
     [InlineData(null)]
     [InlineData("Learner")]
     [InlineData("Recruiter")]
+    [InlineData("CourseProvider")]
     public void GoogleAuthRequestValidator_ValidRequests_Pass(string? role)
     {
         var validator = new GoogleAuthRequestValidator();
         var result = validator.Validate(new GoogleAuthRequest("token", role));
         Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public async Task GoogleAuthAsync_NewCourseProvider_CreatesCourseProviderWithoutLearnerProfile()
+    {
+        var context = TestDbContextFactory.Create();
+        var verifier = new AuthServiceTests.FakeGoogleTokenVerifier { User = GoogleUser() };
+        var service = CreateService(context, verifier);
+
+        var result = await service.GoogleAuthAsync(new GoogleAuthRequest("valid-id-token", Role: "CourseProvider"));
+
+        Assert.Equal("CourseProvider", result.Role);
+        Assert.Null(await context.Learners.SingleOrDefaultAsync(l => l.UserId == result.UserId));
+        var saved = await context.Users.SingleAsync(u => u.UserId == result.UserId);
+        Assert.Equal("CourseProvider", saved.Role);
     }
 
     [Fact]

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth, isRecruiter } from '../context/AuthContext';
+import { useAuth, getDashboardPath } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { validateEmail, validatePassword } from '../utils/validation';
 import { ErrorBanner, FieldError } from '../components/ui/ErrorState';
@@ -118,7 +118,7 @@ export default function LoginPage() {
     try {
       const user = await login(email, password);
       showToast(`Welcome back, ${user?.firstName || 'there'}!`, 'success');
-      navigate(isRecruiter(user) ? '/business-dashboard' : '/dashboard');
+      navigate(getDashboardPath(user));
     } catch (err) {
       const msg = err.message || 'Login failed';
       setError(msg);
@@ -134,7 +134,7 @@ export default function LoginPage() {
     try {
       const user = await loginWithGoogle(idToken);
       showToast(`Signed in with Google — welcome, ${user?.firstName || 'there'}!`, 'success');
-      navigate(isRecruiter(user) ? '/business-dashboard' : '/dashboard');
+      navigate(getDashboardPath(user));
     } catch (err) {
       const msg = err.message || 'Google sign-in failed';
       setError(msg);
