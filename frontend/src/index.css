@@ -87,14 +87,9 @@ button:focus-visible {
 }
 
 .cookie-banner {
-  bottom: 22px;
-}
-
-@media (min-width: 821px) {
-  .cookie-banner {
-    /* Clear the 248px sidebar rail so it never blocks Sign out / profile */
-    left: 270px !important;
-  }
+  bottom: 22px !important;
+  right: 22px !important;
+  left: auto !important;
 }
 
 @media (max-width: 820px) {
@@ -142,6 +137,8 @@ button:focus-visible {
 
   .cookie-banner {
     bottom: 86px !important;
+    right: 16px !important;
+    left: auto !important;
   }
 
   .view-enter > div:first-child {
