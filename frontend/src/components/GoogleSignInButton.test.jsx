@@ -33,6 +33,7 @@ describe('GoogleSignInButton', () => {
   });
 
   it('renders nothing when no client ID is configured', () => {
+    vi.stubEnv('VITE_GOOGLE_CLIENT_ID', '');
     const { container } = render(<GoogleSignInButton onSuccess={vi.fn()} />);
     expect(container).toBeEmptyDOMElement();
     expect(findGsiScript()).toBeNull();
