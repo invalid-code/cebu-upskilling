@@ -6,6 +6,7 @@ import { useToast } from '../context/ToastContext';
 import { ErrorBanner, FieldError } from '../components/ui/ErrorState';
 import Button from '../components/ui/Button';
 import GoogleSignInButton from '../components/GoogleSignInButton';
+import PasswordField from '../components/ui/PasswordField';
 import { extractResumeText } from '../utils/resumeText';
 
 const styles = {
@@ -481,21 +482,21 @@ export default function RegisterPage() {
             aria-invalid={!!fieldErrors.emailAddress}
           />
           {fieldErrors.emailAddress && <FieldError>{fieldErrors.emailAddress}</FieldError>}
-          <input
+          <PasswordField
             style={{ ...styles.field, borderColor: fieldErrors.password ? 'var(--danger)' : 'var(--line)', background: fieldErrors.password ? 'var(--danger-soft)' : 'var(--surface)' }}
-            type="password"
             placeholder="Password"
             value={form.password}
             onChange={update('password')}
+            autoComplete="new-password"
             aria-invalid={!!fieldErrors.password}
           />
           {fieldErrors.password && <FieldError>{fieldErrors.password}</FieldError>}
-          <input
+          <PasswordField
             style={{ ...styles.field, borderColor: fieldErrors.confirmPassword ? 'var(--danger)' : 'var(--line)', background: fieldErrors.confirmPassword ? 'var(--danger-soft)' : 'var(--surface)' }}
-            type="password"
             placeholder="Confirm password"
             value={confirmPassword}
             onChange={handleConfirmPasswordChange}
+            autoComplete="new-password"
             aria-invalid={!!fieldErrors.confirmPassword}
           />
           {fieldErrors.confirmPassword && <FieldError>{fieldErrors.confirmPassword}</FieldError>}

@@ -442,4 +442,39 @@ describe('RegisterPage', () => {
     });
     expect(await screen.findByText('Provider dashboard')).toBeInTheDocument();
   });
+
+  it('renders show password toggles for both password fields', () => {
+    renderRegister();
+    const toggles = screen.getAllByRole('button', { name: 'Show password' });
+    expect(toggles).toHaveLength(2);
+    expect(screen.getByPlaceholderText('Password')).toHaveAttribute('type', 'password');
+    expect(screen.getByPlaceholderText('Confirm password')).toHaveAttribute('type', 'password');
+  });
+
+  it('toggles password and confirm password independently', () => {
+    renderRegister();
+    const passwordInput = screen.getByPlaceholderText('Password');
+    const confirmInput = screen.getByPlaceholderText('Confirm password');
+    const [pwdToggle, confirmToggle] = screen.getAllByRole('button', { name: 'Show password' });
+
+    fireEvent.click(pwdToggle);
+    expect(passwordInput).toHaveAttribute('type', 'text');
+    expect(confirmInput).toHaveAttribute('type', 'password');
+    expect(screen.getByRole('button', { name: 'Hide password' })).toBeInTheDocument();
+
+    fireEvent.click(confirmToggle);
+    expect(confirmInput).toHaveAttribute('type', 'text');
+    expect(passwordInput).toHaveAttribute('type', 'text');
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Hide password' })[0]);
+    expect(passwordInput).toHaveAttribute('type', 'password');
+    expect(confirmInput).toHaveAttribute('type', 'text');
+  });
+
+  it('does not submit when toggling visibility', () => {
+    renderRegister();
+    const [pwdToggle] = screen.getAllByRole('button', { name: 'Show password' });
+    fireEvent.click(pwdToggle);
+    expect(api.post).not.toHaveBeenCalled();
+  });
 });

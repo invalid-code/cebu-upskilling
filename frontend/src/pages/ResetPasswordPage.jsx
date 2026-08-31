@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import PasswordField from '../components/ui/PasswordField';
 import { useToast } from '../context/ToastContext';
 import { validatePassword } from '../utils/validation';
 import { ErrorBanner, FieldError } from '../components/ui/ErrorState';
@@ -189,31 +190,33 @@ export default function ResetPasswordPage() {
         ) : (
           <form onSubmit={handleSubmit} noValidate>
             {error && <ErrorBanner title="Couldn’t reset password" description={error} onDismiss={() => setError('')} />}
-            <input
+            <PasswordField
               style={{ ...styles.field, borderColor: fieldErrors.password ? 'var(--danger)' : 'var(--line)', background: fieldErrors.password ? 'var(--danger-soft)' : 'var(--surface)' }}
-              type="password"
               placeholder="New password"
               value={password}
               onChange={(e) => {
                 setPassword(e.target.value);
                 if (fieldErrors.password) setFieldErrors((p) => ({ ...p, password: '' }));
               }}
+              autoComplete="new-password"
               aria-invalid={!!fieldErrors.password}
               aria-describedby={fieldErrors.password ? 'reset-password-error' : undefined}
             />
             {fieldErrors.password && <FieldError id="reset-password-error">{fieldErrors.password}</FieldError>}
-            <input
-              style={{ ...styles.field, marginTop: 12, borderColor: fieldErrors.confirm ? 'var(--danger)' : 'var(--line)', background: fieldErrors.confirm ? 'var(--danger-soft)' : 'var(--surface)' }}
-              type="password"
-              placeholder="Confirm new password"
-              value={confirm}
-              onChange={(e) => {
-                setConfirm(e.target.value);
-                if (fieldErrors.confirm) setFieldErrors((p) => ({ ...p, confirm: '' }));
-              }}
-              aria-invalid={!!fieldErrors.confirm}
-              aria-describedby={fieldErrors.confirm ? 'reset-confirm-error' : undefined}
-            />
+            <div style={{ marginTop: 12 }}>
+              <PasswordField
+                style={{ ...styles.field, borderColor: fieldErrors.confirm ? 'var(--danger)' : 'var(--line)', background: fieldErrors.confirm ? 'var(--danger-soft)' : 'var(--surface)' }}
+                placeholder="Confirm new password"
+                value={confirm}
+                onChange={(e) => {
+                  setConfirm(e.target.value);
+                  if (fieldErrors.confirm) setFieldErrors((p) => ({ ...p, confirm: '' }));
+                }}
+                autoComplete="new-password"
+                aria-invalid={!!fieldErrors.confirm}
+                aria-describedby={fieldErrors.confirm ? 'reset-confirm-error' : undefined}
+              />
+            </div>
             {fieldErrors.confirm && <FieldError id="reset-confirm-error">{fieldErrors.confirm}</FieldError>}
             <Button
               variant="primary"

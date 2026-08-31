@@ -6,6 +6,7 @@ import { validateEmail, validatePassword } from '../utils/validation';
 import { ErrorBanner, FieldError } from '../components/ui/ErrorState';
 import Button from '../components/ui/Button';
 import GoogleSignInButton from '../components/GoogleSignInButton';
+import PasswordField from '../components/ui/PasswordField';
 
 const styles = {
   container: {
@@ -191,15 +192,17 @@ export default function LoginPage() {
             aria-describedby={fieldErrors.email ? 'login-email-error' : undefined}
           />
           {fieldErrors.email && <FieldError id="login-email-error">{fieldErrors.email}</FieldError>}
-          <input
-            style={{ ...styles.field, marginTop: 12, borderColor: fieldErrors.password ? 'var(--danger)' : 'var(--line)', background: fieldErrors.password ? 'var(--danger-soft)' : 'var(--surface)' }}
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={handlePasswordChange}
-            aria-invalid={!!fieldErrors.password}
-            aria-describedby={fieldErrors.password ? 'login-password-error' : undefined}
-          />
+          <div style={{ marginTop: 12 }}>
+            <PasswordField
+              style={{ ...styles.field, borderColor: fieldErrors.password ? 'var(--danger)' : 'var(--line)', background: fieldErrors.password ? 'var(--danger-soft)' : 'var(--surface)' }}
+              placeholder="Password"
+              value={password}
+              onChange={handlePasswordChange}
+              autoComplete="current-password"
+              aria-invalid={!!fieldErrors.password}
+              aria-describedby={fieldErrors.password ? 'login-password-error' : undefined}
+            />
+          </div>
           {fieldErrors.password && <FieldError id="login-password-error">{fieldErrors.password}</FieldError>}
           <Button
             variant="primary"
