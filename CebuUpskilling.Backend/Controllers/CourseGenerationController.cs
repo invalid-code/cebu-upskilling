@@ -28,7 +28,10 @@ public class CourseGenerationController : ControllerBase
             return BadRequest(new { error = "Brief is required" });
         }
 
-        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId))
+        {
+            return Unauthorized(new { error = "Invalid authentication token" });
+        }
         _logger.LogInformation("HTTP POST /api/company/courses/generate called by user {UserId}", userId);
 
         try
@@ -58,13 +61,16 @@ public class CourseGenerationController : ControllerBase
             return BadRequest(new { error = "Draft is required" });
         }
 
-        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId))
+        {
+            return Unauthorized(new { error = "Invalid authentication token" });
+        }
         _logger.LogInformation("HTTP POST /api/company/courses/generate/commit called by user {UserId}", userId);
 
         var result = await _agent.CommitAsync(userId, request, ct);
         if (result is null)
         {
-            return Forbid();
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = "Not authorized to commit this course or draft is invalid" });
         }
 
         return Created($"/api/company/courses/{result.CourseId}", result);

@@ -64,12 +64,14 @@ public class SkillGapService : ISkillGapService
                 PostId = a.Post?.PostId,
             })
             .Where(a => !string.IsNullOrWhiteSpace(a.Role))
+            .DistinctBy(a => a.Role!, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
         var groups = new List<SkillGapGroupDto>();
         foreach (var appliedRole in appliedRoles)
         {
             var gaps = await ComputeGapsForRoleAsync(appliedRole.Role!, learnerSkillMap);
+            if (gaps.Count == 0) continue;
             groups.Add(new SkillGapGroupDto(
                 Role: appliedRole.Role!,
                 CompanyName: appliedRole.CompanyName,
@@ -82,13 +84,16 @@ public class SkillGapService : ISkillGapService
         if (groups.Count == 0 && user?.TargetRole != null)
         {
             var fallbackGaps = await ComputeGapsForRoleAsync(user.TargetRole, learnerSkillMap);
-            groups.Add(new SkillGapGroupDto(
-                Role: user.TargetRole,
-                CompanyName: null,
-                PostId: null,
-                MatchPercent: ComputeMatchPercent(fallbackGaps),
-                Gaps: fallbackGaps
-            ));
+            if (fallbackGaps.Count > 0)
+            {
+                groups.Add(new SkillGapGroupDto(
+                    Role: user.TargetRole,
+                    CompanyName: null,
+                    PostId: null,
+                    MatchPercent: ComputeMatchPercent(fallbackGaps),
+                    Gaps: fallbackGaps
+                ));
+            }
         }
 
         _logger.LogInformation("Computed {Count} skill gap groups for user {UserId}", groups.Count, userId);
