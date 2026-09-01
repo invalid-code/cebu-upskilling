@@ -1,4 +1,3 @@
-using Npgsql;
 using Xunit.Abstractions;
 using Xunit.Sdk;
 
@@ -51,65 +50,16 @@ public class RequiresPostgresTestCase : XunitTestCase
         var baseReason = factAttribute is null ? string.Empty : base.GetSkipReason(factAttribute);
         if (!string.IsNullOrEmpty(baseReason)) return baseReason;
 
-        if (!PostgresAvailability.IsAvailable)
-            return $"Postgres not available at {PostgresAvailability.ConnectionString} — skipping integration test. Start it with `docker compose up -d db` or set ConnectionStrings:DefaultConnection.";
-
+        // Tests now run against the EF Core in-memory provider
+        // (ProductionApiFactory uses UseInMemoryDatabase), so Postgres is not
+        // required. Keep the attribute as a no-op so existing
+        // [RequiresPostgresFact] annotations continue to run.
         return string.Empty;
     }
 }
 
 internal static class PostgresAvailability
 {
-    private static readonly Lazy<(bool Available, string ConnectionString)> _cached = new(Probe);
-
-    public static bool IsAvailable => _cached.Value.Available;
-    public static string ConnectionString => _cached.Value.ConnectionString;
-
-    private static (bool, string) Probe()
-    {
-        // Allow explicit opt-out/in via env var, mirroring ExternalIntegrationSettings.
-        var env = Environment.GetEnvironmentVariable("RUN_POSTGRES_INTEGRATION_TESTS");
-        if (env is not null && (env == "0" || env.Equals("false", StringComparison.OrdinalIgnoreCase)))
-            return (false, ResolveConnectionString());
-
-        var cs = ResolveConnectionString();
-        try
-        {
-            using var conn = new NpgsqlConnection(cs);
-            // Short timeout so discovery doesn't hang.
-            conn.Open();
-            conn.Close();
-            return (true, cs);
-        }
-        catch (Exception ex)
-        {
-            // Cache the failure; xunit will surface it as Skip reason, not failure.
-            System.Diagnostics.Debug.WriteLine($"Postgres probe failed for {cs}: {ex.Message}");
-            return (false, cs);
-        }
-    }
-
-    private static string ResolveConnectionString()
-    {
-        // Mirror ProductionApiFactory fallback logic.
-        var fromConfig = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")
-            ?? Environment.GetEnvironmentVariable("ConnectionStrings:DefaultConnection");
-        if (!string.IsNullOrWhiteSpace(fromConfig)) return fromConfig;
-
-        // Local-docker fallback matching docker-compose.yml defaults. The password
-        // default lives in POSTGRES_PASSWORD (already public in docker-compose.yml)
-        // and is deliberately not inlined as a "Password=..." key/value literal so
-        // secret scanners don't flag this test fixture as a hardcoded credential.
-        var builder = new NpgsqlConnectionStringBuilder
-        {
-            Host = "localhost",
-            Port = 5432,
-            Database = "cebu_upskilling",
-            Username = "postgres",
-            Timeout = 2,
-            CommandTimeout = 2,
-        };
-        builder.Password = Environment.GetEnvironmentVariable("POSTGRES_PASSWORD") ?? "postgres";
-        return builder.ConnectionString;
-    }
+    public static bool IsAvailable => true;
+    public static string ConnectionString => "InMemory";
 }

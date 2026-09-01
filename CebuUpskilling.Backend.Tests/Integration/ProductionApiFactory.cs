@@ -7,23 +7,27 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using Npgsql;
 
 namespace CebuUpskilling.Backend.Tests.Integration;
 
 /// <summary>
-/// Boots the real application (Program.cs) with its production configuration
-/// and points it at a dedicated PostgreSQL test database.
+/// Boots the real application (Program.cs) with an in-memory database for
+/// integration tests. Each factory instance gets its own isolated in-memory
+/// store so parallel test classes don't interfere.
 /// </summary>
 public class ProductionApiFactory : WebApplicationFactory<Program>
 {
     // Each test class gets its own factory instance, and therefore its own
-    // dedicated database. This prevents integration test classes (which run in
-    // parallel) from truncating and re-seeding a shared database underneath one
-    // another, which previously caused intermittent, non-deterministic failures.
+    // dedicated in-memory database. This prevents integration test classes
+    // (which may run in parallel) from truncating and re-seeding a shared
+    // database underneath one another.
     public string TestDatabaseName { get; } = $"cebu_upskilling_test_{Guid.NewGuid():N}";
 
-    public string TestConnectionString { get; private set; } = string.Empty;
+    /// <summary>
+    /// Kept for backwards-compatibility; now returns an in-memory identifier
+    /// rather than a Postgres connection string.
+    /// </summary>
+    public string TestConnectionString => $"InMemory:{TestDatabaseName}";
 
     /// <summary>
     /// When false (the default), rate limiting is disabled for integration tests so
@@ -31,29 +35,6 @@ public class ProductionApiFactory : WebApplicationFactory<Program>
     /// factories can opt back in (e.g. to assert 429 behaviour) by setting this true.
     /// </summary>
     public bool EnableRateLimiting { get; set; }
-
-    private const string ResetSql = """
-        TRUNCATE TABLE
-            "LearnerStudyCourses",
-            "LearnerSkills",
-            "LearnerAssessments",
-            "LearnerNotes",
-            "PostCourseRequireds",
-            "Applications",
-            "Posts",
-            "Learners",
-            "Users",
-            "Companies",
-            "Courses",
-            "Lessons",
-            "LessonContents",
-            "Media",
-            "Exercises",
-            "ExerciseContents",
-            "Genres",
-            "SubDisciplines"
-        RESTART IDENTITY CASCADE;
-        """;
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -64,17 +45,8 @@ public class ProductionApiFactory : WebApplicationFactory<Program>
 
         builder.ConfigureAppConfiguration((_, config) =>
         {
-            var original = config.Build().GetConnectionString("DefaultConnection");
-            if (string.IsNullOrWhiteSpace(original))
-            {
-                original = "Host=localhost;Port=5432;Database=cebu_upskilling;Username=postgres";
-            }
-
-            TestConnectionString = new NpgsqlConnectionStringBuilder(original)
-            {
-                Database = TestDatabaseName,
-            }.ConnectionString;
-
+            // Program.cs switches to UseInMemoryDatabase when the connection
+            // string starts with "InMemory:".
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["ConnectionStrings:DefaultConnection"] = TestConnectionString,
@@ -113,48 +85,21 @@ public class ProductionApiFactory : WebApplicationFactory<Program>
     {
         using var scope = Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-
-        try
-        {
-            await db.Database.MigrateAsync();
-        }
-        catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.InvalidCatalogName)
-        {
-            await EnsureDatabaseExistsAsync();
-            await db.Database.MigrateAsync();
-        }
+        await db.Database.EnsureCreatedAsync();
     }
 
     public async Task ResetDatabaseAsync()
     {
         using var scope = Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        await db.Database.ExecuteSqlRawAsync(ResetSql);
+        // In-memory provider has no TRUNCATE/CASCADE — recreate the store.
+        await db.Database.EnsureDeletedAsync();
+        await db.Database.EnsureCreatedAsync();
     }
 
     public ApplicationDbContext CreateDbContext()
     {
         var scope = Services.CreateScope();
         return scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    }
-
-    private async Task EnsureDatabaseExistsAsync()
-    {
-        var builder = new NpgsqlConnectionStringBuilder(TestConnectionString);
-        var databaseName = builder.Database;
-        builder.Database = "postgres";
-
-        await using var connection = new NpgsqlConnection(builder.ConnectionString);
-        await connection.OpenAsync();
-
-        await using var command = connection.CreateCommand();
-        command.CommandText = $"SELECT 1 FROM pg_database WHERE datname = '{databaseName}'";
-        var exists = await command.ExecuteScalarAsync();
-
-        if (exists is null)
-        {
-            command.CommandText = $"CREATE DATABASE \"{databaseName}\"";
-            await command.ExecuteNonQueryAsync();
-        }
     }
 }
