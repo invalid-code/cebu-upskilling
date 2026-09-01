@@ -25,6 +25,13 @@ public class GoogleAuthTests
         string firstName = "Ana",
         string lastName = "Santos") => new("google-subject-123", email, firstName, lastName);
 
+    private class FakeObjStorage : IObjectStorageService
+    {
+        public Task<string> UploadAsync(string key, Stream content, string contentType, CancellationToken ct = default) => Task.FromResult($"https://fake.example/{key}");
+        public Task DeleteAsync(string key, CancellationToken ct = default) => Task.CompletedTask;
+        public string GetPublicUrl(string key) => $"https://fake.example/{key}";
+    }
+
     private static AuthService CreateService(Data.ApplicationDbContext context, AuthServiceTests.FakeGoogleTokenVerifier verifier) => new(
         context,
         new JobseekerSkillParserAgent(
@@ -41,6 +48,7 @@ public class GoogleAuthTests
         new LoggingEmailService(NullLogger<LoggingEmailService>.Instance),
         new InMemoryTokenRevocationStore(NullLogger<InMemoryTokenRevocationStore>.Instance),
         verifier,
+        new ResumeService(new FakeObjStorage(), NullLogger<ResumeService>.Instance),
         NullLogger<AuthService>.Instance
     );
 

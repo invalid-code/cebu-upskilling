@@ -114,6 +114,74 @@ function request(path, options = {}) {
   });
 }
 
+/** Sends multipart/form-data (XHR, no JSON Content-Type). */
+function postForm(path, formData) {
+  let token = localStorage.getItem('token');
+  if (token && isTokenExpired(token)) {
+    clearSession();
+    token = null;
+  }
+  const method = 'POST';
+  console.debug(`[API] ${method} ${path} (form)`);
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open(method, `${API_BASE}${path}`);
+    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+
+    xhr.onload = () => {
+      if (xhr.status === 401 && localStorage.getItem('token')) {
+        clearSession();
+        window.location.href = '/login';
+        resolve(null);
+        return;
+      }
+      if (xhr.status < 200 || xhr.status >= 300) {
+        let message = `HTTP ${xhr.status}`;
+        try {
+          const data = JSON.parse(xhr.responseText);
+          if (data && data.error) message = data.error;
+        } catch {
+          // ignore non-JSON error bodies
+        }
+        if (xhr.status === 429) {
+          message = message.includes('429') || message.startsWith('HTTP') ? 'Too many requests — please wait a moment and try again' : message;
+        } else if (xhr.status === 413) {
+          message = 'File too large — must be ≤ 10 MB';
+        } else if (xhr.status >= 500) {
+          message = message.startsWith('HTTP') ? 'Server error — please try again in a moment' : message;
+        } else if (!message || message.startsWith('HTTP')) {
+          message = 'Request failed — please try again';
+        }
+        console.warn(`[API] ${method} ${path} → ${xhr.status}: ${message}`);
+        const err = new Error(message);
+        err.status = xhr.status;
+        reject(err);
+        return;
+      }
+      console.debug(`[API] ${method} ${path} → ${xhr.status}`);
+      try {
+        resolve(JSON.parse(xhr.responseText));
+      } catch {
+        resolve(xhr.responseText);
+      }
+    };
+
+    xhr.onerror = () => {
+      console.error(`[API] ${method} ${path} → network error`);
+      const err = new Error('Network error — check your connection and try again');
+      err.status = 0;
+      reject(err);
+    };
+
+    xhr.onabort = () => {
+      reject(new DOMException('Aborted', 'AbortError'));
+    };
+
+    xhr.send(formData);
+  });
+}
+
 /** Uploads a file via multipart/form-data (XHR so the fetch patch does not interfere). */
 function upload(path, file) {
   let token = localStorage.getItem('token');
@@ -190,4 +258,5 @@ export const api = {
   patch: (path, body) => request(path, { method: 'PATCH', body: JSON.stringify(body) }),
   delete: (path) => request(path, { method: 'DELETE' }),
   upload: (path, file) => upload(path, file),
+  postForm: (path, formData) => postForm(path, formData),
 };

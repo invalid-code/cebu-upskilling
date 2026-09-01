@@ -21,8 +21,7 @@ public class RegisterRequestValidatorRegressionTests
         Password: "P@ssw0rd!",
         Role: "Learner",
         TargetRole: null,
-        Address: null,
-        Resume: "Experienced developer"
+        Address: null
     );
 
     [Fact]

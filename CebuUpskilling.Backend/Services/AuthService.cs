@@ -5,6 +5,7 @@ using System.Text;
 using CebuUpskilling.Backend.Data;
 using CebuUpskilling.Backend.DTOs;
 using CebuUpskilling.Backend.Entities;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.IdentityModel.Tokens;
@@ -59,11 +60,12 @@ public class JwtTokenService : IJwtTokenService
 
 public interface IAuthService
 {
-    Task<AuthResponse> RegisterAsync(RegisterRequest request);
+    Task<AuthResponse> RegisterAsync(RegisterRequest request, IFormFile? resumeFile = null, CancellationToken ct = default);
     Task<CompanyRegisterResponse> CompanyRegisterAsync(CompanyRegisterRequest request);
     Task<AuthResponse> LoginAsync(LoginRequest request);
     Task<AuthResponse> GoogleAuthAsync(GoogleAuthRequest request);
     Task<AuthResponse> UpdateProfileAsync(int userId, UpdateProfileRequest request);
+    Task<AuthResponse?> GetProfileAsync(int userId);
 
     Task LogoutAsync(string? jti);
     Task SendEmailConfirmationAsync(string email);
@@ -80,6 +82,7 @@ public class AuthService : IAuthService
     private readonly IEmailService _emailService;
     private readonly ITokenRevocationStore _revocationStore;
     private readonly IGoogleTokenVerifier _googleTokenVerifier;
+    private readonly IResumeService _resumeService;
     private readonly ILogger<AuthService> _logger;
 
     private const string FrontendBaseUrl = "http://localhost:5173";
@@ -91,6 +94,7 @@ public class AuthService : IAuthService
         IEmailService emailService,
         ITokenRevocationStore revocationStore,
         IGoogleTokenVerifier googleTokenVerifier,
+        IResumeService resumeService,
         ILogger<AuthService> logger)
     {
         _context = context;
@@ -99,10 +103,11 @@ public class AuthService : IAuthService
         _emailService = emailService;
         _revocationStore = revocationStore;
         _googleTokenVerifier = googleTokenVerifier;
+        _resumeService = resumeService;
         _logger = logger;
     }
 
-    public async Task<AuthResponse> RegisterAsync(RegisterRequest request)
+    public async Task<AuthResponse> RegisterAsync(RegisterRequest request, IFormFile? resumeFile = null, CancellationToken ct = default)
     {
         _logger.LogInformation("Registration attempt for email {Email}", request.EmailAddress);
 
@@ -118,10 +123,21 @@ public class AuthService : IAuthService
             throw new InvalidOperationException($"Role '{request.Role}' is not allowed");
         }
 
-        if (request.Role == "Learner" && string.IsNullOrWhiteSpace(request.Resume))
+        if (request.Role == "Learner" && (resumeFile == null || resumeFile.Length == 0))
         {
             _logger.LogWarning("Registration failed: learner resume is required for email {Email}", request.EmailAddress);
             throw new InvalidOperationException("Resume is required for learners");
+        }
+
+        string? resumeText = null;
+        string? resumeUrl = null;
+
+        // Validate and extract resume before creating user so bad files fail fast with 400
+        if (request.Role == "Learner" && resumeFile != null)
+        {
+            // Throws InvalidOperationException on invalid type/magic bytes/size
+            _resumeService.Validate(resumeFile);
+            resumeText = await _resumeService.ExtractTextAsync(resumeFile, ct);
         }
 
         if (await _context.Users.AnyAsync(u => u.EmailAddress == request.EmailAddress))
@@ -158,15 +174,32 @@ public class AuthService : IAuthService
 
         if (request.Role == "Learner")
         {
+            // Upload resume to object store after user creation and persist URL
+            if (resumeFile != null)
+            {
+                try
+                {
+                    resumeUrl = await _resumeService.UploadAsync(resumeFile, ct);
+                    user.ResumeUrl = resumeUrl;
+                    await _context.SaveChangesAsync();
+                    _logger.LogInformation("Resume uploaded for user {UserId}: {ResumeUrl}", user.UserId, resumeUrl);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Resume upload failed for user {UserId}", user.UserId);
+                    // Upload failure should surface as 400/500? Re-throw as InvalidOperation for bad files, else log
+                    if (ex is InvalidOperationException) throw;
+                }
+            }
+
             var learner = new Learner { UserId = user.UserId, IsPremium = false };
             _context.Learners.Add(learner);
             await _context.SaveChangesAsync();
             _logger.LogInformation("Learner profile created for user {UserId}", user.UserId);
 
-            var resumeText = request.Resume ?? string.Empty;
             try
             {
-                parseResult = await _jobseekerSkillParserAgent.ParseAndCreateAssessmentsAsync(user.UserId, resumeText, CancellationToken.None);
+                parseResult = await _jobseekerSkillParserAgent.ParseAndCreateAssessmentsAsync(user.UserId, resumeText ?? string.Empty, CancellationToken.None);
                 _logger.LogInformation("Auto-parsed resume skills and created assessments for user {UserId}", user.UserId);
             }
             catch (Exception ex)
@@ -401,6 +434,16 @@ public class AuthService : IAuthService
         return BuildAuthResponse(user, token, companyId: user.CompanyId, companyName: user.Company?.Name);
     }
 
+    public async Task<AuthResponse?> GetProfileAsync(int userId)
+    {
+        var user = await _context.Users
+            .Include(u => u.Company)
+            .FirstOrDefaultAsync(u => u.UserId == userId);
+        if (user == null) return null;
+        var token = _tokenService.GenerateToken(user);
+        return BuildAuthResponse(user, token, companyId: user.CompanyId, companyName: user.Company?.Name);
+    }
+
     public async Task<AuthResponse> UpdateProfileAsync(int userId, UpdateProfileRequest request)
     {
         _logger.LogInformation("Profile update attempt for user {UserId}", userId);
@@ -620,6 +663,7 @@ public class AuthService : IAuthService
             parsedSkillCount,
             assessmentCount,
             companyId,
-            companyName
+            companyName,
+            user.ResumeUrl
         );
 }

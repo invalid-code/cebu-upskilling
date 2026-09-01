@@ -102,7 +102,9 @@ public class AuthTokenReuseTests
     {
         var fakeAi = new FakeGoogleAiService();
         var agent = new JobseekerSkillParserAgent(fakeAi, new SkillRepository(ctx), new LearnerRepository(ctx), new LearnerSkillRepository(ctx), new LearnerAssessmentRepository(ctx), new AppUserRepository(ctx), new RoleSkillRepository(ctx), new AssessmentQuestionRepository(ctx), NullLogger<JobseekerSkillParserAgent>.Instance);
-        return new AuthService(ctx, agent, new JwtTokenService(Config(), NullLogger<JwtTokenService>.Instance), new LoggingEmailService(NullLogger<LoggingEmailService>.Instance), store, new RejectingGoogleVerifier(), NullLogger<AuthService>.Instance);
+        var fakeStorage = new FakeObjectStorage();
+        var resumeSvc = new ResumeService(fakeStorage, NullLogger<ResumeService>.Instance);
+        return new AuthService(ctx, agent, new JwtTokenService(Config(), NullLogger<JwtTokenService>.Instance), new LoggingEmailService(NullLogger<LoggingEmailService>.Instance), store, new RejectingGoogleVerifier(), resumeSvc, NullLogger<AuthService>.Instance);
     }
 
     private class RejectingGoogleVerifier : IGoogleTokenVerifier
@@ -117,6 +119,13 @@ public class AuthTokenReuseTests
         public Task<List<CandidateRanking>> RankCandidatesAsync(string j, string r, string? req, List<CandidateSkillProfile> cands, CancellationToken ct = default) => Task.FromResult(new List<CandidateRanking>());
         public Task<DraftJobPostResponse?> DraftJobPostAsync(DraftJobPostRequest request, CancellationToken ct = default) => Task.FromResult<DraftJobPostResponse?>(null);
         public Task<CourseGenerationResult?> GenerateCourseOutlineAsync(CourseGenerationPromptContext context, CancellationToken ct = default) => Task.FromResult<CourseGenerationResult?>(null);
+    }
+
+    private class FakeObjectStorage : IObjectStorageService
+    {
+        public Task<string> UploadAsync(string key, Stream content, string contentType, CancellationToken ct = default) => Task.FromResult($"https://fake.example/{key}");
+        public Task DeleteAsync(string key, CancellationToken ct = default) => Task.CompletedTask;
+        public string GetPublicUrl(string key) => $"https://fake.example/{key}";
     }
 
     private static string HashToken(string raw)
@@ -192,9 +201,11 @@ public class AuthTokenReuseTests
         var store = new InMemoryTokenRevocationStore(NullLogger<InMemoryTokenRevocationStore>.Instance);
         var svc = CreateService(ctx, store);
         var email = "raw.confirm@example.com";
-        var req = new RegisterRequest("Jose", "Rizal", null, null, email, "P@ssw0rd!", "Learner", null, null, "Resume text here is long enough for parsing");
-        // Register will generate confirmation token internally
-        await svc.RegisterAsync(req);
+        var req = new RegisterRequest("Jose", "Rizal", null, null, email, "P@ssw0rd!", "Learner", null, null);
+        var pdfBytes = System.Text.Encoding.UTF8.GetBytes("%PDF-1.4\n%%EOF");
+        var pdfStream = new MemoryStream(pdfBytes);
+        var fakePdf = new FormFile(pdfStream, 0, pdfBytes.Length, "resumeFile", "resume.pdf") { Headers = new HeaderDictionary(), ContentType = "application/pdf" };
+        await svc.RegisterAsync(req, fakePdf);
         var user = await ctx.Users.SingleAsync(u => u.EmailAddress == email);
         // raw token is 32 random bytes base64url – it will never equal the stored hex hash
         Assert.NotNull(user.EmailConfirmationTokenHash);
@@ -213,11 +224,13 @@ public class MassAssignmentRegressionTests
     {
         var ctx = TestDbContextFactory.Create();
         var store = new InMemoryTokenRevocationStore(NullLogger<InMemoryTokenRevocationStore>.Instance);
+        var fakeStorage2 = new FakeObjectStorage2();
+        var resumeSvc2 = new ResumeService(fakeStorage2, NullLogger<ResumeService>.Instance);
         var svc = new AuthService(ctx, new JobseekerSkillParserAgent(
             new FakeAi(), new SkillRepository(ctx), new LearnerRepository(ctx), new LearnerSkillRepository(ctx), new LearnerAssessmentRepository(ctx),
             new AppUserRepository(ctx), new RoleSkillRepository(ctx), new AssessmentQuestionRepository(ctx), NullLogger<JobseekerSkillParserAgent>.Instance),
             new JwtTokenService(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Jwt:Key"] = "test-secret-key-that-is-at-least-32-characters-long", ["Jwt:Issuer"] = "CebuUpskilling", ["Jwt:Audience"] = "CebuUpskilling.Web" }).Build(), NullLogger<JwtTokenService>.Instance),
-            new LoggingEmailService(NullLogger<LoggingEmailService>.Instance), store, new RejectingGoogleVerifier(), NullLogger<AuthService>.Instance);
+            new LoggingEmailService(NullLogger<LoggingEmailService>.Instance), store, new RejectingGoogleVerifier(), resumeSvc2, NullLogger<AuthService>.Instance);
 
         var resp = await svc.CompanyRegisterAsync(new CompanyRegisterRequest("Overpost Corp", "Maria", "Santos", null, null, "overpost.role@example.com", "P@ssw0rd!", null));
         Assert.Equal("Recruiter", resp.Role);
@@ -228,6 +241,13 @@ public class MassAssignmentRegressionTests
     private class RejectingGoogleVerifier : IGoogleTokenVerifier
     {
         public Task<GoogleUserInfo> VerifyIdTokenAsync(string idToken) => throw new UnauthorizedAccessException("Invalid Google credential");
+    }
+
+    private class FakeObjectStorage2 : IObjectStorageService
+    {
+        public Task<string> UploadAsync(string key, Stream content, string contentType, CancellationToken ct = default) => Task.FromResult($"https://fake.example/{key}");
+        public Task DeleteAsync(string key, CancellationToken ct = default) => Task.CompletedTask;
+        public string GetPublicUrl(string key) => $"https://fake.example/{key}";
     }
 
     private class FakeAi : IGoogleAiService

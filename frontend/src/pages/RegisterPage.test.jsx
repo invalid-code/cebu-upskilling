@@ -8,6 +8,7 @@ import RegisterPage from './RegisterPage';
 vi.mock('../api/client', () => ({
   api: {
     post: vi.fn(),
+    postForm: vi.fn(),
   },
 }));
 
@@ -63,6 +64,17 @@ function renderRegister() {
   );
 }
 
+
+function createFakePdfFile(name = "resume.pdf") {
+  return new File(["%PDF-1.4\n%fake pdf content"], name, { type: "application/pdf" });
+}
+
+function setResumeFile(file) {
+  const input = document.querySelector("input[type=file]");
+  Object.defineProperty(input, "files", { value: [file] });
+  fireEvent.change(input);
+}
+
 function fillForm() {
   fireEvent.change(screen.getByPlaceholderText('First name'), {
     target: { value: formData.firstName },
@@ -91,6 +103,7 @@ describe('RegisterPage', () => {
   beforeEach(() => {
     localStorage.clear();
     api.post.mockReset();
+    api.postForm.mockReset();
   });
 
   it('renders the registration form', () => {
@@ -108,23 +121,31 @@ describe('RegisterPage', () => {
   });
 
   it('submits the form data to register on submit', async () => {
-    api.post.mockResolvedValue({ token: 'abc', firstName: 'Jose' });
+    api.postForm.mockResolvedValue({ token: 'abc', firstName: 'Jose' });
     renderRegister();
 
     fillForm();
+    const pdf = createFakePdfFile();
+    setResumeFile(pdf);
     fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
 
     await waitFor(() => {
-      expect(api.post).toHaveBeenCalledWith('/auth/register', formData);
+      expect(api.postForm).toHaveBeenCalledWith('/auth/register', expect.any(FormData));
     });
+    // Verify FormData contains expected fields
+    const formDataArg = api.postForm.mock.calls[0][1];
+    expect(formDataArg.get('firstName')).toBe(formData.firstName);
+    expect(formDataArg.get('emailAddress')).toBe(formData.emailAddress);
+    expect(formDataArg.get('resumeFile')).toBe(pdf);
     expect(localStorage.getItem('token')).toBe('abc');
   });
 
   it('shows an error message when registration fails', async () => {
-    api.post.mockRejectedValue(new Error('Email already in use'));
+    api.postForm.mockRejectedValue(new Error('Email already in use'));
     renderRegister();
 
     fillForm();
+    setResumeFile(createFakePdfFile());
     fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
 
     const matches = await screen.findAllByText('Email already in use');
@@ -160,6 +181,7 @@ describe('RegisterPage', () => {
 
     expect(await screen.findByText('Passwords do not match')).toBeInTheDocument();
     expect(api.post).not.toHaveBeenCalled();
+    expect(api.postForm).not.toHaveBeenCalled();
   });
 
   it('shows a field error for an empty confirm password and does not call the API', async () => {
@@ -181,6 +203,7 @@ describe('RegisterPage', () => {
 
     expect(await screen.findByText('Confirm password is required')).toBeInTheDocument();
     expect(api.post).not.toHaveBeenCalled();
+    expect(api.postForm).not.toHaveBeenCalled();
   });
 
   it('clears the confirm password field error as the user types', async () => {
@@ -231,6 +254,7 @@ describe('RegisterPage', () => {
 
     expect(await screen.findByText('Please enter a valid email address')).toBeInTheDocument();
     expect(api.post).not.toHaveBeenCalled();
+    expect(api.postForm).not.toHaveBeenCalled();
   });
 
   it('shows a field error for a short password and does not call the API', async () => {
@@ -252,6 +276,7 @@ describe('RegisterPage', () => {
 
     expect(await screen.findByText('Password must be at least 6 characters')).toBeInTheDocument();
     expect(api.post).not.toHaveBeenCalled();
+    expect(api.postForm).not.toHaveBeenCalled();
   });
 
   it('shows a field error for a missing company name on employer registration and does not call the API', async () => {
@@ -275,6 +300,7 @@ describe('RegisterPage', () => {
 
     expect(await screen.findByText('Company name is required')).toBeInTheDocument();
     expect(api.post).not.toHaveBeenCalled();
+    expect(api.postForm).not.toHaveBeenCalled();
   });
 
   it('submits company registration data to register-company and navigates to the business dashboard', async () => {
@@ -356,6 +382,7 @@ describe('RegisterPage', () => {
 
     expect(await screen.findByText(/Enter a valid website URL/)).toBeInTheDocument();
     expect(api.post).not.toHaveBeenCalled();
+    expect(api.postForm).not.toHaveBeenCalled();
   });
 
   it('clears the password field error as the user types', async () => {

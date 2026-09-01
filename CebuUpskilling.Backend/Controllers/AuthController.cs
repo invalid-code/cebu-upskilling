@@ -51,17 +51,31 @@ public class AuthController : BaseEntityController<AppUser>
     [AllowAnonymous]
     [EnableRateLimiting("auth")]
     [HttpPost("register")]
-    public async Task<ActionResult<AuthResponse>> Register(RegisterRequest request)
+    [Consumes("multipart/form-data")]
+    public async Task<ActionResult<AuthResponse>> Register([FromForm] RegisterFormRequest form)
     {
-        _logger.LogInformation("HTTP POST /api/auth/register called for {Email}", request.EmailAddress);
-        if (string.Equals(request.Role, "Recruiter", StringComparison.OrdinalIgnoreCase))
+        var email = form.EmailAddress ?? string.Empty;
+        _logger.LogInformation("HTTP POST /api/auth/register (multipart) called for {Email}", email);
+        if (string.Equals(form.Role, "Recruiter", StringComparison.OrdinalIgnoreCase))
         {
-            _logger.LogWarning("Registration rejected for {Email}: self-service Recruiter role is not allowed", request.EmailAddress);
+            _logger.LogWarning("Registration rejected for {Email}: self-service Recruiter role is not allowed", email);
             return BadRequest(new { error = "Recruiter accounts must register together with a company via /api/auth/register-company" });
         }
+        var resumeFile = form.ResumeFile ?? form.Resume ?? form.File ?? Request.Form.Files.FirstOrDefault();
+        var request = new RegisterRequest(
+            form.FirstName ?? string.Empty,
+            form.LastName ?? string.Empty,
+            form.MiddleName,
+            form.Birthday,
+            form.EmailAddress ?? string.Empty,
+            form.Password ?? string.Empty,
+            string.IsNullOrWhiteSpace(form.Role) ? "Learner" : form.Role!,
+            form.TargetRole,
+            form.Address
+        );
         try
         {
-            var result = await _authService.RegisterAsync(request);
+            var result = await _authService.RegisterAsync(request, resumeFile);
             _logger.LogInformation("Registration successful for {Email}, UserId: {UserId}", request.EmailAddress, result.UserId);
             return Ok(result);
         }
@@ -70,6 +84,53 @@ public class AuthController : BaseEntityController<AppUser>
             _logger.LogWarning("Registration failed for {Email}: {Error}", request.EmailAddress, ex.Message);
             return BadRequest(new { error = ex.Message });
         }
+    }
+
+    [AllowAnonymous]
+    [EnableRateLimiting("auth")]
+    [HttpPost("register")]
+    [Consumes("application/json")]
+    public async Task<ActionResult<AuthResponse>> RegisterJson([FromBody] RegisterRequest request)
+    {
+        _logger.LogInformation("HTTP POST /api/auth/register (json) called for {Email}", request.EmailAddress);
+        if (string.Equals(request.Role, "Recruiter", StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.LogWarning("Registration rejected for {Email}: self-service Recruiter role is not allowed", request.EmailAddress);
+            return BadRequest(new { error = "Recruiter accounts must register together with a company via /api/auth/register-company" });
+        }
+        // JSON path no longer accepts resume string – learners must upload PDF/DOCX via multipart/form-data
+        if (string.Equals(request.Role, "Learner", StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.LogWarning("Registration failed for {Email}: resume file required (json not supported)", request.EmailAddress);
+            return BadRequest(new { error = "Resume file is required for learners. Upload a PDF or DOCX via multipart/form-data." });
+        }
+        try
+        {
+            var result = await _authService.RegisterAsync(request, null);
+            _logger.LogInformation("Registration successful for {Email}, UserId: {UserId}", request.EmailAddress, result.UserId);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning("Registration failed for {Email}: {Error}", request.EmailAddress, ex.Message);
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    public class RegisterFormRequest
+    {
+        public string? FirstName { get; set; }
+        public string? LastName { get; set; }
+        public string? MiddleName { get; set; }
+        public string? Birthday { get; set; }
+        public string? EmailAddress { get; set; }
+        public string? Password { get; set; }
+        public string? Role { get; set; }
+        public string? TargetRole { get; set; }
+        public string? Address { get; set; }
+        public IFormFile? ResumeFile { get; set; }
+        public IFormFile? Resume { get; set; }
+        public IFormFile? File { get; set; }
     }
 
     [AllowAnonymous]
@@ -132,6 +193,17 @@ public class AuthController : BaseEntityController<AppUser>
             _logger.LogWarning("Google auth failed: {Error}", ex.Message);
             return BadRequest(new { error = ex.Message });
         }
+    }
+
+    [HttpGet("profile")]
+    public async Task<ActionResult<AuthResponse>> GetProfile()
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (userIdClaim == null || !int.TryParse(userIdClaim, out var userId))
+            return Unauthorized(new { error = "Unauthorized" });
+        var profile = await _authService.GetProfileAsync(userId);
+        if (profile == null) return NotFound(new { error = "User not found" });
+        return Ok(profile);
     }
 
     [HttpPatch("profile")]
