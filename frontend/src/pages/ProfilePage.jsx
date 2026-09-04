@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Check, MapPin, Globe2, LockKeyhole, Save } from 'lucide-react';
+import { ArrowLeft, Check, MapPin, Globe2, LockKeyhole, Save, FileText, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, getDashboardPath } from '../context/AuthContext';
 import Panel from '../components/ui/Panel';
@@ -110,6 +110,16 @@ export default function ProfilePage() {
           </div>
         </Panel>
       </section>
+
+      {user?.resumeUrl && (
+        <Panel>
+          <div style={{ marginBottom: 16 }}><p style={{ margin: 0, color: 'var(--coral)', fontSize: 11, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Resume</p><h2 style={{ margin: '6px 0 0', fontFamily: "'Space Grotesk', sans-serif", fontSize: 21 }}>Your resume</h2><p style={{ margin: '6px 0 0', color: 'var(--muted)', fontSize: 13 }}>View or share your uploaded resume.</p></div>
+          <a href={user.resumeUrl} target="_blank" rel="noopener noreferrer" data-testid="resume-link" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 14px', border: '1px solid var(--line)', borderRadius: 10, background: 'var(--surface2)', color: 'var(--teal)', fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>
+            <FileText size={16} /> View resume <ExternalLink size={14} />
+          </a>
+          <p style={{ margin: '10px 0 0', color: 'var(--muted)', fontSize: 12, wordBreak: 'break-all' }}>{user.resumeUrl}</p>
+        </Panel>
+      )}
 
       <Panel>
         <div style={{ marginBottom: 22 }}><p style={{ margin: 0, color: 'var(--coral)', fontSize: 11, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Pathway preferences</p><h2 style={{ margin: '6px 0 0', fontFamily: "'Space Grotesk', sans-serif", fontSize: 21 }}>Shape the opportunities you see</h2><p style={{ margin: '6px 0 0', color: 'var(--muted)', fontSize: 13 }}>Keep these details current so recommendations feel relevant.</p></div>

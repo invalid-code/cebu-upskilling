@@ -35,7 +35,30 @@ export const useAuthStore = create((set) => ({
   },
 
   register: async (data) => {
-    const res = await api.post('/auth/register', data);
+    // If a resume File is present, send as multipart/form-data so the server can
+    // validate magic bytes, store to R2 and parse server-side. Otherwise fall back
+    // to JSON (used by CourseProvider/Recruiter or tests without a file).
+    const hasFile = data?.resumeFile instanceof File || data?.resumeFile instanceof Blob;
+    let res;
+    if (hasFile) {
+      const form = new FormData();
+      for (const [key, value] of Object.entries(data)) {
+        if (value === null || value === undefined) continue;
+        if (key === 'resumeFile') {
+          form.append('resumeFile', value);
+        } else if (key === 'resume') {
+          // legacy string resume is no longer supported – ignore
+          continue;
+        } else {
+          form.append(key, value == null ? '' : String(value));
+        }
+      }
+      res = await api.postForm('/auth/register', form);
+    } else {
+      // Strip legacy resume string if present – server now expects file upload
+      const { resume: _ignored, resumeFile: _ignored2, ...jsonData } = data || {};
+      res = await api.post('/auth/register', jsonData);
+    }
     localStorage.setItem('token', res.token);
     localStorage.setItem('user', JSON.stringify(res));
     set({ user: res });

@@ -67,6 +67,9 @@ public class AppUser : AuditableEntity
 
     public int? CompanyId { get; set; }
 
+    [MaxLength(1000)]
+    public string? ResumeUrl { get; set; }
+
     public Company? Company { get; set; }
     public Learner? Learner { get; set; }
 }

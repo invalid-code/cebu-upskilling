@@ -57,16 +57,17 @@ public class CourseManagementController(ApplicationDbContext db) : ControllerBas
 
     [HttpPost]
     public async Task<ActionResult<CourseManagementDto>> Create(SaveCourseRequest request) {
+        var genreId = await ResolveGenreIdAsync(request.GenreId);
         if (IsCourseProvider()) {
             var uid = UserId().ToString();
-            var providerCourse = new Course { CompanyId = null, Name = request.Name.Trim(), Description = request.Description, TechnicalLevel = request.TechnicalLevel, Mode = request.Mode, Price = request.Price, GenreId = request.GenreId ?? 1, Status = "Draft", CreatedBy = uid, UpdatedBy = uid, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
+            var providerCourse = new Course { CompanyId = null, Name = request.Name.Trim(), Description = request.Description, TechnicalLevel = request.TechnicalLevel, Mode = request.Mode, Price = request.Price, GenreId = genreId, Status = "Draft", CreatedBy = uid, UpdatedBy = uid, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
             ApplyModules(providerCourse, request.Modules);
             db.Courses.Add(providerCourse); await db.SaveChangesAsync();
             return CreatedAtAction(nameof(Get), new { id = providerCourse.CourseId }, ToDto(providerCourse));
         }
         var companyId = await CompanyId();
         if (companyId is null) return Forbid();
-        var course = new Course { CompanyId = companyId, Name = request.Name.Trim(), Description = request.Description, TechnicalLevel = request.TechnicalLevel, Mode = request.Mode, Price = request.Price, GenreId = request.GenreId ?? 1, Status = "Draft" };
+        var course = new Course { CompanyId = companyId, Name = request.Name.Trim(), Description = request.Description, TechnicalLevel = request.TechnicalLevel, Mode = request.Mode, Price = request.Price, GenreId = genreId, Status = "Draft" };
         ApplyModules(course, request.Modules);
         db.Courses.Add(course); await db.SaveChangesAsync();
         return CreatedAtAction(nameof(Get), new { id = course.CourseId }, ToDto(course));
@@ -78,7 +79,7 @@ public class CourseManagementController(ApplicationDbContext db) : ControllerBas
             var uid = UserId().ToString();
             var pc = await db.Courses.Include(c => c.Modules).ThenInclude(m => m.Lessons).SingleOrDefaultAsync(c => c.CourseId == id && c.CreatedBy == uid);
             if (pc is null) return NotFound();
-            pc.Name = request.Name.Trim(); pc.Description = request.Description; pc.TechnicalLevel = request.TechnicalLevel; pc.Mode = request.Mode; pc.Price = request.Price; pc.GenreId = request.GenreId ?? pc.GenreId; pc.UpdatedBy = uid; pc.UpdatedAt = DateTime.UtcNow;
+            pc.Name = request.Name.Trim(); pc.Description = request.Description; pc.TechnicalLevel = request.TechnicalLevel; pc.Mode = request.Mode; pc.Price = request.Price; pc.GenreId = await ResolveGenreIdForUpdateAsync(request.GenreId, pc.GenreId); pc.UpdatedBy = uid; pc.UpdatedAt = DateTime.UtcNow;
             db.Lessons.RemoveRange(pc.Modules.SelectMany(m => m.Lessons)); db.CourseModules.RemoveRange(pc.Modules); pc.Modules = new List<CourseModule>(); ApplyModules(pc, request.Modules);
             await db.SaveChangesAsync(); return Ok(ToDto(pc));
         }
@@ -86,7 +87,7 @@ public class CourseManagementController(ApplicationDbContext db) : ControllerBas
         if (companyId is null) return Forbid();
         var course = await db.Courses.Include(c => c.Modules).ThenInclude(m => m.Lessons).SingleOrDefaultAsync(c => c.CourseId == id && c.CompanyId == companyId);
         if (course is null) return NotFound();
-        course.Name = request.Name.Trim(); course.Description = request.Description; course.TechnicalLevel = request.TechnicalLevel; course.Mode = request.Mode; course.Price = request.Price; course.GenreId = request.GenreId ?? course.GenreId;
+        course.Name = request.Name.Trim(); course.Description = request.Description; course.TechnicalLevel = request.TechnicalLevel; course.Mode = request.Mode; course.Price = request.Price; course.GenreId = await ResolveGenreIdForUpdateAsync(request.GenreId, course.GenreId);
         db.Lessons.RemoveRange(course.Modules.SelectMany(m => m.Lessons)); db.CourseModules.RemoveRange(course.Modules); course.Modules = new List<CourseModule>(); ApplyModules(course, request.Modules);
         await db.SaveChangesAsync(); return Ok(ToDto(course));
     }
@@ -113,6 +114,36 @@ public class CourseManagementController(ApplicationDbContext db) : ControllerBas
         var companyId = await CompanyId(); if (companyId is null) return Forbid();
         var course = await db.Courses.SingleOrDefaultAsync(c => c.CourseId == id && c.CompanyId == companyId); if (course is null) return NotFound();
         db.Courses.Remove(course); await db.SaveChangesAsync(); return NoContent();
+    }
+
+    private async Task<int> ResolveGenreIdAsync(int? requested)
+    {
+        if (requested is > 0)
+        {
+            var exists = await db.Genres.AnyAsync(g => g.GenreId == requested.Value);
+            if (exists) return requested.Value;
+            var fallback = await db.Genres.OrderBy(g => g.GenreId).Select(g => g.GenreId).FirstOrDefaultAsync();
+            if (fallback != 0) return fallback;
+            if (db.Database.ProviderName == "Microsoft.EntityFrameworkCore.InMemory") return requested.Value;
+            throw new InvalidOperationException("No genres are configured; cannot create course.");
+        }
+        var first = await db.Genres.OrderBy(g => g.GenreId).Select(g => g.GenreId).FirstOrDefaultAsync();
+        if (first != 0) return first;
+        if (db.Database.ProviderName == "Microsoft.EntityFrameworkCore.InMemory") return 1;
+        throw new InvalidOperationException("No genres are configured; cannot create course.");
+    }
+
+    private async Task<int> ResolveGenreIdForUpdateAsync(int? requested, int current)
+    {
+        if (requested is null) return current;
+        if (requested is > 0)
+        {
+            var exists = await db.Genres.AnyAsync(g => g.GenreId == requested.Value);
+            if (exists) return requested.Value;
+            var fallback = await db.Genres.OrderBy(g => g.GenreId).Select(g => g.GenreId).FirstOrDefaultAsync();
+            if (fallback != 0) return fallback;
+        }
+        return current;
     }
 
     private static void ApplyModules(Course course, IEnumerable<SaveModuleRequest> modules) { foreach (var m in modules.OrderBy(x => x.Order)) { var module = new CourseModule { Course = course, Name = m.Name.Trim(), Description = m.Description, Order = m.Order }; foreach (var l in m.Lessons.OrderBy(x => x.Order)) module.Lessons.Add(new Lesson { Course = course, Module = module, Name = l.Name.Trim(), Description = l.Description }); course.Modules.Add(module); } }

@@ -11,8 +11,7 @@ public record RegisterRequest(
     [Required, MinLength(6)] string Password,
     string Role = "Learner",
     string? TargetRole = null,
-    string? Address = null,
-    string? Resume = null
+    string? Address = null
 );
 
 public record CompanyRegisterRequest(
@@ -65,7 +64,8 @@ public record AuthResponse(
     int ParsedSkillCount = 0,
     int AssessmentCount = 0,
     int? CompanyId = null,
-    string? CompanyName = null
+    string? CompanyName = null,
+    string? ResumeUrl = null
 );
 
 public record CompanyRegisterResponse(

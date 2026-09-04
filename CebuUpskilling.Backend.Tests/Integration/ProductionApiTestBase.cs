@@ -34,8 +34,46 @@ public abstract class ProductionApiTestBase : IClassFixture<ProductionApiFactory
     protected async Task<JsonElement> ReadJsonAsync(HttpResponseMessage response) =>
         await response.Content.ReadFromJsonAsync<JsonElement>();
 
-    protected Task<HttpResponseMessage> RegisterAsync(object request) =>
-        Client.PostAsJsonAsync("/api/auth/register", request);
+    private static byte[] CreateFakePdfBytes(string text)
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.Append("%PDF-1.4\n");
+        sb.Append("1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n");
+        sb.Append("2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj\n");
+        sb.Append("3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> >> >> >> endobj\n");
+        var content = $"BT /F1 12 Tf 50 700 Td ({text.Replace("(", "\\(").Replace(")", "\\)")}) Tj ET";
+        sb.Append($"4 0 obj << /Length {content.Length} >> stream\n{content}\nendstream endobj\n");
+        sb.Append("xref\n0 5\n0000000000 65535 f\n");
+        sb.Append("trailer << /Size 5 /Root 1 0 R >>\nstartxref\n0\n%%EOF");
+        return System.Text.Encoding.UTF8.GetBytes(sb.ToString());
+    }
+
+    protected Task<HttpResponseMessage> RegisterAsync(object request)
+    {
+        var type = request.GetType();
+        var resumeProp = type.GetProperty("resume");
+        var resumeVal = resumeProp?.GetValue(request) as string;
+        var roleProp = type.GetProperty("role");
+        var roleVal = roleProp?.GetValue(request) as string;
+        // If a resume string is supplied for a Learner, convert to multipart with a real PDF file so magic-byte validation passes
+        if (!string.IsNullOrWhiteSpace(resumeVal) && string.Equals(roleVal, "Learner", StringComparison.OrdinalIgnoreCase))
+        {
+            var form = new MultipartFormDataContent();
+            foreach (var prop in type.GetProperties())
+            {
+                if (prop.Name == "resume") continue;
+                var val = prop.GetValue(request);
+                if (val == null) continue;
+                form.Add(new StringContent(val.ToString()!), prop.Name);
+            }
+            var pdfBytes = CreateFakePdfBytes(resumeVal!);
+            var fileContent = new ByteArrayContent(pdfBytes);
+            fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/pdf");
+            form.Add(fileContent, "resumeFile", "resume.pdf");
+            return Client.PostAsync("/api/auth/register", form);
+        }
+        return Client.PostAsJsonAsync("/api/auth/register", request);
+    }
 
     protected Task<HttpResponseMessage> RegisterCompanyAsync(object request) =>
         Client.PostAsJsonAsync("/api/auth/register-company", request);

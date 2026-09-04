@@ -7,7 +7,6 @@ import { ErrorBanner, FieldError } from '../components/ui/ErrorState';
 import Button from '../components/ui/Button';
 import GoogleSignInButton from '../components/GoogleSignInButton';
 import PasswordField from '../components/ui/PasswordField';
-import { extractResumeText } from '../utils/resumeText';
 
 const styles = {
   container: {
@@ -283,17 +282,16 @@ export default function RegisterPage() {
         navigate('/provider-dashboard');
         return;
       }
+      if (role === 'learner' && !resumeFile) {
+        const msg = 'Resume is required for learners — upload a PDF or DOCX file';
+        setError(msg);
+        showToast(msg, 'error');
+        setLoading(false);
+        return;
+      }
       const payload = { ...formWithoutCompanyFields(), birthday: form.birthday || null };
       if (resumeFile) {
-        const resumeText = await extractResumeText(resumeFile);
-        if (!resumeText) {
-          const msg = 'Could not read the resume. Ensure it contains selectable text.';
-          setError(msg);
-          showToast(msg, 'error');
-          setLoading(false);
-          return;
-        }
-        payload.resume = resumeText;
+        payload.resumeFile = resumeFile;
       }
       const res = await register(payload);
       const parsed = res?.parsedSkillCount ?? 0;

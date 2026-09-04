@@ -138,6 +138,7 @@ builder.Services.AddScoped<ICourseGenerationAgent, CourseGenerationAgent>();
 builder.Services.AddScoped<IObjectStorageService, R2StorageService>();
 builder.Services.AddScoped<IMediaService, MediaService>();
 builder.Services.AddScoped<ICompanyService, CompanyService>();
+builder.Services.AddScoped<IResumeService, ResumeService>();
 
 var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException(
     "Jwt:Key is not configured. Set Jwt:Key in appsettings.json or the Jwt__Key environment variable.");

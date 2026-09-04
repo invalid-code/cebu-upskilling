@@ -164,3 +164,40 @@ describe('ProfilePage', () => {
     expect(screen.queryByText('LandingPage')).not.toBeInTheDocument();
   });
 });
+
+describe('ProfilePage resume', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.restoreAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('shows resume link when user has resumeUrl', () => {
+    const resumeUrl = 'https://fake-storage.example/resumes/abc123.pdf';
+    renderProfilePage({ userOverrides: { firstName: 'Jose', lastName: 'Rizal', resumeUrl } });
+    const link = screen.getByTestId('resume-link');
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveAttribute('href', resumeUrl);
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(screen.getByText('Your resume')).toBeInTheDocument();
+  });
+
+  it('does not show resume link when user has no resumeUrl', () => {
+    renderProfilePage({ role: 'CourseProvider', userOverrides: { resumeUrl: null } });
+    expect(screen.queryByTestId('resume-link')).not.toBeInTheDocument();
+  });
+
+  it('does not show resume link for recruiter without resume', () => {
+    renderProfilePage({ role: 'Recruiter' });
+    expect(screen.queryByTestId('resume-link')).not.toBeInTheDocument();
+  });
+
+  it('renders resume url text for sharing', () => {
+    const resumeUrl = 'https://fake-storage.example/resumes/xyz.docx';
+    renderProfilePage({ userOverrides: { firstName: 'Jose', lastName: 'Rizal', resumeUrl } });
+    expect(screen.getByText(resumeUrl)).toBeInTheDocument();
+  });
+});
