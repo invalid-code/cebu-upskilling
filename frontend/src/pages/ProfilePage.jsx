@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Check, MapPin, Globe2, LockKeyhole, Save } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { useAuth, getDashboardPath } from '../context/AuthContext';
 import Panel from '../components/ui/Panel';
 import Button from '../components/ui/Button';
-import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { ErrorBanner } from '../components/ui/ErrorState';
 import { api } from '../api/client';
@@ -33,9 +33,21 @@ function Field({ label, value, onChange, readOnly = false, hint, name }) {
 export default function ProfilePage() {
   const { user, setUser } = useAuth();
   const { showToast } = useToast();
+  const navigate = useNavigate();
   const [form, setForm] = useState({ targetRole: '', address: '', remoteFriendly: false });
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+
+  const handleBack = () => {
+    const canGoBack = window.history.state && typeof window.history.state.idx === 'number'
+      ? window.history.state.idx > 0
+      : window.history.length > 1;
+    if (canGoBack) {
+      navigate(-1);
+    } else {
+      navigate(getDashboardPath(user), { replace: true });
+    }
+  };
 
   useEffect(() => {
     setForm({ targetRole: user?.targetRole || '', address: user?.address || '', remoteFriendly: Boolean(user?.remoteFriendly) });
@@ -68,7 +80,7 @@ export default function ProfilePage() {
   return (
     <main style={{ display: 'grid', gap: 24 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-        <Link to="/" aria-label="Back to overview" style={{ color: 'var(--muted)', display: 'grid', placeItems: 'center' }}><ArrowLeft size={18} /></Link>
+        <button type="button" onClick={handleBack} aria-label="Go back" style={{ color: 'var(--muted)', display: 'grid', placeItems: 'center', background: 'transparent', border: 'none', cursor: 'pointer', padding: 4 }}><ArrowLeft size={18} /></button>
         <div>
           <p style={{ margin: 0, color: 'var(--coral)', fontSize: 11, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Account</p>
           <h1 style={{ margin: '5px 0 0', fontFamily: "'Space Grotesk', sans-serif", fontSize: 'clamp(28px, 4vw, 42px)', lineHeight: 1.05 }}>Your profile</h1>

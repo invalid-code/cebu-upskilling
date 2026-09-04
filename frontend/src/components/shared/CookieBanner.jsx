@@ -6,41 +6,64 @@ import { useCookieConsent } from '../../context/CookieConsentContext';
 const styles = {
   banner: {
     position: 'fixed',
-    left: 22,
     right: 22,
+    bottom: 22,
+    left: 'auto',
     zIndex: 40,
+    width: 380,
+    maxWidth: 'calc(100vw - 32px)',
     display: 'flex',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 16,
-    background: 'var(--ink)',
-    color: 'var(--surface)',
-    padding: '14px 18px',
+    flexDirection: 'column',
+    gap: 14,
+    background: 'var(--surface)',
+    color: 'var(--ink)',
+    padding: 20,
     borderRadius: 'var(--radius-lg)',
+    border: '1px solid var(--line)',
     boxShadow: 'var(--shadow)',
     fontSize: 13,
+    lineHeight: 1.5,
+  },
+  header: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
   },
   iconWrap: {
     width: 38,
     height: 38,
     borderRadius: 12,
-    background: 'rgba(245, 250, 248, 0.14)',
+    background: 'var(--coral-soft)',
+    color: 'var(--coral)',
     display: 'grid',
     placeItems: 'center',
     flexShrink: 0,
   },
+  title: {
+    margin: 0,
+    fontFamily: "'Space Grotesk', sans-serif",
+    fontSize: 15,
+    fontWeight: 800,
+    letterSpacing: '-0.02em',
+    color: 'var(--ink)',
+    lineHeight: 1.2,
+  },
   text: {
     margin: 0,
-    minWidth: 220,
-    flex: '1 1 260px',
+    color: 'var(--muted)',
+    fontSize: 13,
+    lineHeight: 1.55,
   },
   link: {
-    color: 'var(--teal-soft)',
+    color: 'var(--teal)',
     textDecoration: 'underline',
+    fontWeight: 700,
   },
   actions: {
     display: 'flex',
     gap: 10,
+    justifyContent: 'flex-end',
+    flexWrap: 'wrap',
   },
 };
 
@@ -51,9 +74,12 @@ export default function CookieBanner() {
 
   return (
     <div className="cookie-banner" role="region" aria-label="Cookie notice" style={styles.banner}>
-      <span style={styles.iconWrap}>
-        <Cookie size={19} />
-      </span>
+      <div style={styles.header}>
+        <span style={styles.iconWrap} aria-hidden="true">
+          <Cookie size={19} />
+        </span>
+        <h2 style={styles.title}>Cookies</h2>
+      </div>
       <p style={styles.text}>
         We use essential cookies to keep you signed in, and optional ones to improve CebuUpskilling.
         Read our <Link to="/privacy" style={styles.link}>Privacy Notice</Link>.

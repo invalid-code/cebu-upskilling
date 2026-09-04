@@ -110,4 +110,30 @@ describe('ResetPasswordPage', () => {
 
     expect(await screen.findByText('This reset link is invalid or has expired.')).toBeInTheDocument();
   });
+
+  it('renders show password toggles for both fields', () => {
+    renderPage();
+    const toggles = screen.getAllByRole('button', { name: 'Show password' });
+    expect(toggles).toHaveLength(2);
+    expect(screen.getByPlaceholderText('New password')).toHaveAttribute('type', 'password');
+    expect(screen.getByPlaceholderText('Confirm new password')).toHaveAttribute('type', 'password');
+  });
+
+  it('toggles visibility for new password without submitting', () => {
+    renderPage();
+    const newPwdInput = screen.getByPlaceholderText('New password');
+    const confirmInput = screen.getByPlaceholderText('Confirm new password');
+    const [firstToggle, secondToggle] = screen.getAllByRole('button', { name: 'Show password' });
+
+    fireEvent.click(firstToggle);
+    expect(newPwdInput).toHaveAttribute('type', 'text');
+    expect(confirmInput).toHaveAttribute('type', 'password');
+    expect(api.post).not.toHaveBeenCalled();
+
+    fireEvent.click(secondToggle);
+    expect(confirmInput).toHaveAttribute('type', 'text');
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Hide password' })[0]);
+    expect(newPwdInput).toHaveAttribute('type', 'password');
+  });
 });

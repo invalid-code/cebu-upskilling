@@ -222,4 +222,34 @@ describe('LoginPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /continue with google/i }));
     expect(await screen.findByText('Provider dashboard')).toBeInTheDocument();
   });
+
+  it('renders a show password toggle for the password field', () => {
+    renderLogin();
+    expect(screen.getByRole('button', { name: 'Show password' })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Password')).toHaveAttribute('type', 'password');
+  });
+
+  it('toggles password visibility without submitting the form', async () => {
+    renderLogin();
+    const input = screen.getByPlaceholderText('Password');
+    const toggle = screen.getByRole('button', { name: 'Show password' });
+
+    expect(input).toHaveAttribute('type', 'password');
+    fireEvent.click(toggle);
+    expect(input).toHaveAttribute('type', 'text');
+    expect(screen.getByRole('button', { name: 'Hide password' })).toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hide password' }));
+    expect(input).toHaveAttribute('type', 'password');
+  });
+
+  it('keeps the password visible after typing', () => {
+    renderLogin();
+    const input = screen.getByPlaceholderText('Password');
+    fireEvent.change(input, { target: { value: 'mySecret' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Show password' }));
+    expect(input).toHaveAttribute('type', 'text');
+    expect(input).toHaveValue('mySecret');
+  });
 });

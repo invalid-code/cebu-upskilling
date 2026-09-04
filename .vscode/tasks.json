@@ -1,0 +1,49 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "frontend dev server",
+			"type": "shell",
+			"command": "npm run dev",
+			"problemMatcher": [],
+			"detail": "vite",
+			"group": "build",
+			"options": {
+				"cwd": "${workspaceFolder}/frontend",
+			}
+		},
+		{
+			"label": "backend dev server",
+			"type": "shell",
+			"command": "dotnet watch --project CebuUpskilling.Backend",
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+            "label": "start postgres database",
+            "type": "shell",
+            "command": "docker start postgres-server",
+            "problemMatcher": [],
+        },
+		{
+			"label": "start backend",
+			"dependsOrder": "sequence",
+			"dependsOn": [
+				"start postgres database",
+				"backend dev server"
+			],
+		},
+		{
+			"label": "start dev",
+			"dependsOrder": "parallel",
+			"dependsOn": [
+				"frontend dev server",
+				"start backend"
+			],
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
+		}
+	]
+}

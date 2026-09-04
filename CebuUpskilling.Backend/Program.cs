@@ -21,8 +21,19 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseSerilog((context, configuration) =>
     configuration.ReadFrom.Configuration(context.Configuration));
 
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+if (connectionString != null && connectionString.StartsWith("InMemory:", StringComparison.OrdinalIgnoreCase))
+{
+    var dbName = connectionString.Substring("InMemory:".Length).Trim();
+    if (string.IsNullOrWhiteSpace(dbName)) dbName = "cebu-upskilling";
+    builder.Services.AddDbContext<ApplicationDbContext>(options =>
+        options.UseInMemoryDatabase(dbName));
+}
+else
+{
+    builder.Services.AddDbContext<ApplicationDbContext>(options =>
+        options.UseNpgsql(connectionString));
+}
 
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<ApplicationDbContext>();
