@@ -443,12 +443,36 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
     }
 
     [Fact]
-    public async Task Applications_WithoutResume_ReturnsBadRequest()
+    public async Task Applications_WithoutResume_AppendsStoredProfileResume()
     {
         var token = await RegisterLearnerAsync("regr.apps.noresume@example.com");
         var (recruiterToken, _, companyId) =
             await RegisterRecruiterWithCompanyAsync("regr.apps.noresume.recruiter@example.com");
         var postId = await CreatePostAsync(recruiterToken, companyId, "Resume Required Role");
+
+        var response = await AuthorizedClient(token).PostAsJsonAsync("/api/applications", new { postId });
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var body = await ReadJsonAsync(response);
+        Assert.False(string.IsNullOrWhiteSpace(body.GetProperty("resumeUrl").GetString()));
+    }
+
+    [Fact]
+    public async Task Applications_WithoutAnyResume_ReturnsBadRequest()
+    {
+        const string email = "regr.apps.nostoredresume@example.com";
+        var token = await RegisterLearnerAsync(email);
+        var (recruiterToken, _, companyId) =
+            await RegisterRecruiterWithCompanyAsync("regr.apps.nostoredresume.recruiter@example.com");
+        var postId = await CreatePostAsync(recruiterToken, companyId, "Resume Required Role");
+
+        using (var scope = Factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var user = await db.Users.SingleAsync(u => u.EmailAddress == email);
+            user.ResumeUrl = null;
+            await db.SaveChangesAsync();
+        }
 
         var response = await AuthorizedClient(token).PostAsJsonAsync("/api/applications", new { postId });
 
