@@ -213,6 +213,26 @@ public class CourseManagementProviderTests
     }
 
     [Fact]
+    public async Task Create_WithMarkdownBlock_PersistsAsIs()
+    {
+        var (db, recruiter, _, _) = await SeedAsync();
+        var ctrl = CreateController(db, recruiter.UserId, "Recruiter");
+        var req = ValidRequest();
+        req.Modules[0].Lessons[0].Contents = new List<SaveLessonContentRequest>
+        {
+            new() { BlockType = "markdown", Content = "# Hello\n\nSome text" },
+        };
+        var result = await ctrl.Create(req);
+        var created = Assert.IsType<CreatedAtActionResult>(result.Result);
+        var dto = Assert.IsType<CourseManagementDto>(created.Value);
+
+        var contents = dto.Modules.Single().Lessons.Single().Contents;
+        var single = Assert.Single(contents);
+        Assert.Equal("markdown", single.BlockType);
+        Assert.Equal("# Hello\n\nSome text", single.Content);
+    }
+
+    [Fact]
     public async Task Update_ReplacesLessonContents()
     {
         var (db, recruiter, _, _) = await SeedAsync();

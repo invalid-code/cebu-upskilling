@@ -183,9 +183,10 @@ public class CourseManagementController(ApplicationDbContext db) : ControllerBas
     }
 
     // Content blocks the learner renderer understands (see LessonContent.jsx):
-    // text/paragraph, heading, code. Blank blocks are dropped; anything else
-    // normalizes to text, which renders identically to unknown types.
-    private static readonly HashSet<string> KnownBlockTypes = new(StringComparer.OrdinalIgnoreCase) { "text", "paragraph", "heading", "code" };
+    // text/paragraph, heading, code, and markdown (rendered as sanitized HTML).
+    // Blank blocks are dropped; anything else normalizes to text, which
+    // renders identically to unknown types.
+    private static readonly HashSet<string> KnownBlockTypes = new(StringComparer.OrdinalIgnoreCase) { "text", "paragraph", "heading", "code", "markdown" };
 
     private static List<LessonContent> NormalizeContents(IEnumerable<SaveLessonContentRequest>? contents)
     {

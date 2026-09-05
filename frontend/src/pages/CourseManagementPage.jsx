@@ -5,6 +5,7 @@ import Panel from '../components/ui/Panel';
 import EmptyState from '../components/shared/EmptyState';
 import Button from '../components/ui/Button';
 import { api } from '../api/client';
+import { blocksToMarkdown, renderMarkdown } from '../lib/markdown';
 
 const styles = { heading:{display:'flex',justifyContent:'space-between',alignItems:'end',gap:18,marginBottom:28}, eyebrow:{fontSize:11,textTransform:'uppercase',letterSpacing:'0.12em',fontWeight:700,color:'var(--coral)',marginBottom:12}, h1:{fontFamily:"'Space Grotesk', sans-serif",fontSize:'clamp(2rem,4vw,3.3rem)'}, muted:{color:'var(--muted)'}, input:{width:'100%',border:'1px solid var(--line)',borderRadius:10,padding:'11px 13px',background:'var(--surface)',color:'var(--ink)',fontSize:14}, field:{display:'grid',gap:7}, label:{fontSize:12,fontWeight:700,color:'var(--muted)'}, toolbar:{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap'}, module:{border:'1px solid var(--line)',borderRadius:14,background:'var(--surface)',overflow:'hidden'}, loading:{padding:50,textAlign:'center',color:'var(--muted)'}, skillChip:{display:'inline-flex',alignItems:'center',gap:6,padding:'4px 10px',borderRadius:999,background:'var(--surface2)',border:'1px solid var(--line)',fontSize:12,fontWeight:600} };
 const emptyCourse = () => ({name:'',description:'',technicalLevel:1,mode:'Online',price:'',modules:[]});
@@ -52,7 +53,7 @@ function CourseEditor(){
           name: m.name || '',
           description: m.description || '',
           order: i,
-          lessons: (m.lessons || []).map((l,j)=>({ name: l.name || '', description: l.description || '', order: j, contents: [] }))
+          lessons: (m.lessons || []).map((l,j)=>({ name: l.name || '', description: l.description || '', order: j, markdown: markdownOfLesson(l), contents: [] }))
         }))
       });
       setAiSkills(draft.matchedSkills || []);
@@ -61,7 +62,7 @@ function CourseEditor(){
     }catch(e){ setAiError(e.message); } finally{ setAiGenerating(false); }
   };
 
-  const save=async(publish=false)=>{setSaving(true);try{const payload={...course,price:course.price===''?null:Number(course.price),modules:course.modules.map((m,i)=>({...m,order:i,lessons:m.lessons.map((l,j)=>({...l,order:j,contents:(l.contents||[]).map((c)=>({blockType:c.blockType||'text',content:c.content||''}))}))}))};const saved=courseId?await api.put(`/company/courses/${courseId}`,payload):await api.post('/company/courses',payload);if(publish)await api.post(`/company/courses/${saved.courseId}/publish`);navigate('/company-courses');}catch(e){setError(e.message)}finally{setSaving(false)}};
+  const save=async(publish=false)=>{setSaving(true);try{const payload={...course,price:course.price===''?null:Number(course.price),modules:course.modules.map((m,i)=>({...m,order:i,lessons:m.lessons.map((l,j)=>{const md=markdownOfLesson(l).trim();return {...l,order:j,contents:md?[{blockType:'markdown',content:md}]:[]};})}))};const saved=courseId?await api.put(`/company/courses/${courseId}`,payload):await api.post('/company/courses',payload);if(publish)await api.post(`/company/courses/${saved.courseId}/publish`);navigate('/company-courses');}catch(e){setError(e.message)}finally{setSaving(false)}};
   if(loading)return <div style={styles.loading}>Loading course studio...</div>;
   return <div className="view-enter"><div style={styles.heading}><div><Link to="/company-courses"><ArrowLeft size={14}/> All courses</Link><div style={styles.eyebrow}>{courseId?'Edit curriculum':'New curriculum'}</div><h1 style={styles.h1}>{courseId?'Shape this course':'Create a course'}</h1></div><div style={styles.toolbar}><Button variant="secondary" onClick={()=>save(false)} disabled={saving}><Save size={15}/> Save draft</Button><Button onClick={()=>save(true)} disabled={saving}><Send size={15}/> Publish</Button></div></div>{error&&<div role="alert" style={{color:'var(--danger)',marginBottom:16}}>{error}</div>}
 
@@ -127,7 +128,14 @@ function CourseEditor(){
 
 function ModuleEditor({module,index,onChange,onRemove}){const set=(key,value)=>onChange({...module,[key]:value});return <div style={styles.module}><div style={{display:'flex',alignItems:'center',gap:10,padding:16,background:'var(--surface2)'}}><BookOpen size={17} color="var(--teal)"/><input aria-label={`Module ${index+1} name`} value={module.name} onChange={e=>set('name',e.target.value)} placeholder={`Module ${index+1} title`} style={{...styles.input,flex:1,background:'transparent',border:0,padding:0,fontWeight:700}}/><button onClick={onRemove} aria-label="Remove module" style={{color:'var(--danger)'}}><Trash2 size={15}/></button></div><div style={{padding:12}}>{module.lessons.map((lesson,i)=><LessonEditor key={i} lesson={lesson} index={i} onChange={(value)=>set('lessons',module.lessons.map((l,j)=>j===i?value:l))} onRemove={()=>set('lessons',module.lessons.filter((_,j)=>j!==i))} />)}<button onClick={()=>set('lessons',[...module.lessons,{name:'',description:'',order:module.lessons.length,contents:[]}])} style={{color:'var(--teal)',fontWeight:700,fontSize:12,padding:'12px 0'}}><Plus size={14}/> Add lesson</button></div></div>}
 
-const blockPlaceholders = { text: 'Write a paragraph learners will read…', heading: 'Section heading…', code: 'Paste a code example…' };
+// Lesson content is authored as a single Markdown document. Lessons loaded
+// from the server still carry legacy typed blocks; they are converted to
+// equivalent Markdown on first read and saved back as one markdown block.
+function markdownOfLesson(lesson) {
+  if (!lesson) return '';
+  if (typeof lesson.markdown === 'string') return lesson.markdown;
+  return blocksToMarkdown(lesson.contents);
+}
 
 // Mirrors MediaService limits so bad files are rejected before upload.
 const ATTACH_DOC_EXTENSIONS = ['.pdf', '.doc', '.docx', '.txt', '.md', '.png', '.jpg', '.jpeg', '.webp'];
@@ -146,10 +154,11 @@ function validateAttachDocument(file) {
 
 function LessonEditor({lesson,index,onChange,onRemove}){
   const [expanded,setExpanded]=useState(false);
+  const [preview,setPreview]=useState(false);
   const [uploading,setUploading]=useState(false);
   const [mediaError,setMediaError]=useState('');
   const set=(key,value)=>onChange({...lesson,[key]:value});
-  const contents=lesson.contents||[];
+  const markdown=markdownOfLesson(lesson);
   const media=lesson.media||[];
   const uploadFile=async(file,kind)=>{
     if(!file || !lesson.lessonId)return;
@@ -173,17 +182,21 @@ function LessonEditor({lesson,index,onChange,onRemove}){
       <button onClick={onRemove} aria-label="Remove lesson" style={{color:'var(--danger)'}}><Trash2 size={14}/></button>
     </div>
     {expanded && <div style={{marginTop:8,marginLeft:23,display:'grid',gap:8}}>
-      {contents.length===0 && <p style={{...styles.muted,fontSize:12,margin:0}}>No content yet — learners will see an empty lesson.</p>}
-      {contents.map((block,k)=><div key={k} style={{display:'grid',gap:6,border:'1px solid var(--line)',borderRadius:10,padding:10}}>
-        <div style={{display:'flex',gap:8,alignItems:'center'}}>
-          <select aria-label={`Content block ${k+1} type`} value={block.blockType||'text'} onChange={e=>set('contents',contents.map((c,j)=>j===k?{...c,blockType:e.target.value}:c))} style={{...styles.input,fontSize:12,padding:'6px 8px',width:'auto'}}>
-            <option value="text">Text</option><option value="heading">Heading</option><option value="code">Code</option>
-          </select>
-          <button onClick={()=>set('contents',contents.filter((_,j)=>j!==k))} aria-label="Remove content block" style={{color:'var(--danger)',background:'transparent',border:0,cursor:'pointer',padding:4}}><Trash2 size={13}/></button>
+      <textarea aria-label={`Lesson ${index+1} description`} rows={2} value={lesson.description||''} onChange={e=>set('description',e.target.value)} placeholder="Short summary shown to learners…" style={{...styles.input,fontSize:13}}/>
+      <div style={{display:'flex',gap:6,alignItems:'center'}}>
+        <div role="tablist" aria-label="Content editor mode" style={{display:'inline-flex',border:'1px solid var(--line)',borderRadius:8,overflow:'hidden'}}>
+          <button role="tab" aria-selected={!preview} onClick={()=>setPreview(false)} style={{fontSize:12,fontWeight:700,padding:'6px 12px',border:0,cursor:'pointer',background:!preview?'var(--surface2)':'transparent',color:'var(--ink)'}}>Write</button>
+          <button role="tab" aria-selected={preview} onClick={()=>setPreview(true)} style={{fontSize:12,fontWeight:700,padding:'6px 12px',border:0,cursor:'pointer',background:preview?'var(--surface2)':'transparent',color:'var(--ink)'}}>Preview</button>
         </div>
-        <textarea aria-label={`Content block ${k+1} text`} rows={(block.blockType||'text')==='code'?4:2} value={block.content||''} onChange={e=>set('contents',contents.map((c,j)=>j===k?{...c,content:e.target.value}:c))} placeholder={blockPlaceholders[block.blockType]||blockPlaceholders.text} style={{...styles.input,fontSize:13,fontFamily:(block.blockType||'text')==='code'?'monospace':'inherit'}}/>
-      </div>)}
-      <button onClick={()=>set('contents',[...contents,{blockType:'text',content:''}])} style={{color:'var(--teal)',fontWeight:700,fontSize:12,padding:'4px 0',background:'transparent',border:0,cursor:'pointer',display:'flex',alignItems:'center',gap:4,justifySelf:'start'}}><Plus size={13}/> Add content block</button>
+        <span style={{...styles.muted,fontSize:11}}>Markdown supported</span>
+      </div>
+      {preview ? (
+        markdown.trim()
+          ? <div aria-label={`Lesson ${index+1} preview`} style={{...styles.input,fontSize:14,minHeight:120}} dangerouslySetInnerHTML={{__html:renderMarkdown(markdown)}}/>
+          : <p style={{...styles.muted,fontSize:12,margin:0}}>Nothing to preview yet — write some Markdown first.</p>
+      ) : (
+        <textarea aria-label={`Lesson ${index+1} content`} rows={10} value={markdown} onChange={e=>set('markdown',e.target.value)} placeholder={'# Heading\n\nWrite the lesson in Markdown…\n\n```\ncode example\n```'} style={{...styles.input,fontSize:13,fontFamily:'monospace'}}/>
+      )}
       <div style={{borderTop:'1px solid var(--line)',paddingTop:8}}>
         <div style={{...styles.label,marginBottom:6}}>Video & files</div>
         {media.length>0 && <ul style={{listStyle:'none',margin:'0 0 8px',padding:0,display:'grid',gap:6}}>
