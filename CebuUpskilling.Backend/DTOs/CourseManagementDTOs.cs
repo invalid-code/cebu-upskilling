@@ -8,7 +8,7 @@ public record CourseManagementDto(int CourseId, string Name, string? Description
 
 public record CourseManagementModuleDto(int ModuleId, string Name, string? Description, int Order, List<CourseManagementLessonDto> Lessons);
 
-public record CourseManagementLessonDto(int LessonId, string Name, string? Description, int Order, List<CourseManagementContentDto> Contents);
+public record CourseManagementLessonDto(int LessonId, string Name, string? Description, int Order, List<CourseManagementContentDto> Contents, List<MediaDto> Media);
 
 public record CourseManagementContentDto(int ContentId, string BlockType, string? Content, int LessonOrder);
 

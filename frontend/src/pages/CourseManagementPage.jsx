@@ -129,10 +129,42 @@ function ModuleEditor({module,index,onChange,onRemove}){const set=(key,value)=>o
 
 const blockPlaceholders = { text: 'Write a paragraph learners will read…', heading: 'Section heading…', code: 'Paste a code example…' };
 
+// Mirrors MediaService limits so bad files are rejected before upload.
+const ATTACH_DOC_EXTENSIONS = ['.pdf', '.doc', '.docx', '.txt', '.md', '.png', '.jpg', '.jpeg', '.webp'];
+function validateVideoFile(file) {
+  if (!(file.type || '').toLowerCase().startsWith('video/')) return 'Only video files are allowed';
+  if (file.size > 500 * 1024 * 1024) return 'Video must be 500 MB or smaller';
+  return null;
+}
+function validateAttachDocument(file) {
+  const dot = file.name ? file.name.lastIndexOf('.') : -1;
+  const ext = dot >= 0 ? file.name.slice(dot).toLowerCase() : '';
+  if (!ATTACH_DOC_EXTENSIONS.includes(ext)) return 'Unsupported file type';
+  if (file.size > 10 * 1024 * 1024) return 'File must be 10 MB or smaller';
+  return null;
+}
+
 function LessonEditor({lesson,index,onChange,onRemove}){
   const [expanded,setExpanded]=useState(false);
+  const [uploading,setUploading]=useState(false);
+  const [mediaError,setMediaError]=useState('');
   const set=(key,value)=>onChange({...lesson,[key]:value});
   const contents=lesson.contents||[];
+  const media=lesson.media||[];
+  const uploadFile=async(file,kind)=>{
+    if(!file || !lesson.lessonId)return;
+    const precheck=kind==='video'?validateVideoFile(file):validateAttachDocument(file);
+    if(precheck){ setMediaError(precheck); return; }
+    setMediaError('');
+    setUploading(true);
+    try{
+      const form=new FormData();
+      form.append('file',file);
+      const res=await api.postForm(`/media/lessons/${lesson.lessonId}/${kind}`,form);
+      set('media',[...media,res]);
+    }catch(e){ setMediaError(e.status===413?(kind==='video'?'Video must be 500 MB or smaller':'File must be 10 MB or smaller'):(e.message||'Could not attach file')); }
+    finally{ setUploading(false); }
+  };
   return <div style={{padding:'8px 0',borderBottom:'1px solid var(--line)'}}>
     <div style={{display:'flex',gap:8,alignItems:'center'}}>
       <FileText size={15} color="var(--muted)"/>
@@ -152,6 +184,25 @@ function LessonEditor({lesson,index,onChange,onRemove}){
         <textarea aria-label={`Content block ${k+1} text`} rows={(block.blockType||'text')==='code'?4:2} value={block.content||''} onChange={e=>set('contents',contents.map((c,j)=>j===k?{...c,content:e.target.value}:c))} placeholder={blockPlaceholders[block.blockType]||blockPlaceholders.text} style={{...styles.input,fontSize:13,fontFamily:(block.blockType||'text')==='code'?'monospace':'inherit'}}/>
       </div>)}
       <button onClick={()=>set('contents',[...contents,{blockType:'text',content:''}])} style={{color:'var(--teal)',fontWeight:700,fontSize:12,padding:'4px 0',background:'transparent',border:0,cursor:'pointer',display:'flex',alignItems:'center',gap:4,justifySelf:'start'}}><Plus size={13}/> Add content block</button>
+      <div style={{borderTop:'1px solid var(--line)',paddingTop:8}}>
+        <div style={{...styles.label,marginBottom:6}}>Video & files</div>
+        {media.length>0 && <ul style={{listStyle:'none',margin:'0 0 8px',padding:0,display:'grid',gap:6}}>
+          {media.map((m)=><li key={m.mediaId} style={{fontSize:12,color:'var(--muted)'}}>{(m.pathFile||'').split('/').pop()} · {(m.type||'').toUpperCase()} · {m.mbSize?.toFixed(1)} MB</li>)}
+        </ul>}
+        {lesson.lessonId ? <>
+          <div style={{display:'flex',gap:14,flexWrap:'wrap'}}>
+            <label style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:12,fontWeight:700,color:'var(--teal)',cursor:uploading?'wait':'pointer'}}>
+              <Plus size={13}/> {uploading?'Uploading…':'Attach video'}
+              <input type="file" aria-label={`Attach video to lesson ${index+1}`} accept="video/*" style={{display:'none'}} disabled={uploading} onChange={(e)=>{const f=e.target.files?.[0];e.target.value='';if(f)uploadFile(f,'video');}}/>
+            </label>
+            <label style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:12,fontWeight:700,color:'var(--teal)',cursor:uploading?'wait':'pointer'}}>
+              <Plus size={13}/> {uploading?'Uploading…':'Attach file'}
+              <input type="file" aria-label={`Attach file to lesson ${index+1}`} accept=".pdf,.doc,.docx,.txt,.md,.png,.jpg,.jpeg,.webp" style={{display:'none'}} disabled={uploading} onChange={(e)=>{const f=e.target.files?.[0];e.target.value='';if(f)uploadFile(f,'documents');}}/>
+            </label>
+          </div>
+          {mediaError && <p role="alert" style={{color:'var(--danger)',fontSize:12,margin:'6px 0 0'}}>{mediaError}</p>}
+        </> : <p style={{...styles.muted,fontSize:12,margin:0}}>Save the course first, then attach video and files here.</p>}
+      </div>
     </div>}
   </div>;
 }

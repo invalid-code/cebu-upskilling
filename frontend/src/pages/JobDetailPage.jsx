@@ -213,6 +213,10 @@ export default function JobDetailPage() {
   const validateFile = (file) => {
     if (!file) return null;
     if (file.size > 10 * 1024 * 1024) return 'File must be ≤ 10 MB';
+    const dot = file.name ? file.name.lastIndexOf('.') : -1;
+    const ext = dot >= 0 ? file.name.slice(dot).toLowerCase() : '';
+    const allowed = ['.pdf', '.doc', '.docx', '.txt', '.md', '.png', '.jpg', '.jpeg', '.webp'];
+    if (!allowed.includes(ext)) return 'Unsupported file type — upload a PDF, Word, text, or image file';
     return null;
   };
 
@@ -371,7 +375,7 @@ export default function JobDetailPage() {
                     <Upload size={13} /> {resumeFile ? resumeFile.name : 'Choose file'}
                     <input
                       type="file"
-                      accept=".pdf,.doc,.docx,.txt,.md,.png,.jpg,.jpeg"
+                      accept=".pdf,.doc,.docx,.txt,.md,.png,.jpg,.jpeg,.webp"
                       style={{ display: 'none' }}
                       onChange={(e) => { setApplyError(''); setResumeFile(e.target.files?.[0] || null); }}
                     />
@@ -383,7 +387,7 @@ export default function JobDetailPage() {
                     <Upload size={13} /> {coverFile ? coverFile.name : 'Choose file'}
                     <input
                       type="file"
-                      accept=".pdf,.doc,.docx,.txt,.md"
+                      accept=".pdf,.doc,.docx,.txt,.md,.png,.jpg,.jpeg,.webp"
                       style={{ display: 'none' }}
                       onChange={(e) => { setApplyError(''); setCoverFile(e.target.files?.[0] || null); }}
                     />

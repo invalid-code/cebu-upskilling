@@ -77,6 +77,15 @@ public class MediaServiceTests
         NullLogger<MediaService>.Instance
     );
 
+    // Minimal MP4 signature (....ftyp): content validation requires it.
+    private static byte[] ValidMp4Bytes(int size)
+    {
+        var bytes = new byte[Math.Max(size, 12)];
+        byte[] ftyp = new byte[] { 0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70, 0x6D, 0x70, 0x34, 0x32 };
+        Buffer.BlockCopy(ftyp, 0, bytes, 0, Math.Min(ftyp.Length, bytes.Length));
+        return bytes;
+    }
+
     private static async Task<int> SeedLessonAsync(ApplicationDbContext context)
     {
         var course = new Course { Name = "Web Development" };
@@ -102,7 +111,7 @@ public class MediaServiceTests
         var storage = new FakeObjectStorage();
         var service = CreateService(context, storage);
 
-        var bytes = new byte[1024 * 1024 * 5]; // 5 MB
+        var bytes = ValidMp4Bytes(1024 * 1024 * 5); // 5 MB
         var result = await service.UploadLessonVideoAsync(lessonId, new FakeFormFile("lesson.mp4", "video/mp4", bytes));
 
         Assert.Equal("https://media.example.com/course-content/7/abc.mp4", result.PathFile);
@@ -129,7 +138,7 @@ public class MediaServiceTests
         var lessonId = await SeedLessonAsync(context);
         var storage = new FakeObjectStorage();
         var service = CreateService(context, storage);
-        var bytes = new byte[10];
+        var bytes = ValidMp4Bytes(10);
 
         await service.UploadLessonVideoAsync(lessonId, new FakeFormFile("a.mp4", "video/mp4", bytes));
         var firstKey = storage.UploadedKey;
@@ -200,5 +209,53 @@ public class MediaServiceTests
 
         await Assert.ThrowsAsync<KeyNotFoundException>(
             () => service.UploadLessonDocumentAsync(999, new FakeFormFile("handout.pdf", "application/pdf", new byte[10])));
+    }
+
+    [Fact]
+    public async Task UploadLessonDocumentAsync_FakePdfContent_ThrowsWithoutUpload()
+    {
+        var context = TestDbContextFactory.Create();
+        var lessonId = await SeedLessonAsync(context);
+        var storage = new FakeObjectStorage();
+        var service = CreateService(context, storage);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.UploadLessonDocumentAsync(lessonId, new FakeFormFile("handout.pdf", "application/pdf", new byte[] { 0x4D, 0x5A, 0x90, 0x00 })));
+
+        Assert.Contains("does not match", ex.Message);
+        Assert.Equal(0, storage.UploadCount);
+        Assert.Empty(context.Media);
+    }
+
+    [Fact]
+    public async Task UploadLessonVideoAsync_SpoofedContentType_ThrowsWithoutUpload()
+    {
+        var context = TestDbContextFactory.Create();
+        var lessonId = await SeedLessonAsync(context);
+        var storage = new FakeObjectStorage();
+        var service = CreateService(context, storage);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.UploadLessonVideoAsync(lessonId, new FakeFormFile("evil.mp4", "video/mp4", System.Text.Encoding.UTF8.GetBytes("not a video at all"))));
+
+        Assert.Contains("valid video", ex.Message);
+        Assert.Equal(0, storage.UploadCount);
+        Assert.Empty(context.Media);
+    }
+
+    [Fact]
+    public async Task UploadLessonVideoAsync_DisallowedExtension_ThrowsWithoutUpload()
+    {
+        var context = TestDbContextFactory.Create();
+        var lessonId = await SeedLessonAsync(context);
+        var storage = new FakeObjectStorage();
+        var service = CreateService(context, storage);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.UploadLessonVideoAsync(lessonId, new FakeFormFile("evil.exe", "video/mp4", ValidMp4Bytes(12))));
+
+        Assert.Contains("MP4", ex.Message);
+        Assert.Equal(0, storage.UploadCount);
+        Assert.Empty(context.Media);
     }
 }

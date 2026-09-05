@@ -575,7 +575,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         await AuthorizedClient(token).PostAsJsonAsync("/api/enrollments", new { courseId });
 
         using var content = new MultipartFormDataContent();
-        var fileContent = new ByteArrayContent(new byte[] { 0x00, 0x01, 0x02, 0x03 });
+        var fileContent = new ByteArrayContent(new byte[] { 0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70, 0x6D, 0x70, 0x34, 0x32 });
         fileContent.Headers.ContentType = new MediaTypeHeaderValue("video/mp4");
         content.Add(fileContent, "file", "lesson.mp4");
 
@@ -641,6 +641,40 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         content.Add(fileContent, "file", "evil.exe");
 
         var response = await AuthorizedClient(token).PostAsync($"/api/media/lessons/{lessonIds[0]}/documents", content);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Media_UploadLessonDocument_FakeContent_ReturnsBadRequest()
+    {
+        var token = await RegisterLearnerAsync("regr.media.docfake@example.com");
+        var (courseId, lessonIds) = await CreateCourseWithLessonsAsync();
+        await AuthorizedClient(token).PostAsJsonAsync("/api/enrollments", new { courseId });
+
+        using var content = new MultipartFormDataContent();
+        var fileContent = new ByteArrayContent(System.Text.Encoding.UTF8.GetBytes("definitely not a pdf"));
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/pdf");
+        content.Add(fileContent, "file", "handout.pdf");
+
+        var response = await AuthorizedClient(token).PostAsync($"/api/media/lessons/{lessonIds[0]}/documents", content);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Media_UploadLessonVideo_SpoofedContent_ReturnsBadRequest()
+    {
+        var token = await RegisterLearnerAsync("regr.media.vidspoof@example.com");
+        var (courseId, lessonIds) = await CreateCourseWithLessonsAsync();
+        await AuthorizedClient(token).PostAsJsonAsync("/api/enrollments", new { courseId });
+
+        using var content = new MultipartFormDataContent();
+        var fileContent = new ByteArrayContent(System.Text.Encoding.UTF8.GetBytes("not a video at all"));
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue("video/mp4");
+        content.Add(fileContent, "file", "evil.mp4");
+
+        var response = await AuthorizedClient(token).PostAsync($"/api/media/lessons/{lessonIds[0]}/video", content);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }

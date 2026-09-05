@@ -236,6 +236,29 @@ public class CourseManagementProviderTests
     }
 
     [Fact]
+    public async Task Get_ReturnsLessonMedia()
+    {
+        var (db, recruiter, _, company) = await SeedAsync();
+        var c = new Course { Name = "Media Course", CompanyId = company.CompanyId, GenreId = 1, Status = "Draft" };
+        db.Courses.Add(c); await db.SaveChangesAsync();
+        var module = new CourseModule { CourseId = c.CourseId, Name = "M1", Order = 1 };
+        db.CourseModules.Add(module); await db.SaveChangesAsync();
+        var lesson = new Lesson { CourseId = c.CourseId, ModuleId = module.ModuleId, Name = "L1" };
+        db.Lessons.Add(lesson); await db.SaveChangesAsync();
+        db.Media.Add(new Media { LessonId = lesson.LessonId, PathFile = "https://media.example.com/handout.pdf", Type = "application/pdf", MbSize = 1.5 });
+        await db.SaveChangesAsync();
+
+        var ctrl = CreateController(db, recruiter.UserId, "Recruiter");
+        var result = await ctrl.Get(c.CourseId);
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        var dto = Assert.IsType<CourseManagementDto>(ok.Value);
+
+        var media = Assert.Single(dto.Modules.Single().Lessons.Single().Media);
+        Assert.Equal("https://media.example.com/handout.pdf", media.PathFile);
+        Assert.Equal("application/pdf", media.Type);
+    }
+
+    [Fact]
     public async Task Update_Provider_NotFound_ForOthersCourse()
     {
         var (db, recruiter, provider, company) = await SeedAsync();
@@ -244,6 +267,29 @@ public class CourseManagementProviderTests
         var ctrl = CreateController(db, provider.UserId, "CourseProvider");
         var result = await ctrl.Update(c.CourseId, ValidRequest());
         Assert.IsType<NotFoundResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task Update_PreservesAttachedLessonMedia()
+    {
+        var (db, recruiter, _, company) = await SeedAsync();
+        var c = new Course { Name = "Media Course", CompanyId = company.CompanyId, GenreId = 1, Status = "Draft" };
+        db.Courses.Add(c); await db.SaveChangesAsync();
+        var module = new CourseModule { CourseId = c.CourseId, Name = "M1", Order = 1 };
+        db.CourseModules.Add(module); await db.SaveChangesAsync();
+        var lesson = new Lesson { CourseId = c.CourseId, ModuleId = module.ModuleId, Name = "L1" };
+        db.Lessons.Add(lesson); await db.SaveChangesAsync();
+        db.Media.Add(new Media { LessonId = lesson.LessonId, PathFile = "https://media.example.com/intro.mp4", Type = "video/mp4", MbSize = 12.5 });
+        await db.SaveChangesAsync();
+
+        var ctrl = CreateController(db, recruiter.UserId, "Recruiter");
+        var result = await ctrl.Update(c.CourseId, ValidRequest());
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        var dto = Assert.IsType<CourseManagementDto>(ok.Value);
+
+        var media = Assert.Single(dto.Modules.Single().Lessons.Single().Media);
+        Assert.Equal("https://media.example.com/intro.mp4", media.PathFile);
+        Assert.Single(db.Media.ToList());
     }
 
     [Fact]

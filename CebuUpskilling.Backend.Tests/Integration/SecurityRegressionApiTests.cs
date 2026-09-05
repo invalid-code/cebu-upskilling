@@ -322,7 +322,7 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
         await AuthorizedClient(token).PostAsJsonAsync("/api/enrollments", new { courseId });
 
         using var content = new MultipartFormDataContent();
-        var fileContent = new ByteArrayContent(new byte[] { 0x00, 0x01, 0x02 });
+        var fileContent = new ByteArrayContent(new byte[] { 0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70, 0x6D, 0x70, 0x34, 0x32 });
         fileContent.Headers.ContentType = new MediaTypeHeaderValue("video/mp4");
         content.Add(fileContent, "file", "../../../etc/passwd.mp4");
 
@@ -379,7 +379,7 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
         enroll.EnsureSuccessStatusCode();
 
         using var content = new MultipartFormDataContent();
-        var fileContent = new ByteArrayContent(new byte[] { 0x00, 0x01, 0x02 });
+        var fileContent = new ByteArrayContent(new byte[] { 0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70, 0x6D, 0x70, 0x34, 0x32 });
         fileContent.Headers.ContentType = new MediaTypeHeaderValue("video/mp4");
         content.Add(fileContent, "file", "lesson.mp4");
 

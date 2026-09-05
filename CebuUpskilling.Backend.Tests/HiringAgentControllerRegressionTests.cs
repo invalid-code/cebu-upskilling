@@ -46,7 +46,7 @@ public class HiringAgentControllerRegressionTests
             return Task.FromResult(ScreeningResponse ?? new ScreeningQuestionsResponse(postId, new()));
         }
 
-        public Task<CreateJobPostFromRoleResponse?> CreateJobPostFromTargetRoleAsync(int userId, int companyId, CreateJobPostFromRoleRequest request, CancellationToken ct = default)
+        public Task<CreateJobPostFromRoleResponse?> CreateJobPostFromTargetRoleAsync(int userId, int companyId, CreateJobPostFromRoleRequest? request, CancellationToken ct = default)
         {
             CreateFromRoleCalls++;
             return Task.FromResult(CreatedResponse);

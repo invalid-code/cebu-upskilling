@@ -151,6 +151,24 @@ describe('JobDetailPage', () => {
     expect(api.post).not.toHaveBeenCalled();
   });
 
+  it('blocks an unsupported resume type before uploading', async () => {
+    api.get.mockResolvedValue(post);
+
+    renderDetail();
+    await screen.findByRole('heading', { name: 'DevOps Engineer' });
+
+    const resumeInput = document.querySelectorAll('input[type="file"]')[0];
+    fireEvent.change(resumeInput, { target: { files: [new File(['x'], 'run.exe', { type: 'application/octet-stream' })] } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Submit application' }));
+
+    await waitFor(() => {
+      expect((screen.getAllByText('Unsupported file type — upload a PDF, Word, text, or image file').length)).toBeGreaterThan(0);
+    });
+    expect(api.upload).not.toHaveBeenCalled();
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
   it('attaches the profile resume without uploading when no file is chosen', async () => {
     api.get.mockResolvedValue(post);
     api.post.mockResolvedValue({

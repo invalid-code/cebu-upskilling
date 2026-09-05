@@ -6,7 +6,7 @@ import { ToastProvider } from '../context/ToastContext';
 import CourseManagementPage from './CourseManagementPage';
 
 vi.mock('../api/client', () => ({
-  api: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() },
+  api: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn(), postForm: vi.fn() },
 }));
 
 import { api } from '../api/client';
@@ -66,6 +66,7 @@ describe('CourseManagementPage', () => {
     api.post.mockReset();
     api.put.mockReset();
     api.delete.mockReset();
+    api.postForm.mockReset();
     vi.stubGlobal('confirm', vi.fn(() => true));
   });
 
@@ -259,6 +260,94 @@ describe('CourseManagementPage', () => {
       await screen.findByDisplayValue('L1');
       fireEvent.click(screen.getByRole('button', { name: 'Toggle content for lesson 1' }));
       expect(screen.getByLabelText('Content block 1 text')).toHaveValue('Getting started');
+    });
+
+    it('lists existing lesson media in edit mode', async () => {
+      api.get.mockResolvedValue({
+        ...existingCourse,
+        modules: [{ name: 'M1', description: 'D1', order: 0, lessons: [{ lessonId: 9, name: 'L1', description: '', order: 0, contents: [], media: [{ mediaId: 3, pathFile: 'https://cdn.example/handout.pdf', type: 'application/pdf', mbSize: 1.0 }] }] }],
+      });
+      renderAt('/company-courses/42/edit');
+      await screen.findByDisplayValue('L1');
+      fireEvent.click(screen.getByRole('button', { name: 'Toggle content for lesson 1' }));
+      expect(screen.getByText(/handout.pdf/)).toBeInTheDocument();
+    });
+
+    it('attaches a video to a saved lesson via the video endpoint', async () => {
+      api.get.mockResolvedValue({
+        ...existingCourse,
+        modules: [{ name: 'M1', description: 'D1', order: 0, lessons: [{ lessonId: 9, name: 'L1', description: '', order: 0, contents: [], media: [] }] }],
+      });
+      api.postForm.mockResolvedValue({ mediaId: 4, pathFile: 'https://cdn.example/intro.mp4', type: 'video/mp4', mbSize: 12.5 });
+      renderAt('/company-courses/42/edit');
+      await screen.findByDisplayValue('L1');
+      fireEvent.click(screen.getByRole('button', { name: 'Toggle content for lesson 1' }));
+
+      const input = screen.getByLabelText('Attach video to lesson 1');
+      fireEvent.change(input, { target: { files: [new File(['x'], 'intro.mp4', { type: 'video/mp4' })] } });
+
+      await waitFor(() => expect(api.postForm).toHaveBeenCalledWith('/media/lessons/9/video', expect.any(FormData)));
+      expect(await screen.findByText(/intro.mp4/)).toBeInTheDocument();
+    });
+
+    it('attaches a document to a saved lesson via the documents endpoint', async () => {
+      api.get.mockResolvedValue({
+        ...existingCourse,
+        modules: [{ name: 'M1', description: 'D1', order: 0, lessons: [{ lessonId: 9, name: 'L1', description: '', order: 0, contents: [], media: [] }] }],
+      });
+      api.postForm.mockResolvedValue({ mediaId: 5, pathFile: 'https://cdn.example/handout.pdf', type: 'application/pdf', mbSize: 1.0 });
+      renderAt('/company-courses/42/edit');
+      await screen.findByDisplayValue('L1');
+      fireEvent.click(screen.getByRole('button', { name: 'Toggle content for lesson 1' }));
+
+      const input = screen.getByLabelText('Attach file to lesson 1');
+      fireEvent.change(input, { target: { files: [new File(['x'], 'handout.pdf', { type: 'application/pdf' })] } });
+
+      await waitFor(() => expect(api.postForm).toHaveBeenCalledWith('/media/lessons/9/documents', expect.any(FormData)));
+      expect(await screen.findByText(/handout.pdf/)).toBeInTheDocument();
+    });
+
+    it('asks to save first before attaching files to a new lesson', async () => {
+      renderAt('/company-courses/new');
+      await screen.findByPlaceholderText('e.g. Modern customer support fundamentals');
+      fireEvent.click(screen.getByRole('button', { name: 'Add module' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Add lesson' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Toggle content for lesson 1' }));
+      expect(screen.getByText(/Save the course first/)).toBeInTheDocument();
+      expect(screen.queryByLabelText('Attach file to lesson 1')).not.toBeInTheDocument();
+    });
+
+    it('rejects a non-video file on the video control without calling the API', async () => {
+      api.get.mockResolvedValue({
+        ...existingCourse,
+        modules: [{ name: 'M1', description: 'D1', order: 0, lessons: [{ lessonId: 9, name: 'L1', description: '', order: 0, contents: [], media: [] }] }],
+      });
+      renderAt('/company-courses/42/edit');
+      await screen.findByDisplayValue('L1');
+      fireEvent.click(screen.getByRole('button', { name: 'Toggle content for lesson 1' }));
+
+      const input = screen.getByLabelText('Attach video to lesson 1');
+      fireEvent.change(input, { target: { files: [new File(['x'], 'notes.pdf', { type: 'application/pdf' })] } });
+
+      expect(await screen.findByText('Only video files are allowed')).toBeInTheDocument();
+      expect(api.postForm).not.toHaveBeenCalled();
+    });
+
+    it('rejects an oversized document without calling the API', async () => {
+      api.get.mockResolvedValue({
+        ...existingCourse,
+        modules: [{ name: 'M1', description: 'D1', order: 0, lessons: [{ lessonId: 9, name: 'L1', description: '', order: 0, contents: [], media: [] }] }],
+      });
+      renderAt('/company-courses/42/edit');
+      await screen.findByDisplayValue('L1');
+      fireEvent.click(screen.getByRole('button', { name: 'Toggle content for lesson 1' }));
+
+      const big = new File([new Uint8Array(10 * 1024 * 1024 + 1)], 'big.pdf', { type: 'application/pdf' });
+      const input = screen.getByLabelText('Attach file to lesson 1');
+      fireEvent.change(input, { target: { files: [big] } });
+
+      expect(await screen.findByText('File must be 10 MB or smaller')).toBeInTheDocument();
+      expect(api.postForm).not.toHaveBeenCalled();
     });
   });
 });
