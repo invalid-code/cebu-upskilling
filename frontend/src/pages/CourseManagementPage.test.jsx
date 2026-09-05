@@ -228,5 +228,37 @@ describe('CourseManagementPage', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
       await waitFor(() => expect(api.put).toHaveBeenCalledWith('/company/courses/42', expect.objectContaining({ name: 'Updated Course' })));
     });
+
+    it('includes lesson content blocks in the save payload', async () => {
+      api.post.mockResolvedValueOnce({ courseId: 11, name: 'Content Course' });
+      renderAt('/company-courses/new');
+      await screen.findByPlaceholderText('e.g. Modern customer support fundamentals');
+      fireEvent.click(screen.getByRole('button', { name: 'Add module' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Add lesson' }));
+      fireEvent.change(screen.getByLabelText('Lesson 1 name'), { target: { value: 'Intro' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Toggle content for lesson 1' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Add content block' }));
+      fireEvent.change(screen.getByLabelText('Content block 1 text'), { target: { value: 'Welcome to the course' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+      await waitFor(() => expect(api.post).toHaveBeenCalledWith('/company/courses', expect.objectContaining({
+        modules: [expect.objectContaining({
+          lessons: [expect.objectContaining({
+            name: 'Intro',
+            contents: [{ blockType: 'text', content: 'Welcome to the course' }],
+          })],
+        })],
+      })));
+    });
+
+    it('loads existing lesson contents in edit mode', async () => {
+      api.get.mockResolvedValue({
+        ...existingCourse,
+        modules: [{ name: 'M1', description: 'D1', order: 0, lessons: [{ name: 'L1', description: '', order: 0, contents: [{ contentId: 5, blockType: 'heading', content: 'Getting started', lessonOrder: 0 }] }] }],
+      });
+      renderAt('/company-courses/42/edit');
+      await screen.findByDisplayValue('L1');
+      fireEvent.click(screen.getByRole('button', { name: 'Toggle content for lesson 1' }));
+      expect(screen.getByLabelText('Content block 1 text')).toHaveValue('Getting started');
+    });
   });
 });

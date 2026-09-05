@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, BookOpen, FileText, Plus, Save, Send, Sparkles, Tag, Trash2 } from 'lucide-react';
+import { ArrowLeft, BookOpen, ChevronDown, FileText, Plus, Save, Send, Sparkles, Tag, Trash2 } from 'lucide-react';
 import Panel from '../components/ui/Panel';
 import EmptyState from '../components/shared/EmptyState';
 import Button from '../components/ui/Button';
@@ -52,7 +52,7 @@ function CourseEditor(){
           name: m.name || '',
           description: m.description || '',
           order: i,
-          lessons: (m.lessons || []).map((l,j)=>({ name: l.name || '', description: l.description || '', order: j }))
+          lessons: (m.lessons || []).map((l,j)=>({ name: l.name || '', description: l.description || '', order: j, contents: [] }))
         }))
       });
       setAiSkills(draft.matchedSkills || []);
@@ -61,7 +61,7 @@ function CourseEditor(){
     }catch(e){ setAiError(e.message); } finally{ setAiGenerating(false); }
   };
 
-  const save=async(publish=false)=>{setSaving(true);try{const payload={...course,price:course.price===''?null:Number(course.price),modules:course.modules.map((m,i)=>({...m,order:i,lessons:m.lessons.map((l,j)=>({...l,order:j}))}))};const saved=courseId?await api.put(`/company/courses/${courseId}`,payload):await api.post('/company/courses',payload);if(publish)await api.post(`/company/courses/${saved.courseId}/publish`);navigate('/company-courses');}catch(e){setError(e.message)}finally{setSaving(false)}};
+  const save=async(publish=false)=>{setSaving(true);try{const payload={...course,price:course.price===''?null:Number(course.price),modules:course.modules.map((m,i)=>({...m,order:i,lessons:m.lessons.map((l,j)=>({...l,order:j,contents:(l.contents||[]).map((c)=>({blockType:c.blockType||'text',content:c.content||''}))}))}))};const saved=courseId?await api.put(`/company/courses/${courseId}`,payload):await api.post('/company/courses',payload);if(publish)await api.post(`/company/courses/${saved.courseId}/publish`);navigate('/company-courses');}catch(e){setError(e.message)}finally{setSaving(false)}};
   if(loading)return <div style={styles.loading}>Loading course studio...</div>;
   return <div className="view-enter"><div style={styles.heading}><div><Link to="/company-courses"><ArrowLeft size={14}/> All courses</Link><div style={styles.eyebrow}>{courseId?'Edit curriculum':'New curriculum'}</div><h1 style={styles.h1}>{courseId?'Shape this course':'Create a course'}</h1></div><div style={styles.toolbar}><Button variant="secondary" onClick={()=>save(false)} disabled={saving}><Save size={15}/> Save draft</Button><Button onClick={()=>save(true)} disabled={saving}><Send size={15}/> Publish</Button></div></div>{error&&<div role="alert" style={{color:'var(--danger)',marginBottom:16}}>{error}</div>}
 
@@ -125,6 +125,35 @@ function CourseEditor(){
   <div style={{display:'grid',gridTemplateColumns:'minmax(0,1fr) 300px',gap:20}}><div style={{display:'grid',gap:18}}><Panel><div style={{display:'grid',gap:16}}><div style={styles.field}><label style={styles.label}>Course name</label><input value={course.name} onChange={e=>update('name',e.target.value)} placeholder="e.g. Modern customer support fundamentals" style={styles.input}/></div><div style={styles.field}><label style={styles.label}>Description</label><textarea rows="4" value={course.description||''} onChange={e=>update('description',e.target.value)} placeholder="What will learners be able to do?" style={styles.input}/></div></div></Panel><div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}><div><h2>Curriculum</h2><p style={{...styles.muted,fontSize:13}}>Organize the learning journey into focused modules.</p></div><Button variant="secondary" onClick={()=>update('modules',[...course.modules,{name:'',description:'',order:course.modules.length,lessons:[]}])}><Plus size={15}/> Add module</Button></div>{course.modules.length===0?<Panel><EmptyState title="No modules yet" description="Add your first module to give learners a clear starting point."/></Panel>:course.modules.map((module,index)=><ModuleEditor key={index} module={module} index={index} onChange={(value)=>update('modules',course.modules.map((m,i)=>i===index?value:m))} onRemove={()=>update('modules',course.modules.filter((_,i)=>i!==index))} />)}</div></div></div>
 }
 
-function ModuleEditor({module,index,onChange,onRemove}){const set=(key,value)=>onChange({...module,[key]:value});return <div style={styles.module}><div style={{display:'flex',alignItems:'center',gap:10,padding:16,background:'var(--surface2)'}}><BookOpen size={17} color="var(--teal)"/><input aria-label={`Module ${index+1} name`} value={module.name} onChange={e=>set('name',e.target.value)} placeholder={`Module ${index+1} title`} style={{...styles.input,flex:1,background:'transparent',border:0,padding:0,fontWeight:700}}/><button onClick={onRemove} aria-label="Remove module" style={{color:'var(--danger)'}}><Trash2 size={15}/></button></div><div style={{padding:12}}>{module.lessons.map((lesson,i)=><div key={i} style={{display:'flex',gap:8,alignItems:'center',padding:'8px 0',borderBottom:'1px solid var(--line)'}}><FileText size={15} color="var(--muted)"/><input aria-label={`Lesson ${i+1} name`} value={lesson.name} onChange={e=>set('lessons',module.lessons.map((l,j)=>j===i?{...l,name:e.target.value}:l))} placeholder={`Lesson ${i+1} title`} style={{...styles.input,flex:1,fontSize:13}}/><button onClick={()=>set('lessons',module.lessons.filter((_,j)=>j!==i))} aria-label="Remove lesson" style={{color:'var(--danger)'}}><Trash2 size={14}/></button></div>)}<button onClick={()=>set('lessons',[...module.lessons,{name:'',description:'',order:module.lessons.length}])} style={{color:'var(--teal)',fontWeight:700,fontSize:12,padding:'12px 0'}}><Plus size={14}/> Add lesson</button></div></div>}
+function ModuleEditor({module,index,onChange,onRemove}){const set=(key,value)=>onChange({...module,[key]:value});return <div style={styles.module}><div style={{display:'flex',alignItems:'center',gap:10,padding:16,background:'var(--surface2)'}}><BookOpen size={17} color="var(--teal)"/><input aria-label={`Module ${index+1} name`} value={module.name} onChange={e=>set('name',e.target.value)} placeholder={`Module ${index+1} title`} style={{...styles.input,flex:1,background:'transparent',border:0,padding:0,fontWeight:700}}/><button onClick={onRemove} aria-label="Remove module" style={{color:'var(--danger)'}}><Trash2 size={15}/></button></div><div style={{padding:12}}>{module.lessons.map((lesson,i)=><LessonEditor key={i} lesson={lesson} index={i} onChange={(value)=>set('lessons',module.lessons.map((l,j)=>j===i?value:l))} onRemove={()=>set('lessons',module.lessons.filter((_,j)=>j!==i))} />)}<button onClick={()=>set('lessons',[...module.lessons,{name:'',description:'',order:module.lessons.length,contents:[]}])} style={{color:'var(--teal)',fontWeight:700,fontSize:12,padding:'12px 0'}}><Plus size={14}/> Add lesson</button></div></div>}
+
+const blockPlaceholders = { text: 'Write a paragraph learners will read…', heading: 'Section heading…', code: 'Paste a code example…' };
+
+function LessonEditor({lesson,index,onChange,onRemove}){
+  const [expanded,setExpanded]=useState(false);
+  const set=(key,value)=>onChange({...lesson,[key]:value});
+  const contents=lesson.contents||[];
+  return <div style={{padding:'8px 0',borderBottom:'1px solid var(--line)'}}>
+    <div style={{display:'flex',gap:8,alignItems:'center'}}>
+      <FileText size={15} color="var(--muted)"/>
+      <input aria-label={`Lesson ${index+1} name`} value={lesson.name} onChange={e=>set('name',e.target.value)} placeholder={`Lesson ${index+1} title`} style={{...styles.input,flex:1,fontSize:13}}/>
+      <button onClick={()=>setExpanded(v=>!v)} aria-label={`Toggle content for lesson ${index+1}`} aria-expanded={expanded} style={{color:'var(--muted)',display:'grid',placeItems:'center',background:'transparent',border:0,cursor:'pointer',padding:4}}><ChevronDown size={15} style={{transform:expanded?'rotate(180deg)':'none'}}/></button>
+      <button onClick={onRemove} aria-label="Remove lesson" style={{color:'var(--danger)'}}><Trash2 size={14}/></button>
+    </div>
+    {expanded && <div style={{marginTop:8,marginLeft:23,display:'grid',gap:8}}>
+      {contents.length===0 && <p style={{...styles.muted,fontSize:12,margin:0}}>No content yet — learners will see an empty lesson.</p>}
+      {contents.map((block,k)=><div key={k} style={{display:'grid',gap:6,border:'1px solid var(--line)',borderRadius:10,padding:10}}>
+        <div style={{display:'flex',gap:8,alignItems:'center'}}>
+          <select aria-label={`Content block ${k+1} type`} value={block.blockType||'text'} onChange={e=>set('contents',contents.map((c,j)=>j===k?{...c,blockType:e.target.value}:c))} style={{...styles.input,fontSize:12,padding:'6px 8px',width:'auto'}}>
+            <option value="text">Text</option><option value="heading">Heading</option><option value="code">Code</option>
+          </select>
+          <button onClick={()=>set('contents',contents.filter((_,j)=>j!==k))} aria-label="Remove content block" style={{color:'var(--danger)',background:'transparent',border:0,cursor:'pointer',padding:4}}><Trash2 size={13}/></button>
+        </div>
+        <textarea aria-label={`Content block ${k+1} text`} rows={(block.blockType||'text')==='code'?4:2} value={block.content||''} onChange={e=>set('contents',contents.map((c,j)=>j===k?{...c,content:e.target.value}:c))} placeholder={blockPlaceholders[block.blockType]||blockPlaceholders.text} style={{...styles.input,fontSize:13,fontFamily:(block.blockType||'text')==='code'?'monospace':'inherit'}}/>
+      </div>)}
+      <button onClick={()=>set('contents',[...contents,{blockType:'text',content:''}])} style={{color:'var(--teal)',fontWeight:700,fontSize:12,padding:'4px 0',background:'transparent',border:0,cursor:'pointer',display:'flex',alignItems:'center',gap:4,justifySelf:'start'}}><Plus size={13}/> Add content block</button>
+    </div>}
+  </div>;
+}
 
 export default function CourseManagementPage(){const {courseId}=useParams();return courseId||window.location.pathname.endsWith('/new')?<CourseEditor/>:<CourseList/>;}

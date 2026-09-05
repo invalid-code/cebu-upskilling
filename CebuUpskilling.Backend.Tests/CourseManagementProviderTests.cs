@@ -168,6 +168,73 @@ public class CourseManagementProviderTests
         Assert.Equal("Draft", saved.Status);
     }
 
+    private static SaveCourseRequest RequestWithContents() => new()
+    {
+        Name = "Content Course",
+        Description = "desc",
+        TechnicalLevel = 2,
+        Mode = "Online",
+        GenreId = 1,
+        Modules = new List<SaveModuleRequest>
+        {
+            new() { Name = "M1", Order = 1, Lessons = new List<SaveLessonRequest>
+            {
+                new() { Name = "L1", Order = 1, Contents = new List<SaveLessonContentRequest>
+                {
+                    new() { BlockType = "heading", Content = "Welcome" },
+                    new() { BlockType = "text", Content = "Hello world" },
+                    new() { BlockType = "code", Content = "console.log(1)" },
+                    new() { BlockType = "text", Content = "   " },
+                    new() { BlockType = "mystery", Content = "Falls back to text" },
+                } }
+            } }
+        }
+    };
+
+    [Fact]
+    public async Task Create_WithLessonContents_PersistsNormalizedBlocks()
+    {
+        var (db, recruiter, _, _) = await SeedAsync();
+        var ctrl = CreateController(db, recruiter.UserId, "Recruiter");
+        var result = await ctrl.Create(RequestWithContents());
+        var created = Assert.IsType<CreatedAtActionResult>(result.Result);
+        var dto = Assert.IsType<CourseManagementDto>(created.Value);
+
+        var contents = dto.Modules.Single().Lessons.Single().Contents;
+        Assert.Equal(4, contents.Count);
+        Assert.Equal("heading", contents[0].BlockType);
+        Assert.Equal("Welcome", contents[0].Content);
+        Assert.Equal("text", contents[1].BlockType);
+        Assert.Equal("code", contents[2].BlockType);
+        Assert.Equal("text", contents[3].BlockType);
+        Assert.Equal("Falls back to text", contents[3].Content);
+        Assert.Equal(new[] { 0, 1, 2, 3 }, contents.Select(c => c.LessonOrder));
+        Assert.Equal(4, db.LessonContents.Count());
+    }
+
+    [Fact]
+    public async Task Update_ReplacesLessonContents()
+    {
+        var (db, recruiter, _, _) = await SeedAsync();
+        var ctrl = CreateController(db, recruiter.UserId, "Recruiter");
+        var created = Assert.IsType<CreatedAtActionResult>((await ctrl.Create(RequestWithContents())).Result);
+        var dto = Assert.IsType<CourseManagementDto>(created.Value);
+
+        var req = RequestWithContents();
+        req.Modules[0].Lessons[0].Contents = new List<SaveLessonContentRequest>
+        {
+            new() { BlockType = "text", Content = "Brand new" },
+        };
+        var result = await ctrl.Update(dto.CourseId, req);
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        var updated = Assert.IsType<CourseManagementDto>(ok.Value);
+
+        var contents = updated.Modules.Single().Lessons.Single().Contents;
+        var single = Assert.Single(contents);
+        Assert.Equal("Brand new", single.Content);
+        Assert.Single(db.LessonContents.ToList());
+    }
+
     [Fact]
     public async Task Update_Provider_NotFound_ForOthersCourse()
     {

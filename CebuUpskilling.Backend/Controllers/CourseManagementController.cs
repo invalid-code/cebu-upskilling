@@ -46,12 +46,12 @@ public class CourseManagementController(ApplicationDbContext db) : ControllerBas
     public async Task<ActionResult<CourseManagementDto>> Get(int id) {
         if (IsCourseProvider()) {
             var uid = UserId().ToString();
-            var pc = await db.Courses.AsNoTracking().Include(x => x.Modules.OrderBy(m => m.Order)).ThenInclude(m => m.Lessons.OrderBy(l => l.LessonId)).SingleOrDefaultAsync(x => x.CourseId == id && x.CreatedBy == uid);
+            var pc = await db.Courses.AsNoTracking().Include(x => x.Modules.OrderBy(m => m.Order)).ThenInclude(m => m.Lessons.OrderBy(l => l.LessonId)).ThenInclude(l => l.LessonContents).SingleOrDefaultAsync(x => x.CourseId == id && x.CreatedBy == uid);
             return pc is null ? NotFound() : Ok(ToDto(pc));
         }
         var companyId = await CompanyId();
         if (companyId is null) return Forbid();
-        var c = await db.Courses.AsNoTracking().Include(x => x.Modules.OrderBy(m => m.Order)).ThenInclude(m => m.Lessons.OrderBy(l => l.LessonId)).SingleOrDefaultAsync(x => x.CourseId == id && x.CompanyId == companyId);
+        var c = await db.Courses.AsNoTracking().Include(x => x.Modules.OrderBy(m => m.Order)).ThenInclude(m => m.Lessons.OrderBy(l => l.LessonId)).ThenInclude(l => l.LessonContents).SingleOrDefaultAsync(x => x.CourseId == id && x.CompanyId == companyId);
         return c is null ? NotFound() : Ok(ToDto(c));
     }
 
@@ -146,6 +146,28 @@ public class CourseManagementController(ApplicationDbContext db) : ControllerBas
         return current;
     }
 
-    private static void ApplyModules(Course course, IEnumerable<SaveModuleRequest> modules) { foreach (var m in modules.OrderBy(x => x.Order)) { var module = new CourseModule { Course = course, Name = m.Name.Trim(), Description = m.Description, Order = m.Order }; foreach (var l in m.Lessons.OrderBy(x => x.Order)) module.Lessons.Add(new Lesson { Course = course, Module = module, Name = l.Name.Trim(), Description = l.Description }); course.Modules.Add(module); } }
-    private static CourseManagementDto ToDto(Course c) => new(c.CourseId, c.Name, c.Description, c.Status, c.TechnicalLevel, c.Mode, c.Price, c.GenreId, c.Modules.OrderBy(m => m.Order).Select(m => new CourseManagementModuleDto(m.ModuleId, m.Name, m.Description, m.Order, m.Lessons.OrderBy(l => l.LessonId).Select((l, i) => new CourseManagementLessonDto(l.LessonId, l.Name, l.Description, i)).ToList())).ToList());
+    private static void ApplyModules(Course course, IEnumerable<SaveModuleRequest> modules) { foreach (var m in modules.OrderBy(x => x.Order)) { var module = new CourseModule { Course = course, Name = m.Name.Trim(), Description = m.Description, Order = m.Order }; foreach (var l in m.Lessons.OrderBy(x => x.Order)) { var lesson = new Lesson { Course = course, Module = module, Name = l.Name.Trim(), Description = l.Description }; foreach (var c in NormalizeContents(l.Contents)) lesson.LessonContents.Add(c); module.Lessons.Add(lesson); } course.Modules.Add(module); } }
+
+    // Content blocks the learner renderer understands (see LessonContent.jsx):
+    // text/paragraph, heading, code. Blank blocks are dropped; anything else
+    // normalizes to text, which renders identically to unknown types.
+    private static readonly HashSet<string> KnownBlockTypes = new(StringComparer.OrdinalIgnoreCase) { "text", "paragraph", "heading", "code" };
+
+    private static List<LessonContent> NormalizeContents(IEnumerable<SaveLessonContentRequest>? contents)
+    {
+        var result = new List<LessonContent>();
+        if (contents == null) return result;
+        var order = 0;
+        foreach (var c in contents)
+        {
+            if (string.IsNullOrWhiteSpace(c?.Content)) continue;
+            var blockType = (c.BlockType ?? string.Empty).Trim().ToLowerInvariant();
+            if (!KnownBlockTypes.Contains(blockType)) blockType = "text";
+            result.Add(new LessonContent { BlockType = blockType, Content = c.Content!.Trim(), LessonOrder = order, TopicOrder = order });
+            order++;
+        }
+        return result;
+    }
+
+    private static CourseManagementDto ToDto(Course c) => new(c.CourseId, c.Name, c.Description, c.Status, c.TechnicalLevel, c.Mode, c.Price, c.GenreId, c.Modules.OrderBy(m => m.Order).Select(m => new CourseManagementModuleDto(m.ModuleId, m.Name, m.Description, m.Order, m.Lessons.OrderBy(l => l.LessonId).Select((l, i) => new CourseManagementLessonDto(l.LessonId, l.Name, l.Description, i, l.LessonContents.OrderBy(lc => lc.LessonOrder).Select(lc => new CourseManagementContentDto(lc.ContentId, lc.BlockType, lc.Content, lc.LessonOrder)).ToList())).ToList())).ToList());
 }

@@ -55,6 +55,49 @@ public class MediaService : IMediaService
 
     public async Task<DocumentUploadDto> UploadDocumentAsync(IFormFile file, CancellationToken cancellationToken = default)
     {
+        ValidateDocument(file);
+
+        var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+        var key = $"documents/{Guid.NewGuid()}{extension}";
+        await using var stream = file.OpenReadStream();
+        var publicUrl = await _storage.UploadAsync(key, stream, file.ContentType, cancellationToken);
+
+        _logger.LogInformation("Uploaded document to storage as {Key}", key);
+        return new DocumentUploadDto(publicUrl, file.FileName, file.Length);
+    }
+
+    public async Task<MediaDto> UploadLessonDocumentAsync(int lessonId, IFormFile file, CancellationToken cancellationToken = default)
+    {
+        var lesson = await _lessons.GetByIdAsync(lessonId);
+        if (lesson == null)
+            throw new KeyNotFoundException($"Lesson {lessonId} not found");
+
+        ValidateDocument(file);
+
+        var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+        var key = $"lesson-documents/{lessonId}/{Guid.NewGuid()}{extension}";
+
+        await using var stream = file.OpenReadStream();
+        var publicUrl = await _storage.UploadAsync(key, stream, file.ContentType, cancellationToken);
+
+        var media = new Media
+        {
+            LessonId = lessonId,
+            PathFile = publicUrl,
+            Type = file.ContentType,
+            MbSize = Math.Round(file.Length / 1024.0 / 1024.0, 2)
+        };
+
+        await _media.AddAsync(media, cancellationToken);
+        await _media.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Uploaded document for lesson {LessonId} to R2 as {Key}", lessonId, key);
+
+        return new MediaDto(media.MediaId, media.PathFile, media.Type, media.MbSize);
+    }
+
+    private static void ValidateDocument(IFormFile file)
+    {
         var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
         var allowed = new[] { ".pdf", ".doc", ".docx", ".txt", ".md", ".png", ".jpg", ".jpeg", ".webp" };
         if (string.IsNullOrWhiteSpace(extension) || !allowed.Contains(extension))
@@ -71,12 +114,5 @@ public class MediaService : IMediaService
         {
             throw new InvalidOperationException("The uploaded file is empty");
         }
-
-        var key = $"documents/{Guid.NewGuid()}{extension}";
-        await using var stream = file.OpenReadStream();
-        var publicUrl = await _storage.UploadAsync(key, stream, file.ContentType, cancellationToken);
-
-        _logger.LogInformation("Uploaded document to storage as {Key}", key);
-        return new DocumentUploadDto(publicUrl, file.FileName, file.Length);
     }
 }

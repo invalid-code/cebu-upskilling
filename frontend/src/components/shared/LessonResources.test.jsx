@@ -47,6 +47,20 @@ describe('LessonResources', () => {
     expect(screen.getByText('ZIP · 1.2 MB')).toBeInTheDocument();
   });
 
+  it('labels real MIME types (application/pdf) as PDF', () => {
+    const media = [
+      { pathFile: 'https://cdn.example/handout.pdf', type: 'application/pdf', mbSize: 1.0 },
+      { pathFile: 'https://cdn.example/intro.mp4', type: 'video/mp4', mbSize: 12.5 },
+    ];
+
+    render(<LessonResources media={media} />);
+
+    expect(screen.getByText('handout.pdf')).toBeInTheDocument();
+    expect(screen.getByText('PDF · 1.0 MB')).toBeInTheDocument();
+    expect(screen.getByText('intro.mp4')).toBeInTheDocument();
+    expect(screen.getByText('VIDEO · 12.5 MB')).toBeInTheDocument();
+  });
+
   it('renders the notes and help sections', () => {
     render(<LessonResources media={[]} />);
 

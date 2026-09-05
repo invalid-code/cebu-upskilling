@@ -155,4 +155,50 @@ public class MediaServiceTests
         Assert.Equal(0, storage.UploadCount);
         Assert.Empty(context.Media);
     }
+
+    [Fact]
+    public async Task UploadLessonDocumentAsync_PersistsLessonMedia()
+    {
+        var context = TestDbContextFactory.Create();
+        var lessonId = await SeedLessonAsync(context);
+        var storage = new FakeObjectStorage();
+        var service = CreateService(context, storage);
+
+        var bytes = System.Text.Encoding.UTF8.GetBytes("%PDF-1.4 fake pdf");
+        var result = await service.UploadLessonDocumentAsync(lessonId, new FakeFormFile("handout.pdf", "application/pdf", bytes));
+
+        Assert.Equal("application/pdf", result.Type);
+        Assert.StartsWith($"lesson-documents/{lessonId}/", storage.UploadedKey);
+        Assert.EndsWith(".pdf", storage.UploadedKey);
+        var stored = await context.Media.SingleAsync(m => m.LessonId == lessonId);
+        Assert.Equal(result.PathFile, stored.PathFile);
+        Assert.Equal("application/pdf", stored.Type);
+    }
+
+    [Fact]
+    public async Task UploadLessonDocumentAsync_UnsupportedType_ThrowsWithoutUpload()
+    {
+        var context = TestDbContextFactory.Create();
+        var lessonId = await SeedLessonAsync(context);
+        var storage = new FakeObjectStorage();
+        var service = CreateService(context, storage);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.UploadLessonDocumentAsync(lessonId, new FakeFormFile("evil.exe", "application/octet-stream", new byte[10])));
+
+        Assert.Contains("Unsupported file type", ex.Message);
+        Assert.Equal(0, storage.UploadCount);
+        Assert.Empty(context.Media);
+    }
+
+    [Fact]
+    public async Task UploadLessonDocumentAsync_UnknownLesson_ThrowsKeyNotFound()
+    {
+        var context = TestDbContextFactory.Create();
+        var storage = new FakeObjectStorage();
+        var service = CreateService(context, storage);
+
+        await Assert.ThrowsAsync<KeyNotFoundException>(
+            () => service.UploadLessonDocumentAsync(999, new FakeFormFile("handout.pdf", "application/pdf", new byte[10])));
+    }
 }

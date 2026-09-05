@@ -174,13 +174,22 @@ export default function LessonResources({ media, lessonId, courseId }) {
   const [error, setError] = useState('');
   const [discussionOpen, setDiscussionOpen] = useState(false);
 
+  // Media.Type stores MIME types (e.g. 'application/pdf', 'video/mp4'), so map
+  // common ones to short labels instead of expecting short labels already.
+  const mimeOf = (m) => (m.type || '').toLowerCase();
+  const shortType = (m) => {
+    const t = mimeOf(m);
+    if (t.includes('pdf')) return 'PDF';
+    if (t.startsWith('video/')) return 'VIDEO';
+    return m.type.toUpperCase();
+  };
   const displayResources = media && media.length > 0
     ? media.map(m => ({
         name: m.pathFile.split('/').pop(),
         href: m.pathFile,
-        type: m.type.toUpperCase(),
+        type: shortType(m),
         size: `${m.mbSize.toFixed(1)} MB`,
-        iconType: m.type.toLowerCase() === 'pdf' ? 'pdf' : 'zip',
+        iconType: mimeOf(m).includes('pdf') ? 'pdf' : 'zip',
       }))
     : [];
 

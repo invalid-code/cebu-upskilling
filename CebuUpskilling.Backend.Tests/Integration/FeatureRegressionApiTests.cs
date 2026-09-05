@@ -607,6 +607,85 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         Assert.Equal("A video file must be provided", body.GetProperty("error").GetString());
     }
 
+    [Fact]
+    public async Task Media_UploadLessonDocument_ReturnsStoredMedia()
+    {
+        var token = await RegisterLearnerAsync("regr.media.doc@example.com");
+        var (courseId, lessonIds) = await CreateCourseWithLessonsAsync();
+        await AuthorizedClient(token).PostAsJsonAsync("/api/enrollments", new { courseId });
+
+        using var content = new MultipartFormDataContent();
+        var fileContent = new ByteArrayContent(System.Text.Encoding.UTF8.GetBytes("%PDF-1.4 fake pdf"));
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/pdf");
+        content.Add(fileContent, "file", "handout.pdf");
+
+        var response = await AuthorizedClient(token).PostAsync($"/api/media/lessons/{lessonIds[0]}/documents", content);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var body = await ReadJsonAsync(response);
+        Assert.True(body.GetProperty("mediaId").GetInt32() > 0);
+        Assert.StartsWith("https://fake-storage.example/", body.GetProperty("pathFile").GetString());
+        Assert.Equal("application/pdf", body.GetProperty("type").GetString());
+    }
+
+    [Fact]
+    public async Task Media_UploadLessonDocument_UnsupportedType_ReturnsBadRequest()
+    {
+        var token = await RegisterLearnerAsync("regr.media.docexe@example.com");
+        var (courseId, lessonIds) = await CreateCourseWithLessonsAsync();
+        await AuthorizedClient(token).PostAsJsonAsync("/api/enrollments", new { courseId });
+
+        using var content = new MultipartFormDataContent();
+        var fileContent = new ByteArrayContent(new byte[] { 0x4D, 0x5A });
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+        content.Add(fileContent, "file", "evil.exe");
+
+        var response = await AuthorizedClient(token).PostAsync($"/api/media/lessons/{lessonIds[0]}/documents", content);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Media_UploadLessonDocument_OwningRecruiter_CanAttach()
+    {
+        var (recruiterToken, _, companyId) =
+            await RegisterRecruiterWithCompanyAsync("regr.media.owner@example.com");
+        var lessonId = await CreateCompanyCourseWithLessonAsync(companyId);
+
+        using var content = new MultipartFormDataContent();
+        var fileContent = new ByteArrayContent(System.Text.Encoding.UTF8.GetBytes("%PDF-1.4 fake pdf"));
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/pdf");
+        content.Add(fileContent, "file", "syllabus.pdf");
+
+        var response = await AuthorizedClient(recruiterToken).PostAsync($"/api/media/lessons/{lessonId}/documents", content);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    }
+
+    private async Task<int> CreateCompanyCourseWithLessonAsync(int companyId)
+    {
+        using var scope = Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var course = new Course
+        {
+            GenreId = 1,
+            CompanyId = companyId,
+            Name = "Company Course",
+            TechnicalLevel = 2,
+            Description = "Owned course",
+            Price = 1000,
+        };
+        db.Courses.Add(course);
+        await db.SaveChangesAsync();
+        var module = new CourseModule { CourseId = course.CourseId, Name = "Module 1", Order = 1 };
+        db.CourseModules.Add(module);
+        await db.SaveChangesAsync();
+        var lesson = new Lesson { ModuleId = module.ModuleId, CourseId = course.CourseId, Name = "Lesson 1" };
+        db.Lessons.Add(lesson);
+        await db.SaveChangesAsync();
+        return lesson.LessonId;
+    }
+
     // ------------------------------------------------------------------ //
     // Helpers
     // ------------------------------------------------------------------ //
