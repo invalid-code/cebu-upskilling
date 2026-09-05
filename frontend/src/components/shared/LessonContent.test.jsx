@@ -48,4 +48,18 @@ describe('LessonContent', () => {
 
     expect(screen.getByText('Falls back when there are no blocks')).toBeInTheDocument();
   });
+
+  it('renders markdown blocks as sanitized HTML', () => {
+    render(<LessonContent lesson={{ ...lesson, contentBlocks: [{ blockType: 'markdown', content: '# MD Title\n\nSome **bold** text' }] }} />);
+
+    expect(screen.getByRole('heading', { name: 'MD Title' })).toBeInTheDocument();
+    expect(screen.getByText('bold')).toBeInTheDocument();
+  });
+
+  it('strips scripts from markdown blocks', () => {
+    const { container } = render(<LessonContent lesson={{ ...lesson, contentBlocks: [{ blockType: 'markdown', content: 'Hi<script>alert(1)</script>' }] }} />);
+
+    expect(container.querySelector('script')).toBeNull();
+    expect(screen.getByText(/Hi/)).toBeInTheDocument();
+  });
 });

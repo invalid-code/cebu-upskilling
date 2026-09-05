@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Download, FileText, Package, Save, HelpCircle } from 'lucide-react';
+import { Download, FileText, Package, Save, HelpCircle, Clapperboard } from 'lucide-react';
 import { api } from '../../api/client';
 import { useToast } from '../../context/ToastContext';
 import DiscussionModal from './DiscussionModal';
@@ -174,15 +174,65 @@ export default function LessonResources({ media, lessonId, courseId }) {
   const [error, setError] = useState('');
   const [discussionOpen, setDiscussionOpen] = useState(false);
 
-  const displayResources = media && media.length > 0
-    ? media.map(m => ({
-        name: m.pathFile.split('/').pop(),
-        href: m.pathFile,
-        type: m.type.toUpperCase(),
-        size: `${m.mbSize.toFixed(1)} MB`,
-        iconType: m.type.toLowerCase() === 'pdf' ? 'pdf' : 'zip',
-      }))
+  // Media.Type stores MIME types (e.g. 'application/pdf', 'video/mp4'), so map
+  // common ones to short labels instead of expecting short labels already.
+  const mimeOf = (m) => (m.type || '').toLowerCase();
+  const shortType = (m) => {
+    const t = mimeOf(m);
+    if (t.includes('pdf')) return 'PDF';
+    if (t.startsWith('video/')) return 'VIDEO';
+    return m.type.toUpperCase();
+  };
+  const toResource = (m) => ({
+    name: m.pathFile.split('/').pop(),
+    href: m.pathFile,
+    type: shortType(m),
+    size: `${m.mbSize.toFixed(1)} MB`,
+    iconType: mimeOf(m).includes('pdf') ? 'pdf' : mimeOf(m).startsWith('video/') ? 'video' : 'zip',
+  });
+  const videos = media && media.length > 0
+    ? media.filter((m) => mimeOf(m).startsWith('video/')).map(toResource)
     : [];
+  const files = media && media.length > 0
+    ? media.filter((m) => !mimeOf(m).startsWith('video/')).map(toResource)
+    : [];
+
+  const renderResourceRow = (resource, index, total) => (
+    <a
+      key={index}
+      href={resource.href}
+      download={resource.name}
+      target="_blank"
+      rel="noopener"
+      onClick={(e) => {
+        // Use direct download attribute; no backend update is triggered
+        // Fallback for browsers that ignore download on cross-origin
+        if (!resource.href) e.preventDefault();
+      }}
+      style={{
+        ...styles.resourceItem,
+        ...(index === total - 1 ? styles.resourceItemLast : {}),
+        textDecoration: 'none',
+        color: 'inherit',
+      }}
+      aria-label={`Download ${resource.name}`}
+    >
+      <div
+        style={{
+          ...styles.resourceIcon,
+          ...(resource.iconType === 'pdf' ? styles.resourceIconPdf : styles.resourceIconZip),
+        }}
+      >
+        {resource.iconType === 'pdf' ? <FileText size={16} /> : resource.iconType === 'video' ? <Clapperboard size={16} /> : <Package size={16} />}
+      </div>
+      <div style={styles.resourceInfo}>
+        <div style={styles.resourceName}>{resource.name}</div>
+        <div style={styles.resourceMeta}>
+          {resource.type} · {resource.size}
+        </div>
+      </div>
+    </a>
+  );
 
   const triggerDownload = (href, fileName) => {
     if (!href) return;
@@ -197,7 +247,7 @@ export default function LessonResources({ media, lessonId, courseId }) {
   };
 
   const handleDownloadAll = () => {
-    displayResources.forEach((r) => triggerDownload(r.href, r.name));
+    files.forEach((r) => triggerDownload(r.href, r.name));
   };
 
   useEffect(() => {
@@ -284,50 +334,23 @@ export default function LessonResources({ media, lessonId, courseId }) {
 
   return (
     <div style={styles.container}>
-      {displayResources.length > 0 && (
+      {videos.length > 0 && (
         <div style={styles.section}>
           <div style={styles.sectionHeader}>
-            <span style={styles.sectionTitle}>Lesson resources</span>
+            <span style={styles.sectionTitle}>Lesson video</span>
+          </div>
+          {videos.map((resource, index) => renderResourceRow(resource, index, videos.length))}
+        </div>
+      )}
+      {files.length > 0 && (
+        <div style={styles.section}>
+          <div style={styles.sectionHeader}>
+            <span style={styles.sectionTitle}>Lesson files</span>
             <button style={styles.sectionAction} onClick={handleDownloadAll} aria-label="Download all lesson files">
               <Download size={16} />
             </button>
           </div>
-          {displayResources.map((resource, index) => (
-            <a
-              key={index}
-              href={resource.href}
-              download={resource.name}
-              target="_blank"
-              rel="noopener"
-              onClick={(e) => {
-                // Use direct download attribute; no backend update is triggered
-                // Fallback for browsers that ignore download on cross-origin
-                if (!resource.href) e.preventDefault();
-              }}
-              style={{
-                ...styles.resourceItem,
-                ...(index === displayResources.length - 1 ? styles.resourceItemLast : {}),
-                textDecoration: 'none',
-                color: 'inherit',
-              }}
-              aria-label={`Download ${resource.name}`}
-            >
-              <div
-                style={{
-                  ...styles.resourceIcon,
-                  ...(resource.iconType === 'pdf' ? styles.resourceIconPdf : styles.resourceIconZip),
-                }}
-              >
-                {resource.iconType === 'pdf' ? <FileText size={16} /> : <Package size={16} />}
-              </div>
-              <div style={styles.resourceInfo}>
-                <div style={styles.resourceName}>{resource.name}</div>
-                <div style={styles.resourceMeta}>
-                  {resource.type} · {resource.size}
-                </div>
-              </div>
-            </a>
-          ))}
+          {files.map((resource, index) => renderResourceRow(resource, index, files.length))}
         </div>
       )}
 

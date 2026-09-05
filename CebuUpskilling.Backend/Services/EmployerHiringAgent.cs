@@ -14,6 +14,7 @@ public interface IEmployerHiringAgent
     Task<RankCandidatesResponse> RankApplicantsAsync(int userId, int postId, int companyId, CancellationToken ct = default);
     Task<DraftJobPostResponse?> DraftJobPostAsync(int userId, DraftJobPostRequest request, CancellationToken ct = default);
     Task<ScreeningQuestionsResponse> GenerateScreeningQuestionsAsync(int userId, int postId, int companyId, int perSkill = 3, CancellationToken ct = default);
+    Task<CreateJobPostFromRoleResponse?> CreateJobPostFromTargetRoleAsync(int userId, int companyId, CreateJobPostFromRoleRequest? request, CancellationToken ct = default);
 }
 
 public class EmployerHiringAgent : IEmployerHiringAgent
@@ -23,6 +24,7 @@ public class EmployerHiringAgent : IEmployerHiringAgent
     private readonly IPostRepository _posts;
     private readonly IRoleSkillRepository _roleSkills;
     private readonly IAssessmentQuestionRepository _assessmentQuestions;
+    private readonly IPostService _postService;
     private readonly ILogger<EmployerHiringAgent> _logger;
 
     public EmployerHiringAgent(
@@ -31,6 +33,7 @@ public class EmployerHiringAgent : IEmployerHiringAgent
         IPostRepository posts,
         IRoleSkillRepository roleSkills,
         IAssessmentQuestionRepository assessmentQuestions,
+        IPostService postService,
         ILogger<EmployerHiringAgent> logger)
     {
         _ai = ai;
@@ -38,6 +41,7 @@ public class EmployerHiringAgent : IEmployerHiringAgent
         _posts = posts;
         _roleSkills = roleSkills;
         _assessmentQuestions = assessmentQuestions;
+        _postService = postService;
         _logger = logger;
     }
 
@@ -145,6 +149,81 @@ public class EmployerHiringAgent : IEmployerHiringAgent
         _logger.LogInformation("User {UserId} generated {Count} screening questions for post {PostId}",
             userId, created.Count, postId);
         return new ScreeningQuestionsResponse(postId, created);
+    }
+
+    /// <summary>
+    /// Creates a job post from a target role's skill profile: the role's
+    /// required skills become the post's required skills, and the
+    /// description/requirements/benefits come from the AI draft when available,
+    /// falling back to a deterministic template built from the same skills.
+    /// Returns null when the role is blank or has no skills defined.
+    /// Persistence (normalization, skill sync) is delegated to
+    /// <see cref="IPostService"/> so agent-created posts behave exactly like
+    /// manually created ones.
+    /// </summary>
+    public async Task<CreateJobPostFromRoleResponse?> CreateJobPostFromTargetRoleAsync(
+        int userId, int companyId, CreateJobPostFromRoleRequest? request, CancellationToken ct = default)
+    {
+        if (request is null || string.IsNullOrWhiteSpace(request.TargetRole))
+        {
+            _logger.LogWarning("User {UserId} requested a role-based job post without a target role", userId);
+            return null;
+        }
+
+        var targetRole = request.TargetRole.Trim();
+        var roleSkills = await _roleSkills.GetByTargetRoleWithSkillAsync(targetRole);
+        if (roleSkills.Count == 0)
+        {
+            _logger.LogInformation("No role skills found for target role {TargetRole}; cannot create job post", targetRole);
+            return null;
+        }
+
+        var title = string.IsNullOrWhiteSpace(request.Title) ? targetRole : request.Title.Trim();
+        var draft = await _ai.DraftJobPostAsync(
+            new DraftJobPostRequest(title, targetRole, request.JobType, request.ExperienceLevel, request.Location, Notes: null), ct);
+
+        var (description, requirements, benefits) = draft != null
+            ? (draft.Description, draft.Requirements, draft.Benefits)
+            : BuildFallbackContent(targetRole, roleSkills);
+        if (draft == null)
+            _logger.LogInformation("AI drafting unavailable for user {UserId}; creating job post from template", userId);
+
+        var post = await _postService.CreateAsync(new PostRequest(
+            Title: title,
+            Description: description,
+            TargetRole: targetRole,
+            Location: request.Location,
+            SalaryRange: request.SalaryRange,
+            JobType: request.JobType,
+            ExperienceLevel: request.ExperienceLevel,
+            Requirements: requirements,
+            Benefits: benefits,
+            IsRemote: request.IsRemote,
+            ExpiresAt: null,
+            IsActive: true,
+            CompanyLogoUrl: null,
+            Schedule: null,
+            RequiredSkills: roleSkills
+                .Select(rs => new RequiredSkillInput(rs.SkillId, rs.RequiredLevel))
+                .ToList()), companyId);
+
+        _logger.LogInformation("User {UserId} created job post {PostId} from target role {TargetRole} (aiDrafted: {AiDrafted})",
+            userId, post.PostId, targetRole, draft != null);
+        return new CreateJobPostFromRoleResponse(post, AiDrafted: draft != null);
+    }
+
+    private static (string Description, string Requirements, string Benefits) BuildFallbackContent(
+        string targetRole, List<RoleSkill> roleSkills)
+    {
+        var skillLines = roleSkills
+            .OrderByDescending(rs => rs.RequiredLevel)
+            .ThenBy(rs => rs.Skill.Name)
+            .Select(rs => $"- {rs.Skill.Name} (level {rs.RequiredLevel}/5)");
+        return (
+            $"We are hiring a {targetRole} to join our team in Cebu. You'll ship real product work and grow with experienced mentors.",
+            "Required skills:\n" + string.Join("\n", skillLines),
+            "Competitive salary, flexible schedule, and a learning budget."
+        );
     }
 
     private static RankedCandidateDto BuildRankedCandidate(

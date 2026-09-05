@@ -180,6 +180,18 @@ public class CompanyIdentityUnitTests
     }
 
     [Fact]
+    public async Task UploadLogoAsync_FakeImageContent_ThrowsInvalidOperation()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var (user, _) = await SeedRecruiterWithCompanyAsync(ctx, "logo.fake@example.com", "Fake Pixels Corp");
+        var svc = CreateCompanyService(ctx, new FakeObjectStorage());
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => svc.UploadLogoAsync(user.UserId, MakeFormFile("logo.png", new byte[] { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B })));
+        Assert.Contains("valid PNG", ex.Message);
+    }
+
+    [Fact]
     public async Task UploadLogoAsync_ValidImage_StoresUrlOnCompany_AndDeletesPreviousKey()
     {
         var ctx = TestDbContextFactory.Create();
@@ -463,7 +475,7 @@ public class CompanyIdentityUnitTests
     }
 
     private static FakeFormFile MakeFormFile(string fileName, byte[]? content = null) =>
-        new(fileName, "image/png", content ?? [0x89, 0x50, 0x4E, 0x47]);
+        new(fileName, "image/png", content ?? new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A });
 
     private sealed class FakeFormFile : IFormFile
     {

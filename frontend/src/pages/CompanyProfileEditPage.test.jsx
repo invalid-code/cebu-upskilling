@@ -11,6 +11,7 @@ vi.mock('../api/client', () => ({
     post: vi.fn(),
     put: vi.fn(),
     upload: vi.fn(),
+    postForm: vi.fn(),
   },
 }));
 
@@ -79,7 +80,7 @@ describe('CompanyProfileEditPage', () => {
 
   it('uploads a logo file to /companies/me/logo', async () => {
     api.get.mockResolvedValue(company);
-    api.upload.mockResolvedValue({ logoUrl: 'https://media.example.com/company-logos/5/new.png' });
+    api.postForm.mockResolvedValue({ logoUrl: 'https://media.example.com/company-logos/5/new.png' });
 
     renderPage();
     await screen.findByDisplayValue('Cebu Prints');
@@ -90,8 +91,46 @@ describe('CompanyProfileEditPage', () => {
     });
 
     await waitFor(() => {
-      expect(api.upload).toHaveBeenCalledWith('/companies/me/logo', expect.anything());
+      expect(api.postForm).toHaveBeenCalledWith('/companies/me/logo', expect.any(FormData));
     });
+    expect(api.upload).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(screen.getByText('Logo uploaded')).toBeInTheDocument();
+    });
+  });
+
+  it('rejects a non-image file before uploading', async () => {
+    api.get.mockResolvedValue(company);
+
+    renderPage();
+    await screen.findByDisplayValue('Cebu Prints');
+
+    const input = document.querySelector('input[type="file"]');
+    fireEvent.change(input, {
+      target: { files: [new File(['x'], 'evil.exe', { type: 'application/x-msdownload' })] },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Image must be a PNG, JPG or WEBP file')).toBeInTheDocument();
+    });
+    expect(api.postForm).not.toHaveBeenCalled();
+    expect(api.upload).not.toHaveBeenCalled();
+  });
+
+  it('rejects an oversized image before uploading', async () => {
+    api.get.mockResolvedValue(company);
+
+    renderPage();
+    await screen.findByDisplayValue('Cebu Prints');
+
+    const big = new File([new Uint8Array(2 * 1024 * 1024 + 1)], 'big.png', { type: 'image/png' });
+    const input = document.querySelector('input[type="file"]');
+    fireEvent.change(input, { target: { files: [big] } });
+
+    await waitFor(() => {
+      expect(screen.getByText('Image must be 2 MB or smaller')).toBeInTheDocument();
+    });
+    expect(api.postForm).not.toHaveBeenCalled();
   });
 
   it('sends empty strings for cleared fields so the backend clears them', async () => {

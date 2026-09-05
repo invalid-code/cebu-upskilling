@@ -265,13 +265,16 @@ test.describe('Registration — confirm password and AI resume parsing flow', ()
   });
 
   test('AI agent path: learner registers with resume and sees parsed skills toast', async ({ page }) => {
-    let registerPayload = null;
+    let registerBody = '';
+    let registerContentType = '';
 
     // NOTE: use mockApi handlers (pathname matching), not raw page.route globs —
     // '**/api/auth/register' does not match the cross-origin VITE_API_URL base.
     await mockApi(page, {
       'POST /api/auth/register': async (route) => {
-        registerPayload = JSON.parse(route.request().postData() || '{}');
+        // Learner registration uploads multipart/form-data (resume file), not JSON.
+        registerContentType = route.request().headers()['content-type'] || '';
+        registerBody = route.request().postDataBuffer()?.toString('latin1') ?? route.request().postData() ?? '';
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
@@ -304,9 +307,10 @@ test.describe('Registration — confirm password and AI resume parsing flow', ()
 
     // pdfjs-dist + worker are dynamic imports; allow for cold dev-server transforms.
     await expect(page.getByText(/Parsed 5 skills · 3 assessments ready to verify/)).toBeVisible({ timeout: 30_000 });
-    expect(registerPayload.resume).toBeTruthy();
-    expect(registerPayload.emailAddress).toBe('qa.ai@example.com');
-    expect(registerPayload.confirmPassword).toBeUndefined();
+    expect(registerContentType).toContain('multipart/form-data');
+    expect(registerBody).toContain('filename="qa-resume.pdf"');
+    expect(registerBody).toContain('qa.ai@example.com');
+    expect(registerBody).not.toContain('confirmPassword');
     await expect(page).toHaveURL(/\/dashboard/);
   });
 
@@ -314,8 +318,9 @@ test.describe('Registration — confirm password and AI resume parsing flow', ()
     let registerHadResume = false;
     await mockApi(page, {
       'POST /api/auth/register': async (route) => {
-        const payload = JSON.parse(route.request().postData() || '{}');
-        registerHadResume = Boolean(payload.resume);
+        // Multipart upload: presence of the resume file part, not a JSON field.
+        const raw = route.request().postDataBuffer()?.toString('latin1') ?? route.request().postData() ?? '';
+        registerHadResume = raw.includes('filename=');
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
@@ -337,10 +342,17 @@ test.describe('Registration — confirm password and AI resume parsing flow', ()
     await page.getByPlaceholder('Password', { exact: true }).fill('secret123');
     await page.getByPlaceholder('Confirm password').fill('secret123');
     await page.getByLabel('Birthday').fill('1999-01-01');
+
+    await page.setInputFiles('input[type="file"]', {
+      name: 'no-skills-resume.pdf',
+      mimeType: 'application/pdf',
+      buffer: RESUME_PDF,
+    });
+
     await page.getByRole('button', { name: 'Create account' }).click();
 
     await expect(page.getByText('Account created')).toBeVisible();
-    expect(registerHadResume).toBe(false);
+    expect(registerHadResume).toBe(true);
     await expect(page).toHaveURL(/\/dashboard/);
   });
 

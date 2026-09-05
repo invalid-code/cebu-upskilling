@@ -13,8 +13,8 @@ namespace CebuUpskilling.Backend.Tests.Integration;
 /// Endpoint-level regression coverage for the learner features that the unit
 /// suites don't reach: stats, courses page, course content, the full assessment
 /// flow, applications, base entity CRUD, and media upload (against a fake
-/// object-storage backend). Runs against the real HTTP pipeline and a real
-/// PostgreSQL test database.
+/// object-storage backend). Runs against the real HTTP pipeline and an isolated
+/// in-memory test database.
 /// </summary>
 public class FeatureRegressionApiTests : ProductionApiTestBase
 {
@@ -24,7 +24,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
     // Stats
     // ------------------------------------------------------------------ //
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Stats_Week_ForFreshLearner_ReturnsZeros()
     {
         var token = await RegisterLearnerAsync("regr.stats.zeros@example.com");
@@ -38,7 +38,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         Assert.Equal(0, body.GetProperty("jobsWorthApplying").GetInt32());
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Stats_Week_WithEnrollmentAndPost_ReflectsCounts()
     {
         var token = await RegisterLearnerAsync("regr.stats.counts@example.com");
@@ -61,7 +61,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
     // Courses page + course detail
     // ------------------------------------------------------------------ //
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task CoursesPage_WithTargetRole_ListsRecommendedCourses()
     {
         var token = await RegisterLearnerAsync("regr.courses.recommended@example.com", "Frontend Developer");
@@ -86,7 +86,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         Assert.False(course.GetProperty("isEnrolled").GetBoolean());
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task CoursesPage_EnrolledCourse_MovesFromRecommendedToEnrolled()
     {
         var token = await RegisterLearnerAsync("regr.courses.enrolled@example.com", "Frontend Developer");
@@ -108,7 +108,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         Assert.DoesNotContain(recommended, c => c.GetProperty("courseId").GetInt32() == courseId);
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task CoursesPage_RecruiterWithoutLearnerProfile_ReturnsBadRequest()
     {
         var (token, _, _) = await RegisterRecruiterWithCompanyAsync("regr.courses.recruiter@example.com");
@@ -120,7 +120,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         Assert.Equal("No learner profile found", body.GetProperty("error").GetString());
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task CourseDetail_ExistingCourse_ReturnsModules()
     {
         var token = await RegisterLearnerAsync("regr.detail.existing@example.com");
@@ -140,7 +140,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         Assert.Equal(lessonIds[0], modules[0].GetProperty("lessons")[0].GetProperty("lessonId").GetInt32());
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task CourseDetail_EnrolledCourse_ReportsIsEnrolled()
     {
         var token = await RegisterLearnerAsync("regr.detail.enrolled@example.com");
@@ -155,7 +155,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         Assert.Equal(0, body.GetProperty("progressPercent").GetInt32());
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task CourseDetail_UnknownCourse_ReturnsNotFound()
     {
         var token = await RegisterLearnerAsync("regr.detail.missing@example.com");
@@ -169,7 +169,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
     // Course content
     // ------------------------------------------------------------------ //
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task CourseContent_WithoutEnrollment_ReturnsNotFound()
     {
         var token = await RegisterLearnerAsync("regr.content.notenrolled@example.com");
@@ -180,7 +180,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task CourseContent_FullLearnerFlow_ReturnsContentAndTracksProgress()
     {
         var token = await RegisterLearnerAsync("regr.content.flow@example.com");
@@ -221,7 +221,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         Assert.Equal(1, after.GetProperty("completedLessons").GetInt32());
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task CourseContent_ProgressWithoutEnrollment_ReturnsNotFound()
     {
         var token = await RegisterLearnerAsync("regr.content.progress@example.com");
@@ -238,7 +238,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
     // Assessments
     // ------------------------------------------------------------------ //
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Assessments_Available_WithTargetRole_ListsRoleAssessments()
     {
         var token = await RegisterLearnerAsync("regr.assess.available@example.com", "Frontend Developer");
@@ -260,7 +260,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         Assert.True(top.GetProperty("proctored").GetBoolean());
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Assessments_Start_UnknownSkill_ReturnsBadRequest()
     {
         var token = await RegisterLearnerAsync("regr.assess.badskill@example.com");
@@ -270,7 +270,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Assessments_StartQuestionsSubmit_FullFlowScoresExpert()
     {
         var token = await RegisterLearnerAsync("regr.assess.flow@example.com", "Frontend Developer");
@@ -327,7 +327,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         Assert.Equal("Expert", submitted.GetProperty("levelLabel").GetString());
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Assessments_CompanyQuestion_RecruiterCreates()
     {
         var (token, _, companyId) = await RegisterRecruiterWithCompanyAsync("regr.assess.recruiter@example.com");
@@ -359,7 +359,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         }
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Assessments_CompanyQuestion_LearnerIsRejected()
     {
         var token = await RegisterLearnerAsync("regr.assess.learner@example.com");
@@ -382,7 +382,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
     // Applications
     // ------------------------------------------------------------------ //
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Applications_ApplyListAndUpdateStatus()
     {
         var learnerToken = await RegisterLearnerAsync("regr.apps.learner@example.com");
@@ -428,7 +428,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         Assert.False(list[0].GetProperty("savedAt").ValueKind == JsonValueKind.Null);
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Applications_UnknownPost_ReturnsNotFound()
     {
         var token = await RegisterLearnerAsync("regr.apps.missing@example.com");
@@ -443,12 +443,36 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
     }
 
     [Fact]
-    public async Task Applications_WithoutResume_ReturnsBadRequest()
+    public async Task Applications_WithoutResume_AppendsStoredProfileResume()
     {
         var token = await RegisterLearnerAsync("regr.apps.noresume@example.com");
         var (recruiterToken, _, companyId) =
             await RegisterRecruiterWithCompanyAsync("regr.apps.noresume.recruiter@example.com");
         var postId = await CreatePostAsync(recruiterToken, companyId, "Resume Required Role");
+
+        var response = await AuthorizedClient(token).PostAsJsonAsync("/api/applications", new { postId });
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var body = await ReadJsonAsync(response);
+        Assert.False(string.IsNullOrWhiteSpace(body.GetProperty("resumeUrl").GetString()));
+    }
+
+    [Fact]
+    public async Task Applications_WithoutAnyResume_ReturnsBadRequest()
+    {
+        const string email = "regr.apps.nostoredresume@example.com";
+        var token = await RegisterLearnerAsync(email);
+        var (recruiterToken, _, companyId) =
+            await RegisterRecruiterWithCompanyAsync("regr.apps.nostoredresume.recruiter@example.com");
+        var postId = await CreatePostAsync(recruiterToken, companyId, "Resume Required Role");
+
+        using (var scope = Factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var user = await db.Users.SingleAsync(u => u.EmailAddress == email);
+            user.ResumeUrl = null;
+            await db.SaveChangesAsync();
+        }
 
         var response = await AuthorizedClient(token).PostAsJsonAsync("/api/applications", new { postId });
 
@@ -461,7 +485,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
     // Base entity CRUD (Posts / Courses)
     // ------------------------------------------------------------------ //
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Posts_BaseCrud_GetByIdUpdateDelete()
     {
         var (token, _, companyId) =
@@ -490,7 +514,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.NotFound, afterDelete.StatusCode);
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Courses_BaseCrud_CreateGetUpdateDelete()
     {
         var token = await RegisterLearnerAsync("regr.courses.crud@example.com");
@@ -543,7 +567,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
     // Media upload
     // ------------------------------------------------------------------ //
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Media_UploadLessonVideo_ReturnsStoredMedia()
     {
         var token = await RegisterLearnerAsync("regr.media.upload@example.com");
@@ -551,7 +575,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         await AuthorizedClient(token).PostAsJsonAsync("/api/enrollments", new { courseId });
 
         using var content = new MultipartFormDataContent();
-        var fileContent = new ByteArrayContent(new byte[] { 0x00, 0x01, 0x02, 0x03 });
+        var fileContent = new ByteArrayContent(new byte[] { 0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70, 0x6D, 0x70, 0x34, 0x32 });
         fileContent.Headers.ContentType = new MediaTypeHeaderValue("video/mp4");
         content.Add(fileContent, "file", "lesson.mp4");
 
@@ -564,7 +588,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         Assert.Equal("video/mp4", body.GetProperty("type").GetString());
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Media_UploadEmptyFile_ReturnsBadRequest()
     {
         var token = await RegisterLearnerAsync("regr.media.empty@example.com");
@@ -581,6 +605,119 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         var body = await ReadJsonAsync(response);
         Assert.Equal("A video file must be provided", body.GetProperty("error").GetString());
+    }
+
+    [Fact]
+    public async Task Media_UploadLessonDocument_ReturnsStoredMedia()
+    {
+        var token = await RegisterLearnerAsync("regr.media.doc@example.com");
+        var (courseId, lessonIds) = await CreateCourseWithLessonsAsync();
+        await AuthorizedClient(token).PostAsJsonAsync("/api/enrollments", new { courseId });
+
+        using var content = new MultipartFormDataContent();
+        var fileContent = new ByteArrayContent(System.Text.Encoding.UTF8.GetBytes("%PDF-1.4 fake pdf"));
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/pdf");
+        content.Add(fileContent, "file", "handout.pdf");
+
+        var response = await AuthorizedClient(token).PostAsync($"/api/media/lessons/{lessonIds[0]}/documents", content);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var body = await ReadJsonAsync(response);
+        Assert.True(body.GetProperty("mediaId").GetInt32() > 0);
+        Assert.StartsWith("https://fake-storage.example/", body.GetProperty("pathFile").GetString());
+        Assert.Equal("application/pdf", body.GetProperty("type").GetString());
+    }
+
+    [Fact]
+    public async Task Media_UploadLessonDocument_UnsupportedType_ReturnsBadRequest()
+    {
+        var token = await RegisterLearnerAsync("regr.media.docexe@example.com");
+        var (courseId, lessonIds) = await CreateCourseWithLessonsAsync();
+        await AuthorizedClient(token).PostAsJsonAsync("/api/enrollments", new { courseId });
+
+        using var content = new MultipartFormDataContent();
+        var fileContent = new ByteArrayContent(new byte[] { 0x4D, 0x5A });
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+        content.Add(fileContent, "file", "evil.exe");
+
+        var response = await AuthorizedClient(token).PostAsync($"/api/media/lessons/{lessonIds[0]}/documents", content);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Media_UploadLessonDocument_FakeContent_ReturnsBadRequest()
+    {
+        var token = await RegisterLearnerAsync("regr.media.docfake@example.com");
+        var (courseId, lessonIds) = await CreateCourseWithLessonsAsync();
+        await AuthorizedClient(token).PostAsJsonAsync("/api/enrollments", new { courseId });
+
+        using var content = new MultipartFormDataContent();
+        var fileContent = new ByteArrayContent(System.Text.Encoding.UTF8.GetBytes("definitely not a pdf"));
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/pdf");
+        content.Add(fileContent, "file", "handout.pdf");
+
+        var response = await AuthorizedClient(token).PostAsync($"/api/media/lessons/{lessonIds[0]}/documents", content);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Media_UploadLessonVideo_SpoofedContent_ReturnsBadRequest()
+    {
+        var token = await RegisterLearnerAsync("regr.media.vidspoof@example.com");
+        var (courseId, lessonIds) = await CreateCourseWithLessonsAsync();
+        await AuthorizedClient(token).PostAsJsonAsync("/api/enrollments", new { courseId });
+
+        using var content = new MultipartFormDataContent();
+        var fileContent = new ByteArrayContent(System.Text.Encoding.UTF8.GetBytes("not a video at all"));
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue("video/mp4");
+        content.Add(fileContent, "file", "evil.mp4");
+
+        var response = await AuthorizedClient(token).PostAsync($"/api/media/lessons/{lessonIds[0]}/video", content);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Media_UploadLessonDocument_OwningRecruiter_CanAttach()
+    {
+        var (recruiterToken, _, companyId) =
+            await RegisterRecruiterWithCompanyAsync("regr.media.owner@example.com");
+        var lessonId = await CreateCompanyCourseWithLessonAsync(companyId);
+
+        using var content = new MultipartFormDataContent();
+        var fileContent = new ByteArrayContent(System.Text.Encoding.UTF8.GetBytes("%PDF-1.4 fake pdf"));
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/pdf");
+        content.Add(fileContent, "file", "syllabus.pdf");
+
+        var response = await AuthorizedClient(recruiterToken).PostAsync($"/api/media/lessons/{lessonId}/documents", content);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    }
+
+    private async Task<int> CreateCompanyCourseWithLessonAsync(int companyId)
+    {
+        using var scope = Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var course = new Course
+        {
+            GenreId = 1,
+            CompanyId = companyId,
+            Name = "Company Course",
+            TechnicalLevel = 2,
+            Description = "Owned course",
+            Price = 1000,
+        };
+        db.Courses.Add(course);
+        await db.SaveChangesAsync();
+        var module = new CourseModule { CourseId = course.CourseId, Name = "Module 1", Order = 1 };
+        db.CourseModules.Add(module);
+        await db.SaveChangesAsync();
+        var lesson = new Lesson { ModuleId = module.ModuleId, CourseId = course.CourseId, Name = "Lesson 1" };
+        db.Lessons.Add(lesson);
+        await db.SaveChangesAsync();
+        return lesson.LessonId;
     }
 
     // ------------------------------------------------------------------ //

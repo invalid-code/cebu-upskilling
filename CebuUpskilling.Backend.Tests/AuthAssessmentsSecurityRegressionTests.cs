@@ -30,11 +30,12 @@ public class AuthAssessmentsSecurityRegressionTests
 
     private sealed class FakeAuthService : IAuthService
     {
-        public Task<AuthResponse> RegisterAsync(RegisterRequest r) => throw new NotImplementedException();
+        public Task<AuthResponse> RegisterAsync(RegisterRequest r, IFormFile? resumeFile = null, CancellationToken ct = default) => throw new NotImplementedException();
         public Task<CompanyRegisterResponse> CompanyRegisterAsync(CompanyRegisterRequest r) => throw new NotImplementedException();
         public Task<AuthResponse> LoginAsync(LoginRequest r) => throw new NotImplementedException();
         public Task<AuthResponse> GoogleAuthAsync(GoogleAuthRequest r) => throw new NotImplementedException();
         public Task<AuthResponse> UpdateProfileAsync(int userId, UpdateProfileRequest r) => throw new NotImplementedException();
+        public Task<AuthResponse?> GetProfileAsync(int userId) => Task.FromResult<AuthResponse?>(null);
         public Task LogoutAsync(string? jti) => Task.CompletedTask;
         public Task<bool> ConfirmEmailAsync(string email, string token) => Task.FromResult(false);
         public Task SendEmailConfirmationAsync(string email) => Task.CompletedTask;

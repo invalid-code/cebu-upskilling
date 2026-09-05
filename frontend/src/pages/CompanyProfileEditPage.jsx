@@ -109,6 +109,18 @@ const styles = {
   },
 };
 
+const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
+const ALLOWED_IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp'];
+
+// Mirrors CompanyService.UploadImageAsync so bad files are rejected before upload.
+function validateImageFile(file) {
+  const dot = file.name ? file.name.lastIndexOf('.') : -1;
+  const ext = dot >= 0 ? file.name.slice(dot).toLowerCase() : '';
+  if (!ALLOWED_IMAGE_EXTENSIONS.includes(ext)) return 'Image must be a PNG, JPG or WEBP file';
+  if (file.size > MAX_IMAGE_BYTES) return 'Image must be 2 MB or smaller';
+  return null;
+}
+
 export default function CompanyProfileEditPage() {
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -188,9 +200,18 @@ export default function CompanyProfileEditPage() {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
+    const validationError = validateImageFile(file);
+    if (validationError) {
+      showToast(validationError, 'error');
+      return;
+    }
     setUploadingLogo(true);
     try {
-      const res = await api.upload('/companies/me/logo', file);
+      // NOTE: use postForm, not api.upload — the logo endpoint returns
+      // { logoUrl }, and api.upload rejects any response without a `url` field.
+      const form = new FormData();
+      form.append('file', file);
+      const res = await api.postForm('/companies/me/logo', form);
       setLogoUrl(res?.logoUrl || '');
       showToast('Logo uploaded');
     } catch (err) {
@@ -204,9 +225,16 @@ export default function CompanyProfileEditPage() {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
+    const validationError = validateImageFile(file);
+    if (validationError) {
+      showToast(validationError, 'error');
+      return;
+    }
     setUploadingCover(true);
     try {
-      const res = await api.upload('/companies/me/cover', file);
+      const form = new FormData();
+      form.append('file', file);
+      const res = await api.postForm('/companies/me/cover', form);
       // Backend returns { logoUrl: coverUrl } via UploadLogoResponse for both endpoints
       const url = res?.logoUrl || res?.coverImageUrl || res?.coverUrl || '';
       setCoverUrl(url);

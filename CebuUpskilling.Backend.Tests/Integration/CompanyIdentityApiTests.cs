@@ -156,6 +156,16 @@ public class CompanyIdentityApiTests : ProductionApiTestBase
     }
 
     [Fact]
+    public async Task Companies_UploadLogo_FakeImageContent_ReturnsBadRequest()
+    {
+        var (token, _) = await RegisterRecruiterAsync("company.logo.fake@example.com", "Fake Pixels");
+
+        var response = await UploadLogoAsync(AuthorizedClient(token), "logo.png", "not an image at all");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Companies_UploadLogo_Oversized_ReturnsBadRequest()
     {
         var (token, _) = await RegisterRecruiterAsync("company.logo.big@example.com", "Big Pixels");

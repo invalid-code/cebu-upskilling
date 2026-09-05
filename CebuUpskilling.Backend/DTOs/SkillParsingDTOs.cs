@@ -56,6 +56,23 @@ public record ScreeningQuestionsResponse(
     List<CreatedCompanyQuestionResponse> Questions
 );
 
+/// <summary>Create a job post from a target role's skill profile.
+/// Parameter order mirrors <see cref="DraftJobPostRequest"/> (title first).</summary>
+public record CreateJobPostFromRoleRequest(
+    string? Title,
+    string TargetRole,
+    string? Location,
+    string? JobType,
+    string? ExperienceLevel,
+    string? SalaryRange,
+    bool IsRemote = false
+);
+
+public record CreateJobPostFromRoleResponse(
+    PostResponse Post,
+    bool AiDrafted
+);
+
 public record ParsedSkillResult(
     string SkillName,
     int SkillId,

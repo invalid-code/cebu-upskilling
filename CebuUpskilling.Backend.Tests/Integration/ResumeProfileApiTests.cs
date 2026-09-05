@@ -62,7 +62,7 @@ public class ResumeProfileApiTests : ProductionApiTestBase
         return await Client.PostAsync("/api/auth/register", form);
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Register_WithPdf_ReturnsResumeUrl_AndProfileDisplaysIt()
     {
         var email = "resume.profile.pdf@example.com";
@@ -81,7 +81,7 @@ public class ResumeProfileApiTests : ProductionApiTestBase
         Assert.Equal(resumeUrl, profileBody.GetProperty("resumeUrl").GetString());
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Register_WithDocx_ReturnsResumeUrl_AndProfileDisplaysIt()
     {
         var email = "resume.profile.docx@example.com";
@@ -98,7 +98,7 @@ public class ResumeProfileApiTests : ProductionApiTestBase
         Assert.Equal(resumeUrl, profileBody.GetProperty("resumeUrl").GetString());
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Login_ReturnsResumeUrl()
     {
         var email = "resume.login@example.com";
@@ -111,14 +111,14 @@ public class ResumeProfileApiTests : ProductionApiTestBase
         Assert.False(string.IsNullOrWhiteSpace(body.GetProperty("resumeUrl").GetString()));
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Profile_WithoutAuth_ReturnsUnauthorized()
     {
         var response = await Client.GetAsync("/api/auth/profile");
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Register_WithFakePdfContentTypeMismatch_ReturnsBadRequest()
     {
         // Upload a file named .pdf but containing plain text without %PDF magic
@@ -139,7 +139,7 @@ public class ResumeProfileApiTests : ProductionApiTestBase
         Assert.Contains("valid PDF or DOCX", body.GetProperty("error").GetString(), StringComparison.OrdinalIgnoreCase);
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Register_WithFakeDocxContentTypeMismatch_ReturnsBadRequest()
     {
         // Upload a .docx file that is actually plain text, not a ZIP
@@ -160,7 +160,7 @@ public class ResumeProfileApiTests : ProductionApiTestBase
         Assert.Contains("valid PDF or DOCX", body.GetProperty("error").GetString(), StringComparison.OrdinalIgnoreCase);
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task UpdateProfile_PreservesResumeUrl()
     {
         var email = "resume.preserve@example.com";

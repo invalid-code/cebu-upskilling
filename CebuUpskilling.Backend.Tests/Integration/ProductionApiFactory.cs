@@ -3,6 +3,7 @@ using CebuUpskilling.Backend.Services;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -24,8 +25,9 @@ public class ProductionApiFactory : WebApplicationFactory<Program>
     public string TestDatabaseName { get; } = $"cebu_upskilling_test_{Guid.NewGuid():N}";
 
     /// <summary>
-    /// Kept for backwards-compatibility; now returns an in-memory identifier
-    /// rather than a Postgres connection string.
+    /// In-memory database identifier for this factory instance. Program.cs
+    /// switches to <c>UseInMemoryDatabase</c> when the connection string starts
+    /// with <c>"InMemory:"</c>, so integration tests never touch PostgreSQL.
     /// </summary>
     public string TestConnectionString => $"InMemory:{TestDatabaseName}";
 
@@ -65,6 +67,24 @@ public class ProductionApiFactory : WebApplicationFactory<Program>
         builder.ConfigureServices(services =>
         {
             services.AddSingleton<ILoggerFactory>(_ => NullLoggerFactory.Instance);
+
+            // Tests must never touch PostgreSQL: Program.cs registers the
+            // DbContext from ConnectionStrings:DefaultConnection (Npgsql), so
+            // remove that registration and point it at an isolated in-memory
+            // store instead. This is done at the service level (not via
+            // configuration) so no connection string, user secret, or
+            // environment variable can ever redirect tests at a real database.
+            // AddDbContext registers several descriptors (options, options
+            // configuration action, context); all must go or EF Core sees two
+            // providers on one service provider.
+            foreach (var descriptor in services.Where(d =>
+                d.ServiceType == typeof(DbContextOptions<ApplicationDbContext>) ||
+                d.ServiceType == typeof(DbContextOptions) ||
+                d.ServiceType == typeof(IDbContextOptionsConfiguration<ApplicationDbContext>) ||
+                d.ServiceType == typeof(ApplicationDbContext)).ToList())
+                services.Remove(descriptor);
+            services.AddDbContext<ApplicationDbContext>(options =>
+                options.UseInMemoryDatabase(TestDatabaseName));
 
             // The media endpoint talks to R2 storage; tests must not require R2
             // credentials, so swap in an in-memory fake.

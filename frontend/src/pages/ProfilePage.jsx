@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Check, MapPin, Globe2, LockKeyhole, Save, FileText, ExternalLink } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth, getDashboardPath } from '../context/AuthContext';
 import Panel from '../components/ui/Panel';
 import Button from '../components/ui/Button';
@@ -20,6 +20,17 @@ const inputStyle = {
   outline: 'none',
 };
 
+function levelLabel(level) {
+  switch (level) {
+    case 1: return 'No Knowledge';
+    case 2: return 'Beginner';
+    case 3: return 'Intermediate';
+    case 4: return 'Advanced';
+    case 5: return 'Expert';
+    default: return 'Unassessed';
+  }
+}
+
 function Field({ label, value, onChange, readOnly = false, hint, name }) {
   return (
     <label style={{ display: 'grid', gap: 7, fontSize: 12, color: 'var(--muted)' }}>
@@ -37,6 +48,10 @@ export default function ProfilePage() {
   const [form, setForm] = useState({ targetRole: '', address: '', remoteFriendly: false });
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [skills, setSkills] = useState(null);
+  const [skillsError, setSkillsError] = useState('');
+
+  const isLearner = user?.role === 'Learner';
 
   const handleBack = () => {
     const canGoBack = window.history.state && typeof window.history.state.idx === 'number'
@@ -52,6 +67,17 @@ export default function ProfilePage() {
   useEffect(() => {
     setForm({ targetRole: user?.targetRole || '', address: user?.address || '', remoteFriendly: Boolean(user?.remoteFriendly) });
   }, [user]);
+
+  useEffect(() => {
+    if (user?.role !== 'Learner') return;
+    let active = true;
+    setSkillsError('');
+    api.get('/skills').then(
+      (data) => { if (active) setSkills(Array.isArray(data) ? data : []); },
+      () => { if (active) { setSkills([]); setSkillsError('Could not load your parsed skills.'); } },
+    );
+    return () => { active = false; };
+  }, [user?.role]);
 
   const initials = useMemo(() => `${user?.firstName?.[0] || ''}${user?.lastName?.[0] || ''}`, [user]);
   const fullName = `${user?.firstName || 'User'} ${user?.lastName || ''}`.trim();
@@ -118,6 +144,27 @@ export default function ProfilePage() {
             <FileText size={16} /> View resume <ExternalLink size={14} />
           </a>
           <p style={{ margin: '10px 0 0', color: 'var(--muted)', fontSize: 12, wordBreak: 'break-all' }}>{user.resumeUrl}</p>
+        </Panel>
+      )}
+
+      {isLearner && (
+        <Panel>
+          <div style={{ marginBottom: 16 }}><p style={{ margin: 0, color: 'var(--coral)', fontSize: 11, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Parsed skills</p><h2 style={{ margin: '6px 0 0', fontFamily: "'Space Grotesk', sans-serif", fontSize: 21 }}>Skills from your resume</h2><p style={{ margin: '6px 0 0', color: 'var(--muted)', fontSize: 13 }}>Parsed automatically from your resume. Verify a skill to strengthen your profile.</p></div>
+          {skills === null && !skillsError && <p style={{ margin: 0, color: 'var(--muted)', fontSize: 13 }}>Loading skills…</p>}
+          {skillsError && <p style={{ margin: 0, color: 'var(--muted)', fontSize: 13 }}>{skillsError}</p>}
+          {skills !== null && !skillsError && skills.length === 0 && <p style={{ margin: 0, color: 'var(--muted)', fontSize: 13 }}>No parsed skills yet — they appear here after your resume is parsed.</p>}
+          {skills !== null && skills.length > 0 && (
+            <ul data-testid="parsed-skills" style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {skills.map((skill) => (
+                <li key={skill.skillId} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '7px 12px', borderRadius: 999, background: 'var(--surface2)', border: `1px solid ${skill.verified ? 'var(--teal)' : 'var(--line)'}`, fontSize: 13 }}>
+                  {skill.verified && <Check size={14} color="var(--teal)" aria-label="Verified" />}
+                  <span style={{ fontWeight: 600 }}>{skill.name}</span>
+                  <span style={{ color: 'var(--muted)', fontSize: 12 }}>{levelLabel(skill.currentLevel)}{skill.verified ? ' · Verified' : ''}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p style={{ margin: '14px 0 0', fontSize: 13 }}><Link to="/assessments" style={{ color: 'var(--teal)', fontWeight: 600, textDecoration: 'none' }}>Verify skills in Assessments →</Link></p>
         </Panel>
       )}
 

@@ -245,6 +245,21 @@ if (rateLimitingOptions.Enabled)
 
 var app = builder.Build();
 
+// Seed reference data (course taxonomy, skill catalog, role skill levels)
+// on relational databases when the tables are empty. Skipped for the EF Core
+// InMemory provider: tests seed themselves via TestDataSeeder.
+try
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    if (db.Database.ProviderName != "Microsoft.EntityFrameworkCore.InMemory")
+        await ReferenceDataSeeder.SeedAsync(db);
+}
+catch (Exception ex)
+{
+    Log.Warning(ex, "Reference data seeding failed; continuing startup");
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
