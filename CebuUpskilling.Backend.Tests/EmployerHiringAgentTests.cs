@@ -46,6 +46,12 @@ public class EmployerHiringAgentTests
         new PostRepository(context),
         new RoleSkillRepository(context),
         new AssessmentQuestionRepository(context),
+        new PostService(
+            new PostRepository(context),
+            new PostSkillRepository(context),
+            new RoleSkillRepository(context),
+            new SkillRepository(context),
+            NullLogger<PostService>.Instance),
         NullLogger<EmployerHiringAgent>.Instance);
 
     private static async Task<(Company Company, AppUser Recruiter)> CreateRecruiterAsync(ApplicationDbContext context)
@@ -322,5 +328,99 @@ public class EmployerHiringAgentTests
         Assert.Empty(result.Questions);
         Assert.Equal(0, ai.QuestionCalls);
         Assert.Empty(context.AssessmentQuestions);
+    }
+
+    private static async Task<(Skill Js, Skill React)> SeedRoleSkillsAsync(ApplicationDbContext context, string targetRole = "Frontend Developer")
+    {
+        var js = new Skill { Name = "JavaScript", Category = "Language" };
+        var react = new Skill { Name = "React", Category = "Framework" };
+        context.Skills.AddRange(js, react);
+        await context.SaveChangesAsync();
+        context.RoleSkills.AddRange(
+            new RoleSkill { TargetRole = targetRole, SkillId = js.SkillId, RequiredLevel = 4 },
+            new RoleSkill { TargetRole = targetRole, SkillId = react.SkillId, RequiredLevel = 3 });
+        await context.SaveChangesAsync();
+        return (js, react);
+    }
+
+    [Fact]
+    public async Task CreateJobPostFromTargetRoleAsync_BlankTargetRole_ReturnsNullWithoutCreating()
+    {
+        var context = TestDbContextFactory.Create();
+        var (company, recruiter) = await CreateRecruiterAsync(context);
+        var agent = CreateAgent(context, new FakeGoogleAiService());
+
+        var result = await agent.CreateJobPostFromTargetRoleAsync(
+            recruiter.UserId, company.CompanyId, new CreateJobPostFromRoleRequest("  ", null, null, null, null, null));
+
+        Assert.Null(result);
+        Assert.Empty(context.Posts);
+    }
+
+    [Fact]
+    public async Task CreateJobPostFromTargetRoleAsync_UnknownRole_ReturnsNullWithoutCreating()
+    {
+        var context = TestDbContextFactory.Create();
+        var (company, recruiter) = await CreateRecruiterAsync(context);
+        await SeedRoleSkillsAsync(context, "Frontend Developer");
+        var agent = CreateAgent(context, new FakeGoogleAiService());
+
+        var result = await agent.CreateJobPostFromTargetRoleAsync(
+            recruiter.UserId, company.CompanyId, new CreateJobPostFromRoleRequest("Cobol Wrangler", null, null, null, null, null));
+
+        Assert.Null(result);
+        Assert.Empty(context.Posts);
+    }
+
+    [Fact]
+    public async Task CreateJobPostFromTargetRoleAsync_WithAiDraft_CreatesPostWithRoleSkills()
+    {
+        var context = TestDbContextFactory.Create();
+        var (company, recruiter) = await CreateRecruiterAsync(context);
+        var (js, react) = await SeedRoleSkillsAsync(context);
+        var ai = new FakeGoogleAiService
+        {
+            Draft = new DraftJobPostResponse("AI description", "AI requirements", "AI benefits", new List<string> { "JavaScript" })
+        };
+        var agent = CreateAgent(context, ai);
+
+        var result = await agent.CreateJobPostFromTargetRoleAsync(
+            recruiter.UserId, company.CompanyId,
+            new CreateJobPostFromRoleRequest("Frontend Developer", null, "Cebu City", "Full-time", "Mid", "$1000", false));
+
+        Assert.NotNull(result);
+        Assert.True(result.AiDrafted);
+        Assert.Equal("Frontend Developer", result.Post.Title);
+        Assert.Equal("Frontend Developer", result.Post.TargetRole);
+        Assert.Equal(company.CompanyId, result.Post.CompanyId);
+        Assert.Equal("AI description", result.Post.Description);
+        Assert.Equal("AI requirements", result.Post.Requirements);
+        Assert.Equal("AI benefits", result.Post.Benefits);
+        var levels = result.Post.RequiredSkills.ToDictionary(s => s.SkillId, s => s.RequiredLevel);
+        Assert.Equal(4, levels[js.SkillId]);
+        Assert.Equal(3, levels[react.SkillId]);
+        Assert.Equal(2, context.PostSkills.Count());
+    }
+
+    [Fact]
+    public async Task CreateJobPostFromTargetRoleAsync_WithoutAiDraft_UsesTemplateAndStillCreates()
+    {
+        var context = TestDbContextFactory.Create();
+        var (company, recruiter) = await CreateRecruiterAsync(context);
+        await SeedRoleSkillsAsync(context);
+        var agent = CreateAgent(context, new FakeGoogleAiService { Draft = null });
+
+        var result = await agent.CreateJobPostFromTargetRoleAsync(
+            recruiter.UserId, company.CompanyId,
+            new CreateJobPostFromRoleRequest("Frontend Developer", "Junior Frontend Dev", null, null, null, null));
+
+        Assert.NotNull(result);
+        Assert.False(result.AiDrafted);
+        Assert.Equal("Junior Frontend Dev", result.Post.Title);
+        Assert.Equal("Frontend Developer", result.Post.TargetRole);
+        Assert.Contains("Frontend Developer", result.Post.Description);
+        Assert.Contains("JavaScript", result.Post.Requirements);
+        Assert.Contains("React", result.Post.Requirements);
+        Assert.Equal(2, result.Post.RequiredSkills.Count);
     }
 }

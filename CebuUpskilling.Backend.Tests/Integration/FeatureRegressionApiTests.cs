@@ -13,8 +13,8 @@ namespace CebuUpskilling.Backend.Tests.Integration;
 /// Endpoint-level regression coverage for the learner features that the unit
 /// suites don't reach: stats, courses page, course content, the full assessment
 /// flow, applications, base entity CRUD, and media upload (against a fake
-/// object-storage backend). Runs against the real HTTP pipeline and a real
-/// PostgreSQL test database.
+/// object-storage backend). Runs against the real HTTP pipeline and an isolated
+/// in-memory test database.
 /// </summary>
 public class FeatureRegressionApiTests : ProductionApiTestBase
 {
@@ -24,7 +24,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
     // Stats
     // ------------------------------------------------------------------ //
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Stats_Week_ForFreshLearner_ReturnsZeros()
     {
         var token = await RegisterLearnerAsync("regr.stats.zeros@example.com");
@@ -38,7 +38,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         Assert.Equal(0, body.GetProperty("jobsWorthApplying").GetInt32());
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Stats_Week_WithEnrollmentAndPost_ReflectsCounts()
     {
         var token = await RegisterLearnerAsync("regr.stats.counts@example.com");
@@ -61,7 +61,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
     // Courses page + course detail
     // ------------------------------------------------------------------ //
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task CoursesPage_WithTargetRole_ListsRecommendedCourses()
     {
         var token = await RegisterLearnerAsync("regr.courses.recommended@example.com", "Frontend Developer");
@@ -86,7 +86,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         Assert.False(course.GetProperty("isEnrolled").GetBoolean());
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task CoursesPage_EnrolledCourse_MovesFromRecommendedToEnrolled()
     {
         var token = await RegisterLearnerAsync("regr.courses.enrolled@example.com", "Frontend Developer");
@@ -108,7 +108,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         Assert.DoesNotContain(recommended, c => c.GetProperty("courseId").GetInt32() == courseId);
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task CoursesPage_RecruiterWithoutLearnerProfile_ReturnsBadRequest()
     {
         var (token, _, _) = await RegisterRecruiterWithCompanyAsync("regr.courses.recruiter@example.com");
@@ -120,7 +120,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         Assert.Equal("No learner profile found", body.GetProperty("error").GetString());
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task CourseDetail_ExistingCourse_ReturnsModules()
     {
         var token = await RegisterLearnerAsync("regr.detail.existing@example.com");
@@ -140,7 +140,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         Assert.Equal(lessonIds[0], modules[0].GetProperty("lessons")[0].GetProperty("lessonId").GetInt32());
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task CourseDetail_EnrolledCourse_ReportsIsEnrolled()
     {
         var token = await RegisterLearnerAsync("regr.detail.enrolled@example.com");
@@ -155,7 +155,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         Assert.Equal(0, body.GetProperty("progressPercent").GetInt32());
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task CourseDetail_UnknownCourse_ReturnsNotFound()
     {
         var token = await RegisterLearnerAsync("regr.detail.missing@example.com");
@@ -169,7 +169,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
     // Course content
     // ------------------------------------------------------------------ //
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task CourseContent_WithoutEnrollment_ReturnsNotFound()
     {
         var token = await RegisterLearnerAsync("regr.content.notenrolled@example.com");
@@ -180,7 +180,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task CourseContent_FullLearnerFlow_ReturnsContentAndTracksProgress()
     {
         var token = await RegisterLearnerAsync("regr.content.flow@example.com");
@@ -221,7 +221,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         Assert.Equal(1, after.GetProperty("completedLessons").GetInt32());
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task CourseContent_ProgressWithoutEnrollment_ReturnsNotFound()
     {
         var token = await RegisterLearnerAsync("regr.content.progress@example.com");
@@ -238,7 +238,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
     // Assessments
     // ------------------------------------------------------------------ //
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Assessments_Available_WithTargetRole_ListsRoleAssessments()
     {
         var token = await RegisterLearnerAsync("regr.assess.available@example.com", "Frontend Developer");
@@ -260,7 +260,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         Assert.True(top.GetProperty("proctored").GetBoolean());
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Assessments_Start_UnknownSkill_ReturnsBadRequest()
     {
         var token = await RegisterLearnerAsync("regr.assess.badskill@example.com");
@@ -270,7 +270,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Assessments_StartQuestionsSubmit_FullFlowScoresExpert()
     {
         var token = await RegisterLearnerAsync("regr.assess.flow@example.com", "Frontend Developer");
@@ -327,7 +327,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         Assert.Equal("Expert", submitted.GetProperty("levelLabel").GetString());
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Assessments_CompanyQuestion_RecruiterCreates()
     {
         var (token, _, companyId) = await RegisterRecruiterWithCompanyAsync("regr.assess.recruiter@example.com");
@@ -359,7 +359,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         }
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Assessments_CompanyQuestion_LearnerIsRejected()
     {
         var token = await RegisterLearnerAsync("regr.assess.learner@example.com");
@@ -382,7 +382,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
     // Applications
     // ------------------------------------------------------------------ //
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Applications_ApplyListAndUpdateStatus()
     {
         var learnerToken = await RegisterLearnerAsync("regr.apps.learner@example.com");
@@ -428,7 +428,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         Assert.False(list[0].GetProperty("savedAt").ValueKind == JsonValueKind.Null);
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Applications_UnknownPost_ReturnsNotFound()
     {
         var token = await RegisterLearnerAsync("regr.apps.missing@example.com");
@@ -461,7 +461,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
     // Base entity CRUD (Posts / Courses)
     // ------------------------------------------------------------------ //
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Posts_BaseCrud_GetByIdUpdateDelete()
     {
         var (token, _, companyId) =
@@ -490,7 +490,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.NotFound, afterDelete.StatusCode);
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Courses_BaseCrud_CreateGetUpdateDelete()
     {
         var token = await RegisterLearnerAsync("regr.courses.crud@example.com");
@@ -543,7 +543,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
     // Media upload
     // ------------------------------------------------------------------ //
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Media_UploadLessonVideo_ReturnsStoredMedia()
     {
         var token = await RegisterLearnerAsync("regr.media.upload@example.com");
@@ -564,7 +564,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         Assert.Equal("video/mp4", body.GetProperty("type").GetString());
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Media_UploadEmptyFile_ReturnsBadRequest()
     {
         var token = await RegisterLearnerAsync("regr.media.empty@example.com");

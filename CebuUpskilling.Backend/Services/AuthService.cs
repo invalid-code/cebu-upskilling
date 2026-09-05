@@ -205,6 +205,12 @@ public class AuthService : IAuthService
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Resume skill parsing failed during registration for user {UserId}", user.UserId);
+                // The failed save leaves the new Skill/LearnerSkill/LearnerAssessment
+                // entities in Added state on this scoped context. Detach them so the
+                // confirmation-email save below doesn't retry the same failed INSERTs
+                // and fail as collateral (the user + learner rows above are already saved).
+                foreach (var entry in _context.ChangeTracker.Entries().Where(e => e.State == EntityState.Added).ToList())
+                    entry.State = EntityState.Detached;
             }
         }
 

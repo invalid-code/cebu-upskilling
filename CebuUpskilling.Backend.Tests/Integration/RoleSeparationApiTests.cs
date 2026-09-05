@@ -16,7 +16,7 @@ public class RoleSeparationApiTests : ProductionApiTestBase
 {
     public RoleSeparationApiTests(ProductionApiFactory factory) : base(factory) { }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Recruiter_LearnerEndpoints_ReturnForbidden()
     {
         var (token, _) = await RegisterRecruiterAsync("separation.recruiter@example.com", "Acme Corp");
@@ -35,7 +35,7 @@ public class RoleSeparationApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.Forbidden, (await authorized.GetAsync("/api/learners")).StatusCode);
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Learner_LearnerEndpoints_StillWork()
     {
         var token = await RegisterLearnerAsync("separation.learner@example.com");
@@ -44,7 +44,7 @@ public class RoleSeparationApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.OK, (await AuthorizedClient(token).GetAsync("/api/stats/week")).StatusCode);
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Learner_PostWriteEndpoints_ReturnForbidden()
     {
         var token = await RegisterLearnerAsync("separation.learnerwrite@example.com");
@@ -68,7 +68,7 @@ public class RoleSeparationApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.Forbidden, (await authorized.PostAsJsonAsync("/api/companies", new { name = "Nope" })).StatusCode);
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Learner_GetPosts_StillAllowed()
     {
         var token = await RegisterLearnerAsync("separation.learnerposts@example.com");
@@ -79,7 +79,7 @@ public class RoleSeparationApiTests : ProductionApiTestBase
         Assert.Empty((await ReadJsonAsync(response)).GetProperty("items").EnumerateArray().ToList());
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Learner_GetCompanies_IsAllowed()
     {
         var token = await RegisterLearnerAsync("separation.learnercompanies@example.com");
@@ -90,7 +90,7 @@ public class RoleSeparationApiTests : ProductionApiTestBase
         Assert.Empty((await ReadJsonAsync(response)).EnumerateArray().ToList());
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Learner_CreateCompany_IsForbidden()
     {
         var token = await RegisterLearnerAsync("separation.learnercreatecompany@example.com");
@@ -100,7 +100,7 @@ public class RoleSeparationApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Recruiter_PostWriteEndpoints_RemainAllowed()
     {
         var (token, companyId) = await RegisterRecruiterAsync("separation.recruiterposts@example.com", "Acme Corp");
