@@ -34,8 +34,8 @@ const post = {
   isActive: true,
 };
 
-function renderDetail() {
-  localStorage.setItem('user', JSON.stringify({ UserId: 1, firstName: 'Test', role: 'Learner' }));
+function renderDetail(userOverrides = {}) {
+  localStorage.setItem('user', JSON.stringify({ UserId: 1, firstName: 'Test', role: 'Learner', ...userOverrides }));
   localStorage.setItem('token', 'abc');
   return render(
     <MemoryRouter initialEntries={['/jobs/7']}>
@@ -149,6 +149,66 @@ describe('JobDetailPage', () => {
     });
     expect(api.upload).not.toHaveBeenCalled();
     expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('attaches the profile resume without uploading when no file is chosen', async () => {
+    api.get.mockResolvedValue(post);
+    api.post.mockResolvedValue({
+      postId: 7,
+      title: 'DevOps Engineer',
+      company: 'CloudNine',
+      targetRole: 'DevOps Engineer',
+      status: 'applied',
+      appliedAt: '2026-01-15T00:00:00Z',
+      resumeUrl: 'https://storage.example/profile.pdf',
+    });
+
+    renderDetail({ resumeUrl: 'https://storage.example/profile.pdf' });
+    await screen.findByRole('heading', { name: 'DevOps Engineer' });
+    expect(screen.getByText(/Your profile resume will be attached/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Submit application' }));
+
+    await waitFor(() => {
+      expect(api.post).toHaveBeenCalledWith('/applications', {
+        postId: 7,
+        resumeUrl: 'https://storage.example/profile.pdf',
+      });
+    });
+    expect(api.upload).not.toHaveBeenCalled();
+    expect(screen.getAllByText('Application submitted').length).toBeGreaterThan(0);
+  });
+
+  it('prefers a newly chosen file over the profile resume', async () => {
+    api.get.mockResolvedValue(post);
+    api.upload.mockResolvedValueOnce({ url: 'https://storage.example/fresh.pdf' });
+    api.post.mockResolvedValue({
+      postId: 7,
+      title: 'DevOps Engineer',
+      company: 'CloudNine',
+      targetRole: 'DevOps Engineer',
+      status: 'applied',
+      appliedAt: '2026-01-15T00:00:00Z',
+      resumeUrl: 'https://storage.example/fresh.pdf',
+    });
+
+    renderDetail({ resumeUrl: 'https://storage.example/profile.pdf' });
+    await screen.findByRole('heading', { name: 'DevOps Engineer' });
+
+    const resumeInput = document.querySelectorAll('input[type="file"]')[0];
+    fireEvent.change(resumeInput, { target: { files: [new File(['x'], 'fresh.pdf', { type: 'application/pdf' })] } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Submit application' }));
+
+    await waitFor(() => {
+      expect(api.upload).toHaveBeenCalledTimes(1);
+    });
+    await waitFor(() => {
+      expect(api.post).toHaveBeenCalledWith('/applications', {
+        postId: 7,
+        resumeUrl: 'https://storage.example/fresh.pdf',
+      });
+    });
   });
 
   it('shows an about-the-employer panel when company details resolve', async () => {

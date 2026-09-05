@@ -40,10 +40,15 @@ const mockCourses = [
   },
 ];
 
-const mockSkillGaps = [
+const mockGapItems = [
   { skillId: 1, skillName: 'JavaScript', category: 'Language', requiredLevel: 4, currentLevel: 0, gap: 4, verified: false },
   { skillId: 2, skillName: 'TypeScript', category: 'Language', requiredLevel: 3, currentLevel: 0, gap: 3, verified: false },
   { skillId: 3, skillName: 'React', category: 'Framework', requiredLevel: 4, currentLevel: 0, gap: 4, verified: false },
+];
+
+// GET /api/skillgaps returns per-role groups, not a flat gap list.
+const mockSkillGaps = [
+  { role: 'Frontend Developer', companyName: null, postId: null, matchPercent: 0, gaps: mockGapItems },
 ];
 
 function renderOverview() {
@@ -151,6 +156,25 @@ describe('OverviewPage', () => {
     expect(screen.getByText('TypeScript')).toBeInTheDocument();
     expect(screen.getByText('React')).toBeInTheDocument();
     expect(screen.getAllByText(/Gap/)).toHaveLength(3);
+  });
+
+  it('shows the group matching the target role when several roles are returned', async () => {
+    localStorage.setItem('user', JSON.stringify({ firstName: 'Test', role: 'Learner', targetRole: 'Backend Developer' }));
+    api.get.mockImplementation((path) => {
+      if (path === '/courses') return Promise.resolve(mockCourses);
+      if (path === '/enrollments') return Promise.resolve([]);
+      if (path === '/skillgaps') return Promise.resolve([
+        ...mockSkillGaps,
+        { role: 'Backend Developer', companyName: null, postId: null, matchPercent: 50, gaps: [
+          { skillId: 7, skillName: 'Python', category: 'Language', requiredLevel: 4, currentLevel: 2, gap: 2, verified: false },
+        ] },
+      ]);
+      if (path === '/assessments/recommended') return Promise.resolve(null);
+      return Promise.resolve([]);
+    });
+    renderOverview();
+    expect(await screen.findByText('Python')).toBeInTheDocument();
+    expect(screen.queryByText('JavaScript')).not.toBeInTheDocument();
   });
 
   it('renders recommended courses fetched from the backend', async () => {

@@ -87,18 +87,24 @@ public class ApplicationsService : IApplicationsService
     {
         _logger.LogInformation("User {UserId} applying to post {PostId}", userId, postId);
 
-        // A resume is mandatory: server-side enforcement so direct API calls cannot bypass it.
-        if (string.IsNullOrWhiteSpace(resumeUrl))
-        {
-            _logger.LogWarning("User {UserId} application to post {PostId} rejected: no resume attached", userId, postId);
-            return new ApplyOutcome(false, ApplyFailure.ResumeRequired);
-        }
-
         var learner = await _learners.GetByUserIdAsync(userId);
         if (learner == null)
         {
             _logger.LogWarning("No learner profile found for user {UserId}", userId);
             return new ApplyOutcome(false, ApplyFailure.NoLearnerProfile);
+        }
+
+        // Auto-append the learner's stored profile resume (uploaded at
+        // registration) when the request doesn't supply one; an explicitly
+        // uploaded resume always wins.
+        if (string.IsNullOrWhiteSpace(resumeUrl))
+            resumeUrl = learner.User?.ResumeUrl;
+
+        // A resume is mandatory: server-side enforcement so direct API calls cannot bypass it.
+        if (string.IsNullOrWhiteSpace(resumeUrl))
+        {
+            _logger.LogWarning("User {UserId} application to post {PostId} rejected: no resume attached", userId, postId);
+            return new ApplyOutcome(false, ApplyFailure.ResumeRequired);
         }
 
         var post = await _posts.GetByIdAsync(postId);
