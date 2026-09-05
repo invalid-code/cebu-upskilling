@@ -14,7 +14,7 @@ public interface IEmployerHiringAgent
     Task<RankCandidatesResponse> RankApplicantsAsync(int userId, int postId, int companyId, CancellationToken ct = default);
     Task<DraftJobPostResponse?> DraftJobPostAsync(int userId, DraftJobPostRequest request, CancellationToken ct = default);
     Task<ScreeningQuestionsResponse> GenerateScreeningQuestionsAsync(int userId, int postId, int companyId, int perSkill = 3, CancellationToken ct = default);
-    Task<CreateJobPostFromRoleResponse?> CreateJobPostFromTargetRoleAsync(int userId, int companyId, CreateJobPostFromRoleRequest request, CancellationToken ct = default);
+    Task<CreateJobPostFromRoleResponse?> CreateJobPostFromTargetRoleAsync(int userId, int companyId, CreateJobPostFromRoleRequest? request, CancellationToken ct = default);
 }
 
 public class EmployerHiringAgent : IEmployerHiringAgent
@@ -162,9 +162,9 @@ public class EmployerHiringAgent : IEmployerHiringAgent
     /// manually created ones.
     /// </summary>
     public async Task<CreateJobPostFromRoleResponse?> CreateJobPostFromTargetRoleAsync(
-        int userId, int companyId, CreateJobPostFromRoleRequest request, CancellationToken ct = default)
+        int userId, int companyId, CreateJobPostFromRoleRequest? request, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(request.TargetRole))
+        if (request is null || string.IsNullOrWhiteSpace(request.TargetRole))
         {
             _logger.LogWarning("User {UserId} requested a role-based job post without a target role", userId);
             return null;

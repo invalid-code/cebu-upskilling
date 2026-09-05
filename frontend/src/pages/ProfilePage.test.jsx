@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from '../context/AuthContext';
 import { ToastProvider } from '../context/ToastContext';
+import { api } from '../api/client';
 import ProfilePage from './ProfilePage';
 
 vi.mock('../api/client', () => ({
@@ -54,6 +55,7 @@ describe('ProfilePage', () => {
   beforeEach(() => {
     localStorage.clear();
     vi.restoreAllMocks();
+    api.get.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -169,6 +171,7 @@ describe('ProfilePage resume', () => {
   beforeEach(() => {
     localStorage.clear();
     vi.restoreAllMocks();
+    api.get.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -199,5 +202,65 @@ describe('ProfilePage resume', () => {
     const resumeUrl = 'https://fake-storage.example/resumes/xyz.docx';
     renderProfilePage({ userOverrides: { firstName: 'Jose', lastName: 'Rizal', resumeUrl } });
     expect(screen.getByText(resumeUrl)).toBeInTheDocument();
+  });
+});
+
+describe('ProfilePage parsed skills', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.restoreAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const skills = [
+    { skillId: 1, name: 'React', category: 'Framework', currentLevel: 3, verified: false },
+    { skillId: 2, name: 'Python', category: 'Language', currentLevel: 0, verified: true },
+  ];
+
+  it('loads parsed skills for learners from /skills', async () => {
+    api.get.mockResolvedValue(skills);
+    renderProfilePage({ role: 'Learner' });
+
+    expect(await screen.findByText('Skills from your resume')).toBeInTheDocument();
+    expect(api.get).toHaveBeenCalledWith('/skills');
+    expect(screen.getByText('React')).toBeInTheDocument();
+    expect(screen.getByText(/Intermediate/)).toBeInTheDocument();
+    expect(screen.getByText('Python')).toBeInTheDocument();
+  });
+
+  it('marks verified skills and unassessed levels', async () => {
+    api.get.mockResolvedValue(skills);
+    renderProfilePage({ role: 'Learner' });
+
+    expect(await screen.findByText(/Verified/)).toBeInTheDocument();
+    expect(screen.getByText(/Unassessed/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Verify skills in Assessments/ })).toHaveAttribute('href', '/assessments');
+  });
+
+  it('shows an empty state when no skills were parsed', async () => {
+    api.get.mockResolvedValue([]);
+    renderProfilePage({ role: 'Learner' });
+
+    expect(await screen.findByText(/No parsed skills yet/)).toBeInTheDocument();
+    expect(screen.queryByTestId('parsed-skills')).not.toBeInTheDocument();
+  });
+
+  it('shows an error note when loading fails', async () => {
+    api.get.mockRejectedValue(new Error('network down'));
+    renderProfilePage({ role: 'Learner' });
+
+    expect(await screen.findByText(/Could not load your parsed skills/)).toBeInTheDocument();
+  });
+
+  it('hides the skills section for non-learners without fetching', async () => {
+    api.get.mockResolvedValue(skills);
+    renderProfilePage({ role: 'Recruiter' });
+
+    expect(await screen.findByRole('heading', { name: 'Your profile' })).toBeInTheDocument();
+    expect(screen.queryByText('Skills from your resume')).not.toBeInTheDocument();
+    expect(api.get).not.toHaveBeenCalledWith('/skills');
   });
 });

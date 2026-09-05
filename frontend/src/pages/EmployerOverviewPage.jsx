@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { BarChart3, BriefcaseBusiness, UserCheck, Users } from 'lucide-react';
 import Button from '../components/ui/Button';
 import Panel from '../components/ui/Panel';
@@ -41,6 +41,70 @@ const styles = {
     padding: 45,
     color: 'var(--muted)',
     fontSize: 13,
+  },
+  section: {
+    marginTop: 22,
+  },
+  sectionHead: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    gap: 12,
+    margin: '0 0 12px',
+  },
+  sectionTitle: {
+    fontFamily: "'Space Grotesk', sans-serif",
+    fontSize: 19,
+    margin: 0,
+  },
+  viewAll: {
+    color: 'var(--teal)',
+    fontWeight: 700,
+    fontSize: 13,
+    textDecoration: 'none',
+    whiteSpace: 'nowrap',
+  },
+  postingRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+    padding: '12px 0',
+    borderTop: '1px solid var(--line)',
+  },
+  postingRowFirst: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+    padding: '12px 0',
+  },
+  postingTitle: {
+    fontWeight: 700,
+    fontSize: 14,
+    color: 'var(--ink)',
+    textDecoration: 'none',
+  },
+  postingMeta: {
+    color: 'var(--muted)',
+    fontSize: 12,
+    margin: '3px 0 0',
+  },
+  statusActive: {
+    fontSize: 11,
+    fontWeight: 800,
+    letterSpacing: '0.06em',
+    textTransform: 'uppercase',
+    color: 'var(--teal)',
+    whiteSpace: 'nowrap',
+  },
+  statusInactive: {
+    fontSize: 11,
+    fontWeight: 800,
+    letterSpacing: '0.06em',
+    textTransform: 'uppercase',
+    color: 'var(--muted)',
+    whiteSpace: 'nowrap',
   },
 };
 
@@ -92,14 +156,44 @@ export default function EmployerOverviewPage() {
           </EmptyState>
         </Panel>
       ) : (
-        <Panel>
-          <div style={styles.statGrid}>
-            <StatCard value={stats.company.jobPostings} label="job postings" icon={BriefcaseBusiness} />
-            <StatCard value={stats.company.recruiters} label="recruiters at company" icon={Users} />
-            <StatCard value={stats.talentPool.totalLearners} label="learners in talent pool" icon={UserCheck} />
-            <StatCard value={stats.talentPool.avgSkillLevel.toFixed(1)} label="avg. skill level" icon={BarChart3} />
-          </div>
-        </Panel>
+        <>
+          <Panel>
+            <div style={styles.statGrid}>
+              <StatCard value={stats.company.jobPostings} label="job postings" icon={BriefcaseBusiness} />
+              <StatCard value={stats.company.recruiters} label="recruiters at company" icon={Users} />
+              <StatCard value={stats.talentPool.totalLearners} label="learners in talent pool" icon={UserCheck} />
+              <StatCard value={stats.talentPool.avgSkillLevel.toFixed(1)} label="avg. skill level" icon={BarChart3} />
+            </div>
+          </Panel>
+          <section style={styles.section} aria-label="Your job postings">
+            <div style={styles.sectionHead}>
+              <h2 style={styles.sectionTitle}>Your job postings</h2>
+              {(stats.jobPostings?.length || 0) > 0 && <Link to="/business-dashboard" style={styles.viewAll}>View all →</Link>}
+            </div>
+            <Panel>
+              {(stats.jobPostings?.length || 0) === 0 ? (
+                <p style={{ margin: 0, color: 'var(--muted)', fontSize: 13 }}>
+                  No postings yet. <Link to="/post-job" style={{ color: 'var(--teal)', fontWeight: 700, textDecoration: 'none' }}>Post a job →</Link>
+                </p>
+              ) : (
+                <div>
+                  {stats.jobPostings.slice(0, 3).map((post, index) => (
+                    <div key={post.postId} style={index === 0 ? styles.postingRowFirst : styles.postingRow}>
+                      <div>
+                        <Link to={`/edit-job/${post.postId}`} style={styles.postingTitle}>{post.title}</Link>
+                        <p style={styles.postingMeta}>{[post.jobType, post.location].filter(Boolean).join(' · ') || '—'}</p>
+                      </div>
+                      <span style={post.isActive ? styles.statusActive : styles.statusInactive}>{post.isActive ? 'Active' : 'Inactive'}</span>
+                    </div>
+                  ))}
+                  {stats.jobPostings.length > 3 && (
+                    <p style={{ margin: '10px 0 0', color: 'var(--muted)', fontSize: 12 }}>+{stats.jobPostings.length - 3} more in the business dashboard</p>
+                  )}
+                </div>
+              )}
+            </Panel>
+          </section>
+        </>
       )}
     </div>
   );

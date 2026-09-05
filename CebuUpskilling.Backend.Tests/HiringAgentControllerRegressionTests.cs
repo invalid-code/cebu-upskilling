@@ -283,7 +283,7 @@ public class HiringAgentControllerRegressionTests
     // ---- CreateJobPostFromRole ----
 
     private static CreateJobPostFromRoleRequest FromRoleRequest(string targetRole) =>
-        new(targetRole, null, null, null, null, null);
+        new(null, targetRole, null, null, null, null);
 
     private static CreateJobPostFromRoleResponse FromRoleResponse(int companyId) =>
         new(new PostResponse(7, companyId, "Hiring Corp", "Backend Developer", "Desc",
