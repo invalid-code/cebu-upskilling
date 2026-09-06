@@ -102,6 +102,8 @@ else
 builder.Services.AddSingleton<ITokenRevocationStore, InMemoryTokenRevocationStore>();
 builder.Services.AddSingleton<IResumeParseQueue, ResumeParseQueue>();
 builder.Services.AddHostedService<ResumeParseWorker>();
+builder.Services.AddSingleton<ICompanyImageQueue, CompanyImageQueue>();
+builder.Services.AddHostedService<CompanyImageWorker>();
 
 builder.Services.AddScoped<ICourseRepository, CourseRepository>();
 builder.Services.AddScoped<ILessonRepository, LessonRepository>();

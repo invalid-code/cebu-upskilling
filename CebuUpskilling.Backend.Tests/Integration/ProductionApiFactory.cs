@@ -68,6 +68,15 @@ public class ProductionApiFactory : WebApplicationFactory<Program>
         {
             services.AddSingleton<ILoggerFactory>(_ => NullLoggerFactory.Instance);
 
+            // The background workers must not run in tests: they would race
+            // assertions with unpredictable timing. Requests still enqueue
+            // deterministically, and tests drive processing explicitly via
+            // ProcessJobAsync when they need it.
+            foreach (var descriptor in services
+                .Where(d => d.ImplementationType == typeof(ResumeParseWorker)
+                    || d.ImplementationType == typeof(CompanyImageWorker)).ToList())
+                services.Remove(descriptor);
+
             // Tests must never touch PostgreSQL: Program.cs registers the
             // DbContext from ConnectionStrings:DefaultConnection (Npgsql), so
             // remove that registration and point it at an isolated in-memory

@@ -2,12 +2,31 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.IO.Compression;
+using CebuUpskilling.Backend.Services;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace CebuUpskilling.Backend.Tests.Integration;
 
 public class ResumeProfileApiTests : ProductionApiTestBase
 {
     public ResumeProfileApiTests(ProductionApiFactory factory) : base(factory) { }
+
+    /// <summary>
+    /// Resume parsing/upload runs in the background (the hosted worker is
+    /// disabled in tests to avoid races), so tests drive the queued jobs
+    /// explicitly through <see cref="ResumeParseWorker.ProcessJobAsync"/>.
+    /// </summary>
+    private async Task ProcessBackgroundJobsAsync()
+    {
+        var queue = Factory.Services.GetRequiredService<IResumeParseQueue>();
+        var worker = new ResumeParseWorker(
+            queue,
+            Factory.Services.GetRequiredService<IServiceScopeFactory>(),
+            NullLogger<ResumeParseWorker>.Instance);
+        while (queue.Reader.TryRead(out var job))
+            await worker.ProcessJobAsync(job, CancellationToken.None);
+    }
 
     private static byte[] CreateFakePdfBytes(string text = "Experienced developer with React")
     {
@@ -69,16 +88,18 @@ public class ResumeProfileApiTests : ProductionApiTestBase
         var registerResponse = await RegisterLearnerWithPdfAsync(email);
         Assert.Equal(HttpStatusCode.OK, registerResponse.StatusCode);
         var registerBody = await ReadJsonAsync(registerResponse);
-        var resumeUrl = registerBody.GetProperty("resumeUrl").GetString();
-        Assert.False(string.IsNullOrWhiteSpace(resumeUrl));
-        Assert.StartsWith("https://fake-storage.example/resumes/", resumeUrl);
-        Assert.EndsWith(".pdf", resumeUrl);
+        // Upload runs in the background: not present in the register response yet.
+        Assert.True(string.IsNullOrWhiteSpace(registerBody.GetProperty("resumeUrl").GetString()));
+        await ProcessBackgroundJobsAsync();
 
         var token = registerBody.GetProperty("token").GetString()!;
         var profileResponse = await AuthorizedClient(token).GetAsync("/api/auth/profile");
         Assert.Equal(HttpStatusCode.OK, profileResponse.StatusCode);
         var profileBody = await ReadJsonAsync(profileResponse);
-        Assert.Equal(resumeUrl, profileBody.GetProperty("resumeUrl").GetString());
+        var resumeUrl = profileBody.GetProperty("resumeUrl").GetString();
+        Assert.False(string.IsNullOrWhiteSpace(resumeUrl));
+        Assert.StartsWith("https://fake-storage.example/resumes/", resumeUrl);
+        Assert.EndsWith(".pdf", resumeUrl);
     }
 
     [Fact]
@@ -88,14 +109,14 @@ public class ResumeProfileApiTests : ProductionApiTestBase
         var registerResponse = await RegisterLearnerWithDocxAsync(email);
         Assert.Equal(HttpStatusCode.OK, registerResponse.StatusCode);
         var body = await ReadJsonAsync(registerResponse);
-        var resumeUrl = body.GetProperty("resumeUrl").GetString();
-        Assert.False(string.IsNullOrWhiteSpace(resumeUrl));
-        Assert.EndsWith(".docx", resumeUrl);
+        await ProcessBackgroundJobsAsync();
 
         var token = body.GetProperty("token").GetString()!;
         var profileResponse = await AuthorizedClient(token).GetAsync("/api/auth/profile");
         var profileBody = await ReadJsonAsync(profileResponse);
-        Assert.Equal(resumeUrl, profileBody.GetProperty("resumeUrl").GetString());
+        var resumeUrl = profileBody.GetProperty("resumeUrl").GetString();
+        Assert.False(string.IsNullOrWhiteSpace(resumeUrl));
+        Assert.EndsWith(".docx", resumeUrl);
     }
 
     [Fact]
@@ -104,6 +125,7 @@ public class ResumeProfileApiTests : ProductionApiTestBase
         var email = "resume.login@example.com";
         var reg = await RegisterLearnerWithPdfAsync(email);
         reg.EnsureSuccessStatusCode();
+        await ProcessBackgroundJobsAsync();
 
         var loginResponse = await LoginAsync(new { emailAddress = email, password = "P@ssw0rd!" });
         Assert.Equal(HttpStatusCode.OK, loginResponse.StatusCode);
@@ -168,7 +190,10 @@ public class ResumeProfileApiTests : ProductionApiTestBase
         reg.EnsureSuccessStatusCode();
         var regBody = await ReadJsonAsync(reg);
         var token = regBody.GetProperty("token").GetString()!;
-        var originalUrl = regBody.GetProperty("resumeUrl").GetString();
+        await ProcessBackgroundJobsAsync();
+        var profile = await ReadJsonAsync(await AuthorizedClient(token).GetAsync("/api/auth/profile"));
+        var originalUrl = profile.GetProperty("resumeUrl").GetString();
+        Assert.False(string.IsNullOrWhiteSpace(originalUrl));
 
         var updateResponse = await AuthorizedClient(token).PatchAsJsonAsync("/api/auth/profile", new { targetRole = "Backend Developer" });
         Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);

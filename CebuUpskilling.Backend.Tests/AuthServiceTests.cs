@@ -284,8 +284,7 @@ public class AuthServiceTests
         // …but the job is queued with the extracted resume text.
         var job = Assert.Single(parseQueue.Jobs);
         Assert.Equal(result.UserId, job.UserId);
-        Assert.False(string.IsNullOrWhiteSpace(job.ResumeText));
-    }
+        Assert.False(string.IsNullOrWhiteSpace(job.ResumeText));    }
 
     [Fact]
     public async Task RegisterAsync_LearnerWithoutResume_Throws()
@@ -337,40 +336,52 @@ public class AuthServiceTests
         var learnerSkills = await context.LearnerSkills.Where(ls => ls.LearnerId == learner.LearnerId).ToListAsync();
         Assert.Empty(learnerSkills);
         var saved = await context.Users.SingleAsync(u => u.UserId == result.UserId);
-        Assert.False(string.IsNullOrWhiteSpace(saved.ResumeUrl));
-        Assert.StartsWith("https://fake-storage.example/resumes/", saved.ResumeUrl);
+        Assert.Null(saved.ResumeUrl);
         var job = Assert.Single(parseQueue.Jobs);
         Assert.Contains("Python", job.ResumeText);
     }
 
     [Fact]
-    public async Task RegisterAsync_SavesResumeUrlToStorage()
+    public async Task RegisterAsync_BuffersResumeForBackgroundUpload()
     {
         var context = TestDbContextFactory.Create();
         var storage = new FakeObjectStorageService();
-        var service = CreateService(context, storage: storage);
+        var parseQueue = new FakeResumeParseQueue();
+        var service = CreateService(context, storage: storage, parseQueue: parseQueue);
 
         var result = await service.RegisterAsync(NewRegisterRequest(), CreateFakePdf());
 
+        // The R2 upload runs in the background: nothing stored yet…
         var saved = await context.Users.SingleAsync(u => u.UserId == result.UserId);
-        Assert.NotNull(saved.ResumeUrl);
-        Assert.StartsWith("https://fake-storage.example/resumes/", saved.ResumeUrl);
-        Assert.EndsWith(".pdf", saved.ResumeUrl);
-        Assert.NotNull(storage.LastKey);
-        Assert.StartsWith("resumes/", storage.LastKey);
+        Assert.Null(saved.ResumeUrl);
+        Assert.Null(storage.LastKey);
+
+        // …but the job carries the file bytes and name for the worker.
+        var job = Assert.Single(parseQueue.Jobs);
+        Assert.Equal(result.UserId, job.UserId);
+        Assert.NotNull(job.FileBytes);
+        Assert.True(job.FileBytes.Length > 0);
+        Assert.Equal("resume.pdf", job.FileName);
     }
 
     [Fact]
-    public async Task RegisterAsync_Docx_SavesResumeUrlWithDocxExtension()
+    public async Task RegisterAsync_Docx_QueuesDocxFilenameForBackgroundUpload()
     {
         var context = TestDbContextFactory.Create();
         var storage = new FakeObjectStorageService();
-        var service = CreateService(context, storage: storage);
+        var parseQueue = new FakeResumeParseQueue();
+        var service = CreateService(context, storage: storage, parseQueue: parseQueue);
 
         var result = await service.RegisterAsync(NewRegisterRequest(), CreateFakeDocx());
 
+        // Upload runs in the background: no URL or storage call yet…
         var saved = await context.Users.SingleAsync(u => u.UserId == result.UserId);
-        Assert.EndsWith(".docx", saved.ResumeUrl);
+        Assert.Null(saved.ResumeUrl);
+        Assert.Null(storage.LastKey);
+
+        // …but the job preserves the original filename (and its extension).
+        var job = Assert.Single(parseQueue.Jobs);
+        Assert.EndsWith(".docx", job.FileName);
     }
 
     [Fact]

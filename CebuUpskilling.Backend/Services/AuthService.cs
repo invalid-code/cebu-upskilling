@@ -130,7 +130,6 @@ public class AuthService : IAuthService
         }
 
         string? resumeText = null;
-        string? resumeUrl = null;
 
         // Validate and extract resume before creating user so bad files fail fast with 400
         if (request.Role == "Learner" && resumeFile != null)
@@ -172,22 +171,15 @@ public class AuthService : IAuthService
 
         if (request.Role == "Learner")
         {
-            // Upload resume to object store after user creation and persist URL
+            // Buffer the resume bytes for the background worker (IFormFile only
+            // lives for this request). Validation + text extraction above are
+            // local and fast; the R2 upload moves to the background with parsing.
+            byte[]? resumeBytes = null;
             if (resumeFile != null)
             {
-                try
-                {
-                    resumeUrl = await _resumeService.UploadAsync(resumeFile, ct);
-                    user.ResumeUrl = resumeUrl;
-                    await _context.SaveChangesAsync();
-                    _logger.LogInformation("Resume uploaded for user {UserId}: {ResumeUrl}", user.UserId, resumeUrl);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Resume upload failed for user {UserId}", user.UserId);
-                    // Upload failure should surface as 400/500? Re-throw as InvalidOperation for bad files, else log
-                    if (ex is InvalidOperationException) throw;
-                }
+                using var buffer = new MemoryStream();
+                await resumeFile.CopyToAsync(buffer, ct);
+                resumeBytes = buffer.ToArray();
             }
 
             var learner = new Learner { UserId = user.UserId, IsPremium = false };
@@ -195,18 +187,18 @@ public class AuthService : IAuthService
             await _context.SaveChangesAsync();
             _logger.LogInformation("Learner profile created for user {UserId}", user.UserId);
 
-            // Skill parsing (Gemini) is slow, so it runs in the background:
-            // enqueue the work and return immediately. The worker parses
-            // skills, creates assessments, and pre-generates questions, so
-            // everything is ready shortly after registration completes.
+            // Skill parsing (Gemini) and the resume upload are slow, so they run
+            // in the background: enqueue the work and return immediately. The
+            // worker parses skills, creates assessments, pre-generates questions,
+            // uploads the resume, and links it to the profile.
             try
             {
-                _parseQueue.Enqueue(new ResumeParseJob(user.UserId, resumeText ?? string.Empty));
-                _logger.LogInformation("Queued resume skill parsing for user {UserId}", user.UserId);
+                _parseQueue.Enqueue(new ResumeParseJob(user.UserId, resumeText ?? string.Empty, resumeBytes, resumeFile?.FileName));
+                _logger.LogInformation("Queued resume processing for user {UserId}", user.UserId);
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to queue resume skill parsing for user {UserId}", user.UserId);
+                _logger.LogWarning(ex, "Failed to queue resume processing for user {UserId}", user.UserId);
             }
         }
 

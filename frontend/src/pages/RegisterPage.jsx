@@ -7,6 +7,7 @@ import { ErrorBanner, FieldError } from '../components/ui/ErrorState';
 import Button from '../components/ui/Button';
 import GoogleSignInButton from '../components/GoogleSignInButton';
 import PasswordField from '../components/ui/PasswordField';
+import { pollForParsedSkills } from '../lib/parsePolling';
 
 const styles = {
   container: {
@@ -304,6 +305,8 @@ export default function RegisterPage() {
         );
       } else {
         showToast('Account created — welcome to Cebu Upskilling!', 'success');
+        // Parsing/upload finish in the background; notify when skills land.
+        pollForParsedSkills(showToast);
       }
       navigate('/dashboard');
     } catch (err) {

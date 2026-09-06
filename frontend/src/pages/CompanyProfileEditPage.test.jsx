@@ -78,10 +78,9 @@ describe('CompanyProfileEditPage', () => {
     });
   });
 
-  it('uploads a logo file to /companies/me/logo', async () => {
-    api.get.mockResolvedValue(company);
-    api.postForm.mockResolvedValue({ logoUrl: 'https://media.example.com/company-logos/5/new.png' });
-
+  it('queues a logo upload, previews instantly, and applies the server URL', async () => {
+    api.get.mockResolvedValueOnce(company).mockResolvedValue({ ...company, logoUrl: 'https://cdn.example/new.png' });
+    api.postForm.mockResolvedValue({ message: 'Logo upload queued and will appear shortly.' });
     renderPage();
     await screen.findByDisplayValue('Cebu Prints');
 
@@ -89,15 +88,25 @@ describe('CompanyProfileEditPage', () => {
     fireEvent.change(input, {
       target: { files: [new File(['x'], 'logo.png', { type: 'image/png' })] },
     });
-
-    await waitFor(() => {
-      expect(api.postForm).toHaveBeenCalledWith('/companies/me/logo', expect.any(FormData));
-    });
+    expect(await screen.findByText('Logo uploading in the background…')).toBeInTheDocument();
+    expect(api.postForm).toHaveBeenCalledWith('/companies/me/logo', expect.any(FormData));
     expect(api.upload).not.toHaveBeenCalled();
-    await waitFor(() => {
-      expect(screen.getByText('Logo uploaded')).toBeInTheDocument();
+    expect(await screen.findByText('Logo uploaded', {}, { timeout: 8000 })).toBeInTheDocument();
+  }, 15000);
+
+  it('queues a cover upload and applies the server URL', async () => {
+    api.get.mockResolvedValueOnce(company).mockResolvedValue({ ...company, coverImageUrl: 'https://cdn.example/cover.png' });
+    api.postForm.mockResolvedValue({ message: 'queued' });
+    renderPage();
+    await screen.findByDisplayValue('Cebu Prints');
+
+    const inputs = document.querySelectorAll('input[type="file"]');
+    fireEvent.change(inputs[1], {
+      target: { files: [new File(['x'], 'cover.png', { type: 'image/png' })] },
     });
-  });
+    expect(await screen.findByText('Cover uploading in the background…')).toBeInTheDocument();
+    expect(await screen.findByText('Cover image uploaded', {}, { timeout: 8000 })).toBeInTheDocument();
+  }, 15000);
 
   it('rejects a non-image file before uploading', async () => {
     api.get.mockResolvedValue(company);

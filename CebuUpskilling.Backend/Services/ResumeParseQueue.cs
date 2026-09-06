@@ -1,14 +1,16 @@
 using System.Threading.Channels;
+using CebuUpskilling.Backend.Data;
 
 namespace CebuUpskilling.Backend.Services;
 
 /// <summary>
-/// Resume skill parsing (Gemini) is slow — seconds per registration — so
-/// <see cref="AuthService"/> only enqueues the work and returns immediately.
-/// A <see cref="ResumeParseWorker"/> processes jobs in the background with
-/// its own scope: a slow or failing parse can never block registration.
+/// Resume skill parsing (Gemini) and the resume R2 upload are slow — seconds
+/// per registration — so <see cref="AuthService"/> only buffers the file,
+/// enqueues the work, and returns immediately. A <see cref="ResumeParseWorker"/>
+/// processes jobs in the background with its own scope: slow or failing
+/// uploads/parses can never block registration.
 /// </summary>
-public record ResumeParseJob(int UserId, string ResumeText);
+public record ResumeParseJob(int UserId, string ResumeText, byte[]? FileBytes, string? FileName);
 
 public interface IResumeParseQueue
 {
@@ -53,16 +55,7 @@ public class ResumeParseWorker : BackgroundService
         {
             try
             {
-                using var scope = _scopes.CreateScope();
-                var agent = scope.ServiceProvider.GetRequiredService<IJobseekerSkillParserAgent>();
-
-                var result = await agent.ParseAndCreateAssessmentsAsync(job.UserId, job.ResumeText, stoppingToken);
-                _logger.LogInformation("Background-parsed {Count} skills for user {UserId}",
-                    result.Skills.Count, job.UserId);
-
-                // Pre-generate questions so opening an assessment is instant.
-                foreach (var skill in result.Skills.Take(MaxPregeneratedSkills))
-                    await agent.EnsureQuestionsForSkillAsync(skill.SkillId, stoppingToken);
+                await ProcessJobAsync(job, stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -71,6 +64,42 @@ public class ResumeParseWorker : BackgroundService
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Background resume parsing failed for user {UserId}", job.UserId);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Processes one job: parse skills, create assessments, pre-generate
+    /// questions, upload the resume, link it to the profile. Public so
+    /// integration tests can drive the background pipeline deterministically
+    /// (the hosted worker itself is disabled in test hosts).
+    /// </summary>
+    public async Task ProcessJobAsync(ResumeParseJob job, CancellationToken ct)
+    {
+        using var scope = _scopes.CreateScope();
+        var services = scope.ServiceProvider;
+        var agent = services.GetRequiredService<IJobseekerSkillParserAgent>();
+
+        var result = await agent.ParseAndCreateAssessmentsAsync(job.UserId, job.ResumeText, ct);
+        _logger.LogInformation("Background-parsed {Count} skills for user {UserId}",
+            result.Skills.Count, job.UserId);
+
+        // Pre-generate questions so opening an assessment is instant.
+        foreach (var skill in result.Skills.Take(MaxPregeneratedSkills))
+            await agent.EnsureQuestionsForSkillAsync(skill.SkillId, ct);
+
+        // Upload the buffered resume and link it to the user profile.
+        if (job.FileBytes is { Length: > 0 } && !string.IsNullOrWhiteSpace(job.FileName))
+        {
+            var resumeService = services.GetRequiredService<IResumeService>();
+            var db = services.GetRequiredService<ApplicationDbContext>();
+            var url = await resumeService.UploadBytesAsync(job.FileBytes, job.FileName, ct);
+            var user = await db.Users.FindAsync(new object[] { job.UserId }, ct);
+            if (user != null)
+            {
+                user.ResumeUrl = url;
+                await db.SaveChangesAsync(ct);
+                _logger.LogInformation("Background-uploaded resume for user {UserId}", job.UserId);
             }
         }
     }

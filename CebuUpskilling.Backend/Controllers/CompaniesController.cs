@@ -11,11 +11,13 @@ namespace CebuUpskilling.Backend.Controllers;
 public class CompaniesController : ControllerBase
 {
     private readonly ICompanyService _companyService;
+    private readonly ICompanyImageQueue _imageQueue;
     private readonly ILogger<CompaniesController> _logger;
 
-    public CompaniesController(ICompanyService companyService, ILogger<CompaniesController> logger)
+    public CompaniesController(ICompanyService companyService, ICompanyImageQueue imageQueue, ILogger<CompaniesController> logger)
     {
         _companyService = companyService;
+        _imageQueue = imageQueue;
         _logger = logger;
     }
 
@@ -91,9 +93,14 @@ public class CompaniesController : ControllerBase
             return Unauthorized(new { error = "Invalid token" });
         }
 
-        _logger.LogInformation("HTTP POST /api/companies/me/logo by user {UserId}", userId.Value);
-        var logoUrl = await _companyService.UploadLogoAsync(userId.Value, file);
-        return Ok(new UploadLogoResponse(logoUrl));
+        // Fast local validation only; the R2 upload runs in the background.
+        _companyService.ValidateImage(file);
+        using var buffer = new MemoryStream();
+        await file.CopyToAsync(buffer);
+
+        _logger.LogInformation("HTTP POST /api/companies/me/logo by user {UserId} (queued)", userId.Value);
+        _imageQueue.Enqueue(new CompanyImageJob(userId.Value, CompanyImageKind.Logo, buffer.ToArray(), file.FileName));
+        return Accepted(new { message = "Logo upload queued and will appear shortly." });
     }
 
     [HttpPost("me/cover")]
@@ -107,9 +114,14 @@ public class CompaniesController : ControllerBase
             return Unauthorized(new { error = "Invalid token" });
         }
 
-        _logger.LogInformation("HTTP POST /api/companies/me/cover by user {UserId}", userId.Value);
-        var coverUrl = await _companyService.UploadCoverAsync(userId.Value, file);
-        return Ok(new UploadLogoResponse(coverUrl));
+        // Fast local validation only; the R2 upload runs in the background.
+        _companyService.ValidateImage(file);
+        using var buffer = new MemoryStream();
+        await file.CopyToAsync(buffer);
+
+        _logger.LogInformation("HTTP POST /api/companies/me/cover by user {UserId} (queued)", userId.Value);
+        _imageQueue.Enqueue(new CompanyImageJob(userId.Value, CompanyImageKind.Cover, buffer.ToArray(), file.FileName));
+        return Accepted(new { message = "Cover upload queued and will appear shortly." });
     }
 
     private int? GetCurrentUserId()

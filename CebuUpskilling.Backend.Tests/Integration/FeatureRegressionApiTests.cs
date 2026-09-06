@@ -4,8 +4,10 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using CebuUpskilling.Backend.Data;
 using CebuUpskilling.Backend.Entities;
+using CebuUpskilling.Backend.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace CebuUpskilling.Backend.Tests.Integration;
 
@@ -19,6 +21,21 @@ namespace CebuUpskilling.Backend.Tests.Integration;
 public class FeatureRegressionApiTests : ProductionApiTestBase
 {
     public FeatureRegressionApiTests(ProductionApiFactory factory) : base(factory) { }
+
+    /// <summary>
+    /// Resume upload/parsing runs in the background (worker disabled in tests),
+    /// so tests that need the stored profile resume drive queued jobs explicitly.
+    /// </summary>
+    private async Task ProcessBackgroundJobsAsync()
+    {
+        var queue = Factory.Services.GetRequiredService<IResumeParseQueue>();
+        var worker = new ResumeParseWorker(
+            queue,
+            Factory.Services.GetRequiredService<IServiceScopeFactory>(),
+            NullLogger<ResumeParseWorker>.Instance);
+        while (queue.Reader.TryRead(out var job))
+            await worker.ProcessJobAsync(job, CancellationToken.None);
+    }
 
     // ------------------------------------------------------------------ //
     // Stats
@@ -449,6 +466,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         var (recruiterToken, _, companyId) =
             await RegisterRecruiterWithCompanyAsync("regr.apps.noresume.recruiter@example.com");
         var postId = await CreatePostAsync(recruiterToken, companyId, "Resume Required Role");
+        await ProcessBackgroundJobsAsync();
 
         var response = await AuthorizedClient(token).PostAsJsonAsync("/api/applications", new { postId });
 

@@ -196,6 +196,34 @@ export default function CompanyProfileEditPage() {
     }
   };
 
+  // Uploads finish in the background (202): show an instant local preview,
+  // then poll the profile until the server URL lands.
+  const pollForImageUrl = async (kind, previousUrl, setUrl, doneMessage, previewUrl) => {
+    if (!user?.companyId) return;
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      await new Promise((resolve) => { setTimeout(resolve, 3000); });
+      try {
+        const data = await api.get(`/companies/${user.companyId}`);
+        const next = kind === 'logo' ? data?.logoUrl : data?.coverImageUrl;
+        if (next && next !== previousUrl) {
+          if (previewUrl && typeof URL.revokeObjectURL === 'function') URL.revokeObjectURL(previewUrl);
+          setUrl(next);
+          showToast(doneMessage, 'success');
+          return;
+        }
+      } catch {
+        return;
+      }
+    }
+  };
+
+  const previewLocalFile = (file, setUrl) => {
+    if (typeof URL.createObjectURL !== 'function') return null;
+    const preview = URL.createObjectURL(file);
+    setUrl(preview);
+    return preview;
+  };
+
   const handleLogoFile = async (e) => {
     const file = e.target.files?.[0];
     e.target.value = '';
@@ -205,15 +233,17 @@ export default function CompanyProfileEditPage() {
       showToast(validationError, 'error');
       return;
     }
+    const previousUrl = logoUrl;
+    const preview = previewLocalFile(file, setLogoUrl);
     setUploadingLogo(true);
     try {
-      // NOTE: use postForm, not api.upload — the logo endpoint returns
-      // { logoUrl }, and api.upload rejects any response without a `url` field.
+      // NOTE: use postForm, not api.upload — the logo endpoint accepts the
+      // upload (202) and api.upload rejects any response without a `url` field.
       const form = new FormData();
       form.append('file', file);
-      const res = await api.postForm('/companies/me/logo', form);
-      setLogoUrl(res?.logoUrl || '');
-      showToast('Logo uploaded');
+      await api.postForm('/companies/me/logo', form);
+      showToast('Logo uploading in the background…');
+      await pollForImageUrl('logo', previousUrl || preview, setLogoUrl, 'Logo uploaded', preview);
     } catch (err) {
       showToast(err?.message || 'Could not upload logo');
     } finally {
@@ -230,15 +260,15 @@ export default function CompanyProfileEditPage() {
       showToast(validationError, 'error');
       return;
     }
+    const previousUrl = coverUrl;
+    const preview = previewLocalFile(file, setCoverUrl);
     setUploadingCover(true);
     try {
       const form = new FormData();
       form.append('file', file);
-      const res = await api.postForm('/companies/me/cover', form);
-      // Backend returns { logoUrl: coverUrl } via UploadLogoResponse for both endpoints
-      const url = res?.logoUrl || res?.coverImageUrl || res?.coverUrl || '';
-      setCoverUrl(url);
-      showToast('Cover image uploaded');
+      await api.postForm('/companies/me/cover', form);
+      showToast('Cover uploading in the background…');
+      await pollForImageUrl('cover', previousUrl || preview, setCoverUrl, 'Cover image uploaded', preview);
     } catch (err) {
       showToast(err?.message || 'Could not upload cover image');
     } finally {
