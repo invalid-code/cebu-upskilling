@@ -134,6 +134,47 @@ public class GoogleAiServiceTests
     }
 
     [Fact]
+    public async Task ParseSkillsFromResumeAsync_FiltersSpokenLanguages()
+    {
+        var handler = new StubHttpMessageHandler
+        {
+            Responder = _ => GenerateContentResponse("[\"React\",\"English\",\"Filipino\",\"JavaScript\",\"cebuano\"]"),
+        };
+        var service = CreateService(handler);
+
+        var skills = await service.ParseSkillsFromResumeAsync("resume");
+
+        Assert.Equal(new[] { "React", "JavaScript" }, skills);
+    }
+
+    [Fact]
+    public async Task ParseSkillsFromResumeAsync_PromptInstructsToExcludeSpokenLanguages()
+    {
+        var handler = new StubHttpMessageHandler { Responder = _ => GenerateContentResponse("[\"React\"]") };
+        var service = CreateService(handler);
+
+        await service.ParseSkillsFromResumeAsync("resume");
+
+        var body = JsonDocument.Parse(RequestBody(handler)).RootElement;
+        var prompt = body.GetProperty("contents")[0].GetProperty("parts")[0].GetProperty("text").GetString();
+        Assert.Contains("human language", prompt);
+    }
+
+    [Fact]
+    public async Task ParseSkillsFromResumeAsync_FiltersSoftSkills()
+    {
+        var handler = new StubHttpMessageHandler
+        {
+            Responder = _ => GenerateContentResponse("[\"React\",\"Communication\",\"creativity\",\"Detail-Oriented\",\"team work\",\"JavaScript\"]"),
+        };
+        var service = CreateService(handler);
+
+        var skills = await service.ParseSkillsFromResumeAsync("resume");
+
+        Assert.Equal(new[] { "React", "JavaScript" }, skills);
+    }
+
+    [Fact]
     public async Task ParseSkillsFromResumeAsync_NonJsonOutput_ReturnsEmpty()
     {
         var handler = new StubHttpMessageHandler { Responder = _ => GenerateContentResponse("this is not json") };

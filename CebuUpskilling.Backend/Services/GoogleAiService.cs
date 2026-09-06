@@ -25,6 +25,32 @@ public class GoogleAiService : IGoogleAiService
         new(@"</\s*(resume|skill|job|candidates|job_details|brief)\s*>",
             RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
+    // Names that must never become skills, even if the model returns them:
+    // - Spoken/written human languages frequently appear on resumes under a
+    //   "Languages" section (e.g. "English, Filipino") but are not verifiable skills.
+    // - Soft skills and personal attributes (e.g. "communication", "creativity",
+    //   "detail-oriented") cannot be verified by assessment and are excluded.
+    // Entries are stored normalized (see NormalizeExcludedName) so variants
+    // like "Detail-Oriented" and "detail oriented" all match.
+    private static readonly HashSet<string> ExcludedSkillNames = new(StringComparer.Ordinal)
+    {
+        "english", "filipino", "tagalog", "cebuano", "bisaya", "ilocano", "hiligaynon",
+        "ilonggo", "waray", "bicolano", "kapampangan", "pangasinan", "maranao",
+        "tausug", "chavacano", "spanish", "french", "german", "italian", "portuguese",
+        "dutch", "russian", "chinese", "mandarin", "cantonese", "japanese", "korean",
+        "arabic", "hindi", "vietnamese", "thai", "malay", "indonesian",
+        "communication", "communicationskills", "creativity", "creative",
+        "detailoriented", "attentiontodetail", "teamwork", "teamplayer",
+        "collaboration", "collaborative", "leadership", "timemanagement",
+        "adaptability", "adaptable", "flexibility", "flexible", "workethic",
+        "interpersonalskills", "peopleskills", "problemsolving", "criticalthinking",
+        "multitasking", "selfmotivated", "motivation", "patience", "empathy",
+        "activelistening", "positiveattitude", "strongworkethic", "hardworking",
+    };
+
+    private static string NormalizeExcludedName(string name) =>
+        name.Trim().ToLowerInvariant().Replace("-", "").Replace(" ", "").Replace("_", "");
+
     public GoogleAiService(HttpClient httpClient, IOptions<GoogleAiOptions> options, ILogger<GoogleAiService> logger)
     {
         _httpClient = httpClient;
@@ -49,10 +75,16 @@ public class GoogleAiService : IGoogleAiService
             - Libraries
             - Tools
             - Technologies
-            - Professional skills
+            - Professional practices and methodologies (e.g. Agile, Scrum)
 
             Format requirements:
             - Standard, recognizable names (e.g. "JavaScript" not "JS").
+            - Only hard, verifiable skills. Exclude:
+              - Spoken/written human languages (e.g. "English", "Filipino",
+                "Tagalog", "Cebuano") — these are not skills.
+              - Soft skills and personal attributes (e.g. "communication",
+                "creativity", "detail-oriented", "teamwork", "leadership") —
+                these cannot be verified by assessment.
 
             Output format:
             - JSON array of strings, nothing else.
@@ -80,6 +112,7 @@ public class GoogleAiService : IGoogleAiService
             var skillNames = rawSkillNames
                 .Select(name => name?.Trim())
                 .Where(name => !string.IsNullOrWhiteSpace(name) && name.Length <= 100)
+                .Where(name => !ExcludedSkillNames.Contains(NormalizeExcludedName(name!)))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .Select(name => name!)
                 .ToList();
