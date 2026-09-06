@@ -100,25 +100,21 @@ public class AuthTokenReuseTests
 
     private static AuthService CreateService(ApplicationDbContext ctx, ITokenRevocationStore store)
     {
-        var fakeAi = new FakeGoogleAiService();
-        var agent = new JobseekerSkillParserAgent(fakeAi, new SkillRepository(ctx), new LearnerRepository(ctx), new LearnerSkillRepository(ctx), new LearnerAssessmentRepository(ctx), new AppUserRepository(ctx), new RoleSkillRepository(ctx), new AssessmentQuestionRepository(ctx), NullLogger<JobseekerSkillParserAgent>.Instance);
         var fakeStorage = new FakeObjectStorage();
         var resumeSvc = new ResumeService(fakeStorage, NullLogger<ResumeService>.Instance);
-        return new AuthService(ctx, agent, new JwtTokenService(Config(), NullLogger<JwtTokenService>.Instance), new LoggingEmailService(NullLogger<LoggingEmailService>.Instance), store, new RejectingGoogleVerifier(), resumeSvc, NullLogger<AuthService>.Instance);
+        return new AuthService(ctx, new JwtTokenService(Config(), NullLogger<JwtTokenService>.Instance), new LoggingEmailService(NullLogger<LoggingEmailService>.Instance), store, new RejectingGoogleVerifier(), resumeSvc, new FakeResumeParseQueue(), NullLogger<AuthService>.Instance);
+    }
+
+    private sealed class FakeResumeParseQueue : IResumeParseQueue
+    {
+        public void Enqueue(ResumeParseJob job) { }
+        public System.Threading.Channels.ChannelReader<ResumeParseJob> Reader
+            => System.Threading.Channels.Channel.CreateUnbounded<ResumeParseJob>().Reader;
     }
 
     private class RejectingGoogleVerifier : IGoogleTokenVerifier
     {
         public Task<GoogleUserInfo> VerifyIdTokenAsync(string idToken) => throw new UnauthorizedAccessException("Invalid Google credential");
-    }
-
-    private class FakeGoogleAiService : IGoogleAiService
-    {
-        public Task<List<string>> ParseSkillsFromResumeAsync(string t, CancellationToken ct = default) => Task.FromResult(new List<string>());
-        public Task<List<GeneratedAssessmentQuestion>> GenerateAssessmentQuestionsAsync(string s, int c = 5, CancellationToken ct = default) => Task.FromResult(new List<GeneratedAssessmentQuestion>());
-        public Task<List<CandidateRanking>> RankCandidatesAsync(string j, string r, string? req, List<CandidateSkillProfile> cands, CancellationToken ct = default) => Task.FromResult(new List<CandidateRanking>());
-        public Task<DraftJobPostResponse?> DraftJobPostAsync(DraftJobPostRequest request, CancellationToken ct = default) => Task.FromResult<DraftJobPostResponse?>(null);
-        public Task<CourseGenerationResult?> GenerateCourseOutlineAsync(CourseGenerationPromptContext context, CancellationToken ct = default) => Task.FromResult<CourseGenerationResult?>(null);
     }
 
     private class FakeObjectStorage : IObjectStorageService
@@ -226,11 +222,9 @@ public class MassAssignmentRegressionTests
         var store = new InMemoryTokenRevocationStore(NullLogger<InMemoryTokenRevocationStore>.Instance);
         var fakeStorage2 = new FakeObjectStorage2();
         var resumeSvc2 = new ResumeService(fakeStorage2, NullLogger<ResumeService>.Instance);
-        var svc = new AuthService(ctx, new JobseekerSkillParserAgent(
-            new FakeAi(), new SkillRepository(ctx), new LearnerRepository(ctx), new LearnerSkillRepository(ctx), new LearnerAssessmentRepository(ctx),
-            new AppUserRepository(ctx), new RoleSkillRepository(ctx), new AssessmentQuestionRepository(ctx), NullLogger<JobseekerSkillParserAgent>.Instance),
+        var svc = new AuthService(ctx,
             new JwtTokenService(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Jwt:Key"] = "test-secret-key-that-is-at-least-32-characters-long", ["Jwt:Issuer"] = "CebuUpskilling", ["Jwt:Audience"] = "CebuUpskilling.Web" }).Build(), NullLogger<JwtTokenService>.Instance),
-            new LoggingEmailService(NullLogger<LoggingEmailService>.Instance), store, new RejectingGoogleVerifier(), resumeSvc2, NullLogger<AuthService>.Instance);
+            new LoggingEmailService(NullLogger<LoggingEmailService>.Instance), store, new RejectingGoogleVerifier(), resumeSvc2, new FakeResumeParseQueue2(), NullLogger<AuthService>.Instance);
 
         var resp = await svc.CompanyRegisterAsync(new CompanyRegisterRequest("Overpost Corp", "Maria", "Santos", null, null, "overpost.role@example.com", "P@ssw0rd!", null));
         Assert.Equal("Recruiter", resp.Role);
@@ -250,13 +244,11 @@ public class MassAssignmentRegressionTests
         public string GetPublicUrl(string key) => $"https://fake.example/{key}";
     }
 
-    private class FakeAi : IGoogleAiService
+    private sealed class FakeResumeParseQueue2 : IResumeParseQueue
     {
-        public Task<List<string>> ParseSkillsFromResumeAsync(string t, CancellationToken ct = default) => Task.FromResult(new List<string>());
-        public Task<List<GeneratedAssessmentQuestion>> GenerateAssessmentQuestionsAsync(string s, int c = 5, CancellationToken ct = default) => Task.FromResult(new List<GeneratedAssessmentQuestion>());
-        public Task<List<CandidateRanking>> RankCandidatesAsync(string j, string r, string? req, List<CandidateSkillProfile> cands, CancellationToken ct = default) => Task.FromResult(new List<CandidateRanking>());
-        public Task<DraftJobPostResponse?> DraftJobPostAsync(DraftJobPostRequest request, CancellationToken ct = default) => Task.FromResult<DraftJobPostResponse?>(null);
-        public Task<CourseGenerationResult?> GenerateCourseOutlineAsync(CourseGenerationPromptContext context, CancellationToken ct = default) => Task.FromResult<CourseGenerationResult?>(null);
+        public void Enqueue(ResumeParseJob job) { }
+        public System.Threading.Channels.ChannelReader<ResumeParseJob> Reader
+            => System.Threading.Channels.Channel.CreateUnbounded<ResumeParseJob>().Reader;
     }
 }
 

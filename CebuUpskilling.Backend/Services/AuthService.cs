@@ -77,33 +77,33 @@ public interface IAuthService
 public class AuthService : IAuthService
 {
     private readonly ApplicationDbContext _context;
-    private readonly IJobseekerSkillParserAgent _jobseekerSkillParserAgent;
     private readonly IJwtTokenService _tokenService;
     private readonly IEmailService _emailService;
     private readonly ITokenRevocationStore _revocationStore;
     private readonly IGoogleTokenVerifier _googleTokenVerifier;
     private readonly IResumeService _resumeService;
+    private readonly IResumeParseQueue _parseQueue;
     private readonly ILogger<AuthService> _logger;
 
     private const string FrontendBaseUrl = "http://localhost:5173";
 
     public AuthService(
         ApplicationDbContext context,
-        IJobseekerSkillParserAgent jobseekerSkillParserAgent,
         IJwtTokenService tokenService,
         IEmailService emailService,
         ITokenRevocationStore revocationStore,
         IGoogleTokenVerifier googleTokenVerifier,
         IResumeService resumeService,
+        IResumeParseQueue parseQueue,
         ILogger<AuthService> logger)
     {
         _context = context;
-        _jobseekerSkillParserAgent = jobseekerSkillParserAgent;
         _tokenService = tokenService;
         _emailService = emailService;
         _revocationStore = revocationStore;
         _googleTokenVerifier = googleTokenVerifier;
         _resumeService = resumeService;
+        _parseQueue = parseQueue;
         _logger = logger;
     }
 
@@ -170,8 +170,6 @@ public class AuthService : IAuthService
         await _context.SaveChangesAsync();
         _logger.LogInformation("User registered successfully: {UserId} ({Email}), Role: {Role}", user.UserId, user.EmailAddress, user.Role);
 
-        ParseSkillsResult? parseResult = null;
-
         if (request.Role == "Learner")
         {
             // Upload resume to object store after user creation and persist URL
@@ -197,20 +195,18 @@ public class AuthService : IAuthService
             await _context.SaveChangesAsync();
             _logger.LogInformation("Learner profile created for user {UserId}", user.UserId);
 
+            // Skill parsing (Gemini) is slow, so it runs in the background:
+            // enqueue the work and return immediately. The worker parses
+            // skills, creates assessments, and pre-generates questions, so
+            // everything is ready shortly after registration completes.
             try
             {
-                parseResult = await _jobseekerSkillParserAgent.ParseAndCreateAssessmentsAsync(user.UserId, resumeText ?? string.Empty, CancellationToken.None);
-                _logger.LogInformation("Auto-parsed resume skills and created assessments for user {UserId}", user.UserId);
+                _parseQueue.Enqueue(new ResumeParseJob(user.UserId, resumeText ?? string.Empty));
+                _logger.LogInformation("Queued resume skill parsing for user {UserId}", user.UserId);
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Resume skill parsing failed during registration for user {UserId}", user.UserId);
-                // The failed save leaves the new Skill/LearnerSkill/LearnerAssessment
-                // entities in Added state on this scoped context. Detach them so the
-                // confirmation-email save below doesn't retry the same failed INSERTs
-                // and fail as collateral (the user + learner rows above are already saved).
-                foreach (var entry in _context.ChangeTracker.Entries().Where(e => e.State == EntityState.Added).ToList())
-                    entry.State = EntityState.Detached;
+                _logger.LogWarning(ex, "Failed to queue resume skill parsing for user {UserId}", user.UserId);
             }
         }
 
@@ -228,8 +224,8 @@ public class AuthService : IAuthService
         return BuildAuthResponse(
             user,
             token,
-            parseResult?.Skills.Count ?? 0,
-            parseResult?.Skills.Count(s => s.AssessmentId != null) ?? 0,
+            0,
+            0,
             user.CompanyId,
             user.Company?.Name);
     }

@@ -409,6 +409,59 @@ public class JobseekerSkillParserAgentTests
     }
 
     [Fact]
+    public async Task EnsureQuestionsForSkillAsync_WithExistingQuestions_ReturnsZeroWithoutCallingAi()
+    {
+        var context = TestDbContextFactory.Create();
+        var skill = new Skill { Name = "Go", Category = "Language" };
+        context.Skills.Add(skill);
+        await context.SaveChangesAsync();
+        context.AssessmentQuestions.Add(new AssessmentQuestion
+        {
+            SkillId = skill.SkillId, Text = "Existing?", OptionA = "A", OptionB = "B",
+            OptionC = "C", OptionD = "D", CorrectOption = 0, Source = AssessmentSource.AI,
+        });
+        await context.SaveChangesAsync();
+
+        var ai = new FakeGoogleAiService(questions: SampleQuestions());
+        var agent = CreateAgent(context, ai);
+
+        Assert.Equal(0, await agent.EnsureQuestionsForSkillAsync(skill.SkillId));
+        Assert.Equal(0, ai.GenerationCalls);
+        Assert.Single(await context.AssessmentQuestions.ToListAsync());
+    }
+
+    [Fact]
+    public async Task EnsureQuestionsForSkillAsync_WithoutQuestions_GeneratesAiSet()
+    {
+        var context = TestDbContextFactory.Create();
+        var skill = new Skill { Name = "Rust", Category = "Language" };
+        context.Skills.Add(skill);
+        await context.SaveChangesAsync();
+
+        var ai = new FakeGoogleAiService(questions: SampleQuestions());
+        var agent = CreateAgent(context, ai);
+
+        var created = await agent.EnsureQuestionsForSkillAsync(skill.SkillId);
+
+        Assert.Equal(5, created);
+        Assert.Equal(1, ai.GenerationCalls);
+        var stored = await context.AssessmentQuestions.Where(q => q.SkillId == skill.SkillId).ToListAsync();
+        Assert.Equal(5, stored.Count);
+        Assert.All(stored, q => Assert.Equal(AssessmentSource.AI, q.Source));
+    }
+
+    [Fact]
+    public async Task EnsureQuestionsForSkillAsync_UnknownSkill_ReturnsZero()
+    {
+        var context = TestDbContextFactory.Create();
+        var ai = new FakeGoogleAiService(questions: SampleQuestions());
+        var agent = CreateAgent(context, ai);
+
+        Assert.Equal(0, await agent.EnsureQuestionsForSkillAsync(99999));
+        Assert.Equal(0, ai.GenerationCalls);
+    }
+
+    [Fact]
     public async Task GetAvailableAssessmentsAsync_ViaAgent_WithNoTargetRole_ReturnsParsedSkillAssessments()
     {
         var context = TestDbContextFactory.Create();

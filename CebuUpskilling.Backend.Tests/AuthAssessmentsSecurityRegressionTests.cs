@@ -53,6 +53,7 @@ public class AuthAssessmentsSecurityRegressionTests
         public Task<SubmitAssessmentResponse?> SubmitAssessmentAsync(int userId, int assessmentId, SubmitAssessmentRequest request) => Task.FromResult<SubmitAssessmentResponse?>(null);
         public Task<CreatedCompanyQuestionResponse?> CreateCompanyQuestionAsync(int userId, CreateCompanyQuestionRequest request) => Task.FromResult<CreatedCompanyQuestionResponse?>(null);
         public Task<CreatedProviderQuestionResponse?> CreateProviderQuestionAsync(int userId, CreateProviderQuestionRequest request) => Task.FromResult<CreatedProviderQuestionResponse?>(null);
+        public Task<int> EnsureQuestionsForSkillAsync(int skillId, CancellationToken ct = default) => Task.FromResult(0);
         public Task<ParseSkillsResult> ParseAndCreateAssessmentsAsync(int userId, string resumeText, CancellationToken ct = default) => Task.FromResult(new ParseSkillsResult(new List<ParsedSkillResult>()));
     }
 

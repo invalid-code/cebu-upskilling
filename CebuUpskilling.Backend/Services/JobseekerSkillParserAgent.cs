@@ -708,6 +708,27 @@ public class JobseekerSkillParserAgent : IJobseekerSkillParserAgent
         );
     }
 
+    /// <summary>
+    /// Ensures takeable questions exist for a skill, generating an AI set
+    /// when none exist yet (any source). Used by the background parse worker
+    /// so opening an assessment never waits on generation.
+    /// </summary>
+    public async Task<int> EnsureQuestionsForSkillAsync(int skillId, CancellationToken ct = default)
+    {
+        if ((await _assessmentQuestions.GetBySkillIdAsync(skillId)).Count > 0)
+            return 0;
+
+        var skill = await _skills.GetByIdAsync(skillId);
+        if (skill == null)
+        {
+            _logger.LogWarning("Skill {SkillId} not found for question pre-generation", skillId);
+            return 0;
+        }
+
+        var created = await GenerateQuestionsForSkillAsync(skill, 5, ct);
+        return created.Count;
+    }
+
     private async Task<List<AssessmentQuestion>> GenerateQuestionsForSkillAsync(Skill skill, int count = 5, CancellationToken ct = default)
     {
         _logger.LogInformation("Generating {Count} AI assessment questions for skill {Skill}",

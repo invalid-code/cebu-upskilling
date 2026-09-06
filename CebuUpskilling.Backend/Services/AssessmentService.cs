@@ -12,4 +12,5 @@ public interface IAssessmentService
     Task<SubmitAssessmentResponse?> SubmitAssessmentAsync(int userId, int assessmentId, SubmitAssessmentRequest request);
     Task<CreatedCompanyQuestionResponse?> CreateCompanyQuestionAsync(int userId, CreateCompanyQuestionRequest request);
     Task<CreatedProviderQuestionResponse?> CreateProviderQuestionAsync(int userId, CreateProviderQuestionRequest request);
+    Task<int> EnsureQuestionsForSkillAsync(int skillId, CancellationToken ct = default);
 }

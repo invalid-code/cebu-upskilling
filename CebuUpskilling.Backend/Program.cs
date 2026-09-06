@@ -100,6 +100,8 @@ else
     builder.Services.AddScoped<IEmailService, LoggingEmailService>();
 }
 builder.Services.AddSingleton<ITokenRevocationStore, InMemoryTokenRevocationStore>();
+builder.Services.AddSingleton<IResumeParseQueue, ResumeParseQueue>();
+builder.Services.AddHostedService<ResumeParseWorker>();
 
 builder.Services.AddScoped<ICourseRepository, CourseRepository>();
 builder.Services.AddScoped<ILessonRepository, LessonRepository>();
