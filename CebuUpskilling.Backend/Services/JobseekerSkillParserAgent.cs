@@ -296,6 +296,16 @@ public class JobseekerSkillParserAgent : IJobseekerSkillParserAgent
             .GroupBy(q => q.SkillId)
             .ToDictionary(g => g.Key, g => g.First().Company?.Name ?? "Company");
 
+        // Provider-authored questions are curated like company questions for
+        // display counts, but keep their own source label below.
+        var providerQuestions = await _assessmentQuestions.GetBySkillIdsAndSourceAsync(allSkillIds, AssessmentSource.Provider);
+        var providerBySkill = providerQuestions
+            .GroupBy(q => q.SkillId)
+            .ToDictionary(g => g.Key, g => g.First());
+        foreach (var group in providerQuestions.GroupBy(q => q.SkillId))
+            companyQuestionCounts[group.Key] = Math.Max(
+                companyQuestionCounts.GetValueOrDefault(group.Key), group.Count());
+
         var assessments = roleSkills
             .Select(rs =>
             {
@@ -304,6 +314,7 @@ public class JobseekerSkillParserAgent : IJobseekerSkillParserAgent
                 var gap = Math.Max(0, rs.RequiredLevel - currentLevel);
                 var hasAssessment = verifiedBySkill.ContainsKey(rs.SkillId);
                 var isCompanyAssessment = companyBySkill.ContainsKey(rs.SkillId);
+                var isProviderAssessment = !isCompanyAssessment && providerBySkill.ContainsKey(rs.SkillId);
 
                 return new AvailableAssessmentDto(
                     SkillId: rs.Skill.SkillId,
@@ -317,9 +328,9 @@ public class JobseekerSkillParserAgent : IJobseekerSkillParserAgent
                     HasAssessment: hasAssessment,
                     QuestionCount: ResolveDisplayQuestionCount(questionCounts, companyQuestionCounts, rs.Skill.SkillId),
                     TimeLimitMinutes: 45,
-                    SourceLabel: isCompanyAssessment ? "Company" : "AI-generated",
+                    SourceLabel: isCompanyAssessment ? "Company" : isProviderAssessment ? "Provider" : "AI-generated",
                     CompanyName: isCompanyAssessment ? companyBySkill[rs.Skill.SkillId] : null,
-                    Proctored: !isCompanyAssessment,
+                    Proctored: !isCompanyAssessment && !isProviderAssessment,
                     IsSkillAssessment: false
                 );
             })
@@ -330,6 +341,7 @@ public class JobseekerSkillParserAgent : IJobseekerSkillParserAgent
             var currentLevel = learnerSkillMap.TryGetValue(skill.SkillId, out var ls) ? ls!.CurrentLevel : 0;
             var targetLevel = Math.Max(currentLevel, 3);
             var isCompanyAssessment = companyBySkill.ContainsKey(skill.SkillId);
+            var isProviderAssessment = !isCompanyAssessment && providerBySkill.ContainsKey(skill.SkillId);
 
             assessments.Add(new AvailableAssessmentDto(
                 SkillId: skill.SkillId,
@@ -343,9 +355,9 @@ public class JobseekerSkillParserAgent : IJobseekerSkillParserAgent
                 HasAssessment: verifiedBySkill.ContainsKey(skill.SkillId),
                 QuestionCount: ResolveDisplayQuestionCount(questionCounts, companyQuestionCounts, skill.SkillId),
                 TimeLimitMinutes: 45,
-                SourceLabel: isCompanyAssessment ? "Company" : "AI-generated",
+                SourceLabel: isCompanyAssessment ? "Company" : isProviderAssessment ? "Provider" : "AI-generated",
                 CompanyName: isCompanyAssessment ? companyBySkill[skill.SkillId] : null,
-                Proctored: !isCompanyAssessment,
+                Proctored: !isCompanyAssessment && !isProviderAssessment,
                 IsSkillAssessment: true
             ));
         }
@@ -446,11 +458,15 @@ public class JobseekerSkillParserAgent : IJobseekerSkillParserAgent
         }
 
         var companyQuestions = await _assessmentQuestions.GetBySkillIdAndSourceAsync(assessment.SkillId, AssessmentSource.Company);
-        var aiQuestions = companyQuestions.Count > 0
+        var providerQuestions = companyQuestions.Count > 0
+            ? new List<AssessmentQuestion>()
+            : await _assessmentQuestions.GetBySkillIdAndSourceAsync(assessment.SkillId, AssessmentSource.Provider);
+        var aiQuestions = companyQuestions.Count > 0 || providerQuestions.Count > 0
             ? new List<AssessmentQuestion>()
             : await _assessmentQuestions.GetBySkillIdAndSourceAsync(assessment.SkillId, AssessmentSource.AI);
 
-        var questions = companyQuestions.Count > 0 ? companyQuestions : aiQuestions;
+        var questions = companyQuestions.Count > 0 ? companyQuestions
+            : providerQuestions.Count > 0 ? providerQuestions : aiQuestions;
 
         if (questions.Count == 0)
         {
@@ -471,8 +487,13 @@ public class JobseekerSkillParserAgent : IJobseekerSkillParserAgent
             }
         }
 
-        var source = questions[0].Source == AssessmentSource.Company ? "Company" : "AI-generated";
-        var companyName = questions[0].Company?.Name;
+        var source = questions[0].Source switch
+        {
+            AssessmentSource.Company => "Company",
+            AssessmentSource.Provider => "Provider",
+            _ => "AI-generated",
+        };
+        var companyName = questions[0].Source == AssessmentSource.Company ? questions[0].Company?.Name : null;
 
         var random = new Random();
         var selectedQuestions = questions.OrderBy(_ => random.Next()).Take(5).ToList();
@@ -481,8 +502,13 @@ public class JobseekerSkillParserAgent : IJobseekerSkillParserAgent
             QuestionId: q.AssessmentQuestionId,
             Text: q.Text,
             Options: q.Options,
-            Source: q.Source == AssessmentSource.Company ? "Company" : "AI-generated",
-            CompanyName: q.Company?.Name
+            Source: q.Source switch
+            {
+                AssessmentSource.Company => "Company",
+                AssessmentSource.Provider => "Provider",
+                _ => "AI-generated",
+            },
+            CompanyName: q.Source == AssessmentSource.Company ? q.Company?.Name : null
         )).ToList();
 
         return new AssessmentQuestionsResponse(
@@ -625,6 +651,60 @@ public class JobseekerSkillParserAgent : IJobseekerSkillParserAgent
             Text: question.Text,
             Source: "Company",
             CompanyName: recruiter.Company.Name
+        );
+    }
+
+    public async Task<CreatedProviderQuestionResponse?> CreateProviderQuestionAsync(int userId, CreateProviderQuestionRequest request)
+    {
+        var provider = await _users.GetByIdAsync(userId);
+        if (provider?.Role != "CourseProvider")
+        {
+            _logger.LogWarning("User {UserId} is not a course provider; provider question rejected", userId);
+            return null;
+        }
+
+        var skill = await _skills.GetByIdAsync(request.SkillId);
+        if (skill == null)
+        {
+            _logger.LogWarning("Skill {SkillId} not found for provider question", request.SkillId);
+            return null;
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Text)
+            || string.IsNullOrWhiteSpace(request.OptionA)
+            || string.IsNullOrWhiteSpace(request.OptionB)
+            || string.IsNullOrWhiteSpace(request.OptionC)
+            || string.IsNullOrWhiteSpace(request.OptionD)
+            || request.CorrectOption is < 0 or > 3)
+        {
+            _logger.LogWarning("Invalid provider question payload from user {UserId}", userId);
+            return null;
+        }
+
+        var question = new AssessmentQuestion
+        {
+            SkillId = skill.SkillId,
+            Text = request.Text.Trim(),
+            OptionA = request.OptionA.Trim(),
+            OptionB = request.OptionB.Trim(),
+            OptionC = request.OptionC.Trim(),
+            OptionD = request.OptionD.Trim(),
+            CorrectOption = request.CorrectOption,
+            Source = AssessmentSource.Provider,
+            CompanyId = null,
+        };
+
+        await _assessmentQuestions.AddAsync(question);
+        await _assessmentQuestions.SaveChangesAsync();
+
+        _logger.LogInformation("Provider {UserId} added assessment question for skill {Skill}",
+            userId, skill.Name);
+
+        return new CreatedProviderQuestionResponse(
+            QuestionId: question.AssessmentQuestionId,
+            SkillId: skill.SkillId,
+            Text: question.Text,
+            Source: "Provider"
         );
     }
 

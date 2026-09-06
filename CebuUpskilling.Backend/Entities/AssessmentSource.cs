@@ -4,4 +4,5 @@ public enum AssessmentSource
 {
     AI = 0,
     Company = 1,
+    Provider = 2,
 }

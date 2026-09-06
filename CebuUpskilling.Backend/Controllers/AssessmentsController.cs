@@ -128,4 +128,18 @@ public class AssessmentsController : BaseEntityController<LearnerAssessment>
 
         return Ok(result);
     }
+
+    [Authorize(Roles = "CourseProvider")]
+    [HttpPost("provider/questions")]
+    public async Task<ActionResult<CreatedProviderQuestionResponse>> CreateProviderQuestion([FromBody] CreateProviderQuestionRequest request)
+    {
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        _logger.LogInformation("HTTP POST /api/assessments/provider/questions called by user {UserId} for skill {SkillId}", userId, request.SkillId);
+
+        var result = await _jobseekerSkillParserAgent.CreateProviderQuestionAsync(userId, request);
+        if (result == null)
+            return BadRequest(new { error = "Unable to create assessment question" });
+
+        return Ok(result);
+    }
 }

@@ -11,4 +11,5 @@ public interface IAssessmentService
     Task<AssessmentQuestionsResponse?> GetQuestionsAsync(int userId, int assessmentId);
     Task<SubmitAssessmentResponse?> SubmitAssessmentAsync(int userId, int assessmentId, SubmitAssessmentRequest request);
     Task<CreatedCompanyQuestionResponse?> CreateCompanyQuestionAsync(int userId, CreateCompanyQuestionRequest request);
+    Task<CreatedProviderQuestionResponse?> CreateProviderQuestionAsync(int userId, CreateProviderQuestionRequest request);
 }

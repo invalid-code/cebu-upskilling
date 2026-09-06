@@ -119,6 +119,23 @@ public record CreatedCompanyQuestionResponse(
     string CompanyName
 );
 
+public record CreateProviderQuestionRequest(
+    int SkillId,
+    string Text,
+    string OptionA,
+    string OptionB,
+    string OptionC,
+    string OptionD,
+    int CorrectOption
+);
+
+public record CreatedProviderQuestionResponse(
+    int QuestionId,
+    int SkillId,
+    string Text,
+    string Source
+);
+
 public record LogIntegrityEventRequest(
     string EventType,
     string? Detail
