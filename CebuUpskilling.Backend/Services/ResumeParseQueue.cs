@@ -69,38 +69,51 @@ public class ResumeParseWorker : BackgroundService
     }
 
     /// <summary>
-    /// Processes one job: parse skills, create assessments, pre-generate
-    /// questions, upload the resume, link it to the profile. Public so
-    /// integration tests can drive the background pipeline deterministically
-    /// (the hosted worker itself is disabled in test hosts).
+    /// Processes one job: upload the resume first so a parse failure can never
+    /// lose it, then parse/pre-generate in its own guarded step. Each stage
+    /// fails independently with its own log entry.
     /// </summary>
     public async Task ProcessJobAsync(ResumeParseJob job, CancellationToken ct)
     {
         using var scope = _scopes.CreateScope();
         var services = scope.ServiceProvider;
-        var agent = services.GetRequiredService<IJobseekerSkillParserAgent>();
 
-        var result = await agent.ParseAndCreateAssessmentsAsync(job.UserId, job.ResumeText, ct);
-        _logger.LogInformation("Background-parsed {Count} skills for user {UserId}",
-            result.Skills.Count, job.UserId);
-
-        // Pre-generate questions so opening an assessment is instant.
-        foreach (var skill in result.Skills.Take(MaxPregeneratedSkills))
-            await agent.EnsureQuestionsForSkillAsync(skill.SkillId, ct);
-
-        // Upload the buffered resume and link it to the user profile.
         if (job.FileBytes is { Length: > 0 } && !string.IsNullOrWhiteSpace(job.FileName))
         {
-            var resumeService = services.GetRequiredService<IResumeService>();
-            var db = services.GetRequiredService<ApplicationDbContext>();
-            var url = await resumeService.UploadBytesAsync(job.FileBytes, job.FileName, ct);
-            var user = await db.Users.FindAsync(new object[] { job.UserId }, ct);
-            if (user != null)
+            try
             {
-                user.ResumeUrl = url;
-                await db.SaveChangesAsync(ct);
-                _logger.LogInformation("Background-uploaded resume for user {UserId}", job.UserId);
+                var resumeService = services.GetRequiredService<IResumeService>();
+                var db = services.GetRequiredService<ApplicationDbContext>();
+                var url = await resumeService.UploadBytesAsync(job.FileBytes, job.FileName, ct);
+                var user = await db.Users.FindAsync(new object[] { job.UserId }, ct);
+                if (user != null)
+                {
+                    user.ResumeUrl = url;
+                    await db.SaveChangesAsync(ct);
+                    _logger.LogInformation("Background-uploaded resume for user {UserId}", job.UserId);
+                }
             }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogWarning(ex, "Background resume upload failed for user {UserId}", job.UserId);
+            }
+        }
+
+        try
+        {
+            var agent = services.GetRequiredService<IJobseekerSkillParserAgent>();
+
+            var result = await agent.ParseAndCreateAssessmentsAsync(job.UserId, job.ResumeText, ct);
+            _logger.LogInformation("Background-parsed {Count} skills for user {UserId}",
+                result.Skills.Count, job.UserId);
+
+            // Pre-generate questions so opening an assessment is instant.
+            foreach (var skill in result.Skills.Take(MaxPregeneratedSkills))
+                await agent.EnsureQuestionsForSkillAsync(skill.SkillId, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "Background resume parsing failed for user {UserId}", job.UserId);
         }
     }
 }

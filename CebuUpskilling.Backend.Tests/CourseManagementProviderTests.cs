@@ -313,6 +313,41 @@ public class CourseManagementProviderTests
     }
 
     [Fact]
+    public async Task Update_ReorderedLessons_KeepsMediaOnSameLesson()
+    {
+        var (db, recruiter, _, company) = await SeedAsync();
+        var c = new Course { Name = "Reorder Course", CompanyId = company.CompanyId, GenreId = 1, Status = "Draft" };
+        db.Courses.Add(c); await db.SaveChangesAsync();
+        var module = new CourseModule { CourseId = c.CourseId, Name = "M1", Order = 1 };
+        db.CourseModules.Add(module); await db.SaveChangesAsync();
+        var lessonA = new Lesson { CourseId = c.CourseId, ModuleId = module.ModuleId, Name = "A" };
+        var lessonB = new Lesson { CourseId = c.CourseId, ModuleId = module.ModuleId, Name = "B" };
+        db.Lessons.AddRange(lessonA, lessonB); await db.SaveChangesAsync();
+        db.Media.Add(new Media { LessonId = lessonA.LessonId, PathFile = "https://media.example.com/a.mp4", Type = "video/mp4", MbSize = 1 });
+        await db.SaveChangesAsync();
+
+        // Swap order but echo stable lesson IDs, as the studio does.
+        var req = ValidRequest();
+        req.Modules[0].Lessons = new List<SaveLessonRequest>
+        {
+            new() { LessonId = lessonB.LessonId, Name = "B", Order = 0 },
+            new() { LessonId = lessonA.LessonId, Name = "A", Order = 1 },
+        };
+        var ctrl = CreateController(db, recruiter.UserId, "Recruiter");
+        var result = await ctrl.Update(c.CourseId, req);
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        var dto = Assert.IsType<CourseManagementDto>(ok.Value);
+
+        var lessons = dto.Modules.Single().Lessons;
+        Assert.Equal("B", lessons[0].Name);
+        Assert.Empty(lessons[0].Media);
+        Assert.Equal("A", lessons[1].Name);
+        var media = Assert.Single(lessons[1].Media);
+        Assert.Equal("https://media.example.com/a.mp4", media.PathFile);
+        Assert.Single(db.Media.ToList());
+    }
+
+    [Fact]
     public async Task Update_Provider_SucceedsForOwnCourse()
     {
         var (db, _, provider, _) = await SeedAsync();

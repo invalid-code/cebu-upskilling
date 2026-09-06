@@ -130,6 +130,34 @@ public class ApplicationsServiceTests
     }
 
     [Fact]
+    public async Task ApplyAsync_SetsTargetRoleFromPost_WhenLearnerHasNone()
+    {
+        var (context, userId, postId) = await SeedAsync();
+        var service = CreateService(context);
+
+        var outcome = await service.ApplyAsync(userId, postId, TestResumeUrl);
+
+        Assert.True(outcome.Success);
+        var user = await context.Users.SingleAsync(u => u.UserId == userId);
+        Assert.Equal("Frontend Developer (React)", user.TargetRole);
+    }
+
+    [Fact]
+    public async Task ApplyAsync_PreservesExistingTargetRole()
+    {
+        var (context, userId, postId) = await SeedAsync();
+        var user = await context.Users.SingleAsync(u => u.UserId == userId);
+        user.TargetRole = "Backend Developer";
+        await context.SaveChangesAsync();
+        var service = CreateService(context);
+
+        var outcome = await service.ApplyAsync(userId, postId, TestResumeUrl);
+
+        Assert.True(outcome.Success);
+        Assert.Equal("Backend Developer", (await context.Users.SingleAsync(u => u.UserId == userId)).TargetRole);
+    }
+
+    [Fact]
     public async Task ApplyAsync_WithoutResume_ReturnsResumeRequired()
     {
         var (context, userId, postId) = await SeedAsync();

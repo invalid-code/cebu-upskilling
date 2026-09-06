@@ -8,9 +8,12 @@ export const PARSE_POLL_INTERVAL_MS = 3000;
 
 const sleep = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
 
-export async function pollForParsedSkills(showToast) {
+export async function pollForParsedSkills(showToast, options = {}) {
+  const { signal } = options;
   for (let attempt = 0; attempt < PARSE_POLL_ATTEMPTS; attempt += 1) {
+    if (signal?.aborted) return;
     await sleep(PARSE_POLL_INTERVAL_MS);
+    if (signal?.aborted) return;
     try {
       const skills = await api.get('/skills');
       if (Array.isArray(skills) && skills.length > 0) {
@@ -18,7 +21,7 @@ export async function pollForParsedSkills(showToast) {
         return;
       }
     } catch {
-      return;
+      continue;
     }
   }
 }

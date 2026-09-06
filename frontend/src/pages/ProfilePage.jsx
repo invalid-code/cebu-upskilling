@@ -173,7 +173,9 @@ export default function ProfilePage() {
         {saveError && <ErrorBanner title="Couldn’t save profile" description={saveError} onDismiss={() => setSaveError('')} />}
         <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 18 }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16 }}>
-            <Field label="Target role" name="targetRole" value={form.targetRole} onChange={update('targetRole')} hint="The role you are working toward" />
+            {form.targetRole?.trim() ? (
+              <Field label="Target role" name="targetRole" value={form.targetRole} onChange={update('targetRole')} hint="The role you are working toward" />
+            ) : null}
             <Field label="Location" name="address" value={form.address} onChange={update('address')} hint="City, province, or neighborhood" />
           </div>
           <label style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 14, border: '1px solid var(--line)', borderRadius: 12, background: 'var(--surface2)', cursor: 'pointer' }}>

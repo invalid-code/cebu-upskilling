@@ -95,13 +95,13 @@ public class MediaService : IMediaService
         var key = $"lesson-documents/{lessonId}/{Guid.NewGuid()}{extension}";
 
         await using var stream = file.OpenReadStream();
-        var publicUrl = await _storage.UploadAsync(key, stream, file.ContentType, cancellationToken);
+        var publicUrl = await _storage.UploadAsync(key, stream, DocumentContentTypeFor(extension), cancellationToken);
 
         var media = new Media
         {
             LessonId = lessonId,
             PathFile = publicUrl,
-            Type = file.ContentType,
+            Type = DocumentContentTypeFor(extension),
             MbSize = Math.Round(file.Length / 1024.0 / 1024.0, 2)
         };
 
@@ -112,6 +112,29 @@ public class MediaService : IMediaService
 
         return new MediaDto(media.MediaId, media.PathFile, media.Type, media.MbSize);
     }
+
+    private static string VideoContentTypeFor(string extension) => extension switch
+    {
+        ".mp4" => "video/mp4",
+        ".mov" => "video/quicktime",
+        ".webm" => "video/webm",
+        ".mkv" => "video/x-matroska",
+        ".avi" => "video/x-msvideo",
+        _ => "application/octet-stream",
+    };
+
+    private static string DocumentContentTypeFor(string extension) => extension switch
+    {
+        ".pdf" => "application/pdf",
+        ".doc" => "application/msword",
+        ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ".txt" => "text/plain",
+        ".md" => "text/markdown",
+        ".png" => "image/png",
+        ".jpg" or ".jpeg" => "image/jpeg",
+        ".webp" => "image/webp",
+        _ => "application/octet-stream",
+    };
 
     private static void ValidateDocument(IFormFile file)
     {

@@ -33,6 +33,7 @@ public class SaveModuleRequest
 
 public class SaveLessonRequest
 {
+    public int? LessonId { get; set; }
     [Required, MaxLength(255)] public string Name { get; set; } = string.Empty;
     [MaxLength(2000)] public string? Description { get; set; }
     public int Order { get; set; }

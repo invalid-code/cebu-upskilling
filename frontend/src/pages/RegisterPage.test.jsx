@@ -123,7 +123,7 @@ describe('RegisterPage', () => {
   });
 
   it('submits the form data to register on submit', async () => {
-    api.postForm.mockResolvedValue({ token: 'abc', firstName: 'Jose' });
+    api.postForm.mockResolvedValue({ token: 'abc', firstName: 'Jose', parsedSkillCount: 1 });
     renderRegister();
 
     fillForm();
@@ -509,7 +509,7 @@ describe('RegisterPage', () => {
 
   it('starts background polling when registration reports zero parsed skills', async () => {
     api.postForm.mockResolvedValue({ token: 'abc', firstName: 'Jose', parsedSkillCount: 0 });
-    api.get.mockResolvedValue([]);
+    api.get.mockResolvedValueOnce([]).mockResolvedValue([{ skillId: 1, name: 'React' }]);
     renderRegister();
 
     fillForm();
@@ -518,12 +518,10 @@ describe('RegisterPage', () => {
     expect(await screen.findByText('Learner home')).toBeInTheDocument();
     expect(screen.getByText('Account created — welcome to Cebu Upskilling!')).toBeInTheDocument();
 
-    await waitFor(
-      () => expect(api.get).toHaveBeenCalledWith('/skills'),
-      { timeout: 8000 },
-    );
-  }, 15000);
-
+    // Let the poll loop run to completion (second poll finds skills) so no
+    // background timers leak into later tests.
+    expect(await screen.findByText(/Resume parsed: 1 skill/, {}, { timeout: 12000 })).toBeInTheDocument();
+  }, 20000);
   it('does not poll when the response already includes parsed skills', async () => {
     api.postForm.mockResolvedValue({ token: 'abc', firstName: 'Jose', parsedSkillCount: 3, assessmentCount: 2 });
     renderRegister();

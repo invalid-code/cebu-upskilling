@@ -495,9 +495,7 @@ public class JobseekerSkillParserAgent : IJobseekerSkillParserAgent
         };
         var companyName = questions[0].Source == AssessmentSource.Company ? questions[0].Company?.Name : null;
 
-        var random = new Random();
-        var selectedQuestions = questions.OrderBy(_ => random.Next()).Take(5).ToList();
-
+        var selectedQuestions = questions.OrderBy(_ => Random.Shared.Next()).Take(5).ToList();
         var questionDtos = selectedQuestions.Select(q => new AssessmentQuestionDto(
             QuestionId: q.AssessmentQuestionId,
             Text: q.Text,

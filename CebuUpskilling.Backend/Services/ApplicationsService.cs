@@ -131,6 +131,18 @@ public class ApplicationsService : IApplicationsService
             CoverLetterUrl = coverLetterUrl,
         };
 
+        // Applying sets the learner's target role from the posting when they
+        // don't have one yet, so the profile reflects what they're pursuing.
+        // An explicitly set role is never overwritten by applications.
+        // Falls back to the post title exactly like ApplicationSummary does.
+        var appliedRole = !string.IsNullOrWhiteSpace(post.TargetRole) ? post.TargetRole : post.Title;
+        if (string.IsNullOrWhiteSpace(learner.User?.TargetRole) && !string.IsNullOrWhiteSpace(appliedRole))
+        {
+            learner.User!.TargetRole = appliedRole;
+            _logger.LogInformation("User {UserId} target role set to {TargetRole} from application to post {PostId}",
+                userId, appliedRole, postId);
+        }
+
         await _applications.AddAsync(application);
         await _applications.SaveChangesAsync();
 

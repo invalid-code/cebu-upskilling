@@ -81,7 +81,7 @@ public class CourseManagementController(ApplicationDbContext db) : ControllerBas
             if (pc is null) return NotFound();
             pc.Name = request.Name.Trim(); pc.Description = request.Description; pc.TechnicalLevel = request.TechnicalLevel; pc.Mode = request.Mode; pc.Price = request.Price; pc.GenreId = await ResolveGenreIdForUpdateAsync(request.GenreId, pc.GenreId); pc.UpdatedBy = uid; pc.UpdatedAt = DateTime.UtcNow;
             var preserved = SnapshotMedia(pc);
-            db.Lessons.RemoveRange(pc.Modules.SelectMany(m => m.Lessons)); db.CourseModules.RemoveRange(pc.Modules); pc.Modules = new List<CourseModule>(); ApplyModules(pc, request.Modules); ReattachMedia(pc, preserved);
+            db.Lessons.RemoveRange(pc.Modules.SelectMany(m => m.Lessons)); db.CourseModules.RemoveRange(pc.Modules); pc.Modules = new List<CourseModule>(); var idMap = ApplyModules(pc, request.Modules); ReattachMedia(pc, preserved, idMap);
             await db.SaveChangesAsync(); return Ok(ToDto(pc));
         }
         var companyId = await CompanyId();
@@ -90,7 +90,7 @@ public class CourseManagementController(ApplicationDbContext db) : ControllerBas
         if (course is null) return NotFound();
         course.Name = request.Name.Trim(); course.Description = request.Description; course.TechnicalLevel = request.TechnicalLevel; course.Mode = request.Mode; course.Price = request.Price; course.GenreId = await ResolveGenreIdForUpdateAsync(request.GenreId, course.GenreId);
         var preservedCompany = SnapshotMedia(course);
-        db.Lessons.RemoveRange(course.Modules.SelectMany(m => m.Lessons)); db.CourseModules.RemoveRange(course.Modules); course.Modules = new List<CourseModule>(); ApplyModules(course, request.Modules); ReattachMedia(course, preservedCompany);
+        db.Lessons.RemoveRange(course.Modules.SelectMany(m => m.Lessons)); db.CourseModules.RemoveRange(course.Modules); course.Modules = new List<CourseModule>(); var companyIdMap = ApplyModules(course, request.Modules); ReattachMedia(course, preservedCompany, companyIdMap);
         await db.SaveChangesAsync(); return Ok(ToDto(course));
     }
 
@@ -148,32 +148,37 @@ public class CourseManagementController(ApplicationDbContext db) : ControllerBas
         return current;
     }
 
-    private static void ApplyModules(Course course, IEnumerable<SaveModuleRequest> modules) { foreach (var m in modules.OrderBy(x => x.Order)) { var module = new CourseModule { Course = course, Name = m.Name.Trim(), Description = m.Description, Order = m.Order }; foreach (var l in m.Lessons.OrderBy(x => x.Order)) { var lesson = new Lesson { Course = course, Module = module, Name = l.Name.Trim(), Description = l.Description }; foreach (var c in NormalizeContents(l.Contents)) lesson.LessonContents.Add(c); module.Lessons.Add(lesson); } course.Modules.Add(module); } }
+    private static Dictionary<int, Lesson> ApplyModules(Course course, IEnumerable<SaveModuleRequest> modules) { var byRequestId = new Dictionary<int, Lesson>(); foreach (var m in modules.OrderBy(x => x.Order)) { var module = new CourseModule { Course = course, Name = m.Name.Trim(), Description = m.Description, Order = m.Order }; foreach (var l in m.Lessons.OrderBy(x => x.Order)) { var lesson = new Lesson { Course = course, Module = module, Name = l.Name.Trim(), Description = l.Description }; foreach (var c in NormalizeContents(l.Contents)) lesson.LessonContents.Add(c); module.Lessons.Add(lesson); if (l.LessonId is > 0) byRequestId[l.LessonId.Value] = lesson; } course.Modules.Add(module); } return byRequestId; }
 
     // Update replaces the whole module/lesson tree (old lessons are deleted,
-    // which cascade-deletes their Media rows). Snapshot attached media by
-    // position beforehand and re-link copies onto the rebuilt tree so a
-    // content edit never wipes previously attached videos/files. Positional
-    // matching: module/lesson indexes in request order on both sides.
-    private sealed record MediaSnapshot(int ModuleIndex, int LessonIndex, string PathFile, string Type, double MbSize);
+    // which cascade-deletes their Media rows). Snapshot attached media beforehand
+    // and re-link copies onto the rebuilt tree: by request LessonId when the
+    // client echoes it (stable across reorders/renames), falling back to
+    // positional matching for brand-new lessons.
+    private sealed record MediaSnapshot(int LessonId, int ModuleIndex, int LessonIndex, string PathFile, string Type, double MbSize);
 
     private static List<MediaSnapshot> SnapshotMedia(Course course)
         => course.Modules.OrderBy(m => m.Order)
             .SelectMany((m, mi) => m.Lessons.OrderBy(l => l.LessonId)
-                .SelectMany((l, li) => l.Media.Select(md => new MediaSnapshot(mi, li, md.PathFile, md.Type, md.MbSize))))
+                .SelectMany((l, li) => l.Media.Select(md => new MediaSnapshot(l.LessonId, mi, li, md.PathFile, md.Type, md.MbSize))))
             .ToList();
 
-    private static void ReattachMedia(Course course, List<MediaSnapshot> preserved)
+    private static void ReattachMedia(Course course, List<MediaSnapshot> preserved, Dictionary<int, Lesson> byRequestId)
     {
         if (preserved.Count == 0) return;
         var newModules = course.Modules.OrderBy(m => m.Order).ToList();
-        foreach (var group in preserved.GroupBy(p => (p.ModuleIndex, p.LessonIndex)))
+        foreach (var group in preserved.GroupBy(p => (p.LessonId, p.ModuleIndex, p.LessonIndex)))
         {
-            if (group.Key.ModuleIndex >= newModules.Count) continue;
-            var newLessons = newModules[group.Key.ModuleIndex].Lessons.ToList();
-            if (group.Key.LessonIndex >= newLessons.Count) continue;
+            Lesson? target = null;
+            if (!byRequestId.TryGetValue(group.Key.LessonId, out target))
+            {
+                if (group.Key.ModuleIndex >= newModules.Count) continue;
+                var candidates = newModules[group.Key.ModuleIndex].Lessons.ToList();
+                if (group.Key.LessonIndex >= candidates.Count) continue;
+                target = candidates[group.Key.LessonIndex];
+            }
             foreach (var snap in group)
-                newLessons[group.Key.LessonIndex].Media.Add(new Media
+                target.Media.Add(new Media
                 {
                     PathFile = snap.PathFile,
                     Type = snap.Type,

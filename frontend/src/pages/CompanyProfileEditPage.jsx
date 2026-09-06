@@ -199,7 +199,7 @@ export default function CompanyProfileEditPage() {
   // Uploads finish in the background (202): show an instant local preview,
   // then poll the profile until the server URL lands.
   const pollForImageUrl = async (kind, previousUrl, setUrl, doneMessage, previewUrl) => {
-    if (!user?.companyId) return;
+    if (!user?.companyId) return false;
     for (let attempt = 0; attempt < 10; attempt += 1) {
       await new Promise((resolve) => { setTimeout(resolve, 3000); });
       try {
@@ -209,12 +209,13 @@ export default function CompanyProfileEditPage() {
           if (previewUrl && typeof URL.revokeObjectURL === 'function') URL.revokeObjectURL(previewUrl);
           setUrl(next);
           showToast(doneMessage, 'success');
-          return;
+          return true;
         }
       } catch {
-        return;
+        continue;
       }
     }
+    return false;
   };
 
   const previewLocalFile = (file, setUrl) => {
@@ -243,7 +244,12 @@ export default function CompanyProfileEditPage() {
       form.append('file', file);
       await api.postForm('/companies/me/logo', form);
       showToast('Logo uploading in the background…');
-      await pollForImageUrl('logo', previousUrl || preview, setLogoUrl, 'Logo uploaded', preview);
+      const landed = await pollForImageUrl('logo', previousUrl || preview, setLogoUrl, 'Logo uploaded', preview);
+      if (!landed) {
+        if (preview && typeof URL.revokeObjectURL === 'function') URL.revokeObjectURL(preview);
+        setLogoUrl(previousUrl);
+        showToast('Logo upload did not complete — please try again', 'error');
+      }
     } catch (err) {
       showToast(err?.message || 'Could not upload logo');
     } finally {
@@ -268,7 +274,12 @@ export default function CompanyProfileEditPage() {
       form.append('file', file);
       await api.postForm('/companies/me/cover', form);
       showToast('Cover uploading in the background…');
-      await pollForImageUrl('cover', previousUrl || preview, setCoverUrl, 'Cover image uploaded', preview);
+      const landed = await pollForImageUrl('cover', previousUrl || preview, setCoverUrl, 'Cover image uploaded', preview);
+      if (!landed) {
+        if (preview && typeof URL.revokeObjectURL === 'function') URL.revokeObjectURL(preview);
+        setCoverUrl(previousUrl);
+        showToast('Cover upload did not complete — please try again', 'error');
+      }
     } catch (err) {
       showToast(err?.message || 'Could not upload cover image');
     } finally {

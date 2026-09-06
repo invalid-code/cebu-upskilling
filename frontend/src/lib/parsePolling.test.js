@@ -49,18 +49,22 @@ describe('pollForParsedSkills', () => {
     }
   });
 
-  it('stays silent when the request fails', async () => {
+  it('keeps polling through transient failures', async () => {
     vi.useFakeTimers();
     try {
       const showToast = vi.fn();
-      api.get.mockRejectedValue(new Error('down'));
+      api.get
+        .mockRejectedValueOnce(new Error('down'))
+        .mockResolvedValue([{ skillId: 1, name: 'React' }]);
 
       const done = pollForParsedSkills(showToast);
       await vi.advanceTimersByTimeAsync(3000);
+      expect(showToast).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(3000);
       await done;
 
-      expect(showToast).not.toHaveBeenCalled();
-      expect(api.get).toHaveBeenCalledTimes(1);
+      expect(showToast).toHaveBeenCalledTimes(1);
+      expect(api.get).toHaveBeenCalledTimes(2);
     } finally {
       vi.useRealTimers();
     }

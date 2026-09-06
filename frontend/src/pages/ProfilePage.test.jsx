@@ -205,6 +205,33 @@ describe('ProfilePage resume', () => {
   });
 });
 
+describe('ProfilePage target role', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.restoreAllMocks();
+    api.get.mockResolvedValue([]);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('displays the target role when the learner has one', async () => {
+    renderProfilePage({ userOverrides: { targetRole: 'Frontend Developer' } });
+
+    expect(await screen.findByText('Your profile')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Frontend Developer')).toBeInTheDocument();
+  });
+
+  it('displays nothing for the target role when the learner has none', async () => {
+    renderProfilePage({ userOverrides: { targetRole: '' } });
+
+    expect(await screen.findByText('Your profile')).toBeInTheDocument();
+    expect(screen.queryByText('The role you are working toward')).not.toBeInTheDocument();
+    expect(screen.getByText('City, province, or neighborhood')).toBeInTheDocument();
+  });
+});
+
 describe('ProfilePage parsed skills', () => {
   beforeEach(() => {
     localStorage.clear();

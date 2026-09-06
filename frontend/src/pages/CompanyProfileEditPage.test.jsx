@@ -173,4 +173,19 @@ describe('CompanyProfileEditPage', () => {
 
     expect(await screen.findByText(/not linked to a company yet/)).toBeInTheDocument();
   });
+
+  it('reverts to the previous logo when the upload fails', async () => {
+    api.get.mockResolvedValue({ ...company, logoUrl: 'https://cdn.example/old.png' });
+    api.postForm.mockRejectedValue(new Error('Network error'));
+    renderPage();
+    await screen.findByDisplayValue('Cebu Prints');
+
+    const input = document.querySelector('input[type="file"]');
+    fireEvent.change(input, {
+      target: { files: [new File(['x'], 'logo.png', { type: 'image/png' })] },
+    });
+
+    expect(await screen.findByText('Network error')).toBeInTheDocument();
+    expect(screen.queryByText('Logo uploaded')).not.toBeInTheDocument();
+  });
 });
