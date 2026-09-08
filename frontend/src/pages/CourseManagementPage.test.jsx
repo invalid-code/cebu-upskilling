@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from '../context/AuthContext';
@@ -6,7 +6,7 @@ import { ToastProvider } from '../context/ToastContext';
 import CourseManagementPage from './CourseManagementPage';
 
 vi.mock('../api/client', () => ({
-  api: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() },
+  api: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn(), postForm: vi.fn() },
 }));
 
 import { api } from '../api/client';
@@ -66,6 +66,7 @@ describe('CourseManagementPage', () => {
     api.post.mockReset();
     api.put.mockReset();
     api.delete.mockReset();
+    api.postForm.mockReset();
     vi.stubGlobal('confirm', vi.fn(() => true));
   });
 
@@ -227,6 +228,164 @@ describe('CourseManagementPage', () => {
       fireEvent.change(screen.getByDisplayValue('Existing Course'), { target: { value: 'Updated Course' } });
       fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
       await waitFor(() => expect(api.put).toHaveBeenCalledWith('/company/courses/42', expect.objectContaining({ name: 'Updated Course' })));
+    });
+
+    it('saves lesson markdown as a single markdown block', async () => {
+      api.post.mockResolvedValueOnce({ courseId: 11, name: 'Content Course' });
+      renderAt('/company-courses/new');
+      await screen.findByPlaceholderText('e.g. Modern customer support fundamentals');
+      fireEvent.click(screen.getByRole('button', { name: 'Add module' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Add lesson' }));
+      fireEvent.change(screen.getByLabelText('Lesson 1 name'), { target: { value: 'Intro' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Toggle content for lesson 1' }));
+      fireEvent.change(screen.getByLabelText('Lesson 1 content'), { target: { value: '# Hello\n\nSome text' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+      await waitFor(() => expect(api.post).toHaveBeenCalledWith('/company/courses', expect.objectContaining({
+        modules: [expect.objectContaining({
+          lessons: [expect.objectContaining({
+            name: 'Intro',
+            contents: [{ blockType: 'markdown', content: '# Hello\n\nSome text' }],
+          })],
+        })],
+      })));
+    });
+
+    it('shows a live preview of the markdown', async () => {
+      renderAt('/company-courses/new');
+      await screen.findByPlaceholderText('e.g. Modern customer support fundamentals');
+      fireEvent.click(screen.getByRole('button', { name: 'Add module' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Add lesson' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Toggle content for lesson 1' }));
+      fireEvent.change(screen.getByLabelText('Lesson 1 content'), { target: { value: '# Hello' } });
+      fireEvent.click(screen.getByRole('tab', { name: 'Preview' }));
+      expect(screen.getByLabelText('Lesson 1 preview')).toContainHTML('<h1>Hello</h1>');
+    });
+
+    it('loads legacy blocks converted to markdown in edit mode', async () => {
+      api.get.mockResolvedValue({
+        ...existingCourse,
+        modules: [{ name: 'M1', description: 'D1', order: 0, lessons: [{ name: 'L1', description: '', order: 0, contents: [{ contentId: 5, blockType: 'heading', content: 'Getting started', lessonOrder: 0 }, { contentId: 6, blockType: 'text', content: 'Read this first', lessonOrder: 1 }] }] }],
+      });
+      api.put.mockResolvedValue({ courseId: 42 });
+      renderAt('/company-courses/42/edit');
+      await screen.findByDisplayValue('L1');
+      fireEvent.click(screen.getByRole('button', { name: 'Toggle content for lesson 1' }));
+      expect(screen.getByLabelText('Lesson 1 content')).toHaveValue('# Getting started\n\nRead this first');
+      fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+      await waitFor(() => expect(api.put).toHaveBeenCalledWith('/company/courses/42', expect.objectContaining({
+        modules: [expect.objectContaining({
+          lessons: [expect.objectContaining({
+            contents: [{ blockType: 'markdown', content: '# Getting started\n\nRead this first' }],
+          })],
+        })],
+      })));
+    });
+
+    it('lists existing lesson media in edit mode', async () => {
+      api.get.mockResolvedValue({
+        ...existingCourse,
+        modules: [{ name: 'M1', description: 'D1', order: 0, lessons: [{ lessonId: 9, name: 'L1', description: '', order: 0, contents: [], media: [{ mediaId: 3, pathFile: 'https://cdn.example/handout.pdf', type: 'application/pdf', mbSize: 1.0 }] }] }],
+      });
+      renderAt('/company-courses/42/edit');
+      await screen.findByDisplayValue('L1');
+      fireEvent.click(screen.getByRole('button', { name: 'Toggle content for lesson 1' }));
+      expect(screen.getByText(/handout.pdf/)).toBeInTheDocument();
+    });
+
+    it('attaches a video to a saved lesson via the video endpoint', async () => {
+      api.get.mockResolvedValue({
+        ...existingCourse,
+        modules: [{ name: 'M1', description: 'D1', order: 0, lessons: [{ lessonId: 9, name: 'L1', description: '', order: 0, contents: [], media: [] }] }],
+      });
+      api.postForm.mockResolvedValue({ mediaId: 4, pathFile: 'https://cdn.example/intro.mp4', type: 'video/mp4', mbSize: 12.5 });
+      renderAt('/company-courses/42/edit');
+      await screen.findByDisplayValue('L1');
+      fireEvent.click(screen.getByRole('button', { name: 'Toggle content for lesson 1' }));
+
+      const input = screen.getByLabelText('Attach video to lesson 1');
+      fireEvent.change(input, { target: { files: [new File(['x'], 'intro.mp4', { type: 'video/mp4' })] } });
+
+      await waitFor(() => expect(api.postForm).toHaveBeenCalledWith('/media/lessons/9/video', expect.any(FormData)));
+      expect(await screen.findByText(/intro.mp4/)).toBeInTheDocument();
+    });
+
+    it('attaches a document to a saved lesson via the documents endpoint', async () => {
+      api.get.mockResolvedValue({
+        ...existingCourse,
+        modules: [{ name: 'M1', description: 'D1', order: 0, lessons: [{ lessonId: 9, name: 'L1', description: '', order: 0, contents: [], media: [] }] }],
+      });
+      api.postForm.mockResolvedValue({ mediaId: 5, pathFile: 'https://cdn.example/handout.pdf', type: 'application/pdf', mbSize: 1.0 });
+      renderAt('/company-courses/42/edit');
+      await screen.findByDisplayValue('L1');
+      fireEvent.click(screen.getByRole('button', { name: 'Toggle content for lesson 1' }));
+
+      const input = screen.getByLabelText('Attach file to lesson 1');
+      fireEvent.change(input, { target: { files: [new File(['x'], 'handout.pdf', { type: 'application/pdf' })] } });
+
+      await waitFor(() => expect(api.postForm).toHaveBeenCalledWith('/media/lessons/9/documents', expect.any(FormData)));
+      expect(await screen.findByText(/handout.pdf/)).toBeInTheDocument();
+    });
+
+    it('asks to save first before attaching files to a new lesson', async () => {
+      renderAt('/company-courses/new');
+      await screen.findByPlaceholderText('e.g. Modern customer support fundamentals');
+      fireEvent.click(screen.getByRole('button', { name: 'Add module' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Add lesson' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Toggle content for lesson 1' }));
+      expect(screen.getByText(/Save the course first/)).toBeInTheDocument();
+      expect(screen.queryByLabelText('Attach file to lesson 1')).not.toBeInTheDocument();
+    });
+
+    it('rejects a non-video file on the video control without calling the API', async () => {
+      api.get.mockResolvedValue({
+        ...existingCourse,
+        modules: [{ name: 'M1', description: 'D1', order: 0, lessons: [{ lessonId: 9, name: 'L1', description: '', order: 0, contents: [], media: [] }] }],
+      });
+      renderAt('/company-courses/42/edit');
+      await screen.findByDisplayValue('L1');
+      fireEvent.click(screen.getByRole('button', { name: 'Toggle content for lesson 1' }));
+
+      const input = screen.getByLabelText('Attach video to lesson 1');
+      fireEvent.change(input, { target: { files: [new File(['x'], 'notes.pdf', { type: 'application/pdf' })] } });
+
+      expect(await screen.findByText('Only video files are allowed')).toBeInTheDocument();
+      expect(api.postForm).not.toHaveBeenCalled();
+    });
+
+    it('rejects an oversized document without calling the API', async () => {
+      api.get.mockResolvedValue({
+        ...existingCourse,
+        modules: [{ name: 'M1', description: 'D1', order: 0, lessons: [{ lessonId: 9, name: 'L1', description: '', order: 0, contents: [], media: [] }] }],
+      });
+      renderAt('/company-courses/42/edit');
+      await screen.findByDisplayValue('L1');
+      fireEvent.click(screen.getByRole('button', { name: 'Toggle content for lesson 1' }));
+
+      const big = new File([new Uint8Array(10 * 1024 * 1024 + 1)], 'big.pdf', { type: 'application/pdf' });
+      const input = screen.getByLabelText('Attach file to lesson 1');
+      fireEvent.change(input, { target: { files: [big] } });
+
+      expect(await screen.findByText('File must be 10 MB or smaller')).toBeInTheDocument();
+      expect(api.postForm).not.toHaveBeenCalled();
+    });
+    it('saves an edited lesson description', async () => {
+      api.get.mockResolvedValue({
+        ...existingCourse,
+        modules: [{ name: 'M1', description: 'D1', order: 0, lessons: [{ name: 'L1', description: 'Old summary', order: 0, contents: [], media: [] }] }],
+      });
+      api.put.mockResolvedValue({ courseId: 42 });
+      renderAt('/company-courses/42/edit');
+      await screen.findByDisplayValue('L1');
+      fireEvent.click(screen.getByRole('button', { name: 'Toggle content for lesson 1' }));
+      const desc = screen.getByLabelText('Lesson 1 description');
+      expect(desc).toHaveValue('Old summary');
+      fireEvent.change(desc, { target: { value: 'New summary' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+      await waitFor(() => expect(api.put).toHaveBeenCalledWith('/company/courses/42', expect.objectContaining({
+        modules: [expect.objectContaining({
+          lessons: [expect.objectContaining({ name: 'L1', description: 'New summary' })],
+        })],
+      })));
     });
   });
 });

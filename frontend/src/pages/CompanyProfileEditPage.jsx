@@ -109,6 +109,18 @@ const styles = {
   },
 };
 
+const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
+const ALLOWED_IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp'];
+
+// Mirrors CompanyService.UploadImageAsync so bad files are rejected before upload.
+function validateImageFile(file) {
+  const dot = file.name ? file.name.lastIndexOf('.') : -1;
+  const ext = dot >= 0 ? file.name.slice(dot).toLowerCase() : '';
+  if (!ALLOWED_IMAGE_EXTENSIONS.includes(ext)) return 'Image must be a PNG, JPG or WEBP file';
+  if (file.size > MAX_IMAGE_BYTES) return 'Image must be 2 MB or smaller';
+  return null;
+}
+
 export default function CompanyProfileEditPage() {
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -184,15 +196,60 @@ export default function CompanyProfileEditPage() {
     }
   };
 
+  // Uploads finish in the background (202): show an instant local preview,
+  // then poll the profile until the server URL lands.
+  const pollForImageUrl = async (kind, previousUrl, setUrl, doneMessage, previewUrl) => {
+    if (!user?.companyId) return false;
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      await new Promise((resolve) => { setTimeout(resolve, 3000); });
+      try {
+        const data = await api.get(`/companies/${user.companyId}`);
+        const next = kind === 'logo' ? data?.logoUrl : data?.coverImageUrl;
+        if (next && next !== previousUrl) {
+          if (previewUrl && typeof URL.revokeObjectURL === 'function') URL.revokeObjectURL(previewUrl);
+          setUrl(next);
+          showToast(doneMessage, 'success');
+          return true;
+        }
+      } catch {
+        continue;
+      }
+    }
+    return false;
+  };
+
+  const previewLocalFile = (file, setUrl) => {
+    if (typeof URL.createObjectURL !== 'function') return null;
+    const preview = URL.createObjectURL(file);
+    setUrl(preview);
+    return preview;
+  };
+
   const handleLogoFile = async (e) => {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
+    const validationError = validateImageFile(file);
+    if (validationError) {
+      showToast(validationError, 'error');
+      return;
+    }
+    const previousUrl = logoUrl;
+    const preview = previewLocalFile(file, setLogoUrl);
     setUploadingLogo(true);
     try {
-      const res = await api.upload('/companies/me/logo', file);
-      setLogoUrl(res?.logoUrl || '');
-      showToast('Logo uploaded');
+      // NOTE: use postForm, not api.upload — the logo endpoint accepts the
+      // upload (202) and api.upload rejects any response without a `url` field.
+      const form = new FormData();
+      form.append('file', file);
+      await api.postForm('/companies/me/logo', form);
+      showToast('Logo uploading in the background…');
+      const landed = await pollForImageUrl('logo', previousUrl || preview, setLogoUrl, 'Logo uploaded', preview);
+      if (!landed) {
+        if (preview && typeof URL.revokeObjectURL === 'function') URL.revokeObjectURL(preview);
+        setLogoUrl(previousUrl);
+        showToast('Logo upload did not complete — please try again', 'error');
+      }
     } catch (err) {
       showToast(err?.message || 'Could not upload logo');
     } finally {
@@ -204,13 +261,25 @@ export default function CompanyProfileEditPage() {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
+    const validationError = validateImageFile(file);
+    if (validationError) {
+      showToast(validationError, 'error');
+      return;
+    }
+    const previousUrl = coverUrl;
+    const preview = previewLocalFile(file, setCoverUrl);
     setUploadingCover(true);
     try {
-      const res = await api.upload('/companies/me/cover', file);
-      // Backend returns { logoUrl: coverUrl } via UploadLogoResponse for both endpoints
-      const url = res?.logoUrl || res?.coverImageUrl || res?.coverUrl || '';
-      setCoverUrl(url);
-      showToast('Cover image uploaded');
+      const form = new FormData();
+      form.append('file', file);
+      await api.postForm('/companies/me/cover', form);
+      showToast('Cover uploading in the background…');
+      const landed = await pollForImageUrl('cover', previousUrl || preview, setCoverUrl, 'Cover image uploaded', preview);
+      if (!landed) {
+        if (preview && typeof URL.revokeObjectURL === 'function') URL.revokeObjectURL(preview);
+        setCoverUrl(previousUrl);
+        showToast('Cover upload did not complete — please try again', 'error');
+      }
     } catch (err) {
       showToast(err?.message || 'Could not upload cover image');
     } finally {

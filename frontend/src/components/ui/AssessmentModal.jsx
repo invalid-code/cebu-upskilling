@@ -86,7 +86,9 @@ const styles = {
     gap: 14,
     padding: '16px 18px',
     borderRadius: 12,
-    border: '2px solid var(--line)',
+    borderWidth: 2,
+    borderStyle: 'solid',
+    borderColor: 'var(--line)',
     background: 'var(--surface)',
     cursor: 'pointer',
     marginBottom: 10,
@@ -651,13 +653,17 @@ export default function AssessmentModal({ open, onClose, assessmentId, skillName
 
             <div style={styles.footer}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <Button
-                  variant="ghost"
-                  onClick={() => setCurrent(c => Math.max(0, c - 1))}
-                  disabled={current === 0}
-                >
-                  <ChevronLeft size={16} /> Back
+                <Button variant="ghost" onClick={onClose}>
+                  <X size={16} /> Exit
                 </Button>
+                {current > 0 && (
+                  <Button
+                    variant="ghost"
+                    onClick={() => setCurrent(c => Math.max(0, c - 1))}
+                  >
+                    <ChevronLeft size={16} /> Back
+                  </Button>
+                )}
                 <span style={styles.progress}>{answeredCount}/{questions.length} answered</span>
               </div>
               <Button

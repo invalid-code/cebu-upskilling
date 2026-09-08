@@ -5,9 +5,13 @@ const learnerUser = { firstName: 'Jose', lastName: 'Rizal', role: 'Learner', tar
 const bareLearner = { firstName: 'Jose', lastName: 'Rizal', role: 'Learner' };
 
 async function mockOverview(page, { courses = [], skillGaps = [], recommended = null, weekly = { learningTimeHours: 5, coursesActive: 2, jobsWorthApplying: 4 } } = {}) {
+  // /api/skillgaps returns per-role groups, not a flat gap list.
+  const skillGapGroups = skillGaps.length === 0 ? [] : [
+    { role: 'Frontend Developer', companyName: null, postId: null, matchPercent: 0, gaps: skillGaps },
+  ];
   const routes = [
     [/\/api\/courses(\?|$)/, JSON.stringify(courses), (url) => !url.pathname.includes('coursespage')],
-    [/\/api\/skillgaps/, JSON.stringify(skillGaps)],
+    [/\/api\/skillgaps/, JSON.stringify(skillGapGroups)],
     [/\/api\/assessments\/recommended/, JSON.stringify(recommended)],
     [/\/api\/stats\/week/, JSON.stringify(weekly)],
     [/\/api\/enrollments/, '[]'],

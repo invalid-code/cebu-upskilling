@@ -15,16 +15,26 @@
 		{
 			"label": "backend dev server",
 			"type": "shell",
-			"command": "dotnet watch --project CebuUpskilling.Backend",
+			"command": "dotnet",
+			"args": [
+				"watch",
+				"--project",
+				"CebuUpskilling.Backend"
+			],
 			"problemMatcher": [],
-			"group": "build"
+			"group": "build",
+			"options": {
+				"env": {
+					"DOTNET_WATCH_SUPPRESS_LAUNCH_BROWSER": "1"
+				}
+			}
 		},
 		{
-            "label": "start postgres database",
-            "type": "shell",
-            "command": "docker start postgres-server",
-            "problemMatcher": [],
-        },
+			"label": "start postgres database",
+			"type": "shell",
+			"command": "docker start postgres-server",
+			"problemMatcher": [],
+		},
 		{
 			"label": "start backend",
 			"dependsOrder": "sequence",

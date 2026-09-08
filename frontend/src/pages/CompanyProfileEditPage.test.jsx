@@ -11,6 +11,7 @@ vi.mock('../api/client', () => ({
     post: vi.fn(),
     put: vi.fn(),
     upload: vi.fn(),
+    postForm: vi.fn(),
   },
 }));
 
@@ -77,10 +78,9 @@ describe('CompanyProfileEditPage', () => {
     });
   });
 
-  it('uploads a logo file to /companies/me/logo', async () => {
-    api.get.mockResolvedValue(company);
-    api.upload.mockResolvedValue({ logoUrl: 'https://media.example.com/company-logos/5/new.png' });
-
+  it('queues a logo upload, previews instantly, and applies the server URL', async () => {
+    api.get.mockResolvedValueOnce(company).mockResolvedValue({ ...company, logoUrl: 'https://cdn.example/new.png' });
+    api.postForm.mockResolvedValue({ message: 'Logo upload queued and will appear shortly.' });
     renderPage();
     await screen.findByDisplayValue('Cebu Prints');
 
@@ -88,10 +88,58 @@ describe('CompanyProfileEditPage', () => {
     fireEvent.change(input, {
       target: { files: [new File(['x'], 'logo.png', { type: 'image/png' })] },
     });
+    expect(await screen.findByText('Logo uploading in the background…')).toBeInTheDocument();
+    expect(api.postForm).toHaveBeenCalledWith('/companies/me/logo', expect.any(FormData));
+    expect(api.upload).not.toHaveBeenCalled();
+    expect(await screen.findByText('Logo uploaded', {}, { timeout: 8000 })).toBeInTheDocument();
+  }, 15000);
+
+  it('queues a cover upload and applies the server URL', async () => {
+    api.get.mockResolvedValueOnce(company).mockResolvedValue({ ...company, coverImageUrl: 'https://cdn.example/cover.png' });
+    api.postForm.mockResolvedValue({ message: 'queued' });
+    renderPage();
+    await screen.findByDisplayValue('Cebu Prints');
+
+    const inputs = document.querySelectorAll('input[type="file"]');
+    fireEvent.change(inputs[1], {
+      target: { files: [new File(['x'], 'cover.png', { type: 'image/png' })] },
+    });
+    expect(await screen.findByText('Cover uploading in the background…')).toBeInTheDocument();
+    expect(await screen.findByText('Cover image uploaded', {}, { timeout: 8000 })).toBeInTheDocument();
+  }, 15000);
+
+  it('rejects a non-image file before uploading', async () => {
+    api.get.mockResolvedValue(company);
+
+    renderPage();
+    await screen.findByDisplayValue('Cebu Prints');
+
+    const input = document.querySelector('input[type="file"]');
+    fireEvent.change(input, {
+      target: { files: [new File(['x'], 'evil.exe', { type: 'application/x-msdownload' })] },
+    });
 
     await waitFor(() => {
-      expect(api.upload).toHaveBeenCalledWith('/companies/me/logo', expect.anything());
+      expect(screen.getByText('Image must be a PNG, JPG or WEBP file')).toBeInTheDocument();
     });
+    expect(api.postForm).not.toHaveBeenCalled();
+    expect(api.upload).not.toHaveBeenCalled();
+  });
+
+  it('rejects an oversized image before uploading', async () => {
+    api.get.mockResolvedValue(company);
+
+    renderPage();
+    await screen.findByDisplayValue('Cebu Prints');
+
+    const big = new File([new Uint8Array(2 * 1024 * 1024 + 1)], 'big.png', { type: 'image/png' });
+    const input = document.querySelector('input[type="file"]');
+    fireEvent.change(input, { target: { files: [big] } });
+
+    await waitFor(() => {
+      expect(screen.getByText('Image must be 2 MB or smaller')).toBeInTheDocument();
+    });
+    expect(api.postForm).not.toHaveBeenCalled();
   });
 
   it('sends empty strings for cleared fields so the backend clears them', async () => {
@@ -124,5 +172,20 @@ describe('CompanyProfileEditPage', () => {
     );
 
     expect(await screen.findByText(/not linked to a company yet/)).toBeInTheDocument();
+  });
+
+  it('reverts to the previous logo when the upload fails', async () => {
+    api.get.mockResolvedValue({ ...company, logoUrl: 'https://cdn.example/old.png' });
+    api.postForm.mockRejectedValue(new Error('Network error'));
+    renderPage();
+    await screen.findByDisplayValue('Cebu Prints');
+
+    const input = document.querySelector('input[type="file"]');
+    fireEvent.change(input, {
+      target: { files: [new File(['x'], 'logo.png', { type: 'image/png' })] },
+    });
+
+    expect(await screen.findByText('Network error')).toBeInTheDocument();
+    expect(screen.queryByText('Logo uploaded')).not.toBeInTheDocument();
   });
 });

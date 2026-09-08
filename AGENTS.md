@@ -23,7 +23,7 @@ Detailed references (read these, don't re-derive): root `README.md`, `CebuUpskil
 - Lint is **oxlint** (`npm run lint`), not ESLint. Tests: `npm test` (vitest), `npm run test:watch`, `npm run test:e2e` (Playwright, expects SPA on `:5173`). Coverage thresholds are low (lines 50, branches 45) — don't raise without reason.
 
 ## Tests
-- Backend: `dotnet test CebuUpskilling.Backend.Tests/...csproj`; filter with `--filter "AuthServiceTests"`; coverage via `--collect:"XPlat Code Coverage" --settings coverlet.runsettings`.
+- Backend: `dotnet test CebuUpskilling.Backend.Tests/...csproj`; filter with `--filter "AuthServiceTests"`; coverage via `--collect:"XPlat Code Coverage" --settings coverlet.runsettings`. Backend tests need **no Postgres** — integration tests boot the API via `ProductionApiFactory` on an isolated EF Core InMemory database with faked R2/Gemini. (Postgres is only needed to *run* the API, per Backend essentials above.)
 - Run both `dotnet test` and `npm test` before pushing (per contributing note in root README).
 
 ## Conventions

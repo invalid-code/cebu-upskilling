@@ -13,32 +13,6 @@ namespace CebuUpskilling.Backend.Tests;
 
 public class AuthServiceTests
 {
-    private class FakeGoogleAiService : IGoogleAiService
-    {
-        private readonly List<string> _skills;
-        private readonly List<GeneratedAssessmentQuestion> _questions;
-
-        public FakeGoogleAiService(List<string>? skills = null, List<GeneratedAssessmentQuestion>? questions = null)
-        {
-            _skills = skills ?? new List<string>();
-            _questions = questions ?? new List<GeneratedAssessmentQuestion>();
-        }
-
-        public Task<List<string>> ParseSkillsFromResumeAsync(string resumeText, CancellationToken ct = default)
-            => Task.FromResult(new List<string>(_skills));
-
-        public Task<List<GeneratedAssessmentQuestion>> GenerateAssessmentQuestionsAsync(string skillName, int count = 5, CancellationToken ct = default)
-            => Task.FromResult(new List<GeneratedAssessmentQuestion>(_questions));
-
-        public Task<List<CandidateRanking>> RankCandidatesAsync(string jobTitle, string targetRole, string? requirements, List<CandidateSkillProfile> candidates, CancellationToken ct = default)
-            => Task.FromResult(new List<CandidateRanking>());
-
-        public Task<DraftJobPostResponse?> DraftJobPostAsync(DraftJobPostRequest request, CancellationToken ct = default)
-            => Task.FromResult<DraftJobPostResponse?>(null);
-
-        public Task<CourseGenerationResult?> GenerateCourseOutlineAsync(CourseGenerationPromptContext context, CancellationToken ct = default)
-            => Task.FromResult<CourseGenerationResult?>(null);
-    }
     private static IConfiguration CreateConfig() => new ConfigurationBuilder()
         .AddInMemoryCollection(new Dictionary<string, string?>
         {
@@ -60,27 +34,26 @@ public class AuthServiceTests
         public string GetPublicUrl(string key) => $"https://fake-storage.example/{key}";
     }
 
-    private static AuthService CreateService(Data.ApplicationDbContext context, IGoogleAiService? aiService = null, IGoogleTokenVerifier? googleVerifier = null, IObjectStorageService? storage = null)
+    private sealed class FakeResumeParseQueue : IResumeParseQueue
+    {
+        public List<ResumeParseJob> Jobs { get; } = new();
+        public void Enqueue(ResumeParseJob job) => Jobs.Add(job);
+        public System.Threading.Channels.ChannelReader<ResumeParseJob> Reader
+            => System.Threading.Channels.Channel.CreateUnbounded<ResumeParseJob>().Reader;
+    }
+
+    private static AuthService CreateService(Data.ApplicationDbContext context, IGoogleTokenVerifier? googleVerifier = null, IObjectStorageService? storage = null, FakeResumeParseQueue? parseQueue = null)
     {
         var fakeStorage = storage ?? new FakeObjectStorageService();
         var resumeService = new ResumeService(fakeStorage, NullLogger<ResumeService>.Instance);
         return new(
             context,
-            new JobseekerSkillParserAgent(
-                aiService ?? new FakeGoogleAiService(),
-                new SkillRepository(context),
-                new LearnerRepository(context),
-                new LearnerSkillRepository(context),
-                new LearnerAssessmentRepository(context),
-                new AppUserRepository(context),
-                new RoleSkillRepository(context),
-                new AssessmentQuestionRepository(context),
-                NullLogger<JobseekerSkillParserAgent>.Instance),
             new JwtTokenService(CreateConfig(), NullLogger<JwtTokenService>.Instance),
             new LoggingEmailService(NullLogger<LoggingEmailService>.Instance),
             new InMemoryTokenRevocationStore(NullLogger<InMemoryTokenRevocationStore>.Instance),
             googleVerifier ?? new FakeGoogleTokenVerifier(),
             resumeService,
+            parseQueue ?? new FakeResumeParseQueue(),
             NullLogger<AuthService>.Instance
         );
     }
@@ -287,7 +260,7 @@ public class AuthServiceTests
     }
 
     [Fact]
-    public async Task RegisterAsync_WithResumeParsesAndSavesAllLearnerSkills()
+    public async Task RegisterAsync_WithResume_EnqueuesParsingInsteadOfBlocking()
     {
         var context = TestDbContextFactory.Create();
 
@@ -296,52 +269,22 @@ public class AuthServiceTests
         context.Skills.Add(new Skill { Name = "Docker" });
         await context.SaveChangesAsync();
 
-        var aiService = new FakeGoogleAiService(new List<string> { "JavaScript", "React", "NonExistent" });
-        var service = CreateService(context, aiService);
+        var parseQueue = new FakeResumeParseQueue();
+        var service = CreateService(context, parseQueue: parseQueue);
 
         var result = await service.RegisterAsync(NewRegisterRequest(), CreateFakePdf());
 
+        // Parsing runs in the background: nothing is created synchronously…
         var learner = await context.Learners.SingleAsync(l => l.UserId == result.UserId);
-        var learnerSkills = await context.LearnerSkills
-            .Where(ls => ls.LearnerId == learner.LearnerId)
-            .ToListAsync();
+        Assert.Empty(await context.LearnerSkills.Where(ls => ls.LearnerId == learner.LearnerId).ToListAsync());
+        Assert.Empty(await context.LearnerAssessments.Where(a => a.LearnerId == learner.LearnerId).ToListAsync());
+        Assert.Equal(0, result.ParsedSkillCount);
+        Assert.Equal(0, result.AssessmentCount);
 
-        Assert.Equal(3, learnerSkills.Count);
-        var skillIds = learnerSkills.Select(ls => ls.SkillId).ToHashSet();
-        var jsSkill = await context.Skills.SingleAsync(s => s.Name == "JavaScript");
-        var reactSkill = await context.Skills.SingleAsync(s => s.Name == "React");
-        var newSkill = await context.Skills.SingleAsync(s => s.Name == "NonExistent");
-        Assert.Contains(jsSkill.SkillId, skillIds);
-        Assert.Contains(reactSkill.SkillId, skillIds);
-        Assert.Contains(newSkill.SkillId, skillIds);
-    }
-
-    [Fact]
-    public async Task RegisterAsync_WithResume_CreatesAssessmentsForParsedSkills()
-    {
-        var context = TestDbContextFactory.Create();
-
-        context.Skills.Add(new Skill { Name = "JavaScript" });
-        context.Skills.Add(new Skill { Name = "React" });
-        await context.SaveChangesAsync();
-
-        var aiService = new FakeGoogleAiService(new List<string> { "JavaScript", "React" });
-        var service = CreateService(context, aiService);
-
-        var result = await service.RegisterAsync(NewRegisterRequest(), CreateFakePdf());
-
-        var learner = await context.Learners.SingleAsync(l => l.UserId == result.UserId);
-        var assessments = await context.LearnerAssessments
-            .Where(a => a.LearnerId == learner.LearnerId)
-            .ToListAsync();
-
-        Assert.Equal(2, assessments.Count);
-        Assert.All(assessments, a =>
-        {
-            Assert.Equal(0, a.ScoredLevel);
-            Assert.False(a.Verified);
-        });
-    }
+        // …but the job is queued with the extracted resume text.
+        var job = Assert.Single(parseQueue.Jobs);
+        Assert.Equal(result.UserId, job.UserId);
+        Assert.False(string.IsNullOrWhiteSpace(job.ResumeText));    }
 
     [Fact]
     public async Task RegisterAsync_LearnerWithoutResume_Throws()
@@ -379,52 +322,66 @@ public class AuthServiceTests
     }
 
     [Fact]
-    public async Task RegisterAsync_ValidDocx_ExtractsAndParses()
+    public async Task RegisterAsync_ValidDocx_ExtractsAndQueuesParsing()
     {
         var context = TestDbContextFactory.Create();
         context.Skills.Add(new Skill { Name = "Python" });
         await context.SaveChangesAsync();
-        var aiService = new FakeGoogleAiService(new List<string> { "Python" });
-        var service = CreateService(context, aiService);
+        var parseQueue = new FakeResumeParseQueue();
+        var service = CreateService(context, parseQueue: parseQueue);
 
         var result = await service.RegisterAsync(NewRegisterRequest(), CreateFakeDocx("Python developer"));
 
         var learner = await context.Learners.SingleAsync(l => l.UserId == result.UserId);
         var learnerSkills = await context.LearnerSkills.Where(ls => ls.LearnerId == learner.LearnerId).ToListAsync();
-        Assert.Single(learnerSkills);
+        Assert.Empty(learnerSkills);
         var saved = await context.Users.SingleAsync(u => u.UserId == result.UserId);
-        Assert.False(string.IsNullOrWhiteSpace(saved.ResumeUrl));
-        Assert.StartsWith("https://fake-storage.example/resumes/", saved.ResumeUrl);
+        Assert.Null(saved.ResumeUrl);
+        var job = Assert.Single(parseQueue.Jobs);
+        Assert.Contains("Python", job.ResumeText);
     }
 
     [Fact]
-    public async Task RegisterAsync_SavesResumeUrlToStorage()
+    public async Task RegisterAsync_BuffersResumeForBackgroundUpload()
     {
         var context = TestDbContextFactory.Create();
         var storage = new FakeObjectStorageService();
-        var service = CreateService(context, storage: storage);
+        var parseQueue = new FakeResumeParseQueue();
+        var service = CreateService(context, storage: storage, parseQueue: parseQueue);
 
         var result = await service.RegisterAsync(NewRegisterRequest(), CreateFakePdf());
 
+        // The R2 upload runs in the background: nothing stored yet…
         var saved = await context.Users.SingleAsync(u => u.UserId == result.UserId);
-        Assert.NotNull(saved.ResumeUrl);
-        Assert.StartsWith("https://fake-storage.example/resumes/", saved.ResumeUrl);
-        Assert.EndsWith(".pdf", saved.ResumeUrl);
-        Assert.NotNull(storage.LastKey);
-        Assert.StartsWith("resumes/", storage.LastKey);
+        Assert.Null(saved.ResumeUrl);
+        Assert.Null(storage.LastKey);
+
+        // …but the job carries the file bytes and name for the worker.
+        var job = Assert.Single(parseQueue.Jobs);
+        Assert.Equal(result.UserId, job.UserId);
+        Assert.NotNull(job.FileBytes);
+        Assert.True(job.FileBytes.Length > 0);
+        Assert.Equal("resume.pdf", job.FileName);
     }
 
     [Fact]
-    public async Task RegisterAsync_Docx_SavesResumeUrlWithDocxExtension()
+    public async Task RegisterAsync_Docx_QueuesDocxFilenameForBackgroundUpload()
     {
         var context = TestDbContextFactory.Create();
         var storage = new FakeObjectStorageService();
-        var service = CreateService(context, storage: storage);
+        var parseQueue = new FakeResumeParseQueue();
+        var service = CreateService(context, storage: storage, parseQueue: parseQueue);
 
         var result = await service.RegisterAsync(NewRegisterRequest(), CreateFakeDocx());
 
+        // Upload runs in the background: no URL or storage call yet…
         var saved = await context.Users.SingleAsync(u => u.UserId == result.UserId);
-        Assert.EndsWith(".docx", saved.ResumeUrl);
+        Assert.Null(saved.ResumeUrl);
+        Assert.Null(storage.LastKey);
+
+        // …but the job preserves the original filename (and its extension).
+        var job = Assert.Single(parseQueue.Jobs);
+        Assert.EndsWith(".docx", job.FileName);
     }
 
     [Fact]

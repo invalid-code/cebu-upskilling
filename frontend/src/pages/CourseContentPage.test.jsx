@@ -104,6 +104,14 @@ describe('CourseContentPage', () => {
     expect((await screen.findAllByText('Network error')).length).toBeGreaterThan(0);
   });
 
+  it('shows a friendly empty state instead of crashing when the lesson is missing', async () => {
+    api.get.mockResolvedValue({ ...courseData, currentLesson: null, modules: [] });
+
+    renderPage();
+
+    expect(await screen.findByText('Lesson unavailable')).toBeInTheDocument();
+  });
+
   it('navigates back to the courses list', async () => {
     api.get.mockResolvedValue(courseData);
 

@@ -47,7 +47,7 @@ public class RateLimitingApiTests : IClassFixture<RateLimitedApiFactory>, IAsync
 
     public Task DisposeAsync() => Task.CompletedTask;
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task GlobalLimiter_Returns429AfterLimitExceeded()
     {
         // Pin a stable client IP via the forwarded header (the same header a reverse
@@ -66,7 +66,7 @@ public class RateLimitingApiTests : IClassFixture<RateLimitedApiFactory>, IAsync
         Assert.True(statuses.LastIndexOf(HttpStatusCode.OK) < statuses.IndexOf(HttpStatusCode.TooManyRequests));
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task AuthPolicy_Returns429OnLoginAfterLimitExceeded()
     {
         _client.DefaultRequestHeaders.Add("X-Forwarded-For", "203.0.113.20");

@@ -180,6 +180,48 @@ public class CompanyIdentityUnitTests
     }
 
     [Fact]
+    public async Task UploadLogoAsync_FakeImageContent_ThrowsInvalidOperation()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var (user, _) = await SeedRecruiterWithCompanyAsync(ctx, "logo.fake@example.com", "Fake Pixels Corp");
+        var svc = CreateCompanyService(ctx, new FakeObjectStorage());
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => svc.UploadLogoAsync(user.UserId, MakeFormFile("logo.png", new byte[] { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B })));
+        Assert.Contains("valid PNG", ex.Message);
+    }
+
+    [Fact]
+    public async Task UploadLogoBytesAsync_ValidBytes_StoresUrlOnCompany()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var (user, company) = await SeedRecruiterWithCompanyAsync(ctx, "logo.bytes@example.com", "Bytes Corp");
+        var svc = CreateCompanyService(ctx, new FakeObjectStorage());
+
+        var png = Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==");
+        var url = await svc.UploadLogoBytesAsync(user.UserId, png, "logo.png");
+
+        Assert.StartsWith("https://media.example.com/company-logos/", url);
+        await ctx.Entry(company).ReloadAsync();
+        Assert.Equal(url, company.LogoUrl);
+    }
+
+    [Fact]
+    public async Task UploadCoverBytesAsync_ValidBytes_StoresCoverUrl()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var (user, company) = await SeedRecruiterWithCompanyAsync(ctx, "cover.bytes@example.com", "Cover Bytes Corp");
+        var svc = CreateCompanyService(ctx, new FakeObjectStorage());
+
+        var png = Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==");
+        var url = await svc.UploadCoverBytesAsync(user.UserId, png, "cover.png");
+
+        Assert.StartsWith("https://media.example.com/company-covers/", url);
+        await ctx.Entry(company).ReloadAsync();
+        Assert.Equal(url, company.CoverImageUrl);
+    }
+
+    [Fact]
     public async Task UploadLogoAsync_ValidImage_StoresUrlOnCompany_AndDeletesPreviousKey()
     {
         var ctx = TestDbContextFactory.Create();
@@ -463,7 +505,7 @@ public class CompanyIdentityUnitTests
     }
 
     private static FakeFormFile MakeFormFile(string fileName, byte[]? content = null) =>
-        new(fileName, "image/png", content ?? [0x89, 0x50, 0x4E, 0x47]);
+        new(fileName, "image/png", content ?? new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A });
 
     private sealed class FakeFormFile : IFormFile
     {

@@ -130,6 +130,34 @@ public class ApplicationsServiceTests
     }
 
     [Fact]
+    public async Task ApplyAsync_SetsTargetRoleFromPost_WhenLearnerHasNone()
+    {
+        var (context, userId, postId) = await SeedAsync();
+        var service = CreateService(context);
+
+        var outcome = await service.ApplyAsync(userId, postId, TestResumeUrl);
+
+        Assert.True(outcome.Success);
+        var user = await context.Users.SingleAsync(u => u.UserId == userId);
+        Assert.Equal("Frontend Developer (React)", user.TargetRole);
+    }
+
+    [Fact]
+    public async Task ApplyAsync_PreservesExistingTargetRole()
+    {
+        var (context, userId, postId) = await SeedAsync();
+        var user = await context.Users.SingleAsync(u => u.UserId == userId);
+        user.TargetRole = "Backend Developer";
+        await context.SaveChangesAsync();
+        var service = CreateService(context);
+
+        var outcome = await service.ApplyAsync(userId, postId, TestResumeUrl);
+
+        Assert.True(outcome.Success);
+        Assert.Equal("Backend Developer", (await context.Users.SingleAsync(u => u.UserId == userId)).TargetRole);
+    }
+
+    [Fact]
     public async Task ApplyAsync_WithoutResume_ReturnsResumeRequired()
     {
         var (context, userId, postId) = await SeedAsync();
@@ -140,6 +168,39 @@ public class ApplicationsServiceTests
         Assert.False(outcome.Success);
         Assert.Equal(ApplyFailure.ResumeRequired, outcome.Failure);
         Assert.Empty(context.Applications);
+    }
+
+    [Fact]
+    public async Task ApplyAsync_WithoutResumeUrl_AppendsLearnerStoredResume()
+    {
+        var (context, userId, postId) = await SeedAsync();
+        var user = await context.Users.SingleAsync(u => u.UserId == userId);
+        user.ResumeUrl = "https://storage.example/profile-resume.pdf";
+        await context.SaveChangesAsync();
+        var service = CreateService(context);
+
+        var outcome = await service.ApplyAsync(userId, postId, resumeUrl: null);
+
+        Assert.True(outcome.Success);
+        var stored = await context.Applications.SingleAsync();
+        Assert.Equal("https://storage.example/profile-resume.pdf", stored.ResumeUrl);
+        Assert.Equal("https://storage.example/profile-resume.pdf", outcome.Application!.ResumeUrl);
+    }
+
+    [Fact]
+    public async Task ApplyAsync_ExplicitResumeUrl_WinsOverStoredResume()
+    {
+        var (context, userId, postId) = await SeedAsync();
+        var user = await context.Users.SingleAsync(u => u.UserId == userId);
+        user.ResumeUrl = "https://storage.example/profile-resume.pdf";
+        await context.SaveChangesAsync();
+        var service = CreateService(context);
+
+        var outcome = await service.ApplyAsync(userId, postId, "https://storage.example/fresh-resume.pdf");
+
+        Assert.True(outcome.Success);
+        var stored = await context.Applications.SingleAsync();
+        Assert.Equal("https://storage.example/fresh-resume.pdf", stored.ResumeUrl);
     }
 
     [Fact]

@@ -195,4 +195,17 @@ public class ResumeServiceTests
         Assert.StartsWith("https://fake.example/resumes/", url);
         Assert.Contains("ProcessTest", text);
     }
+
+    [Fact]
+    public async Task UploadBytesAsync_UploadsBufferedBytes()
+    {
+        var storage = new FakeStorage();
+        var svc = CreateService(storage);
+        var content = System.Text.Encoding.UTF8.GetBytes("%PDF-1.4 background bytes");
+        var url = await svc.UploadBytesAsync(content, "resume.pdf");
+        Assert.StartsWith("https://fake.example/resumes/", url);
+        Assert.EndsWith(".pdf", url);
+        Assert.Equal("application/pdf", storage.LastContentType);
+        Assert.StartsWith("resumes/", storage.LastKey);
+    }
 }

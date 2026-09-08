@@ -22,9 +22,11 @@ public class HiringAgentControllerRegressionTests
         public RankCandidatesResponse? RankResponse { get; set; } = new RankCandidatesResponse(1, false, new());
         public DraftJobPostResponse? DraftResponse { get; set; }
         public ScreeningQuestionsResponse? ScreeningResponse { get; set; } = new ScreeningQuestionsResponse(1, new());
+        public CreateJobPostFromRoleResponse? CreatedResponse { get; set; }
         public int RankCalls { get; private set; }
         public int DraftCalls { get; private set; }
         public int ScreeningCalls { get; private set; }
+        public int CreateFromRoleCalls { get; private set; }
 
         public Task<RankCandidatesResponse> RankApplicantsAsync(int userId, int postId, int companyId, CancellationToken ct = default)
         {
@@ -42,6 +44,12 @@ public class HiringAgentControllerRegressionTests
         {
             ScreeningCalls++;
             return Task.FromResult(ScreeningResponse ?? new ScreeningQuestionsResponse(postId, new()));
+        }
+
+        public Task<CreateJobPostFromRoleResponse?> CreateJobPostFromTargetRoleAsync(int userId, int companyId, CreateJobPostFromRoleRequest? request, CancellationToken ct = default)
+        {
+            CreateFromRoleCalls++;
+            return Task.FromResult(CreatedResponse);
         }
     }
 
@@ -270,5 +278,73 @@ public class HiringAgentControllerRegressionTests
         var resultHigh = await controller.GenerateScreeningQuestions(post.PostId, perSkill: 100);
         Assert.IsType<OkObjectResult>(resultLow.Result);
         Assert.IsType<OkObjectResult>(resultHigh.Result);
+    }
+
+    // ---- CreateJobPostFromRole ----
+
+    private static CreateJobPostFromRoleRequest FromRoleRequest(string targetRole) =>
+        new(null, targetRole, null, null, null, null);
+
+    private static CreateJobPostFromRoleResponse FromRoleResponse(int companyId) =>
+        new(new PostResponse(7, companyId, "Hiring Corp", "Backend Developer", "Desc",
+            "Backend Developer", null, null, "Full-time", null, null, null, false, null,
+            true, null, null, null, DateTime.UtcNow, "Full-time", new()), AiDrafted: true);
+
+    [Fact]
+    public async Task FromRole_MissingClaim_ReturnsUnauthorized()
+    {
+        var (ctx, _, _, _) = await SeedAsync();
+        var controller = CreateController(ctx, new FakeAgent(), new ClaimsPrincipal());
+        var result = await controller.CreateJobPostFromRole(FromRoleRequest("Backend Developer"));
+        Assert.IsType<UnauthorizedObjectResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task FromRole_UserWithoutCompany_ReturnsBadRequest()
+    {
+        var ctx = TestDbContextFactory.Create();
+        var user = new AppUser { FirstName = "NoCo", LastName = "User", EmailAddress = $"noco-{Guid.NewGuid():N}@example.com", PasswordHash = "hash", Role = "Recruiter", CompanyId = null };
+        ctx.Users.Add(user);
+        await ctx.SaveChangesAsync();
+        var controller = CreateController(ctx, new FakeAgent(), Principal(user.UserId.ToString()));
+        var result = await controller.CreateJobPostFromRole(FromRoleRequest("Backend Developer"));
+        Assert.IsType<BadRequestObjectResult>(result.Result);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task FromRole_MissingTargetRole_ReturnsBadRequest_AndDoesNotCallAgent(string targetRole)
+    {
+        var (ctx, _, recruiter, _) = await SeedAsync();
+        var agent = new FakeAgent();
+        var controller = CreateController(ctx, agent, Principal(recruiter.UserId.ToString()));
+        var result = await controller.CreateJobPostFromRole(FromRoleRequest(targetRole));
+        Assert.IsType<BadRequestObjectResult>(result.Result);
+        Assert.Equal(0, agent.CreateFromRoleCalls);
+    }
+
+    [Fact]
+    public async Task FromRole_UnknownRole_ReturnsNotFound()
+    {
+        var (ctx, _, recruiter, _) = await SeedAsync();
+        var agent = new FakeAgent { CreatedResponse = null };
+        var controller = CreateController(ctx, agent, Principal(recruiter.UserId.ToString()));
+        var result = await controller.CreateJobPostFromRole(FromRoleRequest("Cobol Wrangler"));
+        Assert.IsType<NotFoundObjectResult>(result.Result);
+        Assert.Equal(1, agent.CreateFromRoleCalls);
+    }
+
+    [Fact]
+    public async Task FromRole_Success_ReturnsOk()
+    {
+        var (ctx, company, recruiter, _) = await SeedAsync();
+        var expected = FromRoleResponse(company.CompanyId);
+        var agent = new FakeAgent { CreatedResponse = expected };
+        var controller = CreateController(ctx, agent, Principal(recruiter.UserId.ToString()));
+        var result = await controller.CreateJobPostFromRole(FromRoleRequest("Backend Developer"));
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        Assert.Equal(expected, ok.Value);
+        Assert.Equal(1, agent.CreateFromRoleCalls);
     }
 }

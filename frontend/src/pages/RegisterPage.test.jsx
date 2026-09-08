@@ -7,6 +7,7 @@ import RegisterPage from './RegisterPage';
 
 vi.mock('../api/client', () => ({
   api: {
+    get: vi.fn(),
     post: vi.fn(),
     postForm: vi.fn(),
   },
@@ -102,6 +103,7 @@ function fillForm() {
 describe('RegisterPage', () => {
   beforeEach(() => {
     localStorage.clear();
+    api.get.mockReset();
     api.post.mockReset();
     api.postForm.mockReset();
   });
@@ -121,7 +123,7 @@ describe('RegisterPage', () => {
   });
 
   it('submits the form data to register on submit', async () => {
-    api.postForm.mockResolvedValue({ token: 'abc', firstName: 'Jose' });
+    api.postForm.mockResolvedValue({ token: 'abc', firstName: 'Jose', parsedSkillCount: 1 });
     renderRegister();
 
     fillForm();
@@ -503,5 +505,32 @@ describe('RegisterPage', () => {
     const [pwdToggle] = screen.getAllByRole('button', { name: 'Show password' });
     fireEvent.click(pwdToggle);
     expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('starts background polling when registration reports zero parsed skills', async () => {
+    api.postForm.mockResolvedValue({ token: 'abc', firstName: 'Jose', parsedSkillCount: 0 });
+    api.get.mockResolvedValueOnce([]).mockResolvedValue([{ skillId: 1, name: 'React' }]);
+    renderRegister();
+
+    fillForm();
+    setResumeFile(createFakePdfFile());
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+    expect(await screen.findByText('Learner home')).toBeInTheDocument();
+    expect(screen.getByText('Account created — welcome to Cebu Upskilling!')).toBeInTheDocument();
+
+    // Let the poll loop run to completion (second poll finds skills) so no
+    // background timers leak into later tests.
+    expect(await screen.findByText(/Resume parsed: 1 skill/, {}, { timeout: 12000 })).toBeInTheDocument();
+  }, 20000);
+  it('does not poll when the response already includes parsed skills', async () => {
+    api.postForm.mockResolvedValue({ token: 'abc', firstName: 'Jose', parsedSkillCount: 3, assessmentCount: 2 });
+    renderRegister();
+
+    fillForm();
+    setResumeFile(createFakePdfFile());
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+    expect(await screen.findByText('Learner home')).toBeInTheDocument();
+    expect(screen.getByText(/Parsed 3 skills/)).toBeInTheDocument();
+    expect(api.get).not.toHaveBeenCalledWith('/skills');
   });
 });

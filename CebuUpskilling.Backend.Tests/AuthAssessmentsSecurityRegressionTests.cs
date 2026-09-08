@@ -30,11 +30,12 @@ public class AuthAssessmentsSecurityRegressionTests
 
     private sealed class FakeAuthService : IAuthService
     {
-        public Task<AuthResponse> RegisterAsync(RegisterRequest r) => throw new NotImplementedException();
+        public Task<AuthResponse> RegisterAsync(RegisterRequest r, IFormFile? resumeFile = null, CancellationToken ct = default) => throw new NotImplementedException();
         public Task<CompanyRegisterResponse> CompanyRegisterAsync(CompanyRegisterRequest r) => throw new NotImplementedException();
         public Task<AuthResponse> LoginAsync(LoginRequest r) => throw new NotImplementedException();
         public Task<AuthResponse> GoogleAuthAsync(GoogleAuthRequest r) => throw new NotImplementedException();
         public Task<AuthResponse> UpdateProfileAsync(int userId, UpdateProfileRequest r) => throw new NotImplementedException();
+        public Task<AuthResponse?> GetProfileAsync(int userId) => Task.FromResult<AuthResponse?>(null);
         public Task LogoutAsync(string? jti) => Task.CompletedTask;
         public Task<bool> ConfirmEmailAsync(string email, string token) => Task.FromResult(false);
         public Task SendEmailConfirmationAsync(string email) => Task.CompletedTask;
@@ -51,6 +52,8 @@ public class AuthAssessmentsSecurityRegressionTests
         public Task<AssessmentQuestionsResponse?> GetQuestionsAsync(int userId, int assessmentId) => Task.FromResult<AssessmentQuestionsResponse?>(null);
         public Task<SubmitAssessmentResponse?> SubmitAssessmentAsync(int userId, int assessmentId, SubmitAssessmentRequest request) => Task.FromResult<SubmitAssessmentResponse?>(null);
         public Task<CreatedCompanyQuestionResponse?> CreateCompanyQuestionAsync(int userId, CreateCompanyQuestionRequest request) => Task.FromResult<CreatedCompanyQuestionResponse?>(null);
+        public Task<CreatedProviderQuestionResponse?> CreateProviderQuestionAsync(int userId, CreateProviderQuestionRequest request) => Task.FromResult<CreatedProviderQuestionResponse?>(null);
+        public Task<int> EnsureQuestionsForSkillAsync(int skillId, CancellationToken ct = default) => Task.FromResult(0);
         public Task<ParseSkillsResult> ParseAndCreateAssessmentsAsync(int userId, string resumeText, CancellationToken ct = default) => Task.FromResult(new ParseSkillsResult(new List<ParsedSkillResult>()));
     }
 
@@ -108,6 +111,16 @@ public class AuthAssessmentsSecurityRegressionTests
     }
 
     [Fact]
+    public async Task AssessmentsController_CreateProviderQuestion_WhenAgentReturnsNull_ReturnsBadRequest()
+    {
+        var controller = new AssessmentsController(new FakeEntityService<LearnerAssessment>(), new FakeJobseekerAgent(), NullLogger<AssessmentsController>.Instance);
+        controller.ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier, "7") })) } };
+        var result = await controller.CreateProviderQuestion(new CreateProviderQuestionRequest(1, "Q?", "A", "B", "C", "D", 0));
+        var bad = Assert.IsType<BadRequestObjectResult>(result.Result);
+        Assert.Equal(400, bad.StatusCode);
+    }
+
+    [Fact]
     public void AssessmentsController_HasLearnerAuthorizeAttributes()
     {
         foreach (var name in new[] { "GetRecentResults", "GetAvailableAssessments", "GetRecommended", "StartAssessment", "GetQuestions", "SubmitAssessment", "LogIntegrityEvent" })
@@ -121,5 +134,9 @@ public class AuthAssessmentsSecurityRegressionTests
         var compAttr = companyMethod.GetCustomAttributes(typeof(Microsoft.AspNetCore.Authorization.AuthorizeAttribute), true)
             .Cast<Microsoft.AspNetCore.Authorization.AuthorizeAttribute>().Single();
         Assert.Equal("Recruiter", compAttr.Roles);
+        var providerMethod = typeof(AssessmentsController).GetMethod("CreateProviderQuestion")!;
+        var provAttr = providerMethod.GetCustomAttributes(typeof(Microsoft.AspNetCore.Authorization.AuthorizeAttribute), true)
+            .Cast<Microsoft.AspNetCore.Authorization.AuthorizeAttribute>().Single();
+        Assert.Equal("CourseProvider", provAttr.Roles);
     }
 }

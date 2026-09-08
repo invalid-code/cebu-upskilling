@@ -15,7 +15,7 @@ namespace CebuUpskilling.Backend.Tests.Integration;
 
 /// <summary>
 /// Security-focused integration tests running against the real HTTP pipeline
-/// and a real PostgreSQL test database: JWT hardening, credential handling,
+/// and an isolated in-memory test database: JWT hardening, credential handling,
 /// object-level authorization, CORS, injection, and data exposure.
 /// </summary>
 public class SecurityApiTests : ProductionApiTestBase
@@ -77,7 +77,7 @@ public class SecurityApiTests : ProductionApiTestBase
     // Authentication / JWT validation
     // ------------------------------------------------------------------ //
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task ProtectedEndpoint_NoToken_ReturnsUnauthorized()
     {
         var response = await Client.GetAsync("/api/skillgaps");
@@ -85,7 +85,7 @@ public class SecurityApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task ProtectedEndpoint_MalformedBearerToken_ReturnsUnauthorized()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "/api/skillgaps");
@@ -96,7 +96,7 @@ public class SecurityApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task ProtectedEndpoint_TokenWithoutBearerScheme_ReturnsUnauthorized()
     {
         var (_, issuer, audience) = JwtConfig();
@@ -110,7 +110,7 @@ public class SecurityApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task ProtectedEndpoint_TokenSignedWithWrongKey_ReturnsUnauthorized()
     {
         var (_, issuer, audience) = JwtConfig();
@@ -121,7 +121,7 @@ public class SecurityApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task ProtectedEndpoint_TokenWithWrongIssuer_ReturnsUnauthorized()
     {
         var (key, _, audience) = JwtConfig();
@@ -132,7 +132,7 @@ public class SecurityApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task ProtectedEndpoint_TokenWithWrongAudience_ReturnsUnauthorized()
     {
         var (key, issuer, _) = JwtConfig();
@@ -143,7 +143,7 @@ public class SecurityApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task ProtectedEndpoint_ExpiredToken_ReturnsUnauthorized()
     {
         var (key, issuer, audience) = JwtConfig();
@@ -154,7 +154,7 @@ public class SecurityApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task ProtectedEndpoint_AlgNoneToken_ReturnsUnauthorized()
     {
         var token = MakeUnsignedToken(
@@ -166,7 +166,7 @@ public class SecurityApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task ProtectedEndpoint_TokenNotYetValid_ReturnsUnauthorized()
     {
         var (key, issuer, audience) = JwtConfig();
@@ -186,7 +186,7 @@ public class SecurityApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task ProtectedEndpoint_TamperedToken_ReturnsUnauthorized()
     {
         var (key, issuer, audience) = JwtConfig();
@@ -204,7 +204,7 @@ public class SecurityApiTests : ProductionApiTestBase
     // Registration hardening
     // ------------------------------------------------------------------ //
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Register_WithDisallowedRole_IsRejected()
     {
         var response = await RegisterAsync(new
@@ -222,7 +222,7 @@ public class SecurityApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.Unauthorized, login.StatusCode);
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Register_WithRecruiterRole_IsRejected()
     {
         var response = await RegisterAsync(new
@@ -242,7 +242,7 @@ public class SecurityApiTests : ProductionApiTestBase
         Assert.False(await db.Users.AnyAsync(u => u.EmailAddress == "sec.recruiter@example.com"));
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Register_WeakPassword_IsRejected()
     {
         var response = await RegisterAsync(new
@@ -260,7 +260,7 @@ public class SecurityApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.Unauthorized, login.StatusCode);
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Register_MissingRequiredFields_ReturnsBadRequest()
     {
         var response = await RegisterAsync(new
@@ -277,7 +277,7 @@ public class SecurityApiTests : ProductionApiTestBase
     // Credential storage and disclosure
     // ------------------------------------------------------------------ //
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Passwords_AreStoredAsBcryptHashes()
     {
         var (_, userId) = await RegisterUserAsync("sec.hash@example.com");
@@ -291,7 +291,7 @@ public class SecurityApiTests : ProductionApiTestBase
         Assert.True(BCrypt.Net.BCrypt.Verify("P@ssw0rd!", user.PasswordHash));
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task RegisterResponse_DoesNotExposePasswordHash()
     {
         var response = await RegisterAsync(new
@@ -308,7 +308,7 @@ public class SecurityApiTests : ProductionApiTestBase
         Assert.DoesNotContain("passwordHash", body, StringComparison.OrdinalIgnoreCase);
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task LoginResponse_DoesNotExposePasswordHash()
     {
         var email = "sec.nohashlogin@example.com";
@@ -320,7 +320,7 @@ public class SecurityApiTests : ProductionApiTestBase
         Assert.DoesNotContain("passwordHash", body, StringComparison.OrdinalIgnoreCase);
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Login_UnknownEmail_And_WrongPassword_ReturnIdenticalErrors()
     {
         await RegisterUserAsync("sec.uniform@example.com");
@@ -340,7 +340,7 @@ public class SecurityApiTests : ProductionApiTestBase
     // Object-level authorization (IDOR)
     // ------------------------------------------------------------------ //
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task SkillGaps_AreScopedToTheCaller()
     {
         var (tokenA, _) = await RegisterUserAsync("sec.gaps.a@example.com");
@@ -354,7 +354,7 @@ public class SecurityApiTests : ProductionApiTestBase
         Assert.Equal(7, groupB.GetProperty("gaps").GetArrayLength());
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task UserAccounts_ListEndpoint_IsNotExposed()
     {
         var (token, _) = await RegisterUserAsync("sec.authlist@example.com", targetRole: "Frontend Developer");
@@ -364,7 +364,7 @@ public class SecurityApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task UserAccounts_GetOtherUserById_IsNotExposed()
     {
         var (_, otherUserId) = await RegisterUserAsync("sec.otheraccount@example.com", targetRole: "Frontend Developer");
@@ -377,7 +377,7 @@ public class SecurityApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task UserAccounts_UpdateAnotherUser_IsNotExposed()
     {
         var (_, otherUserId) = await RegisterUserAsync("sec.otheraccountput@example.com", targetRole: "Frontend Developer");
@@ -395,7 +395,7 @@ public class SecurityApiTests : ProductionApiTestBase
         Assert.NotEqual(HttpStatusCode.NoContent, response.StatusCode);
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task UserAccounts_RawCreateEndpoint_IsNotExposed()
     {
         var (token, _) = await RegisterUserAsync("sec.authrawcreate@example.com");
@@ -412,7 +412,7 @@ public class SecurityApiTests : ProductionApiTestBase
         Assert.NotEqual(HttpStatusCode.Created, response.StatusCode);
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task AssessmentResults_AreScopedToTheCaller()
     {
         var (tokenA, _) = await RegisterUserAsync("sec.results.a@example.com");
@@ -440,7 +440,7 @@ public class SecurityApiTests : ProductionApiTestBase
         Assert.Single(resultsB);
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Enrollments_AreScopedToTheCaller()
     {
         var (tokenA, _) = await RegisterUserAsync("sec.enroll.a@example.com");
@@ -461,7 +461,7 @@ public class SecurityApiTests : ProductionApiTestBase
     // Injection
     // ------------------------------------------------------------------ //
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task SqlInjection_LoginAttempt_CannotBypassAuthentication()
     {
         var response = await LoginAsync(new
@@ -474,7 +474,7 @@ public class SecurityApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task SqlInjection_EmailContainingSqlMetacharacters_IsStoredAsLiteral()
     {
         var literal = "sec.inject'@example.com";
@@ -497,7 +497,7 @@ public class SecurityApiTests : ProductionApiTestBase
     // CORS
     // ------------------------------------------------------------------ //
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Cors_AllowedOrigin_IsReflected()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "/api/courses");
@@ -509,7 +509,7 @@ public class SecurityApiTests : ProductionApiTestBase
         Assert.Equal("http://localhost:5173", values.Single());
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Cors_DisallowedOrigin_IsNotReflected()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "/api/courses");
@@ -520,7 +520,7 @@ public class SecurityApiTests : ProductionApiTestBase
         Assert.False(response.Headers.Contains("Access-Control-Allow-Origin"));
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Cors_Preflight_FromAllowedOrigin_IsPermitted()
     {
         var request = new HttpRequestMessage(HttpMethod.Options, "/api/auth/register");
@@ -534,7 +534,7 @@ public class SecurityApiTests : ProductionApiTestBase
         Assert.Contains("http://localhost:5173", values);
     }
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task Cors_Preflight_FromDisallowedOrigin_IsNotPermitted()
     {
         var request = new HttpRequestMessage(HttpMethod.Options, "/api/auth/register");
@@ -550,7 +550,7 @@ public class SecurityApiTests : ProductionApiTestBase
     // Error handling
     // ------------------------------------------------------------------ //
 
-    [RequiresPostgresFact]
+    [Fact]
     public async Task ServerError_ReturnsGenericMessageWithoutStackTrace()
     {
         // A validly-signed token that omits the NameIdentifier claim causes the

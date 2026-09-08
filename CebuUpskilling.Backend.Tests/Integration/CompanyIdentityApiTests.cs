@@ -4,8 +4,10 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using CebuUpskilling.Backend.Data;
+using CebuUpskilling.Backend.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace CebuUpskilling.Backend.Tests.Integration;
 
@@ -17,6 +19,21 @@ namespace CebuUpskilling.Backend.Tests.Integration;
 public class CompanyIdentityApiTests : ProductionApiTestBase
 {
     public CompanyIdentityApiTests(ProductionApiFactory factory) : base(factory) { }
+
+    /// <summary>
+    /// Logo/cover uploads run in the background (worker disabled in tests),
+    /// so tests drive queued jobs explicitly.
+    /// </summary>
+    private async Task ProcessBackgroundJobsAsync()
+    {
+        var queue = Factory.Services.GetRequiredService<ICompanyImageQueue>();
+        var worker = new CompanyImageWorker(
+            queue,
+            Factory.Services.GetRequiredService<IServiceScopeFactory>(),
+            NullLogger<CompanyImageWorker>.Instance);
+        while (queue.Reader.TryRead(out var job))
+            await worker.ProcessJobAsync(job, CancellationToken.None);
+    }
 
     [Fact]
     public async Task Companies_GetById_WithoutAuth_ReturnsPublicProfile()
@@ -92,18 +109,19 @@ public class CompanyIdentityApiTests : ProductionApiTestBase
         var (token, companyId) = await RegisterRecruiterAsync("company.logo@example.com", "Logo Labs");
 
         var logoResponse = await UploadLogoAsync(AuthorizedClient(token), "logo.png");
-        Assert.Equal(HttpStatusCode.OK, logoResponse.StatusCode);
-        var logoBody = await ReadJsonAsync(logoResponse);
-        var logoUrl = logoBody.GetProperty("logoUrl").GetString();
-        Assert.False(string.IsNullOrWhiteSpace(logoUrl));
+        Assert.Equal(HttpStatusCode.Accepted, logoResponse.StatusCode);
+        await ProcessBackgroundJobsAsync();
 
-        // The uploaded logo is persisted on the company row.
+        string? logoUrl;
         using (var scope = Factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             var company = await db.Companies.FirstAsync(c => c.CompanyId == companyId);
-            Assert.Equal(logoUrl, company.LogoUrl);
+            logoUrl = company.LogoUrl;
         }
+        Assert.False(string.IsNullOrWhiteSpace(logoUrl));
+        Assert.StartsWith("https://fake-storage.example/company-logos/", logoUrl);
+        Assert.EndsWith(".png", logoUrl);
 
         // A post created without its own logo inherits the company logo.
         var postResponse = await AuthorizedClient(token).PostAsJsonAsync("/api/posts", new
@@ -128,8 +146,15 @@ public class CompanyIdentityApiTests : ProductionApiTestBase
         var (token, companyId) = await RegisterRecruiterAsync("company.logo2@example.com", "Fallback Works");
 
         var logoResponse = await UploadLogoAsync(AuthorizedClient(token), "logo.png");
-        logoResponse.EnsureSuccessStatusCode();
-        var logoUrl = (await ReadJsonAsync(logoResponse)).GetProperty("logoUrl").GetString();
+        Assert.Equal(HttpStatusCode.Accepted, logoResponse.StatusCode);
+        await ProcessBackgroundJobsAsync();
+        string? logoUrl;
+        using (var scope = Factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            logoUrl = (await db.Companies.FirstAsync(c => c.CompanyId == companyId)).LogoUrl;
+        }
+        Assert.False(string.IsNullOrWhiteSpace(logoUrl));
 
         var postResponse = await AuthorizedClient(token).PostAsJsonAsync("/api/posts", new
         {
@@ -151,6 +176,16 @@ public class CompanyIdentityApiTests : ProductionApiTestBase
         var (token, _) = await RegisterRecruiterAsync("company.logo.bad@example.com", "Pixel Rejects");
 
         var response = await UploadLogoAsync(AuthorizedClient(token), "malware.pdf", "%PDF-1.7 fake pdf bytes");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Companies_UploadLogo_FakeImageContent_ReturnsBadRequest()
+    {
+        var (token, _) = await RegisterRecruiterAsync("company.logo.fake@example.com", "Fake Pixels");
+
+        var response = await UploadLogoAsync(AuthorizedClient(token), "logo.png", "not an image at all");
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }

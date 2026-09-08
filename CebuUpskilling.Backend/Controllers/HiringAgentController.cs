@@ -10,7 +10,7 @@ namespace CebuUpskilling.Backend.Controllers;
 
 /// <summary>
 /// Employer-side AI hiring agent endpoints (Recruiter only): candidate ranking,
-/// job-post drafting, and screening question generation.
+/// job-post drafting, role-based job-post creation, and screening question generation.
 /// </summary>
 [ApiController]
 [Route("api/hiring-agent")]
@@ -106,6 +106,32 @@ public class HiringAgentController : ControllerBase
             return StatusCode(StatusCodes.Status503ServiceUnavailable,
                 new { error = "AI drafting is unavailable right now. Please fill in the job details manually." });
         return Ok(draft);
+    }
+
+    /// <summary>
+    /// Creates a job post from a target role's skill profile. Unlike
+    /// <see cref="DraftJobPost"/> this persists the post: AI text is used when
+    /// available, otherwise a template built from the role's required skills.
+    /// </summary>
+    [HttpPost("posts/from-role")]
+    public async Task<ActionResult<CreateJobPostFromRoleResponse>> CreateJobPostFromRole([FromBody] CreateJobPostFromRoleRequest request)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null)
+            return Unauthorized(new { error = "Invalid token" });
+
+        var companyId = await GetUserCompanyIdAsync(userId.Value);
+        if (companyId == null)
+            return BadRequest(new { error = "No company associated with this account" });
+
+        if (request == null || string.IsNullOrWhiteSpace(request.TargetRole))
+            return BadRequest(new { error = "TargetRole is required" });
+
+        _logger.LogInformation("HTTP POST /api/hiring-agent/posts/from-role for role {TargetRole} by user {UserId}", request.TargetRole, userId.Value);
+        var response = await _agent.CreateJobPostFromTargetRoleAsync(userId.Value, companyId.Value, request);
+        if (response == null)
+            return NotFound(new { error = $"Unknown target role '{request.TargetRole}' or no skills defined for it" });
+        return Ok(response);
     }
 
     [HttpPost("posts/{postId}/screening-questions")]

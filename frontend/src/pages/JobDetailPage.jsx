@@ -8,6 +8,7 @@ import CompanyAvatar from '../components/shared/CompanyAvatar';
 import { ErrorCard, ErrorBanner } from '../components/ui/ErrorState';
 import { api } from '../api/client';
 import { useToast } from '../context/ToastContext';
+import { useAuth } from '../context/AuthContext';
 import { useApplications } from '../context/ApplicationsContext';
 import { MapPin, Building2, Clock, BriefcaseBusiness, Wallet, CalendarDays, Upload } from 'lucide-react';
 
@@ -168,7 +169,9 @@ export default function JobDetailPage() {
   const [applyError, setApplyError] = useState('');
   const [applying, setApplying] = useState(false);
   const { showToast } = useToast();
+  const { user } = useAuth();
   const { applyToJob, isApplied } = useApplications();
+  const profileResumeUrl = user?.resumeUrl || null;
 
   useEffect(() => {
     setLoading(true);
@@ -210,6 +213,10 @@ export default function JobDetailPage() {
   const validateFile = (file) => {
     if (!file) return null;
     if (file.size > 10 * 1024 * 1024) return 'File must be ≤ 10 MB';
+    const dot = file.name ? file.name.lastIndexOf('.') : -1;
+    const ext = dot >= 0 ? file.name.slice(dot).toLowerCase() : '';
+    const allowed = ['.pdf', '.doc', '.docx', '.txt', '.md', '.png', '.jpg', '.jpeg', '.webp'];
+    if (!allowed.includes(ext)) return 'Unsupported file type — upload a PDF, Word, text, or image file';
     return null;
   };
 
@@ -220,7 +227,7 @@ export default function JobDetailPage() {
       showToast(fileErr, 'error');
       return;
     }
-    if (!resumeFile) {
+    if (!resumeFile && !profileResumeUrl) {
       const msg = 'A resume is required to apply for this job';
       setApplyError(msg);
       showToast(msg, 'error');
@@ -229,9 +236,14 @@ export default function JobDetailPage() {
     setApplyError('');
     setApplying(true);
     try {
-      const uploaded = await api.upload('/media/documents', resumeFile);
-      if (!uploaded?.url) throw new Error('Resume upload did not complete — please try again');
-      const resumeUrl = uploaded.url;
+      // A newly chosen file always wins; otherwise the profile resume
+      // (uploaded at registration) is attached automatically.
+      let resumeUrl = profileResumeUrl;
+      if (resumeFile) {
+        const uploaded = await api.upload('/media/documents', resumeFile);
+        if (!uploaded?.url) throw new Error('Resume upload did not complete — please try again');
+        resumeUrl = uploaded.url;
+      }
 
       let coverLetterUrl = null;
       if (coverFile) {
@@ -358,12 +370,12 @@ export default function JobDetailPage() {
                 <h2 style={styles.sectionTitle}>Apply for this role</h2>
                 {applyError && <ErrorBanner title="Application failed" description={applyError} onDismiss={() => setApplyError('')} />}
                 <div style={styles.fileRow}>
-                  <span style={styles.fileLabel}>Resume *</span>
+                  <span style={styles.fileLabel}>Resume{!profileResumeUrl && !resumeFile ? ' *' : ''}</span>
                   <label style={styles.fileInput}>
                     <Upload size={13} /> {resumeFile ? resumeFile.name : 'Choose file'}
                     <input
                       type="file"
-                      accept=".pdf,.doc,.docx,.txt,.md,.png,.jpg,.jpeg"
+                      accept=".pdf,.doc,.docx,.txt,.md,.png,.jpg,.jpeg,.webp"
                       style={{ display: 'none' }}
                       onChange={(e) => { setApplyError(''); setResumeFile(e.target.files?.[0] || null); }}
                     />
@@ -375,13 +387,13 @@ export default function JobDetailPage() {
                     <Upload size={13} /> {coverFile ? coverFile.name : 'Choose file'}
                     <input
                       type="file"
-                      accept=".pdf,.doc,.docx,.txt,.md"
+                      accept=".pdf,.doc,.docx,.txt,.md,.png,.jpg,.jpeg,.webp"
                       style={{ display: 'none' }}
                       onChange={(e) => { setApplyError(''); setCoverFile(e.target.files?.[0] || null); }}
                     />
                   </label>
                 </div>
-                <p style={styles.fileName}>Resume is required. Cover letter is optional — PDF, Word, or text up to 10 MB.</p>
+                <p style={styles.fileName}>{profileResumeUrl && !resumeFile ? 'Your profile resume will be attached — or choose a file to send a different one.' : 'Resume is required. Cover letter is optional — PDF, Word, or text up to 10 MB.'}</p>
                 <Button variant="secondary" onClick={handleApply} disabled={applying || expired}>
                   {applying ? 'Submitting...' : 'Submit application'}
                 </Button>

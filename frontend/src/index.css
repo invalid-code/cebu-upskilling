@@ -176,12 +176,11 @@ button:focus-visible {
   }
 }
 
-/* Hide native password reveal/clear icons – we provide our own Eye toggle (fixes double-eye in Firefox/Edge/Chrome) */
+/* Hide native password reveal/clear icons – we provide our own Eye toggle (Edge/Chrome only; Firefox has no native one) */
 input[type="password"]::-ms-reveal,
 input[type="password"]::-ms-clear,
 input[type="password"]::-webkit-credentials-auto-fill-button,
 input[type="password"]::-webkit-textfield-decoration-container,
-input[type="password"]::-moz-reveal,
 input::-ms-reveal,
 input::-ms-clear {
   display: none !important;

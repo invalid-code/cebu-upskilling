@@ -32,34 +32,23 @@ public class GoogleAuthTests
         public string GetPublicUrl(string key) => $"https://fake.example/{key}";
     }
 
+    private sealed class FakeResumeParseQueue : IResumeParseQueue
+    {
+        public void Enqueue(ResumeParseJob job) { }
+        public System.Threading.Channels.ChannelReader<ResumeParseJob> Reader
+            => System.Threading.Channels.Channel.CreateUnbounded<ResumeParseJob>().Reader;
+    }
+
     private static AuthService CreateService(Data.ApplicationDbContext context, AuthServiceTests.FakeGoogleTokenVerifier verifier) => new(
         context,
-        new JobseekerSkillParserAgent(
-            new NoopAiService(),
-            new SkillRepository(context),
-            new LearnerRepository(context),
-            new LearnerSkillRepository(context),
-            new LearnerAssessmentRepository(context),
-            new AppUserRepository(context),
-            new RoleSkillRepository(context),
-            new AssessmentQuestionRepository(context),
-            NullLogger<JobseekerSkillParserAgent>.Instance),
         new JwtTokenService(CreateConfig(), NullLogger<JwtTokenService>.Instance),
         new LoggingEmailService(NullLogger<LoggingEmailService>.Instance),
         new InMemoryTokenRevocationStore(NullLogger<InMemoryTokenRevocationStore>.Instance),
         verifier,
         new ResumeService(new FakeObjStorage(), NullLogger<ResumeService>.Instance),
+        new FakeResumeParseQueue(),
         NullLogger<AuthService>.Instance
     );
-
-    internal class NoopAiService : IGoogleAiService
-    {
-        public Task<List<string>> ParseSkillsFromResumeAsync(string t, CancellationToken ct = default) => Task.FromResult(new List<string>());
-        public Task<List<GeneratedAssessmentQuestion>> GenerateAssessmentQuestionsAsync(string s, int c = 5, CancellationToken ct = default) => Task.FromResult(new List<GeneratedAssessmentQuestion>());
-        public Task<List<CandidateRanking>> RankCandidatesAsync(string j, string r, string? req, List<CandidateSkillProfile> cands, CancellationToken ct = default) => Task.FromResult(new List<CandidateRanking>());
-        public Task<DraftJobPostResponse?> DraftJobPostAsync(DraftJobPostRequest request, CancellationToken ct = default) => Task.FromResult<DraftJobPostResponse?>(null);
-        public Task<CourseGenerationResult?> GenerateCourseOutlineAsync(CourseGenerationPromptContext context, CancellationToken ct = default) => Task.FromResult<CourseGenerationResult?>(null);
-    }
 
     private static IConfiguration CreateConfig() => new ConfigurationBuilder()
         .AddInMemoryCollection(new Dictionary<string, string?>

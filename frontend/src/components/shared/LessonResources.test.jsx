@@ -28,7 +28,8 @@ describe('LessonResources', () => {
   it('does not render lesson resources when there is no backend media', () => {
     render(<LessonResources media={[]} />);
 
-    expect(screen.queryByText('Lesson resources')).not.toBeInTheDocument();
+    expect(screen.queryByText('Lesson video')).not.toBeInTheDocument();
+    expect(screen.queryByText('Lesson files')).not.toBeInTheDocument();
     expect(screen.queryByText('Lesson transcript')).not.toBeInTheDocument();
     expect(screen.queryByText('Practice files')).not.toBeInTheDocument();
   });
@@ -45,6 +46,32 @@ describe('LessonResources', () => {
     expect(screen.getByText('PDF · 2.4 MB')).toBeInTheDocument();
     expect(screen.getByText('starter.zip')).toBeInTheDocument();
     expect(screen.getByText('ZIP · 1.2 MB')).toBeInTheDocument();
+  });
+
+  it('labels real MIME types (application/pdf) as PDF', () => {
+    const media = [
+      { pathFile: 'https://cdn.example/handout.pdf', type: 'application/pdf', mbSize: 1.0 },
+      { pathFile: 'https://cdn.example/intro.mp4', type: 'video/mp4', mbSize: 12.5 },
+    ];
+
+    render(<LessonResources media={media} />);
+
+    expect(screen.getByText('handout.pdf')).toBeInTheDocument();
+    expect(screen.getByText('PDF · 1.0 MB')).toBeInTheDocument();
+    expect(screen.getByText('intro.mp4')).toBeInTheDocument();
+    expect(screen.getByText('VIDEO · 12.5 MB')).toBeInTheDocument();
+  });
+
+  it('separates video from downloadable files', () => {
+    const media = [
+      { pathFile: 'https://cdn.example/intro.mp4', type: 'video/mp4', mbSize: 12.5 },
+      { pathFile: 'https://cdn.example/handout.pdf', type: 'application/pdf', mbSize: 1.0 },
+    ];
+
+    render(<LessonResources media={media} />);
+
+    expect(screen.getByText('Lesson video')).toBeInTheDocument();
+    expect(screen.getByText('Lesson files')).toBeInTheDocument();
   });
 
   it('renders the notes and help sections', () => {

@@ -269,6 +269,12 @@ test.describe('Authentication — registration', () => {
     await page.getByPlaceholder('Email address').fill('jose@example.com');
     await page.getByPlaceholder('Password', { exact: true }).fill('secret123');
     await page.getByPlaceholder('Confirm password').fill('secret123');
+    // Learner registration requires a resume file (multipart upload).
+    await page.setInputFiles('input[type="file"]', {
+      name: 'resume.pdf',
+      mimeType: 'application/pdf',
+      buffer: Buffer.from('%PDF-1.4\n%EOF'),
+    });
     await page.getByRole('button', { name: 'Create account' }).click();
     await expect(page).toHaveURL(/\/dashboard/);
     await expect(page.getByText('Your next move is clear.')).toBeVisible();
@@ -333,6 +339,13 @@ test.describe('Authentication — registration', () => {
     await page.getByPlaceholder('Email address').fill('jose@example.com');
     await page.getByPlaceholder('Password', { exact: true }).fill('secret123');
     await page.getByPlaceholder('Confirm password').fill('secret123');
+    // Attach a resume so the request reaches the API (client-side validation
+    // blocks learner registration without one).
+    await page.setInputFiles('input[type="file"]', {
+      name: 'resume.pdf',
+      mimeType: 'application/pdf',
+      buffer: Buffer.from('%PDF-1.4\n%EOF'),
+    });
     await page.getByRole('button', { name: 'Create account' }).click();
     await expect(page.getByRole('alert').getByText('Email already in use').first()).toBeVisible();
   });

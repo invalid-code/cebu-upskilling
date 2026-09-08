@@ -125,12 +125,23 @@ public class StatsController : ControllerBase
             .ThenBy(x => x.Name)
             .ToListAsync();
 
-        var supply = await _context.LearnerSkills
+        // NB: materialize the grouped aggregates before building the dictionary.
+        // GroupBy composed directly into ToDictionaryAsync translates to SQL on
+        // Npgsql but is not translatable by the EF Core InMemory provider used
+        // in tests, so project to a list first and build the dictionary client-side.
+        var supplyGroups = await _context.LearnerSkills
             .Where(ls => ls.CurrentLevel > 0)
             .GroupBy(ls => ls.SkillId)
-            .ToDictionaryAsync(
-                g => g.Key,
-                g => new { Count = g.Count(), Avg = Math.Round(g.Average(ls => (double)ls.CurrentLevel), 1) });
+            .Select(g => new
+            {
+                SkillId = g.Key,
+                Count = g.Count(),
+                Avg = g.Average(ls => (double)ls.CurrentLevel),
+            })
+            .ToListAsync();
+        var supply = supplyGroups.ToDictionary(
+            g => g.SkillId,
+            g => new { g.Count, Avg = Math.Round(g.Avg, 1) });
 
         var skillDemand = demand.Select(d =>
         {

@@ -162,15 +162,30 @@ export default function CourseContentPage() {
     );
   }
 
-  const currentModule = courseData.modules.find(m =>
-    m.lessons.some(l => l.lessonId === parseInt(lessonId))
-  ) || courseData.modules[0];
-  const currentLessonIndex = courseData.modules.findIndex(m =>
-    m.lessons.some(l => l.lessonId === parseInt(lessonId))
+  const modules = Array.isArray(courseData.modules) ? courseData.modules : [];
+  const lessonsOf = (m) => (Array.isArray(m?.lessons) ? m.lessons : []);
+  const currentModule = modules.find(m =>
+    lessonsOf(m).some(l => l.lessonId === parseInt(lessonId))
+  ) || modules[0];
+  const currentLessonIndex = modules.findIndex(m =>
+    lessonsOf(m).some(l => l.lessonId === parseInt(lessonId))
   );
   const currentModuleNumber = currentModule?.moduleNumber ?? 1;
-  const lessonIndexInModule = currentModule?.lessons.findIndex(l => l.lessonId === parseInt(lessonId)) ?? -1;
+  const lessonIndexInModule = currentModule ? lessonsOf(currentModule).findIndex(l => l.lessonId === parseInt(lessonId)) : -1;
   const currentLessonNumber = lessonIndexInModule >= 0 ? lessonIndexInModule + 1 : 1;
+
+  if (!courseData.currentLesson) {
+    return (
+      <div style={{ padding: 20 }}>
+        <ErrorCard
+          title="Lesson unavailable"
+          description="This lesson has no content yet — it may have been removed or the course is still being prepared."
+          onRetry={() => { setError(''); setLoading(true); window.location.reload(); }}
+          retryLabel="Retry"
+        />
+      </div>
+    );
+  }
 
   return (
     <div style={styles.container}>

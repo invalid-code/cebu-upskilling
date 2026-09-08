@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../components/ui/Button';
 import Panel from '../components/ui/Panel';
@@ -252,6 +252,18 @@ function LearnerOverview() {
   const targetRole = user?.targetRole?.trim()
     || applications.find((a) => a.targetRole?.trim())?.targetRole?.trim();
 
+  // GET /api/skillgaps returns per-role groups ({ role, matchPercent, gaps }),
+  // not a flat gap list. The overview shows the group for the resolved target
+  // role, falling back to the first group when nothing matches.
+  const activeGaps = useMemo(() => {
+    if (!Array.isArray(skillGaps) || skillGaps.length === 0) return [];
+    const match = targetRole
+      ? skillGaps.find((group) => group?.role && group.role.toLowerCase() === targetRole.toLowerCase())
+      : null;
+    const group = match || skillGaps[0];
+    return Array.isArray(group?.gaps) ? group.gaps : [];
+  }, [skillGaps, targetRole]);
+
   useEffect(() => {
     const controller = new AbortController();
     api.get('/courses', { signal: controller.signal })
@@ -355,9 +367,9 @@ function LearnerOverview() {
         <div style={styles.col8}>
           <div style={styles.hero}>
             <h2 style={styles.heroH2}>
-              You're {skillGaps.length > 0 ? (() => {
-                const totalRequired = skillGaps.reduce((s, g) => s + g.requiredLevel, 0);
-                const totalCurrent = skillGaps.reduce((s, g) => s + g.currentLevel, 0);
+              You're {activeGaps.length > 0 ? (() => {
+                const totalRequired = activeGaps.reduce((s, g) => s + g.requiredLevel, 0);
+                const totalCurrent = activeGaps.reduce((s, g) => s + g.currentLevel, 0);
                 return totalRequired > 0 ? Math.round((totalCurrent / totalRequired) * 100) : 0;
               })() : 0}% of the way to your target role.
             </h2>
@@ -376,14 +388,14 @@ function LearnerOverview() {
               <div style={styles.eyebrow}>Current match</div>
               {skillGapsLoading ? (
                 <div style={styles.loading}>Calculating...</div>
-              ) : skillGaps.length === 0 ? (
+              ) : activeGaps.length === 0 ? (
                 <EmptyState
                   title="No score yet"
                   description="Set a target role and add skills to generate your match score."
                 />
               ) : (() => {
-                const totalRequired = skillGaps.reduce((s, g) => s + g.requiredLevel, 0);
-                const totalCurrent = skillGaps.reduce((s, g) => s + g.currentLevel, 0);
+                const totalRequired = activeGaps.reduce((s, g) => s + g.requiredLevel, 0);
+                const totalCurrent = activeGaps.reduce((s, g) => s + g.currentLevel, 0);
                 const score = totalRequired > 0 ? Math.round((totalCurrent / totalRequired) * 100) : 0;
                 const ringColor = score >= 80 ? 'var(--good)' : score >= 50 ? 'var(--teal)' : 'var(--coral)';
                 const status = score >= 80 ? 'Qualified' : score >= 50 ? 'Almost there' : 'Getting started';
@@ -558,7 +570,7 @@ function LearnerOverview() {
       <Panel>
         {skillGapsLoading ? (
           <div style={styles.loading}>Loading skill gaps...</div>
-        ) : skillGaps.length === 0 ? (
+        ) : activeGaps.length === 0 ? (
           <EmptyState
             title={targetRole ? 'No skill gaps yet' : 'Set a target role to see your gaps'}
             description={targetRole
@@ -566,7 +578,7 @@ function LearnerOverview() {
               : 'Choose a target role to compare your skills against.'}
           />
         ) : (
-          skillGaps.map((gap) => (
+          activeGaps.map((gap) => (
             <SkillGapItem
               key={gap.skillId}
               name={gap.skillName}

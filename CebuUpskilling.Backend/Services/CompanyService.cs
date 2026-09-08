@@ -14,6 +14,9 @@ public interface ICompanyService
     Task<CompanyResponse> UpdateForUserAsync(int userId, UpdateCompanyRequest request);
     Task<string> UploadLogoAsync(int userId, IFormFile file);
     Task<string> UploadCoverAsync(int userId, IFormFile file);
+    void ValidateImage(IFormFile file);
+    Task<string> UploadLogoBytesAsync(int userId, byte[] content, string fileName, CancellationToken ct = default);
+    Task<string> UploadCoverBytesAsync(int userId, byte[] content, string fileName, CancellationToken ct = default);
 }
 
 public class CompanyService : ICompanyService
@@ -146,12 +149,17 @@ public class CompanyService : ICompanyService
     public Task<string> UploadCoverAsync(int userId, IFormFile file)
         => UploadImageAsync(userId, file, "company-covers", static c => c.CoverImageUrl, static (c, url) => c.CoverImageUrl = url);
 
-    private async Task<string> UploadImageAsync(
-        int userId,
-        IFormFile file,
-        string folder,
-        Func<Company, string?> existingUrlSelector,
-        Action<Company, string> applyUrl)
+    public Task<string> UploadLogoBytesAsync(int userId, byte[] content, string fileName, CancellationToken ct = default)
+        => UploadImageBytesAsync(userId, content, fileName, "company-logos", static c => c.LogoUrl, static (c, url) => c.LogoUrl = url, ct);
+
+    public Task<string> UploadCoverBytesAsync(int userId, byte[] content, string fileName, CancellationToken ct = default)
+        => UploadImageBytesAsync(userId, content, fileName, "company-covers", static c => c.CoverImageUrl, static (c, url) => c.CoverImageUrl = url, ct);
+
+    /// <summary>
+    /// Fast local checks (presence, extension, size, magic bytes) with no I/O
+    /// beyond reading the upload stream. Safe to run inline before queueing.
+    /// </summary>
+    public void ValidateImage(IFormFile file)
     {
         if (file == null || file.Length == 0)
         {
@@ -169,6 +177,37 @@ public class CompanyService : ICompanyService
             throw new InvalidOperationException("Image must be 2 MB or smaller");
         }
 
+        // Magic bytes validation - do not trust extension alone (mirrors ResumeService).
+        using (var headerStream = file.OpenReadStream())
+            ValidateImageMagicBytes(headerStream, extension);
+    }
+
+    private async Task<string> UploadImageAsync(
+        int userId,
+        IFormFile file,
+        string folder,
+        Func<Company, string?> existingUrlSelector,
+        Action<Company, string> applyUrl)
+    {
+        ValidateImage(file);
+
+        using var buffer = new MemoryStream();
+        await file.CopyToAsync(buffer);
+        return await UploadImageBytesAsync(
+            userId, buffer.ToArray(), file.FileName, folder, existingUrlSelector, applyUrl);
+    }
+
+    private async Task<string> UploadImageBytesAsync(
+        int userId,
+        byte[] content,
+        string fileName,
+        string folder,
+        Func<Company, string?> existingUrlSelector,
+        Action<Company, string> applyUrl,
+        CancellationToken ct = default)
+    {
+        var extension = Path.GetExtension(fileName).ToLowerInvariant();
+
         var user = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.UserId == userId);
         if (user?.CompanyId == null)
         {
@@ -178,8 +217,8 @@ public class CompanyService : ICompanyService
         var companyId = user.CompanyId.Value;
         var key = $"{folder}/{companyId}/{Guid.NewGuid()}{extension}";
 
-        await using var stream = file.OpenReadStream();
-        var publicUrl = await _storage.UploadAsync(key, stream, file.ContentType, CancellationToken.None);
+        using var stream = new MemoryStream(content, writable: false);
+        var publicUrl = await _storage.UploadAsync(key, stream, ContentTypeFor(extension), ct);
 
         var company = await _context.Companies.FirstOrDefaultAsync(c => c.CompanyId == companyId);
         if (company == null)
@@ -192,6 +231,45 @@ public class CompanyService : ICompanyService
 
         _logger.LogInformation("Uploaded {Folder} image for company {CompanyId} to {Key}", folder, companyId, key);
         return publicUrl;
+    }
+
+    private static string ContentTypeFor(string extension) => extension switch
+    {
+        ".png" => "image/png",
+        ".jpg" or ".jpeg" => "image/jpeg",
+        ".webp" => "image/webp",
+        _ => "application/octet-stream",
+    };
+
+    private static void ValidateImageMagicBytes(Stream stream, string extension)
+    {
+        var header = new byte[12];
+        var read = 0;
+        while (read < header.Length)
+        {
+            var n = stream.Read(header, read, header.Length - read);
+            if (n == 0) break;
+            read += n;
+        }
+
+        var valid = extension switch
+        {
+            // PNG: 89 50 4E 47 0D 0A 1A 0A
+            ".png" => read >= 8
+                && header[0] == 0x89 && header[1] == 0x50 && header[2] == 0x4E && header[3] == 0x47
+                && header[4] == 0x0D && header[5] == 0x0A && header[6] == 0x1A && header[7] == 0x0A,
+            // JPEG: FF D8 FF
+            ".jpg" or ".jpeg" => read >= 3
+                && header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF,
+            // WEBP: RIFF....WEBP
+            ".webp" => read >= 12
+                && header[0] == 0x52 && header[1] == 0x49 && header[2] == 0x46 && header[3] == 0x46
+                && header[8] == 0x57 && header[9] == 0x45 && header[10] == 0x42 && header[11] == 0x50,
+            _ => false,
+        };
+
+        if (!valid)
+            throw new InvalidOperationException("Image must be a valid PNG, JPG or WEBP file");
     }
 
     private async Task DeletePreviousImageAsync(string? previousUrl, string newKey)

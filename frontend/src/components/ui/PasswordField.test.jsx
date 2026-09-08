@@ -85,7 +85,7 @@ describe('PasswordField', () => {
     expect(styleTag).not.toBeNull();
     expect(styleTag.textContent).toContain('::-ms-reveal');
     expect(styleTag.textContent).toContain('::-webkit-credentials-auto-fill-button');
-    expect(styleTag.textContent).toContain('::-moz-reveal');
+    expect(styleTag.textContent).not.toContain('::-moz-reveal');
   });
 
   it('has a button with type button so it does not submit forms', () => {

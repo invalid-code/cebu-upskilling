@@ -111,16 +111,20 @@ export default function JobPostForm({ initial, onSubmit, submitting, error, subm
   const [aiNote, setAiNote] = useState('');
 
   const draftWithAi = async () => {
-    if (!form.title || !form.targetRole) {
-      setAiNote('Enter a job title and target role first, then draft with AI.');
+    if (!form.title.trim()) {
+      setAiNote('Enter a job title first, then draft with AI.');
       return;
     }
+    // The backend draft endpoint requires a target role; when the recruiter
+    // hasn't typed one yet, fall back to the job title (same fallback the API
+    // applies when creating the post).
+    const targetRole = form.targetRole.trim() || form.title.trim();
     setAiLoading(true);
     setAiNote('Drafting with AI...');
     try {
       const draft = await api.post('/hiring-agent/posts/draft', {
-        title: form.title,
-        targetRole: form.targetRole,
+        title: form.title.trim(),
+        targetRole,
         jobType: form.jobType,
         experienceLevel: form.experienceLevel || null,
         location: form.location || null,

@@ -12,6 +12,7 @@ public interface IResumeService
     void Validate(IFormFile file);
     Task<string> ExtractTextAsync(IFormFile file, CancellationToken ct = default);
     Task<string> UploadAsync(IFormFile file, CancellationToken ct = default);
+    Task<string> UploadBytesAsync(byte[] content, string fileName, CancellationToken ct = default);
     Task<(string ResumeUrl, string ResumeText)> ProcessAsync(IFormFile file, CancellationToken ct = default);
 }
 
@@ -114,13 +115,24 @@ public class ResumeService : IResumeService
 
     public async Task<string> UploadAsync(IFormFile file, CancellationToken ct = default)
     {
-        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+        await using var buffer = new MemoryStream();
+        await file.CopyToAsync(buffer, ct);
+        return await UploadBytesAsync(buffer.ToArray(), file.FileName, ct);
+    }
+
+    /// <summary>
+    /// Uploads already-buffered resume bytes (e.g. from the background parse
+    /// worker, where no <see cref="IFormFile"/> exists anymore).
+    /// </summary>
+    public async Task<string> UploadBytesAsync(byte[] content, string fileName, CancellationToken ct = default)
+    {
+        var ext = Path.GetExtension(fileName).ToLowerInvariant();
         var key = $"resumes/{Guid.NewGuid()}{ext}";
         var contentType = ext == ".pdf"
             ? "application/pdf"
             : "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
-        await using var stream = file.OpenReadStream();
+        using var stream = new MemoryStream(content, writable: false);
         var url = await _storage.UploadAsync(key, stream, contentType, ct);
         _logger.LogInformation("Uploaded resume to {Key}", key);
         return url;

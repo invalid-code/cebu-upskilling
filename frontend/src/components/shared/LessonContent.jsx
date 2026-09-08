@@ -1,4 +1,5 @@
 import { FileText } from 'lucide-react';
+import { renderMarkdown } from '../../lib/markdown';
 
 const styles = {
   container: {
@@ -25,6 +26,13 @@ const styles = {
     lineHeight: 1.7,
     color: 'var(--ink)',
     marginBottom: 16,
+  },
+  markdown: {
+    fontSize: 15,
+    lineHeight: 1.7,
+    color: 'var(--ink)',
+    marginBottom: 16,
+    overflowWrap: 'break-word',
   },
   heading: {
     fontFamily: "'Space Grotesk', sans-serif",
@@ -68,6 +76,15 @@ export default function LessonContent({ lesson, moduleNumber, lessonNumber }) {
   if (!lesson) return null;
 
   const renderContentBlock = (block, index) => {
+    if ((block.blockType || '').toLowerCase() === 'markdown') {
+      return (
+        <div
+          key={index}
+          style={styles.markdown}
+          dangerouslySetInnerHTML={{ __html: renderMarkdown(block.content) }}
+        />
+      );
+    }
     switch (block.blockType) {
       case 'text':
       case 'paragraph':

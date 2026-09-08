@@ -23,7 +23,10 @@ export default function PasswordField({
 
   return (
     <div style={{ position: 'relative', width: '100%' }}>
-      <style>{`input[type="password"]::-ms-reveal,input[type="password"]::-ms-clear,input[type="password"]::-webkit-credentials-auto-fill-button,input[type="password"]::-webkit-textfield-decoration-container,input[type="password"]::-moz-reveal{display:none !important;visibility:hidden !important;}`}</style>
+      {/* Firefox has no native reveal eye (only Edge/IE and Chrome do), so there is
+          no -moz- selector to suppress. Extension-injected icons (password
+          managers) render outside page CSS and are intentionally left alone. */}
+      <style>{`input[type="password"]::-ms-reveal,input[type="password"]::-ms-clear,input[type="password"]::-webkit-credentials-auto-fill-button,input[type="password"]::-webkit-textfield-decoration-container{display:none !important;visibility:hidden !important;}`}</style>
       <input
         id={id}
         value={value}

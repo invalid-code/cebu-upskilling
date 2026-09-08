@@ -142,7 +142,8 @@ public class CourseGenerationControllerRegressionTests
         var agent = new FakeAgent { CommitFunc = (_, _, _) => Task.FromResult<CommitCourseGenerationResponse?>(null) };
         var controller = CreateController(agent);
         var result = await controller.Commit(new CommitCourseGenerationRequest(SampleDraft(), null, null), CancellationToken.None);
-        Assert.IsType<ForbidResult>(result.Result);
+        var status = Assert.IsType<ObjectResult>(result.Result);
+        Assert.Equal(StatusCodes.Status403Forbidden, status.StatusCode);
     }
 
     [Fact]
