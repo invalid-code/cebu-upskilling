@@ -111,19 +111,49 @@ public class PostService : BaseEntityService<Post>, IPostService
     private readonly IPostSkillRepository _postSkills;
     private readonly IRoleSkillRepository _roleSkills;
     private readonly ISkillRepository _skills;
+    private readonly IJobMarketTrendService? _trends;
 
     public PostService(
         IPostRepository repository,
         IPostSkillRepository postSkills,
         IRoleSkillRepository roleSkills,
         ISkillRepository skills,
-        ILogger<PostService> logger)
+        ILogger<PostService> logger,
+        IJobMarketTrendService? trends = null)
         : base(repository, logger, "Post")
     {
         _postRepository = repository;
         _postSkills = postSkills;
         _roleSkills = roleSkills;
         _skills = skills;
+        _trends = trends;
+    }
+
+    /// <summary>
+    /// Updates the persisted job-market trends for the affected skills/roles.
+    /// Trend failures never fail the post change itself.
+    /// </summary>
+    private async Task RefreshMarketTrendsAsync(IEnumerable<int> skillIds, params string?[] targetRoles)
+    {
+        if (_trends == null) return;
+
+        try
+        {
+            var ids = skillIds.Where(id => id > 0).Distinct().ToList();
+            if (ids.Count > 0)
+                await _trends.RefreshSkillsAsync(ids);
+
+            var roles = targetRoles
+                .Where(r => !string.IsNullOrWhiteSpace(r))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (roles.Count > 0)
+                await _trends.RefreshRolesAsync(roles!);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Job market trend refresh failed; post change was still saved");
+        }
     }
 
     private static string NormalizeSchedule(string? schedule) => schedule switch
@@ -145,6 +175,11 @@ public class PostService : BaseEntityService<Post>, IPostService
         {
             await SyncPostSkillsAsync(entity, required);
             await SyncRoleSkillsForRoleAsync(entity.TargetRole);
+            await RefreshMarketTrendsAsync(required.Select(r => r.SkillId), entity.TargetRole);
+        }
+        else
+        {
+            await RefreshMarketTrendsAsync(Enumerable.Empty<int>(), entity.TargetRole);
         }
 
         return entity;
@@ -155,6 +190,10 @@ public class PostService : BaseEntityService<Post>, IPostService
         if (string.IsNullOrWhiteSpace(entity.TargetRole))
             entity.TargetRole = entity.Title;
 
+        var previous = await _repository.GetByIdAsync(id);
+        var previousSkillIds = previous?.PostSkills?.Select(ps => ps.SkillId).ToList() ?? new List<int>();
+        var previousRole = previous?.TargetRole;
+
         var updated = await base.UpdateAsync(id, entity);
         if (updated == null) return null;
 
@@ -162,6 +201,13 @@ public class PostService : BaseEntityService<Post>, IPostService
         {
             await SyncPostSkillsAsync(updated, entity.RequiredSkills);
             await SyncRoleSkillsForRoleAsync(updated.TargetRole);
+            await RefreshMarketTrendsAsync(
+                previousSkillIds.Concat(entity.RequiredSkills.Select(r => r.SkillId)),
+                previousRole, updated.TargetRole);
+        }
+        else
+        {
+            await RefreshMarketTrendsAsync(Enumerable.Empty<int>(), previousRole, updated.TargetRole);
         }
 
         return updated;
@@ -177,6 +223,7 @@ public class PostService : BaseEntityService<Post>, IPostService
         // Atomic: remove PostSkills and Post in single SaveChanges where possible.
         // IPostSkillRepository and Post share the same DbContext; we defer SaveChanges until after both removals.
         var postSkills = await _postSkills.GetByPostIdAsync(id);
+        var removedSkillIds = postSkills.Select(ps => ps.SkillId).ToList();
         foreach (var ps in postSkills)
             _postSkills.Remove(ps);
 
@@ -188,6 +235,7 @@ public class PostService : BaseEntityService<Post>, IPostService
         await _repository.SaveChangesAsync();
 
         await SyncRoleSkillsForRoleAsync(targetRole);
+        await RefreshMarketTrendsAsync(removedSkillIds, targetRole);
         return true;
     }
 
@@ -345,6 +393,11 @@ public class PostService : BaseEntityService<Post>, IPostService
         {
             await SyncPostSkillsAsync(post, request.RequiredSkills);
             await SyncRoleSkillsForRoleAsync(post.TargetRole);
+            await RefreshMarketTrendsAsync(request.RequiredSkills.Select(r => r.SkillId), post.TargetRole);
+        }
+        else
+        {
+            await RefreshMarketTrendsAsync(Enumerable.Empty<int>(), post.TargetRole);
         }
 
         _logger.LogInformation("Created post {PostId} for company {CompanyId}", post.PostId, companyId);
@@ -382,6 +435,8 @@ public class PostService : BaseEntityService<Post>, IPostService
         if (!string.IsNullOrWhiteSpace(request.Schedule))
             existing.Schedule = NormalizeSchedule(request.Schedule);
 
+        var previousSkillIds = existing.PostSkills?.Select(ps => ps.SkillId).ToList() ?? new List<int>();
+
         await _repository.SaveChangesAsync();
 
         if (request.RequiredSkills != null)
@@ -390,6 +445,13 @@ public class PostService : BaseEntityService<Post>, IPostService
             await SyncRoleSkillsForRoleAsync(existing.TargetRole);
             if (!string.Equals(oldTargetRole, existing.TargetRole, StringComparison.OrdinalIgnoreCase))
                 await SyncRoleSkillsForRoleAsync(oldTargetRole);
+            await RefreshMarketTrendsAsync(
+                previousSkillIds.Concat(request.RequiredSkills.Select(r => r.SkillId)),
+                oldTargetRole, existing.TargetRole);
+        }
+        else
+        {
+            await RefreshMarketTrendsAsync(Enumerable.Empty<int>(), oldTargetRole, existing.TargetRole);
         }
         _logger.LogInformation("Updated post {PostId}", id);
 

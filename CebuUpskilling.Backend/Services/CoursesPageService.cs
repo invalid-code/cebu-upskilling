@@ -102,13 +102,19 @@ public class CoursesPageService : ICoursesPageService
 
         var enrolledCourseIds = enrollments.Select(e => e.CourseId).ToHashSet();
 
+        // Gap skills drive recommendations: a course is a strong match when its
+        // taught skills (CourseSkills, set at generation/commit time) cover skills
+        // the learner still needs for their target role(s).
+        var gapSkillIds = ResolveGapSkillIds(roleSkills, learnerSkills);
+
         var recommendedCourses = allCourses
             .Where(c => !enrolledCourseIds.Contains(c.CourseId))
-            .Select(c => MapToRecommendedDto(c, learnerSkillNames, effectiveRoles, roleSkills))
-            .Where(c => category == null || category == "All" || c.SkillCategory == category)
-            .OrderByDescending(c => c.IsRecommended)
-            .ThenByDescending(c => c.UnlocksJobsCount ?? 0)
-            .ThenBy(c => c.Name)
+            .Select(c => (Dto: MapToRecommendedDto(c, learnerSkillNames, effectiveRoles, roleSkills, gapSkillIds), Coverage: CountGapCoverage(c, gapSkillIds)))
+            .Where(c => category == null || category == "All" || c.Dto.SkillCategory == category)
+            .OrderByDescending(c => c.Dto.IsRecommended)
+            .ThenByDescending(c => c.Coverage)
+            .ThenBy(c => c.Dto.Name)
+            .Select(c => c.Dto)
             .ToList();
 
         _logger.LogInformation("Courses page for user {UserId}: target role {TargetRole}, {EnrolledCount} enrolled, {RecommendedCount} recommended, {CoursesInProgress} in progress, {CertificatesEarned} certificates",
@@ -164,18 +170,62 @@ public class CoursesPageService : ICoursesPageService
         return daysSinceLastOnline <= 1 ? Math.Max(1, 7 - daysSinceLastOnline) : 0;
     }
 
+    /// <summary>
+    /// Skill gaps for the resolved target role(s): required level minus the
+    /// learner's current level, keeping only skills that still need work.
+    /// </summary>
+    private static HashSet<int> ResolveGapSkillIds(
+        List<RoleSkill> roleSkills,
+        List<LearnerSkill> learnerSkills)
+    {
+        if (roleSkills.Count == 0) return new HashSet<int>();
+
+        var currentBySkill = learnerSkills
+            .GroupBy(ls => ls.SkillId)
+            .ToDictionary(g => g.Key, g => g.Max(ls => ls.CurrentLevel));
+
+        return roleSkills
+            .GroupBy(rs => rs.SkillId)
+            .Where(g => g.Max(rs => rs.RequiredLevel) - currentBySkill.GetValueOrDefault(g.Key) > 0)
+            .Select(g => g.Key)
+            .ToHashSet();
+    }
+
+    private static int CountGapCoverage(Entities.Course course, HashSet<int> gapSkillIds)
+    {
+        if (gapSkillIds.Count == 0 || course.CourseSkills.Count == 0) return 0;
+        return course.CourseSkills.Count(cs => gapSkillIds.Contains(cs.SkillId));
+    }
+
     private static RecommendedCourseDto MapToRecommendedDto(
         Entities.Course course,
         HashSet<string> learnerSkillNames,
         List<string> effectiveRoles,
-        List<RoleSkill> roleSkills)
+        List<RoleSkill> roleSkills,
+        HashSet<int> gapSkillIds)
     {
         string? skillCategory = null;
         string? reason = null;
         bool isRecommended;
 
-        if (effectiveRoles.Count > 0)
+        // Primary signal: the course teaches skills the learner still needs.
+        var coveredGapSkills = course.CourseSkills
+            .Where(cs => gapSkillIds.Contains(cs.SkillId) && cs.Skill != null)
+            .Select(cs => cs.Skill)
+            .DistinctBy(s => s.SkillId)
+            .ToList();
+
+        if (coveredGapSkills.Count > 0)
         {
+            var shown = coveredGapSkills.Take(3).Select(s => s.Name).ToList();
+            var suffix = coveredGapSkills.Count > shown.Count ? $", +{coveredGapSkills.Count - shown.Count} more" : string.Empty;
+            skillCategory = coveredGapSkills[0].Category;
+            reason = $"Covers {coveredGapSkills.Count} skill gap{(coveredGapSkills.Count == 1 ? string.Empty : "s")}: {string.Join(", ", shown)}{suffix}";
+            isRecommended = true;
+        }
+        else if (effectiveRoles.Count > 0)
+        {
+            // Fallback for courses without skill tags: match on names, as before.
             // Only recommend courses that map to a skill the resolved target
             // role actually requires, and surface that skill's category so the
             // UI can filter by it.

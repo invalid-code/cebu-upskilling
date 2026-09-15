@@ -102,6 +102,21 @@ dotnet user-secrets set "Email:From" "onboarding@resend.dev" --project CebuUpski
 # BaseUrl default https://api.resend.com
 ```
 
+### Skills seed job (background)
+
+`Services/SkillsSeedService.cs` (a `BackgroundService`, `Program.cs`) fills the `Skills` table on startup and every `SkillsSeed:IntervalHours` (idempotent — only missing names are inserted). Binds `Options/SkillsSeedOptions.cs` (`SkillsSeed` section in `appsettings.json`):
+
+```bash
+dotnet user-secrets set "SkillsSeed:Enabled" "true" --project CebuUpskilling.Backend
+dotnet user-secrets set "SkillsSeed:IntervalHours" "24" --project CebuUpskilling.Backend
+# No upstream API exists yet, so the static catalog (Services/StaticSkillsCatalog.cs) is used.
+# When one does, point the job at it — no code change needed:
+dotnet user-secrets set "SkillsSeed:SourceUrl" "https://skills-api.example.com/skills" --project CebuUpskilling.Backend
+# Docker: SkillsSeed__SourceUrl. The API source accepts a JSON array of strings
+# (or objects with a name/skill/title property) and falls back to the static
+# catalog if the fetch fails.
+```
+
 ### CORS
 
 ```bash
@@ -179,9 +194,11 @@ Design-time factory: `Data/DesignTimeDbContextFactory.cs` (used by `dotnet ef`).
 ```
 CebuUpskilling.Backend/
 ├── Program.cs                 # DI, middleware pipeline, startup validation
-├── Controllers/               # 17 controllers (see docs/API.md)
+├── Controllers/               # 19 controllers (see docs/API.md)
 │   ├── AuthController.cs
 │   ├── PostsController.cs (api/posts)  # job posts
+│   ├── MarketTrendsController.cs (api/market-trends)  # skill/role demand
+│   ├── LearningPathwaysController.cs (api/pathways)  # learner pathways
 │   ├── AssessmentsController.cs
 │   ├── SkillGapsController.cs
 │   ├── ApplicationsController.cs
@@ -204,8 +221,13 @@ CebuUpskilling.Backend/
 │   ├── NotesService.cs / DiscussionService.cs / StatsService.cs
 │   ├── MediaService.cs / R2StorageService.cs / IObjectStorageService.cs
 │   ├── EmailService.cs / ResendEmailService.cs
+│   ├── JobMarketTrendService.cs # skill/role demand, refreshed on post CUD
+│   ├── LearningPathwayAgent.cs # gap × demand ordered pathway with courses
 │   ├── TokenRevocationStore.cs (InMemory, JTI 8-day TTL)
 │   ├── AddressParser.cs / EntityServices.cs / SkillParsingService.cs (compat)
+│   ├── SkillsSeedService.cs (BackgroundService filling Skills)
+│   ├── ISkillsSource.cs / StaticSkillsSource.cs / StaticSkillsCatalog.cs
+│   ├── ApiSkillsSource.cs (used when SkillsSeed:SourceUrl is set)
 │   └── …
 ├── Repositories/              # IRepository<T>, EntityRepository<T> + 15 specialized
 ├── Entities/                  # 26 entities + AuditableEntity (see docs/ARCHITECTURE.md)
@@ -218,7 +240,7 @@ CebuUpskilling.Backend/
 │   ├── SecurityHeadersMiddleware.cs
 │   └── RevokedTokenMiddleware.cs
 ├── Handlers/GlobalExceptionHandler.cs
-├── Options/                   # R2Options, GoogleAiOptions, EmailOptions, RateLimitingOptions
+├── Options/                   # R2Options, GoogleAiOptions, EmailOptions, RateLimitingOptions, SkillsSeedOptions
 ├── Migrations/
 ├── Properties/launchSettings.json
 ├── appsettings.json / appsettings.Development.json
@@ -248,7 +270,7 @@ SecurityHeaders → ExceptionHandler → Cors → StaticFiles → RateLimiter
 
 ## Configuration Reference
 
-See the unified table in [Root README](../README.md#configuration) plus `appsettings.json:2-97` (Serilog + `Cors/ConnectionStrings/Jwt/R2/GoogleAi/Email/RateLimiting`) and `appsettings.Development.json` (Debug logging, dev CORS/JWT). All `Jwt:Key` checks happen at startup; the app crashes fast with `InvalidOperationException` if missing/short.
+See the unified table in [Root README](../README.md#configuration) plus `appsettings.json` (Serilog + `Cors/ConnectionStrings/Jwt/R2/GoogleAi/GoogleOAuth/Email/RateLimiting/SkillsSeed`) and `appsettings.Development.json` (Debug logging, dev CORS/JWT). All `Jwt:Key` checks happen at startup; the app crashes fast with `InvalidOperationException` if missing/short.
 
 ---
 
