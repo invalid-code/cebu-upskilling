@@ -33,6 +33,8 @@ public class ApplicationDbContext : DbContext
     public DbSet<LearnerNote> LearnerNotes => Set<LearnerNote>();
     public DbSet<DiscussionPost> DiscussionPosts => Set<DiscussionPost>();
     public DbSet<CourseSkill> CourseSkills => Set<CourseSkill>();
+    public DbSet<SkillMarketTrend> SkillMarketTrends => Set<SkillMarketTrend>();
+    public DbSet<RoleMarketTrend> RoleMarketTrends => Set<RoleMarketTrend>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -266,5 +268,17 @@ public class ApplicationDbContext : DbContext
 
         modelBuilder.Entity<CourseSkill>()
             .HasIndex(cs => cs.SkillId);
+
+        modelBuilder.Entity<SkillMarketTrend>()
+            .HasOne(t => t.Skill)
+            .WithMany()
+            .HasForeignKey(t => t.SkillId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<SkillMarketTrend>()
+            .HasIndex(t => t.ActivePostings);
+
+        modelBuilder.Entity<RoleMarketTrend>()
+            .HasIndex(t => t.ActivePostings);
     }
 }
