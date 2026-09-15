@@ -144,6 +144,19 @@ builder.Services.AddScoped<IMediaService, MediaService>();
 builder.Services.AddScoped<ICompanyService, CompanyService>();
 builder.Services.AddScoped<IResumeService, ResumeService>();
 
+// Skills seed background job: fills the Skills table from a pluggable source.
+// No SkillsSeed:SourceUrl -> static catalog; URL set -> remote API (with static fallback).
+builder.Services.Configure<SkillsSeedOptions>(builder.Configuration.GetSection(SkillsSeedOptions.SectionName));
+if (string.IsNullOrWhiteSpace(builder.Configuration["SkillsSeed:SourceUrl"]))
+{
+    builder.Services.AddSingleton<ISkillsSource, StaticSkillsSource>();
+}
+else
+{
+    builder.Services.AddHttpClient<ISkillsSource, ApiSkillsSource>();
+}
+builder.Services.AddHostedService<SkillsSeedService>();
+
 var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException(
     "Jwt:Key is not configured. Set Jwt:Key in appsettings.json or the Jwt__Key environment variable.");
 
