@@ -143,6 +143,8 @@ builder.Services.AddScoped<IObjectStorageService, R2StorageService>();
 builder.Services.AddScoped<IMediaService, MediaService>();
 builder.Services.AddScoped<ICompanyService, CompanyService>();
 builder.Services.AddScoped<IResumeService, ResumeService>();
+builder.Services.AddScoped<IJobMarketTrendService, JobMarketTrendService>();
+builder.Services.AddScoped<ILearningPathwayAgent, LearningPathwayAgent>();
 
 // Skills seed background job: fills the Skills table from a pluggable source.
 // No SkillsSeed:SourceUrl -> static catalog; URL set -> remote API (with static fallback).

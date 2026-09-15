@@ -194,9 +194,11 @@ Design-time factory: `Data/DesignTimeDbContextFactory.cs` (used by `dotnet ef`).
 ```
 CebuUpskilling.Backend/
 ├── Program.cs                 # DI, middleware pipeline, startup validation
-├── Controllers/               # 17 controllers (see docs/API.md)
+├── Controllers/               # 19 controllers (see docs/API.md)
 │   ├── AuthController.cs
 │   ├── PostsController.cs (api/posts)  # job posts
+│   ├── MarketTrendsController.cs (api/market-trends)  # skill/role demand
+│   ├── LearningPathwaysController.cs (api/pathways)  # learner pathways
 │   ├── AssessmentsController.cs
 │   ├── SkillGapsController.cs
 │   ├── ApplicationsController.cs
@@ -219,6 +221,8 @@ CebuUpskilling.Backend/
 │   ├── NotesService.cs / DiscussionService.cs / StatsService.cs
 │   ├── MediaService.cs / R2StorageService.cs / IObjectStorageService.cs
 │   ├── EmailService.cs / ResendEmailService.cs
+│   ├── JobMarketTrendService.cs # skill/role demand, refreshed on post CUD
+│   ├── LearningPathwayAgent.cs # gap × demand ordered pathway with courses
 │   ├── TokenRevocationStore.cs (InMemory, JTI 8-day TTL)
 │   ├── AddressParser.cs / EntityServices.cs / SkillParsingService.cs (compat)
 │   ├── SkillsSeedService.cs (BackgroundService filling Skills)
