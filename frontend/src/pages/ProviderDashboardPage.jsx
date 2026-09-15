@@ -12,6 +12,7 @@ import EmptyState from '../components/shared/EmptyState';
 import StatCard from '../components/shared/StatCard';
 import BarList from '../components/shared/BarList';
 import { ErrorCard } from '../components/ui/ErrorState';
+import Skeleton, { SkeletonStat, SkeletonStatus, SkeletonText } from '../components/ui/Skeleton';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -118,7 +119,39 @@ export default function ProviderDashboardPage() {
     }
   };
 
-  if (loading) return <div style={styles.loading}>Loading provider workspace…</div>;
+  if (loading) {
+    return (
+      <div className="view-enter">
+        <SkeletonStatus label="Loading provider workspace…">
+          <Panel>
+            <Skeleton height={26} width="35%" radius={8} style={{ marginBottom: 10 }} />
+            <Skeleton height={13} width="60%" style={{ marginBottom: 18 }} />
+            <div style={styles.statGrid}>
+              {Array.from({ length: 4 }, (_, i) => (
+                <SkeletonStat key={i} />
+              ))}
+            </div>
+          </Panel>
+          <section style={styles.section}>
+            <Skeleton height={22} width={190} radius={8} style={{ marginBottom: 16 }} />
+            <Panel>
+              {Array.from({ length: 4 }, (_, i) => (
+                <Skeleton key={i} height={44} width="100%" radius={10} style={{ marginBottom: 12 }} />
+              ))}
+            </Panel>
+          </section>
+          <section style={{ ...styles.section, ...styles.charts }}>
+            <Panel>
+              <SkeletonText lines={5} lineHeight={12} gap={14} />
+            </Panel>
+            <Panel>
+              <SkeletonText lines={5} lineHeight={12} gap={14} lastWidth="45%" />
+            </Panel>
+          </section>
+        </SkeletonStatus>
+      </div>
+    );
+  }
   if (error) return <div style={{ padding: 20 }}><ErrorCard title="Provider dashboard unavailable" description={error} onRetry={() => setRetryKey((k) => k + 1)} /></div>;
 
   const displayName = user?.firstName ? `${user.firstName}${user?.lastName ? ` ${user.lastName}` : ''}` : 'Provider';
