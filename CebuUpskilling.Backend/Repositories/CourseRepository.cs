@@ -27,6 +27,8 @@ public class CourseRepository : EntityRepository<Course>, ICourseRepository
             .Include(c => c.Genre)
                 .ThenInclude(g => g.SubDiscipline)
             .Include(c => c.Lessons)
+            .Include(c => c.CourseSkills)
+                .ThenInclude(cs => cs.Skill)
             .ToListAsync();
 
     public async Task<Dictionary<int, int>> GetLessonCountsByCourseIdsAsync(List<int> courseIds)
