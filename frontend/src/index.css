@@ -77,6 +77,17 @@ button:focus-visible {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+@keyframes shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+.skeleton {
+  background-color: var(--surface2);
+  background-image: linear-gradient(90deg, var(--surface2) 0%, var(--teal-soft) 50%, var(--surface2) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
 
 .view-enter {
   animation: enter 0.35s var(--ease);

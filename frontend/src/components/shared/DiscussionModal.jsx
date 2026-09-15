@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { MessageCircle, Send, Loader2 } from 'lucide-react';
 import Modal from '../ui/Modal';
+import Skeleton, { SkeletonText, SkeletonStatus } from '../ui/Skeleton';
 import { api } from '../../api/client';
 import { useToast } from '../../context/ToastContext';
 
@@ -213,7 +214,14 @@ export default function DiscussionModal({ open, onClose, lessonId }) {
       </div>
 
       {loading ? (
-        <div style={styles.loading}>Loading discussion...</div>
+        <SkeletonStatus label="Loading discussion...">
+          {Array.from({ length: 3 }, (_, i) => (
+            <div key={i} style={{ border: '1px solid var(--line)', borderRadius: 10, padding: 12, marginBottom: 10 }}>
+              <Skeleton height={12} width="35%" style={{ marginBottom: 8 }} />
+              <SkeletonText lines={2} lineHeight={12} gap={7} lastWidth="55%" />
+            </div>
+          ))}
+        </SkeletonStatus>
       ) : posts.length === 0 ? (
         <div style={styles.empty}>
           <MessageCircle size={20} style={{ margin: '0 auto 8px', display: 'block', opacity: 0.5 }} />

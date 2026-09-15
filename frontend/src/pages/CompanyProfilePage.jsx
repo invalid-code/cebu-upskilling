@@ -4,6 +4,7 @@ import Panel from '../components/ui/Panel';
 import Tag from '../components/ui/Tag';
 import EmptyState from '../components/shared/EmptyState';
 import CompanyAvatar from '../components/shared/CompanyAvatar';
+import Skeleton, { SkeletonStatus, SkeletonText } from '../components/ui/Skeleton';
 import { api } from '../api/client';
 
 const styles = {
@@ -167,7 +168,40 @@ export default function CompanyProfilePage() {
 
       <div style={styles.content}>
         {loading ? (
-          <div style={styles.loading}>Loading company profile...</div>
+          <SkeletonStatus label="Loading company profile...">
+            <Panel style={{ marginBottom: 18 }}>
+              <div style={{ display: 'flex', gap: 20, alignItems: 'center', flexWrap: 'wrap' }}>
+                <Skeleton height={76} width={76} radius="50%" />
+                <div style={{ flex: 1, minWidth: 220 }}>
+                  <Skeleton height={28} width="45%" radius={8} style={{ marginBottom: 10 }} />
+                  <Skeleton height={13} width="60%" style={{ marginBottom: 12 }} />
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <Skeleton height={24} width={82} radius={12} />
+                    <Skeleton height={24} width={110} radius={12} />
+                    <Skeleton height={24} width={70} radius={12} />
+                  </div>
+                </div>
+              </div>
+              <div style={{ marginTop: 16 }}>
+                <SkeletonText lines={3} lineHeight={13} gap={9} lastWidth="65%" />
+              </div>
+            </Panel>
+            <Panel>
+              <Skeleton height={16} width={130} style={{ marginBottom: 14 }} />
+              {Array.from({ length: 3 }, (_, i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, padding: '16px 0', borderBottom: '1px solid var(--line)' }}>
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'center', flex: 1 }}>
+                    <Skeleton height={40} width={40} radius={12} />
+                    <div style={{ flex: 1 }}>
+                      <Skeleton height={14} width="40%" style={{ marginBottom: 8 }} />
+                      <Skeleton height={12} width="30%" />
+                    </div>
+                  </div>
+                  <Skeleton height={14} width={110} />
+                </div>
+              ))}
+            </Panel>
+          </SkeletonStatus>
         ) : error || !company ? (
           <Panel>
             <EmptyState title="Company unavailable" description={error || 'This company could not be found.'} />

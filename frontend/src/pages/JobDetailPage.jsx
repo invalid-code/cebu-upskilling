@@ -6,6 +6,7 @@ import Button from '../components/ui/Button';
 import EmptyState from '../components/shared/EmptyState';
 import CompanyAvatar from '../components/shared/CompanyAvatar';
 import { ErrorCard, ErrorBanner } from '../components/ui/ErrorState';
+import Skeleton, { SkeletonStatus, SkeletonText } from '../components/ui/Skeleton';
 import { api } from '../api/client';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
@@ -194,7 +195,34 @@ export default function JobDetailPage() {
     };
   }, [job?.companyId]);
 
-  if (loading) return <div style={styles.loading}>Loading job...</div>;
+  if (loading) {
+    return (
+      <SkeletonStatus label="Loading job...">
+        <Panel style={{ marginBottom: 18 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 18 }}>
+            <div style={{ flex: 1 }}>
+              <Skeleton height={26} width="55%" radius={8} style={{ marginBottom: 10 }} />
+              <Skeleton height={13} width="30%" style={{ marginBottom: 14 }} />
+              <div style={{ display: 'flex', gap: 8 }}>
+                <Skeleton height={24} width={82} radius={12} />
+                <Skeleton height={24} width={70} radius={12} />
+                <Skeleton height={24} width={96} radius={12} />
+              </div>
+            </div>
+            <Skeleton height={44} width={140} radius={10} />
+          </div>
+        </Panel>
+        <Panel style={{ marginBottom: 18 }}>
+          <Skeleton height={16} width={130} style={{ marginBottom: 14 }} />
+          <SkeletonText lines={4} lineHeight={13} gap={9} lastWidth="65%" />
+        </Panel>
+        <Panel>
+          <Skeleton height={16} width={100} style={{ marginBottom: 14 }} />
+          <SkeletonText lines={3} lineHeight={13} gap={9} lastWidth="50%" />
+        </Panel>
+      </SkeletonStatus>
+    );
+  }
   if (error || !job) {
     return (
       <ErrorCard

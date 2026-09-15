@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import Panel from '../components/ui/Panel';
 import Button from '../components/ui/Button';
 import CompanyAvatar from '../components/shared/CompanyAvatar';
+import Skeleton, { SkeletonStatus } from '../components/ui/Skeleton';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -287,7 +288,29 @@ export default function CompanyProfileEditPage() {
     }
   };
 
-  if (loading) return <div style={styles.loading}>Loading company profile...</div>;
+  if (loading) {
+    return (
+      <SkeletonStatus label="Loading company profile...">
+        <Panel>
+          <Skeleton height={24} width="35%" radius={8} style={{ marginBottom: 22 }} />
+          <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 18 }}>
+            <Skeleton height={64} width={64} radius="50%" />
+            <div>
+              <Skeleton height={36} width={130} radius={10} style={{ marginBottom: 8 }} />
+              <Skeleton height={11} width={160} />
+            </div>
+          </div>
+          {Array.from({ length: 4 }, (_, i) => (
+            <div key={i} style={{ marginBottom: 18 }}>
+              <Skeleton height={12} width={110} style={{ marginBottom: 7 }} />
+              <Skeleton height={42} width="100%" radius={10} />
+            </div>
+          ))}
+          <Skeleton height={44} width={160} radius={10} />
+        </Panel>
+      </SkeletonStatus>
+    );
+  }
   if (error || !form) {
     return (
       <Panel>
