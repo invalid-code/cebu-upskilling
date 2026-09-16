@@ -132,12 +132,6 @@ const styles = {
     color: 'var(--surface)',
     borderColor: 'var(--teal)',
   },
-  loading: {
-    textAlign: 'center',
-    padding: 45,
-    color: 'var(--muted)',
-    fontSize: 13,
-  },
   empty: {
     padding: 45,
     textAlign: 'center',

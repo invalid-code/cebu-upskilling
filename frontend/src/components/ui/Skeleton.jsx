@@ -81,9 +81,9 @@ export function SkeletonCard({ minHeight = 220, radius = 15, style }) {
 /**
  * Placeholder for a StatCard (large value over a small label, bottom rule).
  */
-export function SkeletonStat() {
+export function SkeletonStat({ style }) {
   return (
-    <div style={{ borderBottom: '1px solid var(--line)', padding: '0 0 15px' }}>
+    <div style={{ borderBottom: '1px solid var(--line)', padding: '0 0 15px', ...style }}>
       <Skeleton height={30} width={56} style={{ marginBottom: 6 }} />
       <Skeleton height={12} width={120} />
     </div>

@@ -37,12 +37,6 @@ const styles = {
     gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
     gap: 18,
   },
-  loading: {
-    textAlign: 'center',
-    padding: 45,
-    color: 'var(--muted)',
-    fontSize: 13,
-  },
   section: {
     marginTop: 22,
   },

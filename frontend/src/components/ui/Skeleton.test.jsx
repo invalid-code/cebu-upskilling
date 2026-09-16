@@ -33,6 +33,11 @@ describe('Skeleton', () => {
     expect(container.querySelectorAll('.skeleton')).toHaveLength(2);
   });
 
+  it('forwards style overrides on stat placeholders', () => {
+    const { container } = render(<SkeletonStat style={{ marginBottom: 12 }} />);
+    expect(container.firstChild.style.marginBottom).toBe('12px');
+  });
+
   it('exposes an accessible status region with the loading label', () => {
     render(
       <SkeletonStatus label="Loading jobs...">

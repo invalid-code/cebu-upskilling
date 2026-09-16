@@ -16,7 +16,6 @@ const styles = {
   label: { fontSize: 12, fontWeight: 700, color: 'var(--muted)' },
   toolbar: { display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' },
   module: { border: '1px solid var(--line)', borderRadius: 14, background: 'var(--surface)', overflow: 'hidden' },
-  loading: { padding: 50, textAlign: 'center', color: 'var(--muted)' },
   skillChip: { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 999, background: 'var(--surface2)', border: '1px solid var(--line)', fontSize: 12, fontWeight: 600 },
 };
 

@@ -84,12 +84,6 @@ const styles = {
     gridTemplateColumns: 'repeat(3, 1fr)',
     gap: 14,
   },
-  loading: {
-    textAlign: 'center',
-    padding: 45,
-    color: 'var(--muted)',
-    fontSize: 13,
-  },
   matchBody: {
     display: 'flex',
     gap: 20,

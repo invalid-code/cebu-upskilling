@@ -43,7 +43,6 @@ const styles = {
   actions: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' },
   iconBtn: { display: 'inline-grid', placeItems: 'center', width: 32, height: 32, borderRadius: 8, border: '1px solid var(--line)', background: 'var(--surface)', color: 'var(--muted)', cursor: 'pointer' },
   charts: { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 18 },
-  loading: { textAlign: 'center', padding: 45, color: 'var(--muted)', fontSize: 13 },
   nextSteps: { display: 'grid', gap: 10 },
   nextStep: { display: 'flex', gap: 12, alignItems: 'flex-start', padding: '14px 14px', border: '1px solid var(--line)', borderRadius: 12, background: 'var(--surface2)' },
 };

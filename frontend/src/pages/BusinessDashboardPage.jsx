@@ -26,7 +26,6 @@ const styles = {
   title: { fontWeight: 700 },
   muted: { color: 'var(--muted)' },
   charts: { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 18 },
-  loading: { textAlign: 'center', padding: 45, color: 'var(--muted)', fontSize: 13 },
   error: { color: 'var(--coral)', margin: 0 },
   quickLinks: { display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 22 },
   quickLink: { display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, color: 'var(--teal)', textDecoration: 'none', padding: '9px 14px', border: '1px solid var(--line)', borderRadius: 10, background: 'var(--surface)' },

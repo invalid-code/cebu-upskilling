@@ -12,12 +12,6 @@ const styles = {
     lineHeight: 1.5,
     marginBottom: 14,
   },
-  loading: {
-    textAlign: 'center',
-    padding: 24,
-    color: 'var(--muted)',
-    fontSize: 14,
-  },
   empty: {
     textAlign: 'center',
     padding: 28,

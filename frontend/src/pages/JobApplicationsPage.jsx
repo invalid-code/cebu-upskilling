@@ -101,12 +101,6 @@ const styles = {
     color: 'var(--ink)',
     minWidth: 120,
   },
-  loading: {
-    textAlign: 'center',
-    padding: 45,
-    color: 'var(--muted)',
-    fontSize: 13,
-  },
   postTitle: {
     color: 'var(--teal)',
     fontWeight: 700,

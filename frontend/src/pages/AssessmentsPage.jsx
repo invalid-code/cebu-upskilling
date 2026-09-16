@@ -173,12 +173,6 @@ const styles = {
     color: 'var(--ink)',
     lineHeight: 1.5,
   },
-  loading: {
-    textAlign: 'center',
-    padding: 45,
-    color: 'var(--muted)',
-    fontSize: 13,
-  },
   modalDesc: {
     fontSize: 13,
     color: 'var(--muted)',

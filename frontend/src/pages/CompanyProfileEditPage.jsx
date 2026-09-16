@@ -102,12 +102,6 @@ const styles = {
     cursor: 'pointer',
     color: 'var(--teal)',
   },
-  loading: {
-    textAlign: 'center',
-    padding: 45,
-    color: 'var(--muted)',
-    fontSize: 13,
-  },
 };
 
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;

@@ -110,12 +110,6 @@ const styles = {
     fontSize: 11,
     color: 'var(--muted)',
   },
-  loading: {
-    textAlign: 'center',
-    padding: 45,
-    color: 'var(--muted)',
-    fontSize: 13,
-  },
   employerRow: {
     display: 'flex',
     gap: 12,

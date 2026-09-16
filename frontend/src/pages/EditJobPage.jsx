@@ -24,12 +24,6 @@ const styles = {
     fontSize: 'clamp(1.8rem, 3.5vw, 2.8rem)',
     margin: 0,
   },
-  loading: {
-    textAlign: 'center',
-    padding: 45,
-    color: 'var(--muted)',
-    fontSize: 13,
-  },
 };
 
 export default function EditJobPage() {

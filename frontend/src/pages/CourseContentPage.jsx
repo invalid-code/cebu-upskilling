@@ -94,12 +94,6 @@ const styles = {
     width: 280,
     flexShrink: 0,
   },
-  loading: {
-    textAlign: 'center',
-    padding: 60,
-    color: 'var(--muted)',
-    fontSize: 14,
-  },
 };
 
 export default function CourseContentPage() {
