@@ -166,7 +166,12 @@ jobs:
       - run: npm ci
 
       - name: Install EAS CLI
-        run: npm install -g eas-cli
+        run: npm install -g eas-cli@24
+
+      # Fail fast: without PROD_API_URL the bundle would silently bake in
+      # the localhost fallback from App.js and every API call would fail.
+      - name: Check production API URL is set
+        run: '[ -n "$EXPO_PUBLIC_API_URL" ] || (echo "PROD_API_URL secret is not set" && exit 1)'
 
       # Queues a production cloud build for Android (.aab) and iOS (.ipa)
       # using mobile/eas.json. Waits for completion so a failed build fails
