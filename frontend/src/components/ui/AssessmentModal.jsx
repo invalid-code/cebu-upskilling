@@ -4,12 +4,13 @@ import Button from './Button';
 import { api } from '../../api/client';
 import { useToast } from '../../context/ToastContext';
 import { createProctor } from '../../lib/proctoring';
+import useDialogFocus from '../../lib/useDialogFocus';
 
 const styles = {
   backdrop: {
     position: 'fixed',
     inset: 0,
-    background: 'rgba(20, 30, 25, 0.46)',
+    background: 'rgba(14, 25, 40, 0.46)',
     zIndex: 20,
     display: 'flex',
     alignItems: 'center',
@@ -221,7 +222,7 @@ const styles = {
   warnOverlay: {
     position: 'fixed',
     inset: 0,
-    background: 'rgba(20, 30, 25, 0.55)',
+    background: 'rgba(14, 25, 40, 0.55)',
     zIndex: 30,
     display: 'flex',
     alignItems: 'center',
@@ -245,7 +246,7 @@ const styles = {
     height: 56,
     borderRadius: '50%',
     background: 'var(--coral-soft)',
-    color: 'var(--coral)',
+    color: 'var(--coral-ink)',
     marginBottom: 14,
   },
   warnTitle: {
@@ -267,7 +268,7 @@ const styles = {
     gap: 12,
     padding: '10px 16px',
     borderBottom: '1px solid var(--line)',
-    background: 'var(--surface2, #f6f8f7)',
+    background: 'var(--surface2)',
   },
   proctorVideoWrap: {
     position: 'relative',
@@ -294,11 +295,11 @@ const styles = {
     height: 10,
     borderRadius: '50%',
     border: '2px solid #fff',
-    background: '#9aa5a0',
+    background: 'var(--status-idle)',
   },
-  proctorDotActive: { background: '#14b87a' },
-  proctorDotInit: { background: '#e8a317' },
-  proctorDotIdle: { background: '#9aa5a0' },
+  proctorDotActive: { background: 'var(--status-live)' },
+  proctorDotInit: { background: 'var(--status-wait)' },
+  proctorDotIdle: { background: 'var(--status-idle)' },
   proctorInfo: { flex: 1, minWidth: 0 },
   proctorTitle: {
     fontSize: 12,
@@ -335,6 +336,8 @@ const LETTERS = ['A', 'B', 'C', 'D'];
 
 export default function AssessmentModal({ open, onClose, assessmentId, skillName: initialSkillName, proctored = false }) {
   const { showToast } = useToast();
+  const modalRef = useRef(null);
+  useDialogFocus(open, onClose, modalRef);
   const [questions, setQuestions] = useState([]);
   const [skillName, setSkillName] = useState(initialSkillName || 'Assessment');
   const [source, setSource] = useState('');
@@ -548,7 +551,15 @@ export default function AssessmentModal({ open, onClose, assessmentId, skillName
   return (
     <>
       <div style={styles.backdrop} onClick={onClose}>
-        <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+        <div
+          ref={modalRef}
+          tabIndex={-1}
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${skillName} assessment`}
+          style={styles.modal}
+          onClick={(e) => e.stopPropagation()}
+        >
           {loading ? (
           <div style={styles.loading}>
             <div style={styles.loadingSpinner}><Loader2 size={24} /></div>

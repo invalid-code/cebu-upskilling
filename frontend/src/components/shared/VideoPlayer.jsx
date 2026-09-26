@@ -5,7 +5,7 @@ import { useToast } from '../../context/ToastContext';
 
 const styles = {
   container: {
-    background: '#1a2e27',
+    background: 'var(--ink)',
     borderRadius: 'var(--radius-lg)',
     overflow: 'hidden',
     marginBottom: 20,

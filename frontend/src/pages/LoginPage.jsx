@@ -7,24 +7,11 @@ import { ErrorBanner, FieldError } from '../components/ui/ErrorState';
 import Button from '../components/ui/Button';
 import GoogleSignInButton from '../components/GoogleSignInButton';
 import PasswordField from '../components/ui/PasswordField';
+import { authStyles, authSubtitle, centeredPage } from '../styles/shared';
 
 const styles = {
-  container: {
-    minHeight: '100vh',
-    display: 'grid',
-    placeItems: 'center',
-    background: 'var(--bg)',
-    padding: 20,
-  },
-  card: {
-    background: 'var(--surface)',
-    border: '1px solid var(--line)',
-    borderRadius: 18,
-    padding: 32,
-    width: '100%',
-    maxWidth: 400,
-    boxShadow: 'var(--shadow)',
-  },
+  container: { ...centeredPage },
+  card: { ...authStyles.card },
   brand: {
     display: 'flex',
     gap: 10,
@@ -32,61 +19,13 @@ const styles = {
     marginBottom: 28,
     justifyContent: 'center',
   },
-  mark: {
-    width: 40,
-    height: 40,
-    borderRadius: 11,
-    background: 'var(--coral)',
-    display: 'grid',
-    placeItems: 'center',
-    color: 'var(--surface)',
-    fontFamily: "'Space Grotesk', sans-serif",
-    fontWeight: 700,
-    fontSize: 18,
-  },
-  title: {
-    fontSize: 22,
-    fontFamily: "'Space Grotesk', sans-serif",
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 13,
-    color: 'var(--muted)',
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  field: {
-    width: '100%',
-    background: 'var(--surface)',
-    border: '1px solid var(--line)',
-    borderRadius: 10,
-    minHeight: 42,
-    padding: '9px 12px',
-    color: 'var(--ink)',
-    marginBottom: 4,
-    fontSize: 14,
-  },
-  fieldError: {
-    color: 'rgb(190, 60, 50)',
-    fontSize: 12,
-    marginBottom: 12,
-    marginTop: 2,
-  },
-  error: {
-    background: 'var(--coral-soft)',
-    color: 'rgb(110, 65, 45)',
-    padding: '10px 12px',
-    borderRadius: 10,
-    fontSize: 12,
-    marginBottom: 12,
-  },
-  link: {
-    textAlign: 'center',
-    marginTop: 16,
-    fontSize: 13,
-    color: 'var(--muted)',
-  },
+  mark: { ...authStyles.mark },
+  title: { ...authStyles.title },
+  subtitle: { ...authSubtitle },
+  field: { ...authStyles.field },
+  fieldError: { ...authStyles.fieldError },
+  error: { ...authStyles.error },
+  link: { ...authStyles.link },
 };
 
 export default function LoginPage() {
@@ -182,7 +121,9 @@ export default function LoginPage() {
         )}
 
         <form onSubmit={handleSubmit} noValidate>
+          <label htmlFor="login-email" style={authStyles.label}>Email address</label>
           <input
+            id="login-email"
             style={{ ...styles.field, borderColor: fieldErrors.email ? 'var(--danger)' : 'var(--line)', background: fieldErrors.email ? 'var(--danger-soft)' : 'var(--surface)' }}
             type="email"
             placeholder="Email address"
@@ -193,7 +134,9 @@ export default function LoginPage() {
           />
           {fieldErrors.email && <FieldError id="login-email-error">{fieldErrors.email}</FieldError>}
           <div style={{ marginTop: 12 }}>
+            <label htmlFor="login-password" style={authStyles.label}>Password</label>
             <PasswordField
+              id="login-password"
               style={{ ...styles.field, borderColor: fieldErrors.password ? 'var(--danger)' : 'var(--line)', background: fieldErrors.password ? 'var(--danger-soft)' : 'var(--surface)' }}
               placeholder="Password"
               value={password}
@@ -207,9 +150,9 @@ export default function LoginPage() {
           <Button
             variant="primary"
             style={{ width: '100%', marginTop: 8 }}
-            disabled={loading}
+            loading={loading}
           >
-            {loading ? 'Signing in...' : 'Sign in'}
+            Sign in
           </Button>
         </form>
 

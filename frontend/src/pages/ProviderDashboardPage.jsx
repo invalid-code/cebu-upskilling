@@ -16,23 +16,24 @@ import Skeleton, { SkeletonStat, SkeletonStatus, SkeletonText } from '../compone
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { eyebrow, metaTextFlush } from '../styles/shared';
 
 const styles = {
   heading: { display: 'flex', justifyContent: 'space-between', alignItems: 'end', gap: 18, marginBottom: 28 },
-  eyebrow: { fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.12em', fontWeight: 700, color: 'var(--coral)', marginBottom: 12 },
+  eyebrow: { ...eyebrow },
   h1: { fontFamily: "'Space Grotesk', sans-serif", fontSize: 'clamp(2rem, 4vw, 3.3rem)', lineHeight: 0.95 },
   subtitle: { color: 'var(--muted)', margin: '10px 0 0', fontSize: 13, maxWidth: 560, lineHeight: 1.5 },
   date: { fontSize: 13, color: 'var(--muted)', margin: 0, whiteSpace: 'nowrap' },
   heroGrid: { display: 'grid', gridTemplateColumns: 'minmax(0, 1.55fr) minmax(280px, 0.85fr)', gap: 18 },
   hero: { background: 'var(--teal)', color: 'var(--surface)', borderRadius: 22, padding: 30, position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: 228 },
   heroH2: { fontFamily: "'Space Grotesk', sans-serif", fontSize: 'clamp(1.5rem, 2.6vw, 2rem)', lineHeight: 1.05, position: 'relative', zIndex: 1 },
-  heroP: { color: 'rgba(225, 240, 235, 0.88)', position: 'relative', zIndex: 1, margin: '12px 0 22px', fontSize: 13, lineHeight: 1.5, maxWidth: 520 },
+  heroP: { color: 'rgba(233, 241, 253, 0.88)', position: 'relative', zIndex: 1, margin: '12px 0 22px', fontSize: 13, lineHeight: 1.5, maxWidth: 520 },
   heroActions: { display: 'flex', gap: 10, flexWrap: 'wrap', position: 'relative', zIndex: 1 },
   statGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 18 },
   section: { marginTop: 28 },
   sectionTitleRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '0 0 14px' },
   sectionTitle: { fontFamily: "'Space Grotesk', sans-serif", fontSize: 20, margin: 0 },
-  sectionHint: { fontSize: 12, color: 'var(--muted)', margin: 0 },
+  sectionHint: { ...metaTextFlush },
   tableWrap: { overflowX: 'auto' },
   table: { width: '100%', borderCollapse: 'collapse', minWidth: 720 },
   th: { textAlign: 'left', color: 'var(--muted)', fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '0 12px 10px 0', whiteSpace: 'nowrap' },

@@ -31,3 +31,20 @@ describe('Button', () => {
     expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
   });
 });
+
+describe('Button loading state', () => {
+  it('marks the button busy and disabled while loading', () => {
+    render(<Button loading>Create account</Button>);
+    const btn = screen.getByRole('button');
+    expect(btn).toBeDisabled();
+    expect(btn).toHaveAttribute('aria-busy', 'true');
+    expect(btn).toHaveTextContent('Create account');
+  });
+
+  it('leaves a non-loading button available', () => {
+    render(<Button>Create account</Button>);
+    const btn = screen.getByRole('button');
+    expect(btn).toBeEnabled();
+    expect(btn).not.toHaveAttribute('aria-busy');
+  });
+});

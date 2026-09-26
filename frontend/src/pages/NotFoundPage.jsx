@@ -2,15 +2,10 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth, isRecruiter } from '../context/AuthContext';
 import Button from '../components/ui/Button';
 import { Compass } from 'lucide-react';
+import { centeredPage } from '../styles/shared';
 
 const styles = {
-  container: {
-    minHeight: '100vh',
-    display: 'grid',
-    placeItems: 'center',
-    background: 'var(--bg)',
-    padding: 20,
-  },
+  container: { ...centeredPage },
   card: {
     background: 'var(--surface)',
     border: '1px solid var(--line)',
@@ -26,7 +21,7 @@ const styles = {
     height: 64,
     borderRadius: 18,
     background: 'var(--coral-soft)',
-    color: 'var(--coral)',
+    color: 'var(--coral-ink)',
     display: 'grid',
     placeItems: 'center',
     margin: '0 auto 24px',

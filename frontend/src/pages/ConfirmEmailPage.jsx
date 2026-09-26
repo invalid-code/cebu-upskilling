@@ -4,15 +4,10 @@ import { CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import Button from '../components/ui/Button';
+import { centeredPage } from '../styles/shared';
 
 const styles = {
-  container: {
-    minHeight: '100vh',
-    display: 'grid',
-    placeItems: 'center',
-    background: 'var(--bg)',
-    padding: 20,
-  },
+  container: { ...centeredPage },
   card: {
     background: 'var(--surface)',
     border: '1px solid var(--line)',
@@ -55,7 +50,7 @@ const styles = {
   },
   error: {
     background: 'var(--coral-soft)',
-    color: 'rgb(110, 65, 45)',
+    color: 'var(--coral-ink)',
     padding: '10px 12px',
     borderRadius: 10,
     fontSize: 12,
@@ -73,7 +68,7 @@ const styles = {
     alignItems: 'center',
     gap: 10,
     justifyContent: 'center',
-    border: '1px solid rgba(26,107,90,0.14)',
+    border: '1px solid rgba(20,82,165,0.14)',
   },
   successIcon: {
     width: 32,

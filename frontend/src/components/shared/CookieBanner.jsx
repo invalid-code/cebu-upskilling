@@ -34,7 +34,7 @@ const styles = {
     height: 38,
     borderRadius: 12,
     background: 'var(--coral-soft)',
-    color: 'var(--coral)',
+    color: 'var(--coral-ink)',
     display: 'grid',
     placeItems: 'center',
     flexShrink: 0,

@@ -13,15 +13,13 @@ import { api } from '../api/client';
 import { TrendingUp, Shield, Target, Camera, Mic, Maximize, Check, AlertCircle, Loader2 } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import { ErrorCard } from '../components/ui/ErrorState';
+import { chipCoral, chipTeal, pageTitle } from '../styles/shared';
 
 const styles = {
   heading: {
     marginBottom: 28,
   },
-  h1: {
-    fontFamily: "'Space Grotesk', sans-serif",
-    fontSize: 'clamp(2rem, 4vw, 3.3rem)',
-  },
+  h1: { ...pageTitle },
   subtitle: {
     color: 'var(--muted)',
     margin: '8px 0 0',
@@ -51,16 +49,10 @@ const styles = {
     placeItems: 'center',
     flexShrink: 0,
   },
-  statIconTeal: {
-    background: 'var(--teal-soft)',
-    color: 'var(--teal)',
-  },
-  statIconCoral: {
-    background: 'var(--coral-soft)',
-    color: 'var(--coral)',
-  },
+  statIconTeal: { ...chipTeal },
+  statIconCoral: { ...chipCoral },
   statIconGood: {
-    background: 'rgb(210, 240, 220)',
+    background: 'var(--good-soft)',
     color: 'var(--good)',
   },
   statValue: {
@@ -220,7 +212,7 @@ const styles = {
     height: 48,
     borderRadius: '50%',
     background: 'var(--coral-soft)',
-    color: 'var(--coral)',
+    color: 'var(--coral-ink)',
     marginBottom: 14,
     animation: 'spin 1s linear infinite',
   },
@@ -271,7 +263,7 @@ const styles = {
     height: 56,
     borderRadius: '50%',
     background: 'var(--coral-soft)',
-    color: 'var(--coral)',
+    color: 'var(--coral-ink)',
     marginBottom: 14,
   },
   errorTitle: {

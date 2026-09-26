@@ -6,24 +6,14 @@ import JobPostForm from '../components/jobs/JobPostForm';
 import { useToast } from '../context/ToastContext';
 import Skeleton, { SkeletonStatus } from '../components/ui/Skeleton';
 import { api } from '../api/client';
+import { eyebrow, pageTitleCompact } from '../styles/shared';
 
 const styles = {
   heading: {
     marginBottom: 22,
   },
-  eyebrow: {
-    fontSize: 11,
-    textTransform: 'uppercase',
-    letterSpacing: '0.12em',
-    fontWeight: 700,
-    color: 'var(--coral)',
-    marginBottom: 12,
-  },
-  h1: {
-    fontFamily: "'Space Grotesk', sans-serif",
-    fontSize: 'clamp(1.8rem, 3.5vw, 2.8rem)',
-    margin: 0,
-  },
+  eyebrow: { ...eyebrow },
+  h1: { ...pageTitleCompact },
 };
 
 export default function EditJobPage() {

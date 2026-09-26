@@ -10,6 +10,7 @@ import { api } from '../api/client';
 import { useToast } from '../context/ToastContext';
 import { resolveFileUrl } from '../utils/fileUrl';
 import Skeleton, { SkeletonStatus } from '../components/ui/Skeleton';
+import { eyebrow, metaTextFlush, pageTitleCompact } from '../styles/shared';
 
 const styles = {
   heading: {
@@ -20,19 +21,8 @@ const styles = {
     marginBottom: 24,
     flexWrap: 'wrap',
   },
-  eyebrow: {
-    fontSize: 11,
-    textTransform: 'uppercase',
-    letterSpacing: '0.12em',
-    fontWeight: 700,
-    color: 'var(--coral)',
-    marginBottom: 12,
-  },
-  h1: {
-    fontFamily: "'Space Grotesk', sans-serif",
-    fontSize: 'clamp(1.8rem, 3.5vw, 2.8rem)',
-    margin: 0,
-  },
+  eyebrow: { ...eyebrow },
+  h1: { ...pageTitleCompact },
   list: {
     display: 'flex',
     flexDirection: 'column',
@@ -58,7 +48,7 @@ const styles = {
     fontSize: 15,
     fontWeight: 700,
     margin: 0,
-    color: 'var(--text, #1a2e28)',
+    color: 'var(--ink)',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
@@ -75,11 +65,7 @@ const styles = {
     textDecoration: 'underline',
     textUnderlineOffset: 3,
   },
-  meta: {
-    fontSize: 12,
-    color: 'var(--muted)',
-    margin: 0,
-  },
+  meta: { ...metaTextFlush },
   links: {
     display: 'flex',
     gap: 12,
@@ -163,11 +149,7 @@ const styles = {
     borderRadius: 10,
     background: 'var(--surface)',
   },
-  noDocs: {
-    fontSize: 12,
-    color: 'var(--muted)',
-    margin: 0,
-  },
+  noDocs: { ...metaTextFlush },
 };
 
 const statusOptions = ['applied', 'review', 'interview', 'hired', 'rejected'];

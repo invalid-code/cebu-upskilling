@@ -1,10 +1,6 @@
 import { AlertTriangle, RefreshCw, WifiOff } from 'lucide-react';
 
 const styles = {
-  wrap: {
-    textAlign: 'center',
-    padding: '28px 18px 22px',
-  },
   iconWrap: {
     width: 56,
     height: 56,
@@ -18,10 +14,6 @@ const styles = {
   iconWrapLarge: {
     width: 64,
     height: 64,
-  },
-  iconWrapMuted: {
-    background: 'var(--coral-soft)',
-    color: 'var(--coral)',
   },
   title: {
     fontFamily: "'Space Grotesk', sans-serif",
@@ -37,13 +29,6 @@ const styles = {
     maxWidth: 380,
     margin: '0 auto 16px',
   },
-  actions: {
-    display: 'flex',
-    gap: 8,
-    justifyContent: 'center',
-    flexWrap: 'wrap',
-    marginTop: 16,
-  },
   card: {
     position: 'relative',
     background: 'var(--surface)',
@@ -53,7 +38,7 @@ const styles = {
   },
   cardError: {
     background: 'linear-gradient(180deg, var(--danger-soft) 0%, var(--surface) 62%)',
-    borderColor: 'rgba(192,57,43,0.16)',
+    borderColor: 'rgba(183,54,41,0.16)',
   },
   banner: {
     display: 'flex',
@@ -61,7 +46,7 @@ const styles = {
     alignItems: 'flex-start',
     padding: '14px 14px',
     background: 'var(--danger-soft)',
-    border: '1px solid rgba(192,57,43,0.14)',
+    border: '1px solid rgba(183,54,41,0.14)',
     borderRadius: 12,
     color: 'var(--danger)',
   },
@@ -87,7 +72,7 @@ const styles = {
   },
   bannerDesc: {
     fontSize: 12,
-    color: 'rgb(110,65,45)',
+    color: 'var(--coral-ink)',
     lineHeight: 1.45,
     marginTop: 3,
   },
@@ -129,26 +114,6 @@ const styles = {
   },
 };
 
-export function InlineError({ title, description, icon: CustomIcon = AlertTriangle, onRetry, retryLabel = 'Try again' }) {
-  const Icon = CustomIcon;
-  return (
-    <div style={styles.wrap} role="alert" aria-live="assertive">
-      <div style={styles.iconWrap} aria-hidden="true">
-        <Icon size={26} />
-      </div>
-      {title && <h4 style={styles.title}>{title}</h4>}
-      {description && <p style={styles.description}>{description}</p>}
-      {onRetry && (
-        <div style={styles.actions}>
-          <button type="button" onClick={onRetry} style={styles.retryBtn}>
-            <RefreshCw size={14} /> {retryLabel}
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
 export function ErrorCard({ title, description, onRetry, retryLabel = 'Try again', icon: CustomIcon }) {
   const Icon = CustomIcon || WifiOff;
   return (
@@ -184,7 +149,7 @@ export function ErrorBanner({ title, description, onRetry, retryLabel = 'Retry',
           </button>
         )}
         {onDismiss && (
-          <button type="button" onClick={onDismiss} aria-label="Dismiss" style={{ width: 28, height: 28, borderRadius: 7, background: 'rgba(192,57,43,0.08)', color: 'var(--danger)', display: 'grid', placeItems: 'center', border: 0, cursor: 'pointer' }}>
+          <button type="button" onClick={onDismiss} aria-label="Dismiss" style={{ width: 28, height: 28, borderRadius: 7, background: 'rgba(183,54,41,0.08)', color: 'var(--danger)', display: 'grid', placeItems: 'center', border: 0, cursor: 'pointer' }}>
             ×
           </button>
         )}
@@ -202,16 +167,3 @@ export function FieldError({ children, id }) {
     </div>
   );
 }
-
-export function RateLimitBanner({ retryAfter, onRetry }) {
-  return (
-    <ErrorBanner
-      title="Too many requests"
-      description={retryAfter ? `Please wait ${retryAfter}s before trying again.` : 'You’ve hit the rate limit — please wait a moment and retry.'}
-      onRetry={onRetry}
-      retryLabel="Retry"
-    />
-  );
-}
-
-export default InlineError;

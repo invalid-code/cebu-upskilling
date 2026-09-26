@@ -279,6 +279,7 @@ export default function LandingPage() {
 
   return (
     <div className="landing-page">
+      <a className="skip-link" href="#top">Skip to content</a>
       <header className={`nav${navStuck ? ' stuck' : ''}${navOpen ? ' open' : ''}`} id="nav">
         <div className="shell nav__in">
           <a className="brand" href="#top" aria-label="Cebu Upskilling, home">

@@ -1,3 +1,5 @@
+import { Loader2 } from 'lucide-react';
+
 const variants = {
   primary: {
     background: 'var(--coral)',
@@ -28,14 +30,24 @@ const base = {
   cursor: 'pointer',
 };
 
-export default function Button({ variant = 'primary', children, style, ...props }) {
+const disabledStyle = {
+  opacity: 0.62,
+  cursor: 'not-allowed',
+  transform: 'none',
+};
+
+export default function Button({ variant = 'primary', children, style, loading = false, ...props }) {
+  const isDisabled = loading || props.disabled;
   return (
     <button
-      style={{ ...base, ...variants[variant], ...style }}
-      onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-1px)'; }}
-      onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; }}
       {...props}
+      disabled={isDisabled}
+      aria-busy={loading || undefined}
+      style={{ ...base, ...variants[variant], ...(isDisabled ? disabledStyle : {}), ...style }}
+      onMouseEnter={(e) => { if (!isDisabled) e.currentTarget.style.transform = 'translateY(-1px)'; }}
+      onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; }}
     >
+      {loading && <Loader2 size={14} aria-hidden="true" style={{ animation: 'spin 0.9s linear infinite' }} />}
       {children}
     </button>
   );

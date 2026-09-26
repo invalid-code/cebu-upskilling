@@ -7,32 +7,16 @@ import StatCard from '../components/shared/StatCard';
 import CourseCard from '../components/shared/CourseCard';
 import SkillGapItem from '../components/shared/SkillGapItem';
 import Skeleton, { SkeletonCard, SkeletonStat, SkeletonStatus } from '../components/ui/Skeleton';
-import { useAuth, isRecruiter } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext';
 import { useApplications } from '../context/ApplicationsContext';
-import EmployerOverviewPage from './EmployerOverviewPage';
 import { api } from '../api/client';
 import { ArrowUpRight, Check, Clock, BookOpen, Send } from 'lucide-react';
+import { eyebrow, headingRow, pageTitle } from '../styles/shared';
 
 const styles = {
-  heading: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'end',
-    gap: 22,
-    marginBottom: 28,
-  },
-  eyebrow: {
-    fontSize: 11,
-    textTransform: 'uppercase',
-    letterSpacing: '0.12em',
-    fontWeight: 700,
-    color: 'var(--coral)',
-    marginBottom: 12,
-  },
-  h1: {
-    fontFamily: "'Space Grotesk', sans-serif",
-    fontSize: 'clamp(2rem, 4vw, 3.3rem)',
-  },
+  heading: { ...headingRow },
+  eyebrow: { ...eyebrow },
+  h1: { ...pageTitle },
   subtitle: {
     color: 'var(--muted)',
     margin: '8px 0 0',
@@ -63,7 +47,7 @@ const styles = {
     zIndex: 1,
   },
   heroP: {
-    color: 'rgba(225, 240, 235, 0.90)',
+    color: 'rgba(233, 241, 253, 0.90)',
     maxWidth: 590,
     position: 'relative',
     zIndex: 1,
@@ -225,8 +209,6 @@ function formatLastCalculated(date) {
 }
 
 export default function OverviewPage() {
-  const { user } = useAuth();
-  if (isRecruiter(user)) return <EmployerOverviewPage />;
   return <LearnerOverview />;
 }
 

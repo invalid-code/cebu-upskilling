@@ -15,6 +15,6 @@ describe('Tag', () => {
 
   it('applies a custom variant', () => {
     render(<Tag variant="good">Verified</Tag>);
-    expect(screen.getByText('Verified')).toHaveStyle({ background: 'rgb(210, 240, 220)' });
+    expect(screen.getByText('Verified')).toHaveStyle({ background: 'var(--good-soft)' });
   });
 });

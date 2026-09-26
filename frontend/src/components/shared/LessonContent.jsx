@@ -43,7 +43,7 @@ const styles = {
     marginBottom: 12,
   },
   codeBlock: {
-    background: '#1a2e27',
+    background: 'var(--ink)',
     borderRadius: 12,
     overflow: 'hidden',
     marginBottom: 20,
@@ -66,7 +66,7 @@ const styles = {
     fontSize: 13,
     lineHeight: 1.6,
     fontFamily: 'monospace',
-    color: '#e8f0ee',
+    color: 'var(--bg)',
     overflowX: 'auto',
   },
 

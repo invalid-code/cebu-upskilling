@@ -1,8 +1,10 @@
-import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { render, screen, fireEvent, cleanup, act, within } from '@testing-library/react';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { AuthProvider } from '../../context/AuthContext';
 import { ToastProvider } from '../../context/ToastContext';
+import { useNotificationStore } from '../../stores/notificationStore';
+import { useToastStore } from '../../stores/toastStore';
 import Topbar from './Topbar';
 
 function renderTopbar(path, user) {
@@ -20,6 +22,16 @@ function renderTopbar(path, user) {
 }
 
 describe('Topbar', () => {
+  beforeEach(() => {
+    useNotificationStore.getState()._reset();
+    useToastStore.getState()._reset();
+  });
+
+  afterEach(() => {
+    cleanup();
+    localStorage.clear();
+  });
+
   it('shows the learner crumb with the current route label', () => {
     renderTopbar('/skills', { firstName: 'Juan', role: 'Learner' });
 
@@ -49,19 +61,49 @@ describe('Topbar', () => {
     expect(screen.getByRole('link', { name: 'Open profile' })).toHaveTextContent('JC');
   });
 
-  it('shows a toast when Search is clicked', () => {
+  it('opens the notifications panel with an empty state', () => {
     renderTopbar('/', { firstName: 'Juan', role: 'Learner' });
+    const bell = screen.getByRole('button', { name: 'Notifications' });
+    expect(bell).toHaveAttribute('aria-expanded', 'false');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+    fireEvent.click(bell);
 
-    expect(screen.getByText('Search coming soon')).toBeInTheDocument();
+    expect(bell).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('region', { name: 'Notifications' })).toBeInTheDocument();
+    expect(screen.getByText('No notifications yet')).toBeInTheDocument();
   });
 
-  it('shows a toast when Notifications is clicked', () => {
+  it('shows unread count on the bell and marks everything read when opened', () => {
     renderTopbar('/', { firstName: 'Juan', role: 'Learner' });
+    act(() => {
+      useToastStore.getState().showToast('Application sent', 'success');
+      useToastStore.getState().showToast('Upload failed', 'error');
+    });
+
+    expect(screen.getByRole('button', { name: 'Notifications (2 unread)' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Notifications (2 unread)' }));
+
+    expect(screen.getByRole('button', { name: 'Notifications' })).toBeInTheDocument();
+    const panel = screen.getByRole('region', { name: 'Notifications' });
+    expect(within(panel).getByText('Application sent')).toBeInTheDocument();
+    expect(within(panel).getByText('Upload failed')).toBeInTheDocument();
+  });
+
+  it('closes the panel on Escape and clears the feed', () => {
+    renderTopbar('/', { firstName: 'Juan', role: 'Learner' });
+    act(() => {
+      useToastStore.getState().showToast('Saved', 'success');
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Notifications (1 unread)' }));
+    expect(screen.getByRole('region', { name: 'Notifications' })).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('region', { name: 'Notifications' })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Notifications' }));
-
-    expect(screen.getByText('No new notifications')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Clear all' }));
+    expect(screen.getByText('No notifications yet')).toBeInTheDocument();
   });
 });

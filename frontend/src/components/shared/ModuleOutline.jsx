@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Play, CheckCircle, Circle, Clock, ChevronDown } from 'lucide-react';
+import { chipTeal } from '../../styles/shared';
 
 const styles = {
   container: {
@@ -62,10 +63,7 @@ const styles = {
     textAlign: 'left',
     cursor: 'pointer',
   },
-  dropdownItemSelected: {
-    background: 'var(--teal-soft)',
-    color: 'var(--teal)',
-  },
+  dropdownItemSelected: { ...chipTeal },
   progressCard: {
     margin: 12,
     padding: '14px 16px',
@@ -134,7 +132,8 @@ const styles = {
     color: 'var(--surface)',
   },
   lessonIconPending: {
-    background: 'var(--line)',
+    background: 'var(--surface2)',
+    border: '1px solid var(--line)',
     color: 'var(--muted)',
   },
   lessonInfo: {

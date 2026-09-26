@@ -8,24 +8,11 @@ import Button from '../components/ui/Button';
 import GoogleSignInButton from '../components/GoogleSignInButton';
 import PasswordField from '../components/ui/PasswordField';
 import { pollForParsedSkills } from '../lib/parsePolling';
+import { authStyles, authSubtitle, centeredPage } from '../styles/shared';
 
 const styles = {
-  container: {
-    minHeight: '100vh',
-    display: 'grid',
-    placeItems: 'center',
-    background: 'var(--bg)',
-    padding: 20,
-  },
-  card: {
-    background: 'var(--surface)',
-    border: '1px solid var(--line)',
-    borderRadius: 18,
-    padding: 32,
-    width: '100%',
-    maxWidth: 400,
-    boxShadow: 'var(--shadow)',
-  },
+  container: { ...centeredPage },
+  card: { ...authStyles.card },
   brand: {
     display: 'flex',
     gap: 10,
@@ -33,30 +20,9 @@ const styles = {
     marginBottom: 28,
     justifyContent: 'center',
   },
-  mark: {
-    width: 40,
-    height: 40,
-    borderRadius: 11,
-    background: 'var(--coral)',
-    display: 'grid',
-    placeItems: 'center',
-    color: 'var(--surface)',
-    fontFamily: "'Space Grotesk', sans-serif",
-    fontWeight: 700,
-    fontSize: 18,
-  },
-  title: {
-    fontSize: 22,
-    fontFamily: "'Space Grotesk', sans-serif",
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 13,
-    color: 'var(--muted)',
-    textAlign: 'center',
-    marginBottom: 24,
-  },
+  mark: { ...authStyles.mark },
+  title: { ...authStyles.title },
+  subtitle: { ...authSubtitle },
   field: {
     width: '100%',
     background: 'var(--surface)',
@@ -68,12 +34,6 @@ const styles = {
     marginBottom: 4,
     fontSize: 14,
     boxSizing: 'border-box',
-  },
-  fieldLabel: {
-    display: 'block',
-    fontSize: 12,
-    color: 'var(--muted)',
-    marginBottom: 6,
   },
   fieldHint: {
     fontSize: 12,
@@ -97,26 +57,9 @@ const styles = {
     gridTemplateColumns: '1fr 1fr',
     gap: 12,
   },
-  fieldError: {
-    color: 'rgb(190, 60, 50)',
-    fontSize: 12,
-    marginBottom: 12,
-    marginTop: 2,
-  },
-  error: {
-    background: 'var(--coral-soft)',
-    color: 'rgb(110, 65, 45)',
-    padding: '10px 12px',
-    borderRadius: 10,
-    fontSize: 12,
-    marginBottom: 12,
-  },
-  link: {
-    textAlign: 'center',
-    marginTop: 16,
-    fontSize: 13,
-    color: 'var(--muted)',
-  },
+  fieldError: { ...authStyles.fieldError },
+  error: { ...authStyles.error },
+  link: { ...authStyles.link },
   roleToggle: {
     display: 'flex',
     gap: 6,
@@ -136,7 +79,7 @@ const styles = {
   },
   roleButtonActive: {
     background: 'var(--coral-soft)',
-    color: 'rgb(110, 65, 45)',
+    color: 'var(--coral-ink)',
   },
 };
 
@@ -389,7 +332,9 @@ export default function RegisterPage() {
         <form onSubmit={handleSubmit} noValidate>
           {role === 'recruiter' && (
             <>
+              <label htmlFor="register-company-name" style={authStyles.label}>Company name</label>
               <input
+                id="register-company-name"
                 style={{ ...styles.field, borderColor: fieldErrors.companyName ? 'var(--danger)' : 'var(--line)', background: fieldErrors.companyName ? 'var(--danger-soft)' : 'var(--surface)' }}
                 placeholder="Company name"
                 value={form.companyName}
@@ -400,7 +345,9 @@ export default function RegisterPage() {
               {fieldErrors.companyName && <FieldError id="company-error">{fieldErrors.companyName}</FieldError>}
               <div style={{ ...styles.row, marginTop: 8 }}>
                 <div>
+                  <label htmlFor="register-company-industry" style={authStyles.label}>Industry (optional)</label>
                   <input
+                    id="register-company-industry"
                     style={styles.field}
                     placeholder="Industry (optional)"
                     value={form.companyIndustry}
@@ -408,7 +355,9 @@ export default function RegisterPage() {
                   />
                 </div>
                 <div>
+                  <label htmlFor="register-company-size" style={authStyles.label}>Company size</label>
                   <select
+                    id="register-company-size"
                     style={styles.field}
                     value={form.companySize}
                     onChange={update('companySize')}
@@ -423,7 +372,9 @@ export default function RegisterPage() {
               </div>
               <div style={styles.row}>
                 <div>
+                  <label htmlFor="register-company-website" style={authStyles.label}>Website (optional)</label>
                   <input
+                    id="register-company-website"
                     style={styles.field}
                     type="url"
                     placeholder="Website (optional)"
@@ -434,7 +385,9 @@ export default function RegisterPage() {
                   {fieldErrors.companyWebsite && <FieldError id="company-website-error">{fieldErrors.companyWebsite}</FieldError>}
                 </div>
                 <div>
+                  <label htmlFor="register-company-location" style={authStyles.label}>Location (optional)</label>
                   <input
+                    id="register-company-location"
                     style={styles.field}
                     placeholder="Location (optional)"
                     value={form.companyLocation}
@@ -442,7 +395,9 @@ export default function RegisterPage() {
                   />
                 </div>
               </div>
+              <label htmlFor="register-company-description" style={authStyles.label}>About your company (optional)</label>
               <textarea
+                id="register-company-description"
                 style={{ ...styles.field, minHeight: 70, resize: 'vertical', fontFamily: 'inherit' }}
                 maxLength={2000}
                 placeholder="About your company (optional) — what you do and why candidates should join"
@@ -454,7 +409,9 @@ export default function RegisterPage() {
           )}
           <div style={styles.row}>
             <div>
+              <label htmlFor="register-first-name" style={authStyles.label}>First name</label>
               <input
+                id="register-first-name"
                 style={{ ...styles.field, borderColor: fieldErrors.firstName ? 'var(--danger)' : 'var(--line)', background: fieldErrors.firstName ? 'var(--danger-soft)' : 'var(--surface)' }}
                 placeholder="First name"
                 value={form.firstName}
@@ -464,7 +421,9 @@ export default function RegisterPage() {
               {fieldErrors.firstName && <FieldError>{fieldErrors.firstName}</FieldError>}
             </div>
             <div>
+              <label htmlFor="register-last-name" style={authStyles.label}>Last name</label>
               <input
+                id="register-last-name"
                 style={{ ...styles.field, borderColor: fieldErrors.lastName ? 'var(--danger)' : 'var(--line)', background: fieldErrors.lastName ? 'var(--danger-soft)' : 'var(--surface)' }}
                 placeholder="Last name"
                 value={form.lastName}
@@ -474,7 +433,9 @@ export default function RegisterPage() {
               {fieldErrors.lastName && <FieldError>{fieldErrors.lastName}</FieldError>}
             </div>
           </div>
+          <label htmlFor="register-email" style={authStyles.label}>Email address</label>
           <input
+            id="register-email"
             style={{ ...styles.field, borderColor: fieldErrors.emailAddress ? 'var(--danger)' : 'var(--line)', background: fieldErrors.emailAddress ? 'var(--danger-soft)' : 'var(--surface)' }}
             type="email"
             placeholder="Email address"
@@ -483,7 +444,9 @@ export default function RegisterPage() {
             aria-invalid={!!fieldErrors.emailAddress}
           />
           {fieldErrors.emailAddress && <FieldError>{fieldErrors.emailAddress}</FieldError>}
+          <label htmlFor="register-password" style={authStyles.label}>Password</label>
           <PasswordField
+            id="register-password"
             style={{ ...styles.field, borderColor: fieldErrors.password ? 'var(--danger)' : 'var(--line)', background: fieldErrors.password ? 'var(--danger-soft)' : 'var(--surface)' }}
             placeholder="Password"
             value={form.password}
@@ -492,7 +455,9 @@ export default function RegisterPage() {
             aria-invalid={!!fieldErrors.password}
           />
           {fieldErrors.password && <FieldError>{fieldErrors.password}</FieldError>}
+          <label htmlFor="register-confirm-password" style={authStyles.label}>Confirm password</label>
           <PasswordField
+            id="register-confirm-password"
             style={{ ...styles.field, borderColor: fieldErrors.confirmPassword ? 'var(--danger)' : 'var(--line)', background: fieldErrors.confirmPassword ? 'var(--danger-soft)' : 'var(--surface)' }}
             placeholder="Confirm password"
             value={confirmPassword}
@@ -504,7 +469,7 @@ export default function RegisterPage() {
           {role === 'learner' && (
             <>
               <div>
-                <label style={styles.fieldLabel} htmlFor="birthday">
+                <label style={authStyles.label} htmlFor="birthday">
                   Birthday
                 </label>
                 <input
@@ -523,13 +488,17 @@ export default function RegisterPage() {
                 </div>
                 {fieldErrors.birthday && <FieldError id="birthday-error">{fieldErrors.birthday}</FieldError>}
               </div>
+              <label htmlFor="register-address" style={authStyles.label}>Address (optional)</label>
               <input
+                id="register-address"
                 style={styles.field}
                 placeholder="Address (optional)"
                 value={form.address}
                 onChange={update('address')}
               />
+              <label htmlFor="register-resume" style={authStyles.label}>Resume (optional)</label>
               <input
+                id="register-resume"
                 style={styles.fileInput}
                 type="file"
                 accept=".pdf,.docx"
@@ -541,9 +510,9 @@ export default function RegisterPage() {
           <Button
             variant="primary"
             style={{ width: '100%', marginTop: 8 }}
-            disabled={loading}
+            loading={loading}
           >
-            {loading ? 'Creating account...' : 'Create account'}
+            Create account
           </Button>
         </form>
 

@@ -10,11 +10,12 @@ import { ErrorCard } from '../components/ui/ErrorState';
 import Skeleton, { SkeletonStat, SkeletonStatus, SkeletonText } from '../components/ui/Skeleton';
 import { api } from '../api/client';
 import { useToast } from '../context/ToastContext';
+import { eyebrow, pageTitle } from '../styles/shared';
 
 const styles = {
   heading: { display: 'flex', justifyContent: 'space-between', alignItems: 'end', gap: 18, marginBottom: 28 },
-  eyebrow: { fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.12em', fontWeight: 700, color: 'var(--coral)', marginBottom: 12 },
-  h1: { fontFamily: "'Space Grotesk', sans-serif", fontSize: 'clamp(2rem, 4vw, 3.3rem)' },
+  eyebrow: { ...eyebrow },
+  h1: { ...pageTitle },
   date: { fontSize: 13, color: 'var(--muted)', margin: 0 },
   statGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 18 },
   section: { marginTop: 28 },

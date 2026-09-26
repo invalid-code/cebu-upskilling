@@ -53,9 +53,6 @@ const appStyles = {
     padding: '42px clamp(20px, 4vw, 56px) 90px',
     maxWidth: 1450,
   },
-  mobileOnly: {
-    display: 'none',
-  },
 };
 
 function ProtectedRoute() {
@@ -64,8 +61,9 @@ function ProtectedRoute() {
   if (!user) return <Navigate to="/login" replace />;
   return (
     <div className="app-shell" style={appStyles.app}>
+      <a className="skip-link" href="#main-content">Skip to content</a>
       <Sidebar />
-      <main style={appStyles.main}>
+      <main id="main-content" tabIndex={-1} style={appStyles.main}>
         <Topbar />
         <div className="page-content" style={appStyles.content}>
           <Outlet />

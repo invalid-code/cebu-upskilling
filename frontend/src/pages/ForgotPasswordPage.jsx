@@ -6,24 +6,11 @@ import { useToast } from '../context/ToastContext';
 import { validateEmail } from '../utils/validation';
 import { ErrorBanner, FieldError } from '../components/ui/ErrorState';
 import Button from '../components/ui/Button';
+import { authStyles, centeredPage } from '../styles/shared';
 
 const styles = {
-  container: {
-    minHeight: '100vh',
-    display: 'grid',
-    placeItems: 'center',
-    background: 'var(--bg)',
-    padding: 20,
-  },
-  card: {
-    background: 'var(--surface)',
-    border: '1px solid var(--line)',
-    borderRadius: 18,
-    padding: 32,
-    width: '100%',
-    maxWidth: 400,
-    boxShadow: 'var(--shadow)',
-  },
+  container: { ...centeredPage },
+  card: { ...authStyles.card },
   brand: {
     display: 'flex',
     gap: 10,
@@ -31,24 +18,8 @@ const styles = {
     marginBottom: 24,
     justifyContent: 'center',
   },
-  mark: {
-    width: 40,
-    height: 40,
-    borderRadius: 11,
-    background: 'var(--coral)',
-    display: 'grid',
-    placeItems: 'center',
-    color: 'var(--surface)',
-    fontFamily: "'Space Grotesk', sans-serif",
-    fontWeight: 700,
-    fontSize: 18,
-  },
-  title: {
-    fontSize: 22,
-    fontFamily: "'Space Grotesk', sans-serif",
-    textAlign: 'center',
-    marginBottom: 4,
-  },
+  mark: { ...authStyles.mark },
+  title: { ...authStyles.title },
   subtitle: {
     fontSize: 13,
     color: 'var(--muted)',
@@ -56,31 +27,9 @@ const styles = {
     marginBottom: 24,
     lineHeight: 1.5,
   },
-  field: {
-    width: '100%',
-    background: 'var(--surface)',
-    border: '1px solid var(--line)',
-    borderRadius: 10,
-    minHeight: 42,
-    padding: '9px 12px',
-    color: 'var(--ink)',
-    marginBottom: 4,
-    fontSize: 14,
-  },
-  fieldError: {
-    color: 'rgb(190, 60, 50)',
-    fontSize: 12,
-    marginBottom: 12,
-    marginTop: 2,
-  },
-  error: {
-    background: 'var(--coral-soft)',
-    color: 'rgb(110, 65, 45)',
-    padding: '10px 12px',
-    borderRadius: 10,
-    fontSize: 12,
-    marginBottom: 12,
-  },
+  field: { ...authStyles.field },
+  fieldError: { ...authStyles.fieldError },
+  error: { ...authStyles.error },
   success: {
     background: 'var(--teal-soft)',
     color: 'var(--teal)',
@@ -92,7 +41,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: 10,
-    border: '1px solid rgba(26,107,90,0.14)',
+    border: '1px solid rgba(20,82,165,0.14)',
   },
   successIcon: {
     width: 30,
@@ -104,12 +53,7 @@ const styles = {
     placeItems: 'center',
     flexShrink: 0,
   },
-  link: {
-    textAlign: 'center',
-    marginTop: 16,
-    fontSize: 13,
-    color: 'var(--muted)',
-  },
+  link: { ...authStyles.link },
 };
 
 export default function ForgotPasswordPage() {
@@ -172,7 +116,9 @@ export default function ForgotPasswordPage() {
         ) : (
           <form onSubmit={handleSubmit} noValidate>
             {error && <ErrorBanner title="Couldn’t send reset link" description={error} onDismiss={() => setError('')} />}
+            <label htmlFor="forgot-email" style={authStyles.label}>Email address</label>
             <input
+              id="forgot-email"
               style={{ ...styles.field, borderColor: fieldError ? 'var(--danger)' : 'var(--line)', background: fieldError ? 'var(--danger-soft)' : 'var(--surface)' }}
               type="email"
               placeholder="Email address"
@@ -188,9 +134,9 @@ export default function ForgotPasswordPage() {
             <Button
               variant="primary"
               style={{ width: '100%', marginTop: 8 }}
-              disabled={loading}
+              loading={loading}
             >
-              {loading ? 'Sending…' : 'Send reset link'}
+              Send reset link
             </Button>
           </form>
         )}

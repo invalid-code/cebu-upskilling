@@ -28,7 +28,7 @@ const styles = {
     paddingRight: 2,
   },
   post: {
-    background: 'var(--bg, #fafafa)',
+    background: 'var(--bg)',
     border: '1px solid var(--line)',
     borderRadius: 12,
     padding: '12px 14px',
@@ -113,7 +113,7 @@ const styles = {
   },
   errorText: {
     fontSize: 12,
-    color: '#dc2626',
+    color: 'var(--danger)',
   },
 };
 

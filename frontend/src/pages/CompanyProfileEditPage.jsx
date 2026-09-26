@@ -7,6 +7,7 @@ import Skeleton, { SkeletonStatus } from '../components/ui/Skeleton';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { eyebrow } from '../styles/shared';
 
 const COMPANY_SIZES = ['1-10', '11-50', '51-200', '201+'];
 
@@ -19,14 +20,7 @@ const styles = {
     flexWrap: 'wrap',
     marginBottom: 24,
   },
-  eyebrow: {
-    fontSize: 11,
-    textTransform: 'uppercase',
-    letterSpacing: '0.12em',
-    fontWeight: 700,
-    color: 'var(--coral)',
-    marginBottom: 12,
-  },
+  eyebrow: { ...eyebrow },
   h1: {
     fontFamily: "'Space Grotesk', sans-serif",
     fontSize: 'clamp(1.8rem, 3.5vw, 2.6rem)',

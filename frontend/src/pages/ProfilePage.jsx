@@ -104,7 +104,7 @@ export default function ProfilePage() {
   };
 
   return (
-    <main style={{ display: 'grid', gap: 24 }}>
+    <div style={{ display: 'grid', gap: 24 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
         <button type="button" onClick={handleBack} aria-label="Go back" style={{ color: 'var(--muted)', display: 'grid', placeItems: 'center', background: 'transparent', border: 'none', cursor: 'pointer', padding: 4 }}><ArrowLeft size={18} /></button>
         <div>
@@ -118,9 +118,9 @@ export default function ProfilePage() {
           <div>
             <div style={{ width: 66, height: 66, borderRadius: '50%', background: 'var(--sand)', color: 'var(--teal)', display: 'grid', placeItems: 'center', fontSize: 22, fontWeight: 800, marginBottom: 24 }}>{initials || 'U'}</div>
             <h2 style={{ margin: 0, fontFamily: "'Space Grotesk', sans-serif", fontSize: 25 }}>{fullName}</h2>
-            <p style={{ margin: '7px 0 0', color: 'rgba(245,250,248,.72)', fontSize: 13 }}>{user?.emailAddress}</p>
+            <p style={{ margin: '7px 0 0', color: 'rgba(255,255,255,.9)', fontSize: 13 }}>{user?.emailAddress}</p>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'rgba(245,250,248,.8)', fontSize: 12 }}><Check size={15} /> {user?.role || 'Learner'} account</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'rgba(255,255,255,.9)', fontSize: 12 }}><Check size={15} /> {user?.role || 'Learner'} account</div>
         </Panel>
 
         <Panel>
@@ -186,7 +186,7 @@ export default function ProfilePage() {
         </form>
       </Panel>
       <p style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--muted)', fontSize: 12, margin: 0 }}><MapPin size={15} /> Your profile powers your skill and job recommendations.</p>
-    </main>
+    </div>
   );
 }
 

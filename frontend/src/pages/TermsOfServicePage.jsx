@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { ArrowLeft, Scale } from 'lucide-react';
 import Panel from '../components/ui/Panel';
 import Footer from '../components/Layout/Footer';
+import { metaTextFlush } from '../styles/shared';
 
 const styles = {
   page: {
@@ -45,16 +46,12 @@ const styles = {
   draftBadge: {
     fontSize: 11,
     fontWeight: 700,
-    color: 'var(--coral)',
+    color: 'var(--coral-ink)',
     background: 'var(--coral-soft)',
     borderRadius: 999,
     padding: '3px 10px',
   },
-  updated: {
-    fontSize: 12,
-    color: 'var(--muted)',
-    margin: 0,
-  },
+  updated: { ...metaTextFlush },
   intro: {
     margin: '18px 0 26px',
     fontSize: 14,

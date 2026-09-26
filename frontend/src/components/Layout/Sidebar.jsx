@@ -38,7 +38,7 @@ const providerNav = [
 const styles = {
   rail: {
     background: 'var(--teal)',
-    color: 'rgba(245, 250, 248, 0.96)',
+    color: 'rgba(255, 255, 255, 0.96)',
     padding: '24px 16px',
     position: 'sticky',
     top: 0,
@@ -75,13 +75,13 @@ const styles = {
   brandSub: {
     display: 'block',
     fontSize: 11,
-    color: 'rgba(200, 225, 218, 0.83)',
+    color: 'rgba(233, 241, 253, 0.83)',
   },
   navLabel: {
     fontSize: 10,
     letterSpacing: '0.13em',
     textTransform: 'uppercase',
-    color: 'rgba(200, 225, 218, 0.76)',
+    color: 'rgba(233, 241, 253, 0.76)',
     margin: '14px 10px 7px',
   },
   nav: {
@@ -89,7 +89,7 @@ const styles = {
     gap: 4,
   },
   navLink: {
-    color: 'rgba(225, 240, 235, 0.88)',
+    color: 'rgba(233, 241, 253, 0.88)',
     padding: 10,
     borderRadius: 10,
     textAlign: 'left',
@@ -102,7 +102,7 @@ const styles = {
   },
   account: {
     marginTop: 'auto',
-    borderTop: '1px solid rgba(230, 245, 238, 0.16)',
+    borderTop: '1px solid rgba(255, 255, 255, 0.16)',
     padding: '16px 8px 0',
     display: 'flex',
     gap: 10,
@@ -126,13 +126,13 @@ const styles = {
   },
    userRole: {
      display: 'block',
-     color: 'rgba(200, 225, 218, 0.80)',
+     color: 'rgba(233, 241, 253, 0.80)',
      fontSize: 11,
    },
    logoutBtn: {
      background: 'transparent',
      border: 0,
-     color: 'rgba(200, 225, 218, 0.60)',
+     color: 'rgba(233, 241, 253, 0.75)',
      cursor: 'pointer',
      padding: 4,
      borderRadius: 8,
@@ -150,8 +150,8 @@ function NavItem({ to, icon: Icon, label }) {
       end={to === '/dashboard'}
       style={({ isActive }) => ({
         ...styles.navLink,
-        background: isActive ? 'rgba(30, 100, 80, 0.48)' : 'transparent',
-        color: isActive ? 'var(--surface)' : 'rgba(225, 240, 235, 0.88)',
+        background: isActive ? 'rgba(10, 53, 112, 0.48)' : 'transparent',
+        color: isActive ? 'var(--surface)' : 'rgba(233, 241, 253, 0.88)',
       })}
     >
       <Icon size={16} />

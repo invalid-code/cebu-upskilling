@@ -1,3 +1,4 @@
+import { metaText } from '../../styles/shared';
 const styles = {
   stat: {
     display: 'flex',
@@ -15,10 +16,7 @@ const styles = {
     color: 'var(--teal)',
     display: 'block',
   },
-  label: {
-    fontSize: 12,
-    color: 'var(--muted)',
-  },
+  label: { ...metaText },
 };
 
 export default function StatCard({ value, label, icon: Icon }) {

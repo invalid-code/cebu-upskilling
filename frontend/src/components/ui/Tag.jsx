@@ -1,18 +1,16 @@
+import { chipTeal } from '../../styles/shared';
 const variants = {
-  default: {
-    background: 'var(--teal-soft)',
-    color: 'var(--teal)',
-  },
+  default: { ...chipTeal },
   coral: {
     background: 'var(--coral-soft)',
-    color: 'rgb(110, 65, 45)',
+    color: 'var(--coral-ink)',
   },
   sand: {
     background: 'var(--sand)',
-    color: 'rgb(100, 85, 50)',
+    color: 'var(--sand-ink)',
   },
   good: {
-    background: 'rgb(210, 240, 220)',
+    background: 'var(--good-soft)',
     color: 'var(--good)',
   },
 };

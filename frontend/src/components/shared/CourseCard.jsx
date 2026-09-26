@@ -6,6 +6,7 @@ import { useToast } from '../../context/ToastContext';
 import { useEnrollments } from '../../context/EnrollmentsContext';
 import { api } from '../../api/client';
 import { Play, Check, Code, BookOpen, Users, Clock, Award } from 'lucide-react';
+import { chipCoral, chipTeal, metaText } from '../../styles/shared';
 
 const styles = {
   card: {
@@ -32,21 +33,15 @@ const styles = {
     fontSize: 20,
     fontWeight: 700,
   },
-  iconCode: {
-    background: 'var(--coral-soft)',
-    color: 'var(--coral)',
-  },
-  iconTeal: {
-    background: 'var(--teal-soft)',
-    color: 'var(--teal)',
-  },
+  iconCode: { ...chipCoral },
+  iconTeal: { ...chipTeal },
   iconGreen: {
-    background: 'rgb(210, 240, 220)',
+    background: 'var(--good-soft)',
     color: 'var(--good)',
   },
   iconPurple: {
-    background: '#e8dff0',
-    color: '#7c3aed',
+    background: 'var(--violet-soft)',
+    color: 'var(--violet)',
   },
   tags: {
     display: 'flex',
@@ -99,10 +94,7 @@ const styles = {
     alignItems: 'center',
     marginBottom: 6,
   },
-  progressLabel: {
-    fontSize: 12,
-    color: 'var(--muted)',
-  },
+  progressLabel: { ...metaText },
   progressPercent: {
     fontSize: 12,
     fontWeight: 700,

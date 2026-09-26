@@ -7,32 +7,13 @@ import { SkeletonCard, SkeletonStatus } from '../components/ui/Skeleton';
 import { api } from '../api/client';
 import { useToast } from '../context/ToastContext';
 import { BellPlus } from 'lucide-react';
+import { eyebrow, headingRow, metaText, pageSubtitle, pageTitle } from '../styles/shared';
 
 const styles = {
-  heading: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'end',
-    gap: 22,
-    marginBottom: 28,
-  },
-  eyebrow: {
-    fontSize: 11,
-    textTransform: 'uppercase',
-    letterSpacing: '0.12em',
-    fontWeight: 700,
-    color: 'var(--coral)',
-    marginBottom: 12,
-  },
-  h1: {
-    fontFamily: "'Space Grotesk', sans-serif",
-    fontSize: 'clamp(2rem, 4vw, 3.3rem)',
-  },
-  subtitle: {
-    color: 'var(--muted)',
-    margin: '8px 0 0',
-    maxWidth: 450,
-  },
+  heading: { ...headingRow },
+  eyebrow: { ...eyebrow },
+  h1: { ...pageTitle },
+  subtitle: { ...pageSubtitle },
   toolbar: {
     display: 'flex',
     gap: 10,
@@ -69,10 +50,7 @@ const styles = {
     gap: 14,
     marginTop: 24,
   },
-  pagerInfo: {
-    fontSize: 12,
-    color: 'var(--muted)',
-  },
+  pagerInfo: { ...metaText },
   pagerButton: {
     minHeight: 34,
     padding: '6px 14px',

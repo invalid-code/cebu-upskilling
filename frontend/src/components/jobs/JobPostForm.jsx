@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Button from '../ui/Button';
 import { api } from '../../api/client';
 import { ErrorBanner, FieldError } from '../ui/ErrorState';
+import { metaTextFlush } from '../../styles/shared';
 
 const styles = {
   form: {
@@ -69,11 +70,7 @@ const styles = {
     gap: 10,
     flexWrap: 'wrap',
   },
-  aiNote: {
-    fontSize: 12,
-    color: 'var(--muted)',
-    margin: 0,
-  },
+  aiNote: { ...metaTextFlush },
   error: {
     color: 'var(--coral)',
     fontSize: 13,

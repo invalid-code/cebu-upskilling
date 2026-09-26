@@ -1,31 +1,12 @@
 import Panel from '../components/ui/Panel';
 import EmptyState from '../components/shared/EmptyState';
+import { eyebrow, headingRow, pageSubtitle, pageTitle } from '../styles/shared';
 
 const styles = {
-  heading: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'end',
-    gap: 22,
-    marginBottom: 28,
-  },
-  eyebrow: {
-    fontSize: 11,
-    textTransform: 'uppercase',
-    letterSpacing: '0.12em',
-    fontWeight: 700,
-    color: 'var(--coral)',
-    marginBottom: 12,
-  },
-  h1: {
-    fontFamily: "'Space Grotesk', sans-serif",
-    fontSize: 'clamp(2rem, 4vw, 3.3rem)',
-  },
-  subtitle: {
-    color: 'var(--muted)',
-    margin: '8px 0 0',
-    maxWidth: 450,
-  },
+  heading: { ...headingRow },
+  eyebrow: { ...eyebrow },
+  h1: { ...pageTitle },
+  subtitle: { ...pageSubtitle },
 };
 
 export default function CredentialsPage() {

@@ -4,6 +4,12 @@ import { useToastStore } from '../stores/toastStore';
 
 const ToastContext = createContext(null);
 
+const variantStyles = {
+  success: { background: 'var(--good)' },
+  error: { background: 'var(--danger)' },
+  info: { background: 'var(--teal)' },
+};
+
 export function ToastProvider({ children }) {
   const { toast, showToast } = useToastStore();
 
@@ -14,23 +20,27 @@ export function ToastProvider({ children }) {
       {children}
       <div
         className="toast"
+        role="status"
+        aria-live="polite"
         style={{
           position: 'fixed',
           right: 22,
           bottom: 22,
-          background: 'var(--teal)',
+          ...(variantStyles[toast?.variant] || variantStyles.info),
           color: 'var(--surface)',
           padding: '13px 16px',
           borderRadius: 11,
           boxShadow: 'var(--shadow)',
           fontSize: 13,
+          fontWeight: 600,
           transform: toast ? 'none' : 'translateY(120px)',
           opacity: toast ? 1 : 0,
           transition: '0.3s var(--ease)',
           zIndex: 20,
+          pointerEvents: 'none',
         }}
       >
-        {toast}
+        {toast?.message}
       </div>
     </ToastContext.Provider>
   );

@@ -9,6 +9,7 @@ import { useToast } from '../context/ToastContext';
 import { ErrorCard } from '../components/ui/ErrorState';
 import { api } from '../api/client';
 import { Flame, CheckCircle, Award, ArrowRight } from 'lucide-react';
+import { chipCoral, chipTeal, pageTitle } from '../styles/shared';
 
 const styles = {
   heading: {
@@ -22,10 +23,7 @@ const styles = {
     color: 'var(--muted)',
     marginBottom: 12,
   },
-  h1: {
-    fontFamily: "'Space Grotesk', sans-serif",
-    fontSize: 'clamp(2rem, 4vw, 3.3rem)',
-  },
+  h1: { ...pageTitle },
   subtitle: {
     color: 'var(--muted)',
     margin: '8px 0 0',
@@ -55,16 +53,10 @@ const styles = {
     placeItems: 'center',
     flexShrink: 0,
   },
-  statIconCoral: {
-    background: 'var(--coral-soft)',
-    color: 'var(--coral)',
-  },
-  statIconTeal: {
-    background: 'var(--teal-soft)',
-    color: 'var(--teal)',
-  },
+  statIconCoral: { ...chipCoral },
+  statIconTeal: { ...chipTeal },
   statIconGood: {
-    background: 'rgb(210, 240, 220)',
+    background: 'var(--good-soft)',
     color: 'var(--good)',
   },
   statValue: {

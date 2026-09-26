@@ -6,6 +6,7 @@ import EmptyState from '../components/shared/EmptyState';
 import CompanyAvatar from '../components/shared/CompanyAvatar';
 import Skeleton, { SkeletonStatus, SkeletonText } from '../components/ui/Skeleton';
 import { api } from '../api/client';
+import { metaTextFlush } from '../styles/shared';
 
 const styles = {
   page: {
@@ -14,7 +15,7 @@ const styles = {
   },
   topbar: {
     background: 'var(--teal)',
-    color: 'rgba(245, 250, 248, 0.96)',
+    color: 'rgba(255, 255, 255, 0.96)',
     padding: '14px clamp(20px, 4vw, 56px)',
     display: 'flex',
     alignItems: 'center',
@@ -38,7 +39,7 @@ const styles = {
     marginRight: 'auto',
   },
   topLink: {
-    color: 'rgba(225, 240, 235, 0.92)',
+    color: 'rgba(233, 241, 253, 0.92)',
     fontSize: 13,
     textDecoration: 'none',
     fontWeight: 700,
@@ -114,11 +115,7 @@ const styles = {
     fontWeight: 700,
     margin: '0 0 4px',
   },
-  jobMeta: {
-    fontSize: 12,
-    color: 'var(--muted)',
-    margin: 0,
-  },
+  jobMeta: { ...metaTextFlush },
 };
 
 function formatSalary(salaryRange) {

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { api } from '../api/client';
 import { hasValidSession } from '../lib/jwt';
+import { useNotificationStore } from './notificationStore';
 
 export function getInitialUser() {
   try {
@@ -84,6 +85,7 @@ export const useAuthStore = create((set) => ({
     const token = localStorage.getItem('token');
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    useNotificationStore.getState()._reset();
     set({ user: null });
 
     if (token) {

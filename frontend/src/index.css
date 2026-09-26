@@ -1,20 +1,47 @@
+/* Palette tokens — sourced from the landing page palette (LandingPage.css:
+   paper/ink/blue/signal/good family), kept under the app's existing token names
+   so components need no churn.  Names -> landing source:
+     --bg/--surface/--surface2 -> paper / #fff panel / paper-2
+     --ink/--muted/--line      -> ink / muted (L=50 for AA) / line-2
+     --teal/--teal2/--teal-soft-> blue / blue-lift / blue-wash
+     --coral/--coral-ink/-soft -> signal lightened (L 48 -> 55, hue nudged to
+                                 46 so it reads orange, not brick, and stays
+                                 clear of --danger) / darker signal /
+                                 signal-wash lightened
+     --sand/--sand-ink         -> paper-3 / ink-2
+   Semantic colors the landing page lacks are derived from its hues and
+   darkened until they pass AA (4.5:1 text, 3:1 UI) on paper/white:
+     --good (landing good, L 56 -> 52), --amber-ink/--warn-soft (warn wash),
+     --status-* (dot-only, >=3:1), --danger (kept red, no landing equivalent),
+     --violet (kept, no landing equivalent), --danger pushed to a purer red
+     so it stays distinguishable from the lightened --coral accent. */
 :root {
-  --bg: #e8f0ee;
-  --surface: #f5faf8;
-  --surface2: #dce8e3;
-  --ink: #1a2e27;
-  --muted: #5c7a6e;
-  --line: #c4d6cd;
-  --teal: #1a6b5a;
-  --teal2: #2d9e83;
-  --teal-soft: #c6e6df;
-  --coral: #d4775c;
-  --coral-soft: #f0d8cf;
-  --danger: #c0392b;
+  --bg: #f9fbfe;
+  --surface: #ffffff;
+  --surface2: #f1f4f8;
+  --ink: #0e1928;
+  --muted: #5d646e;
+  --line: #c3c8cf;
+  --teal: #1452a5;
+  --teal2: #417bc7;
+  --teal-soft: #e9f1fd;
+  --coral: #c14224;
+  --coral-ink: #b04010;
+  --coral-soft: #fff1e8;
+  --danger: #b7191c;
   --danger-soft: #f7dcd8;
-  --sand: #e6dcc0;
-  --good: #2d8b5a;
-  --shadow: 0 16px 42px rgba(30, 50, 40, 0.09);
+  --sand: #e8ebf1;
+  --sand-ink: #223147;
+  --good: #0e7d4a;
+  --good-soft: #dff5e6;
+  --violet: #7a37ed;
+  --violet-soft: #e8dff0;
+  --amber-ink: #955a30;
+  --warn-soft: #fcf4da;
+  --status-live: #43a36e;
+  --status-wait: #c2851a;
+  --status-idle: #8b939e;
+  --shadow: 0 16px 42px rgba(14, 25, 40, 0.09);
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
   --radius: 10px;
   --radius-lg: 18px;
@@ -63,9 +90,48 @@ a:hover {
 
 input:focus-visible,
 select:focus-visible,
-button:focus-visible {
+button:focus-visible,
+a:focus-visible {
   outline: 3px solid var(--coral);
   outline-offset: 2px;
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+/* Skip link: off-screen until keyboard-focused. Extra specificity so it wins
+   over the landing page's `.landing-page a` typography rules. */
+a.skip-link,
+.landing-page a.skip-link {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 40;
+  padding: 11px 15px;
+  border-radius: 10;
+  background: var(--teal);
+  color: var(--surface);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  transform: translateY(-250%);
+  transition: transform 0.15s var(--ease);
+}
+
+a.skip-link:focus,
+.landing-page a.skip-link:focus {
+  transform: none;
+  outline: 3px solid var(--coral);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+main:focus-visible {
+  outline: 3px solid var(--coral);
+  outline-offset: -3px;
 }
 
 @keyframes enter {

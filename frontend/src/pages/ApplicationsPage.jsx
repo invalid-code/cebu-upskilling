@@ -3,22 +3,23 @@ import Panel from '../components/ui/Panel';
 import Button from '../components/ui/Button';
 import EmptyState from '../components/shared/EmptyState';
 import { useApplications } from '../context/ApplicationsContext';
+import { eyebrow, headingRow, metaTextFlush, pageSubtitle, pageTitle } from '../styles/shared';
 
 const statusConfig = {
   applied: {
     label: 'Applied',
-    background: 'rgba(20, 184, 166, 0.1)',
+    background: 'rgba(20, 82, 165, 0.1)',
     color: 'var(--teal)',
   },
   interview: {
     label: 'Interview',
     background: 'var(--coral-soft)',
-    color: 'var(--coral)',
+    color: 'var(--coral-ink)',
   },
   review: {
     label: 'Under review',
-    background: 'rgba(234, 179, 8, 0.15)',
-    color: '#b45309',
+    background: 'var(--warn-soft)',
+    color: 'var(--amber-ink)',
   },
   saved: {
     label: 'Saved',
@@ -27,41 +28,21 @@ const statusConfig = {
   },
   rejected: {
     label: 'Rejected',
-    background: 'rgba(239, 68, 68, 0.1)',
-    color: '#dc2626',
+    background: 'var(--danger-soft)',
+    color: 'var(--danger)',
   },
   hired: {
     label: 'Hired',
-    background: 'rgba(20, 184, 166, 0.15)',
-    color: 'var(--good, #0f766e)',
+    background: 'var(--good-soft)',
+    color: 'var(--good)',
   },
 };
 
 const styles = {
-  heading: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'end',
-    gap: 22,
-    marginBottom: 28,
-  },
-  eyebrow: {
-    fontSize: 11,
-    textTransform: 'uppercase',
-    letterSpacing: '0.12em',
-    fontWeight: 700,
-    color: 'var(--coral)',
-    marginBottom: 12,
-  },
-  h1: {
-    fontFamily: "'Space Grotesk', sans-serif",
-    fontSize: 'clamp(2rem, 4vw, 3.3rem)',
-  },
-  subtitle: {
-    color: 'var(--muted)',
-    margin: '8px 0 0',
-    maxWidth: 450,
-  },
+  heading: { ...headingRow },
+  eyebrow: { ...eyebrow },
+  h1: { ...pageTitle },
+  subtitle: { ...pageSubtitle },
   list: {
     display: 'flex',
     flexDirection: 'column',
@@ -85,13 +66,9 @@ const styles = {
     fontSize: 15,
     fontWeight: 700,
     margin: 0,
-    color: 'var(--text, #1a2e28)',
+    color: 'var(--ink)',
   },
-  meta: {
-    fontSize: 12,
-    color: 'var(--muted)',
-    margin: 0,
-  },
+  meta: { ...metaTextFlush },
   actions: {
     display: 'flex',
     alignItems: 'center',
