@@ -22,6 +22,31 @@ public class AssessmentsController : BaseEntityController<LearnerAssessment>
 
     protected override int GetId(LearnerAssessment entity) => entity.LearnerAssessmentId;
 
+    // Assessment records are read/written exclusively through the learner-scoped
+    // endpoints below (which resolve the learner from claims). The generic CRUD
+    // inherited from BaseEntityController<LearnerAssessment> would let any
+    // authenticated user dump every learner's results (GetAll), or forge/rewrite
+    // Verified and ScoredLevel on another learner's skill record.
+    [HttpGet]
+    public override Task<ActionResult<List<LearnerAssessment>>> GetAll() =>
+        Task.FromResult<ActionResult<List<LearnerAssessment>>>(NotFound());
+
+    [HttpGet("{id}")]
+    public override Task<ActionResult<LearnerAssessment>> GetById(int id) =>
+        Task.FromResult<ActionResult<LearnerAssessment>>(NotFound());
+
+    [HttpPost]
+    public override Task<ActionResult<LearnerAssessment>> Create(LearnerAssessment entity) =>
+        Task.FromResult<ActionResult<LearnerAssessment>>(NotFound());
+
+    [HttpPut("{id}")]
+    public override Task<ActionResult<LearnerAssessment>> Update(int id, LearnerAssessment entity) =>
+        Task.FromResult<ActionResult<LearnerAssessment>>(NotFound());
+
+    [HttpDelete("{id}")]
+    public override Task<IActionResult> Delete(int id) =>
+        Task.FromResult<IActionResult>(NotFound());
+
     [Authorize(Roles = "Learner")]
     [HttpGet("results")]
     public async Task<ActionResult<List<AssessmentResultResponse>>> GetRecentResults()

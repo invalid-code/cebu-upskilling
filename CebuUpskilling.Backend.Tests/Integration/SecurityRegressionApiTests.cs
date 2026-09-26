@@ -68,6 +68,50 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
     }
 
     [Fact]
+    public async Task AssessmentGenericCrud_IsDisabledForEveryRole()
+    {
+        var learnerA = await RegisterLearnerAsync("secreg.assess.crud.a@example.com");
+        var learnerB = await RegisterLearnerAsync("secreg.assess.crud.b@example.com");
+
+        var (learnerIdA, _) = await GetLearnerIdsAsync("secreg.assess.crud.a@example.com");
+        var assessmentId = await SeedAssessmentAsync(learnerIdA);
+
+        var clientB = AuthorizedClient(learnerB);
+        Assert.Equal(HttpStatusCode.NotFound, (await clientB.GetAsync("/api/assessments")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await clientB.GetAsync($"/api/assessments/{assessmentId}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await clientB.PostAsJsonAsync("/api/assessments",
+            new { learnerId = learnerIdA, skillId = 1, scoredLevel = 5, verified = true })).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await clientB.PutAsJsonAsync($"/api/assessments/{assessmentId}",
+            new { learnerId = learnerIdA, skillId = 1, scoredLevel = 5, verified = true })).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await clientB.DeleteAsync($"/api/assessments/{assessmentId}")).StatusCode);
+
+        await using var context = Factory.CreateDbContext();
+        var untouched = await context.LearnerAssessments.SingleAsync(a => a.LearnerAssessmentId == assessmentId);
+        Assert.False(untouched.Verified);
+        Assert.Equal(0, untouched.ScoredLevel);
+    }
+
+    [Fact]
+    public async Task EnrollmentByIdCrud_IsDisabledAcrossLearners()
+    {
+        var learnerA = await RegisterLearnerAsync("secreg.enroll.a@example.com");
+        var learnerB = await RegisterLearnerAsync("secreg.enroll.b@example.com");
+        var (courseId, _) = await CreateCourseWithLessonsAsync();
+
+        var enroll = await AuthorizedClient(learnerA).PostAsJsonAsync("/api/enrollments", new { courseId });
+        Assert.Equal(HttpStatusCode.Created, enroll.StatusCode);
+
+        var clientB = AuthorizedClient(learnerB);
+        Assert.Equal(HttpStatusCode.NotFound, (await clientB.GetAsync($"/api/enrollments/{courseId}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await clientB.PutAsJsonAsync($"/api/enrollments/{courseId}",
+            new { learnerId = 1, courseId, lastTotalProgressPercent = 100 })).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await clientB.DeleteAsync($"/api/enrollments/{courseId}")).StatusCode);
+
+        await using var context = Factory.CreateDbContext();
+        Assert.Equal(1, await context.LearnerStudyCourses.CountAsync(l => l.CourseId == courseId));
+    }
+
+    [Fact]
     public async Task CourseContent_IsScopedToEnrolledLearner()
     {
         var enrolled = await RegisterLearnerAsync("secreg.content.enrolled@example.com");
@@ -250,23 +294,30 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
     public async Task CourseWithHtmlName_IsReturnedLiteral()
     {
         var token = await RegisterLearnerAsync("secreg.xss.course@example.com");
-        var genreId = await CreateGenreAsync();
         const string payload = "<svg/onload=alert('xss')>";
 
-        var createResponse = await AuthorizedClient(token).PostAsJsonAsync("/api/courses", new
-        {
-            genreId,
-            name = payload,
-            technicalLevel = 2,
-            description = "XSS course",
-            price = 1000,
-            mode = "Online",
-        });
-        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        var courseId = await CreateCourseAsync(payload);
 
         var listResponse = await AuthorizedClient(token).GetAsync("/api/courses");
         var raw = await listResponse.Content.ReadAsStringAsync();
         Assert.Contains(payload, raw);
+    }
+
+    [Fact]
+    public async Task CourseGenericWrite_IsForbiddenToLearner()
+    {
+        var token = await RegisterLearnerAsync("secreg.course.write@example.com");
+        var courseId = await CreateCourseAsync("Legit course");
+        var client = AuthorizedClient(token);
+
+        Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsJsonAsync("/api/courses", new { name = "hijack" })).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.PutAsJsonAsync($"/api/courses/{courseId}", new { name = "hijack" })).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.DeleteAsync($"/api/courses/{courseId}")).StatusCode);
+
+        await using var context = Factory.CreateDbContext();
+        var still = await context.Courses.FindAsync(courseId);
+        Assert.NotNull(still);
+        Assert.Equal("Legit course", still!.Name);
     }
 
     [Fact]
@@ -471,28 +522,35 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
 
     private async Task<(int CourseId, int LessonId)> CreateCourseWithLessonsAsync()
     {
+        var course = await CreateCourseAsync("Security Regression Course");
+
+        await using var context = Factory.CreateDbContext();
+        var module = new CebuUpskilling.Backend.Entities.CourseModule { CourseId = course, Name = "Module 1", Order = 1 };
+        context.CourseModules.Add(module);
+        await context.SaveChangesAsync();
+
+        var lesson = new CebuUpskilling.Backend.Entities.Lesson { ModuleId = module.ModuleId, CourseId = course, Name = "Lesson 1", Description = "Lesson" };
+        context.Lessons.Add(lesson);
+        await context.SaveChangesAsync();
+
+        return (course, lesson.LessonId);
+    }
+
+    private async Task<int> CreateCourseAsync(string name)
+    {
         var genreId = await CreateGenreAsync();
         await using var context = Factory.CreateDbContext();
 
         var course = new CebuUpskilling.Backend.Entities.Course
         {
             GenreId = genreId,
-            Name = "Security Regression Course",
+            Name = name,
             TechnicalLevel = 2,
             Description = "Course",
             Price = 1000,
         };
         context.Courses.Add(course);
         await context.SaveChangesAsync();
-
-        var module = new CebuUpskilling.Backend.Entities.CourseModule { CourseId = course.CourseId, Name = "Module 1", Order = 1 };
-        context.CourseModules.Add(module);
-        await context.SaveChangesAsync();
-
-        var lesson = new CebuUpskilling.Backend.Entities.Lesson { ModuleId = module.ModuleId, CourseId = course.CourseId, Name = "Lesson 1", Description = "Lesson" };
-        context.Lessons.Add(lesson);
-        await context.SaveChangesAsync();
-
-        return (course.CourseId, lesson.LessonId);
+        return course.CourseId;
     }
 }

@@ -64,4 +64,20 @@ public class EnrollmentsController : BaseEntityController<LearnerStudyCourse>
 
         return StatusCode(201, new { outcome.CourseId, outcome.Started });
     }
+
+    // LearnerStudyCourse has a composite key (LearnerId, CourseId) and the inherited
+    // GetByIdAsync resolves by CourseId only, so the inherited read/update/delete
+    // would act on an arbitrary learner's row (IDOR between learners). Enrollment
+    // state is only exposed through GetAll (claim-scoped) and Create above.
+    [HttpGet("{id}")]
+    public override Task<ActionResult<LearnerStudyCourse>> GetById(int id) =>
+        Task.FromResult<ActionResult<LearnerStudyCourse>>(NotFound());
+
+    [HttpPut("{id}")]
+    public override Task<ActionResult<LearnerStudyCourse>> Update(int id, LearnerStudyCourse entity) =>
+        Task.FromResult<ActionResult<LearnerStudyCourse>>(NotFound());
+
+    [HttpDelete("{id}")]
+    public override Task<IActionResult> Delete(int id) =>
+        Task.FromResult<IActionResult>(NotFound());
 }

@@ -49,6 +49,6 @@ public class CourseRepository : EntityRepository<Course>, ICourseRepository
             .Include(c => c.Genre)
                 .ThenInclude(g => g.SubDiscipline)
             .Include(c => c.Modules.OrderBy(m => m.Order))
-                .ThenInclude(m => m.Lessons.OrderBy(l => l.LessonId))
+                .ThenInclude(m => m.Lessons.OrderBy(l => l.Order).ThenBy(l => l.LessonId))
             .FirstOrDefaultAsync(c => c.CourseId == courseId);
 }

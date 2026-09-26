@@ -17,6 +17,14 @@ public class LearnerAssessment
 
     public DateTime CompletedAt { get; set; }
 
+    /// <summary>
+    /// JSON array of the <c>AssessmentQuestionId</c>s served for this attempt.
+    /// Null until the learner first fetches the questions; grading must use this
+    /// set as the denominator so a partial or forged answer payload cannot inflate
+    /// the score, and so re-fetching returns the same questions.
+    /// </summary>
+    public string? QuestionIdsJson { get; set; }
+
     public Learner Learner { get; set; } = null!;
     public Skill Skill { get; set; } = null!;
 }

@@ -63,7 +63,7 @@ public class MediaController : ControllerBase
 
         _logger.LogInformation("Uploading video for lesson {LessonId}: {FileName} ({FileSize} bytes)", lessonId, file.Name, file.Length);
 
-        var result = await _mediaService.UploadLessonVideoAsync(lessonId, file);
+        var result = await _mediaService.UploadLessonVideoAsync(lessonId, file, HttpContext.RequestAborted);
         _logger.LogInformation("Video upload completed for lesson {LessonId}: {MediaId}", lessonId, result.MediaId);
 
         return CreatedAtAction(nameof(UploadLessonVideo), new { lessonId }, result);
@@ -84,7 +84,7 @@ public class MediaController : ControllerBase
 
         try
         {
-            var result = await _mediaService.UploadDocumentAsync(file);
+            var result = await _mediaService.UploadDocumentAsync(file, HttpContext.RequestAborted);
             _logger.LogInformation("Document upload completed for user {UserId}: {FileName}", userId, result.FileName);
             return StatusCode(201, result);
         }
@@ -122,7 +122,7 @@ public class MediaController : ControllerBase
 
         try
         {
-            var result = await _mediaService.UploadLessonDocumentAsync(lessonId, file);
+            var result = await _mediaService.UploadLessonDocumentAsync(lessonId, file, HttpContext.RequestAborted);
             _logger.LogInformation("Document upload completed for lesson {LessonId}: {MediaId}", lessonId, result.MediaId);
             return CreatedAtAction(nameof(UploadLessonDocument), new { lessonId }, result);
         }

@@ -125,6 +125,19 @@ dotnet user-secrets set "Cors:AllowedOrigins" "http://localhost:5173,https://ceb
 # Production default in compose: http://localhost:5173,https://cebu-upskilling.vercel.app
 ```
 
+### Frontend base URL & trusted proxies
+
+```bash
+# Links embedded in confirmation/reset emails (default http://localhost:5173)
+dotnet user-secrets set "Frontend:BaseUrl" "https://cebu-upskilling.vercel.app" --project CebuUpskilling.Backend
+# Docker/compose: FRONTEND_BASE_URL → Frontend__BaseUrl
+
+# Who may set X-Forwarded-For / X-Forwarded-Proto (loopback only by default).
+# Set these when running behind a load balancer or reverse proxy:
+dotnet user-secrets set "ForwardedHeaders:KnownProxies" "127.0.0.1,::1,10.0.0.1" --project CebuUpskilling.Backend
+dotnet user-secrets set "ForwardedHeaders:KnownNetworks" "10.0.0.0/8" --project CebuUpskilling.Backend
+```
+
 See [Root README → Configuration](../README.md#configuration) for the full env-var table.
 
 ---
@@ -148,7 +161,9 @@ dotnet run --project CebuUpskilling.Backend --launch-profile http
 - Health: `GET /health` (`AddDbContextCheck<ApplicationDbContext>`)
 - OpenAPI (dev only): `MapOpenApi()` → `/openapi/v1.json`
 - CORS: default `http://localhost:5173`
-- Rate limiting: per-IP via `X-Forwarded-For` fallback `RemoteIpAddress` — Global 120/60s, Auth 10/60s (`Options/RateLimitingOptions.cs`). Returns `429` when exceeded. Disable with `RateLimiting:Enabled=false`.
+- Rate limiting: per-IP on `RemoteIpAddress` (set by `ForwardedHeaders` from a trusted proxy, otherwise the socket peer) — Global 120/60s, Auth 10/60s (`Options/RateLimitingOptions.cs`). Returns `429` when exceeded. Disable with `RateLimiting:Enabled=false`.
+- Frontend links (email confirm/reset): `Frontend:BaseUrl`, default `http://localhost:5173`.
+- Trusted proxies: `ForwardedHeaders:KnownProxies` / `ForwardedHeaders:KnownNetworks` (comma-separated IPs / CIDRs). Headers from any other peer are ignored, so `X-Forwarded-For` cannot be spoofed to dodge the rate limiter.
 
 ---
 
@@ -174,7 +189,7 @@ Compose env (see `../docker-compose.yml`): `POSTGRES_USER/PASSWORD/DB`, `Connect
 
 ## Database & Migrations
 
-- 28 migrations: `20260804104054_InitialCreate` → `20260820170749_AddDiscussionPosts` (`Migrations/` + `ApplicationDbContextModelSnapshot.cs`).
+- 36 migrations: `20260804104054_InitialCreate` → `20260926130924_AddLearnerAssessmentQuestionSnapshot` (`Migrations/` + `ApplicationDbContextModelSnapshot.cs`).
 - Naming is timestamp-prefixed (`yyyyMMddHHmmss_Description`).
 - Key constraints: see [Root README → Database](../README.md#database--migrations) and `Data/ApplicationDbContext.cs`.
 
@@ -252,17 +267,18 @@ CebuUpskilling.Backend/
 
 ## Middleware Pipeline & Security
 
-Order in `Program.cs:226-238`:
+Order in `Program.cs:319-331`:
 
 ```
-SecurityHeaders → ExceptionHandler → Cors → StaticFiles → RateLimiter
+ForwardedHeaders → SecurityHeaders → ExceptionHandler → Cors → StaticFiles → RateLimiter
   → Authentication (JwtBearer) → RevokedToken → Authorization → Controllers
 ```
 
+- **ForwardedHeaders** (`Program.cs:239-260`, `app.UseForwardedHeaders()`): honors `X-Forwarded-For`/`X-Forwarded-Proto` **only** from `ForwardedHeaders:KnownProxies`/`KnownNetworks`; everything else is ignored. Must run first so rate limiting and error responses see the real client IP.
 - **SecurityHeaders** (`Middleware/SecurityHeadersMiddleware.cs`): `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `CSP: default-src 'self'; frame-ancestors 'none'`, `Permissions-Policy: camera=(),microphone=(),geolocation=()`, `HSTS` 1y if HTTPS.
 - **ExceptionHandler** (`Handlers/GlobalExceptionHandler.cs`): `KeyNotFoundException→404`, `UnauthorizedAccessException→401`, `InvalidOperationException→400`, else 500 `{error: …}`.
 - **CORS** (`Program.cs:40-71`): origins from `Cors:AllowedOrigins` (default `http://localhost:5173`), validated as absolute http/https, deduped, trimmed; methods `GET,POST,PUT,PATCH,DELETE`; headers `Authorization, Content-Type`; no credentials/wildcard; `PreflightMaxAge 1h`.
-- **RateLimiting** (`Program.cs:170-217`, `Options/RateLimitingOptions.cs`): partition by client IP (`X-Forwarded-For` first entry → `RemoteIpAddress` → `unknown`); `FixedWindow` Global 120/60s and Auth 10/60s; `QueueLimit 0` / `RejectionStatusCode 429`.
+- **RateLimiting** (`Program.cs:262-317`, `Options/RateLimitingOptions.cs`): partition by `Connection.RemoteIpAddress` (already resolved by ForwardedHeaders) → `unknown`; `FixedWindow` Global 120/60s and Auth 10/60s; `QueueLimit 0` / `RejectionStatusCode 429`.
 - **Auth** (`Services/AuthService.cs`, `Program.cs:129-154`): HMAC-SHA256, 7-day expiry, claims `NameIdentifier/Email/Name/Role/JTI`; login/register confirm email (24h token SHA256, `FixedTimeEquals`), password reset 30-min token, logout revokes JTI 8 days; BCrypt hashes.
 - **RevokedToken** (`Middleware/RevokedTokenMiddleware.cs`): after auth, checks `Jti` vs `ITokenRevocationStore`; `401 {error: Token has been revoked…}`.
 
@@ -270,7 +286,7 @@ SecurityHeaders → ExceptionHandler → Cors → StaticFiles → RateLimiter
 
 ## Configuration Reference
 
-See the unified table in [Root README](../README.md#configuration) plus `appsettings.json` (Serilog + `Cors/ConnectionStrings/Jwt/R2/GoogleAi/GoogleOAuth/Email/RateLimiting/SkillsSeed`) and `appsettings.Development.json` (Debug logging, dev CORS/JWT). All `Jwt:Key` checks happen at startup; the app crashes fast with `InvalidOperationException` if missing/short.
+See the unified table in [Root README](../README.md#configuration) plus `appsettings.json` (Serilog + `Cors/ConnectionStrings/Jwt/Frontend/ForwardedHeaders/R2/GoogleAi/GoogleOAuth/Email/RateLimiting/SkillsSeed`) and `appsettings.Development.json` (Debug logging, dev CORS/JWT). All `Jwt:Key` checks happen at startup; the app crashes fast with `InvalidOperationException` if missing/short.
 
 ---
 

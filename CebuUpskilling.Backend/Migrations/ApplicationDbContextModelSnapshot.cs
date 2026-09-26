@@ -17,7 +17,7 @@ namespace CebuUpskilling.Backend.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.12")
+                .HasAnnotation("ProductVersion", "9.0.20")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -611,6 +611,9 @@ namespace CebuUpskilling.Backend.Migrations
                     b.Property<int>("LearnerId")
                         .HasColumnType("integer");
 
+                    b.Property<string>("QuestionIdsJson")
+                        .HasColumnType("text");
+
                     b.Property<int>("ScoredLevel")
                         .HasColumnType("integer");
 
@@ -742,6 +745,9 @@ namespace CebuUpskilling.Backend.Migrations
                         .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("integer");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");

@@ -115,6 +115,9 @@ public class NotesService : INotesService
             return null;
         }
 
+        // Deliberately appends: several notes per lesson are allowed (the unique
+        // index on LearnerId+LessonId was dropped) and the course-level listing
+        // shows them all. Reads return the most recently saved one.
         var note = new LearnerNote
         {
             LearnerId = learner.LearnerId,
@@ -148,11 +151,15 @@ public class NotesService : INotesService
             return false;
         }
 
-        var note = await _notes.GetAsync(learner.LearnerId, lessonId);
-        if (note == null)
+        // Several notes can exist per lesson; remove them all so a subsequent read
+        // (which returns the most recent note) reports the lesson as empty rather
+        // than resurrecting an older draft.
+        var notes = await _notes.GetAllForLessonAsync(learner.LearnerId, lessonId);
+        if (notes.Count == 0)
             return true;
 
-        _notes.Remove(note);
+        foreach (var note in notes)
+            _notes.Remove(note);
         await _notes.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Deleted note for user {UserId}, lesson {LessonId}", userId, lessonId);

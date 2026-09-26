@@ -17,6 +17,13 @@ public class Lesson : AuditableEntity
     [MaxLength(2000)]
     public string? Description { get; set; }
 
+    /// <summary>
+    /// Display position within the module, as sent by the course studio.
+    /// Falls back to LessonId ordering where this is still 0 (rows created
+    /// before the column existed).
+    /// </summary>
+    public int Order { get; set; }
+
     public CourseModule Module { get; set; } = null!;
     public Course Course { get; set; } = null!;
     public ICollection<LessonContent> LessonContents { get; set; } = new List<LessonContent>();

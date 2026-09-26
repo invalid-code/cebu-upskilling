@@ -159,6 +159,7 @@ public class CourseGenerationAgent : ICourseGenerationAgent
                     Module = module,
                     Name = lessonDraft.Name.Trim(),
                     Description = string.IsNullOrWhiteSpace(lessonDraft.Description) ? null : lessonDraft.Description.Trim(),
+                    Order = li,
                 });
             }
 

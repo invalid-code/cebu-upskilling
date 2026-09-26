@@ -332,7 +332,7 @@ public class CoursesPageService : ICoursesPageService
                 Description: module.Description,
                 LessonCount: module.Lessons.Count,
                 Lessons: module.Lessons
-                    .OrderBy(l => l.LessonId)
+                    .OrderBy(l => l.Order).ThenBy(l => l.LessonId)
                     .Select(l => new LessonSummaryDto(l.LessonId, l.Name, l.Description))
                     .ToList()
             ))

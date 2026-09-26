@@ -77,7 +77,7 @@ public class CourseContentService : ICourseContentService
             // When starting/resuming without a specific lesson, go to first unfinished lesson
             var firstUnfinishedIndex = completedLessons < lessons.Count ? completedLessons : 0;
             // Ensure lessons are ordered to find first not done deterministically
-            var orderedLessons = lessons.OrderBy(l => l.LessonId).ToList();
+            var orderedLessons = lessons.OrderBy(l => l.Order).ThenBy(l => l.LessonId).ToList();
             var firstUnfinished = orderedLessons.ElementAtOrDefault(firstUnfinishedIndex);
             currentLessonId = firstUnfinished?.LessonId ?? lessons.First().LessonId;
         }
@@ -197,7 +197,7 @@ public class CourseContentService : ICourseContentService
             {
                 var moduleLessons = lessons
                     .Where(l => l.ModuleId == module.ModuleId)
-                    .OrderBy(l => l.LessonId)
+                    .OrderBy(l => l.Order).ThenBy(l => l.LessonId)
                     .Select(l => new LessonOutlineDto(
                         LessonId: l.LessonId,
                         Name: l.Name,

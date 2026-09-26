@@ -73,6 +73,31 @@ public class LearnerNoteApiTests : ProductionApiTestBase
     }
 
     [Fact]
+    public async Task Delete_ClearsEveryNoteForTheLesson()
+    {
+        var token = await RegisterLearnerAsync("notes.deleteall@example.com");
+        var (courseId, lessonId) = await CreateCourseWithLessonAsync(token);
+        await EnrollAsync(token, courseId);
+        var authorized = AuthorizedClient(token);
+
+        await authorized.PutAsJsonAsync($"/api/notes/lessons/{lessonId}", new { content = "first draft" });
+        await authorized.PutAsJsonAsync($"/api/notes/lessons/{lessonId}", new { content = "second draft" });
+
+        // The lesson-level read reports the most recently saved note, not an
+        // arbitrary row from the set.
+        var latest = await ReadJsonAsync(await authorized.GetAsync($"/api/notes/lessons/{lessonId}"));
+        Assert.Equal("second draft", latest.GetProperty("content").GetString());
+
+        Assert.Equal(HttpStatusCode.NoContent, (await authorized.DeleteAsync($"/api/notes/lessons/{lessonId}")).StatusCode);
+
+        var afterDelete = await ReadJsonAsync(await authorized.GetAsync($"/api/notes/lessons/{lessonId}"));
+        Assert.Equal(JsonValueKind.Null, afterDelete.GetProperty("content").ValueKind);
+
+        var courseNotes = await ReadJsonAsync(await authorized.GetAsync($"/api/notes/courses/{courseId}"));
+        Assert.Empty(courseNotes.GetProperty("notes").EnumerateArray().ToList());
+    }
+
+    [Fact]
     public async Task Upsert_NotEnrolled_ReturnsNotFound()
     {
         var token = await RegisterLearnerAsync("notes.notenrolled@example.com");

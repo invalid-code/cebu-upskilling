@@ -7,7 +7,7 @@ using Microsoft.Extensions.Options;
 
 namespace CebuUpskilling.Backend.Services;
 
-public class R2StorageService : IObjectStorageService
+public class R2StorageService : IObjectStorageService, IDisposable
 {
     private readonly AmazonS3Client? _client;
     private readonly R2Options _options;
@@ -56,6 +56,8 @@ public class R2StorageService : IObjectStorageService
                 "Document uploads are temporarily disabled.");
         }
     }
+
+    public void Dispose() => _client?.Dispose();
 
     public async Task<string> UploadAsync(
         string key,

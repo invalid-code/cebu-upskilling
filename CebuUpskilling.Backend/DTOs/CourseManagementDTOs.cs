@@ -25,6 +25,12 @@ public class SaveCourseRequest
 
 public class SaveModuleRequest
 {
+    /// <summary>
+    /// Existing module id echoed back by the client. When it matches a module of the
+    /// course being saved the module is updated in place instead of deleted and
+    /// recreated, which keeps its lessons (and their notes/discussions) alive.
+    /// </summary>
+    public int? ModuleId { get; set; }
     [Required, MaxLength(255)] public string Name { get; set; } = string.Empty;
     [MaxLength(2000)] public string? Description { get; set; }
     public int Order { get; set; }

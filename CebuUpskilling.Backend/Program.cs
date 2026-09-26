@@ -1,3 +1,4 @@
+using System.Net;
 using System.Reflection;
 using System.Text;
 using CebuUpskilling.Backend.Data;
@@ -9,6 +10,7 @@ using CebuUpskilling.Backend.Services;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -47,6 +49,8 @@ builder.Services.AddHttpClient<IGoogleAiService, GoogleAiService>(client =>
 {
     var baseUrl = googleAiOptions?.BaseUrl ?? "https://generativelanguage.googleapis.com/v1beta";
     client.BaseAddress = new Uri(baseUrl.EndsWith('/') ? baseUrl : baseUrl + "/");
+    // Bound a hung generation instead of letting the caller wait the 100 s default.
+    client.Timeout = TimeSpan.FromSeconds(60);
 });
 
 var myAllowSpecificOrigins = "_myAllowSpecificOrigins";
@@ -87,12 +91,14 @@ builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IGoogleTokenVerifier, GoogleTokenVerifier>();
 builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection(EmailOptions.SectionName));
+builder.Services.Configure<FrontendOptions>(builder.Configuration.GetSection(FrontendOptions.SectionName));
 var emailOptions = builder.Configuration.GetSection(EmailOptions.SectionName).Get<EmailOptions>();
 if (!string.IsNullOrWhiteSpace(emailOptions?.ApiKey))
 {
     builder.Services.AddHttpClient<IEmailService, ResendEmailService>(client =>
     {
         client.BaseAddress = new Uri(emailOptions!.BaseUrl);
+        client.Timeout = TimeSpan.FromSeconds(30);
     });
 }
 else
@@ -139,7 +145,9 @@ builder.Services.AddScoped<ICourseContentService, CourseContentService>();
 builder.Services.AddScoped<INotesService, NotesService>();
 builder.Services.AddScoped<IDiscussionService, DiscussionService>();
 builder.Services.AddScoped<ICourseGenerationAgent, CourseGenerationAgent>();
-builder.Services.AddScoped<IObjectStorageService, R2StorageService>();
+// Singleton: the service holds a single long-lived S3 client. Registered scoped it
+// built a new AmazonS3Client per request and never disposed it.
+builder.Services.AddSingleton<IObjectStorageService, R2StorageService>();
 builder.Services.AddScoped<IMediaService, MediaService>();
 builder.Services.AddScoped<ICompanyService, CompanyService>();
 builder.Services.AddScoped<IResumeService, ResumeService>();
@@ -155,7 +163,10 @@ if (string.IsNullOrWhiteSpace(builder.Configuration["SkillsSeed:SourceUrl"]))
 }
 else
 {
-    builder.Services.AddHttpClient<ISkillsSource, ApiSkillsSource>();
+    builder.Services.AddHttpClient<ISkillsSource, ApiSkillsSource>(client =>
+    {
+        client.Timeout = TimeSpan.FromSeconds(15);
+    });
 }
 builder.Services.AddHostedService<SkillsSeedService>();
 
@@ -215,24 +226,45 @@ builder.Services.AddOpenApi();
 
 var rateLimitingOptions = builder.Configuration.GetSection(RateLimitingOptions.SectionName).Get<RateLimitingOptions>()
     ?? new RateLimitingOptions();
+
+// Forwarded headers. The API only honours X-Forwarded-For / X-Forwarded-Proto when the
+// immediate peer is an explicitly trusted reverse proxy (loopback by default, plus anything
+// listed in ForwardedHeaders:KnownProxies / ForwardedHeaders:KnownNetworks). Anything else
+// is ignored, so a direct client cannot rotate X-Forwarded-For to escape rate limiting and
+// cannot fake HTTPS to turn on HSTS. Must run first so request.Scheme/RemoteIpAddress are
+// settled before SecurityHeaders and the rate limiter read them.
+static string[] SplitCsv(string? value) =>
+    value?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? [];
+
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+
+    foreach (var entry in SplitCsv(builder.Configuration["ForwardedHeaders:KnownProxies"]))
+    {
+        if (IPAddress.TryParse(entry, out var proxy))
+            options.KnownProxies.Add(proxy);
+        else
+            Log.Warning("Ignoring unparsable ForwardedHeaders:KnownProxies entry {Entry}", entry);
+    }
+
+    foreach (var entry in SplitCsv(builder.Configuration["ForwardedHeaders:KnownNetworks"]))
+    {
+        if (System.Net.IPNetwork.TryParse(entry, out var network))
+            options.KnownIPNetworks.Add(network);
+        else
+            Log.Warning("Ignoring unparsable ForwardedHeaders:KnownNetworks entry {Entry}", entry);
+    }
+});
+
 if (rateLimitingOptions.Enabled)
 {
-    // Rate limit per real client IP. Prefer X-Forwarded-For (set by a reverse proxy /
-    // load balancer) and fall back to the direct connection address.
-    static string GetClientIp(HttpContext httpContext)
-    {
-        var forwarded = httpContext.Request.Headers["X-Forwarded-For"].ToString();
-        if (!string.IsNullOrWhiteSpace(forwarded))
-        {
-            var first = forwarded.Split(',')[0].Trim();
-            if (!string.IsNullOrWhiteSpace(first))
-            {
-                return first;
-            }
-        }
-
-        return httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
-    }
+    // Rate limit per real client IP. UseForwardedHeaders has already replaced
+    // RemoteIpAddress with the originating client when — and only when — the peer
+    // is a configured trusted proxy; otherwise this is the socket peer, which the
+    // client cannot forge.
+    static string GetClientIp(HttpContext httpContext) =>
+        httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 
     builder.Services.AddRateLimiter(options =>
     {
@@ -284,6 +316,7 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
+app.UseForwardedHeaders();
 app.UseMiddleware<CebuUpskilling.Backend.Middleware.SecurityHeadersMiddleware>();
 app.UseExceptionHandler();
 app.UseCors(myAllowSpecificOrigins);

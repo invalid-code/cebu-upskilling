@@ -1,3 +1,4 @@
+using System.Text.Json;
 using CebuUpskilling.Backend.DTOs;
 using CebuUpskilling.Backend.Entities;
 using CebuUpskilling.Backend.Repositories;
@@ -457,45 +458,66 @@ public class JobseekerSkillParserAgent : IJobseekerSkillParserAgent
             return null;
         }
 
-        var companyQuestions = await _assessmentQuestions.GetBySkillIdAndSourceAsync(assessment.SkillId, AssessmentSource.Company);
+        // Every question for the skill, in id order. Used both to pick a fresh set
+        // and to resolve a previously served snapshot: a company or provider
+        // question published mid-attempt must not change the questions on screen.
+        var allQuestions = await _assessmentQuestions.GetBySkillIdAsync(assessment.SkillId);
+
+        var companyQuestions = allQuestions.Where(q => q.Source == AssessmentSource.Company).ToList();
         var providerQuestions = companyQuestions.Count > 0
             ? new List<AssessmentQuestion>()
-            : await _assessmentQuestions.GetBySkillIdAndSourceAsync(assessment.SkillId, AssessmentSource.Provider);
+            : allQuestions.Where(q => q.Source == AssessmentSource.Provider).ToList();
         var aiQuestions = companyQuestions.Count > 0 || providerQuestions.Count > 0
             ? new List<AssessmentQuestion>()
-            : await _assessmentQuestions.GetBySkillIdAndSourceAsync(assessment.SkillId, AssessmentSource.AI);
+            : allQuestions.Where(q => q.Source == AssessmentSource.AI).ToList();
 
-        var questions = companyQuestions.Count > 0 ? companyQuestions
+        var pool = companyQuestions.Count > 0 ? companyQuestions
             : providerQuestions.Count > 0 ? providerQuestions : aiQuestions;
 
-        if (questions.Count == 0)
-        {
-            questions = await GenerateQuestionsForSkillAsync(assessment.Skill, ct: CancellationToken.None);
+        var selectedQuestions = ResolveServedQuestions(assessment, allQuestions);
 
-            if (questions.Count == 0)
+        if (selectedQuestions == null)
+        {
+            if (pool.Count == 0)
             {
-                _logger.LogWarning("No questions found or generated for skill {SkillId}", assessment.SkillId);
-                return new AssessmentQuestionsResponse(
-                    assessmentId,
-                    assessment.Skill.Name,
-                    45,
-                    new List<AssessmentQuestionDto>(),
-                    "AI-generated",
-                    null,
-                    true
-                );
+                // Deliberately not tied to the HTTP request: the generated questions are
+            // persisted inside GenerateQuestionsForSkillAsync, so letting a client
+            // disconnect cancel the call would just lose them and make the retry
+            // pay for a second generation.
+            pool = await GenerateQuestionsForSkillAsync(assessment.Skill, ct: CancellationToken.None);
+
+                if (pool.Count == 0)
+                {
+                    _logger.LogWarning("No questions found or generated for skill {SkillId}", assessment.SkillId);
+                    return new AssessmentQuestionsResponse(
+                        assessmentId,
+                        assessment.Skill.Name,
+                        45,
+                        new List<AssessmentQuestionDto>(),
+                        "AI-generated",
+                        null,
+                        true
+                    );
+                }
             }
+
+            selectedQuestions = pool.OrderBy(_ => Random.Shared.Next()).Take(5).ToList();
+            // Persist the set so every later read and the eventual grade use it.
+            assessment.QuestionIdsJson = JsonSerializer.Serialize(
+                selectedQuestions.Select(q => q.AssessmentQuestionId));
+            await _learnerAssessments.SaveChangesAsync();
         }
 
-        var source = questions[0].Source switch
+        var source = selectedQuestions[0].Source switch
         {
             AssessmentSource.Company => "Company",
             AssessmentSource.Provider => "Provider",
             _ => "AI-generated",
         };
-        var companyName = questions[0].Source == AssessmentSource.Company ? questions[0].Company?.Name : null;
+        var companyName = selectedQuestions[0].Source == AssessmentSource.Company
+            ? selectedQuestions[0].Company?.Name
+            : null;
 
-        var selectedQuestions = questions.OrderBy(_ => Random.Shared.Next()).Take(5).ToList();
         var questionDtos = selectedQuestions.Select(q => new AssessmentQuestionDto(
             QuestionId: q.AssessmentQuestionId,
             Text: q.Text,
@@ -539,19 +561,33 @@ public class JobseekerSkillParserAgent : IJobseekerSkillParserAgent
             return null;
         }
 
-        var dbQuestions = await _assessmentQuestions.GetBySkillIdDictionaryAsync(assessment.SkillId);
+        var dbQuestions = await _assessmentQuestions.GetBySkillIdAsync(assessment.SkillId);
+        var questionById = dbQuestions.ToDictionary(q => q.AssessmentQuestionId);
 
+        // Grade against the questions that were actually served to this learner.
+        // Rows written before the snapshot column existed fall back to every
+        // question for the skill; either way the client never picks the
+        // denominator, so answering a subset (or inventing question ids) can only
+        // lower the score.
+        var servedIds = ParseQuestionIds(assessment.QuestionIdsJson);
+        if (servedIds.Count == 0)
+            servedIds = dbQuestions.Select(q => q.AssessmentQuestionId).ToList();
+        var served = new HashSet<int>(servedIds);
+
+        var counted = new HashSet<int>();
         int correctAnswers = 0;
         foreach (var answer in request.Answers)
         {
-            if (dbQuestions.TryGetValue(answer.QuestionId, out var question)
+            if (!counted.Add(answer.QuestionId)) continue;   // repeated ids count once
+            if (!served.Contains(answer.QuestionId)) continue;
+            if (questionById.TryGetValue(answer.QuestionId, out var question)
                 && answer.SelectedOption == question.CorrectOption)
             {
                 correctAnswers++;
             }
         }
 
-        var totalQuestions = request.Answers.Count;
+        var totalQuestions = servedIds.Count;
         var scorePercent = totalQuestions > 0 ? (int)Math.Round((double)correctAnswers / totalQuestions * 100) : 0;
         var scoredLevel = CalculateLevel(scorePercent);
 
@@ -759,6 +795,42 @@ public class JobseekerSkillParserAgent : IJobseekerSkillParserAgent
             questions.Count, skill.Name);
 
         return questions;
+    }
+
+    /// <summary>
+    /// Resolves the questions recorded for an attempt, in the recorded order.
+    /// Returns null when no snapshot exists yet, or when a recorded question has
+    /// since been deleted, so the caller selects and records a fresh set.
+    /// </summary>
+    private static List<AssessmentQuestion>? ResolveServedQuestions(
+        LearnerAssessment assessment, List<AssessmentQuestion> allQuestions)
+    {
+        var snapshotIds = ParseQuestionIds(assessment.QuestionIdsJson);
+        if (snapshotIds.Count == 0) return null;
+
+        var byId = allQuestions.ToDictionary(q => q.AssessmentQuestionId);
+        var served = new List<AssessmentQuestion>(snapshotIds.Count);
+        foreach (var id in snapshotIds)
+        {
+            if (!byId.TryGetValue(id, out var question)) return null;
+            served.Add(question);
+        }
+
+        return served;
+    }
+
+    private static List<int> ParseQuestionIds(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return new List<int>();
+
+        try
+        {
+            return JsonSerializer.Deserialize<List<int>>(json) ?? new List<int>();
+        }
+        catch (JsonException)
+        {
+            return new List<int>();   // unreadable snapshot: reselect and overwrite
+        }
     }
 
     private static int CalculateLevel(int scorePercent)

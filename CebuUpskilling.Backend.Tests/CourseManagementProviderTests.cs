@@ -348,6 +348,60 @@ public class CourseManagementProviderTests
     }
 
     [Fact]
+    public async Task Update_EchoingIds_PreservesLearnerNotesAndDiscussionPosts()
+    {
+        var (db, recruiter, _, company) = await SeedAsync();
+        var c = new Course { Name = "Noted", CompanyId = company.CompanyId, GenreId = 1, Status = "Draft" };
+        db.Courses.Add(c); await db.SaveChangesAsync();
+        var module = new CourseModule { CourseId = c.CourseId, Name = "M1", Order = 1 };
+        db.CourseModules.Add(module); await db.SaveChangesAsync();
+        var lesson = new Lesson { CourseId = c.CourseId, ModuleId = module.ModuleId, Name = "L1", Order = 0 };
+        db.Lessons.Add(lesson); await db.SaveChangesAsync();
+        db.LearnerNotes.Add(new LearnerNote { LearnerId = 7, LessonId = lesson.LessonId, Content = "keep me", UpdatedAt = DateTime.UtcNow });
+        db.DiscussionPosts.Add(new DiscussionPost { LessonId = lesson.LessonId, LearnerId = 7, AuthorName = "A", Content = "and me", CreatedAt = DateTime.UtcNow });
+        await db.SaveChangesAsync();
+
+        var req = ValidRequest();
+        req.Modules[0].ModuleId = module.ModuleId;
+        req.Modules[0].Lessons[0].LessonId = lesson.LessonId;
+        var ctrl = CreateController(db, recruiter.UserId, "Recruiter");
+        var ok = Assert.IsType<OkObjectResult>((await ctrl.Update(c.CourseId, req)).Result);
+        var dto = Assert.IsType<CourseManagementDto>(ok.Value);
+
+        Assert.Equal(lesson.LessonId, dto.Modules.Single().Lessons.Single().LessonId);
+        Assert.Equal("keep me", Assert.Single(db.LearnerNotes.ToList()).Content);
+        Assert.Equal("and me", Assert.Single(db.DiscussionPosts.ToList()).Content);
+        Assert.Equal(1, db.CourseModules.Count());
+        Assert.Equal(1, db.Lessons.Count());
+    }
+
+    [Fact]
+    public async Task Update_DroppingLesson_RemovesItAndItsDependents()
+    {
+        var (db, recruiter, _, company) = await SeedAsync();
+        var c = new Course { Name = "Trimmed", CompanyId = company.CompanyId, GenreId = 1, Status = "Draft" };
+        db.Courses.Add(c); await db.SaveChangesAsync();
+        var module = new CourseModule { CourseId = c.CourseId, Name = "M1", Order = 1 };
+        db.CourseModules.Add(module); await db.SaveChangesAsync();
+        var keep = new Lesson { CourseId = c.CourseId, ModuleId = module.ModuleId, Name = "Keep", Order = 0 };
+        var drop = new Lesson { CourseId = c.CourseId, ModuleId = module.ModuleId, Name = "Drop", Order = 1 };
+        db.Lessons.AddRange(keep, drop); await db.SaveChangesAsync();
+        db.LearnerNotes.Add(new LearnerNote { LearnerId = 7, LessonId = drop.LessonId, Content = "orphan", UpdatedAt = DateTime.UtcNow });
+        await db.SaveChangesAsync();
+
+        var req = ValidRequest();
+        req.Modules[0].ModuleId = module.ModuleId;
+        req.Modules[0].Lessons = new List<SaveLessonRequest> { new() { LessonId = keep.LessonId, Name = "Keep", Order = 0 } };
+        var ctrl = CreateController(db, recruiter.UserId, "Recruiter");
+        var ok = Assert.IsType<OkObjectResult>((await ctrl.Update(c.CourseId, req)).Result);
+        var dto = Assert.IsType<CourseManagementDto>(ok.Value);
+
+        Assert.Equal(keep.LessonId, Assert.Single(dto.Modules.Single().Lessons).LessonId);
+        Assert.Equal(keep.LessonId, Assert.Single(db.Lessons.ToList()).LessonId);
+        Assert.Empty(db.LearnerNotes.ToList());
+    }
+
+    [Fact]
     public async Task Update_Provider_SucceedsForOwnCourse()
     {
         var (db, _, provider, _) = await SeedAsync();

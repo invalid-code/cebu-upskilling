@@ -533,52 +533,48 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
     }
 
     [Fact]
-    public async Task Courses_BaseCrud_CreateGetUpdateDelete()
+    public async Task Courses_GenericWrite_Disabled_ReadStillWorks()
     {
         var token = await RegisterLearnerAsync("regr.courses.crud@example.com");
         var authorized = AuthorizedClient(token);
-        var genreId = await CreateGenreAsync();
+        var (courseId, _) = await CreateCourseWithLessonsAsync();
+        var location = $"/api/courses/{courseId}";
 
+        // The generic write surface inherited from BaseEntityController<Course> is
+        // disabled: course writes belong to /api/company/courses (Recruiter /
+        // CourseProvider, CompanyId-scoped).
         var createResponse = await authorized.PostAsJsonAsync("/api/courses", new
         {
-            genreId,
             name = "Regression Course",
             technicalLevel = 2,
             description = "Seeded by regression tests",
             price = 2500,
             mode = "Online",
         });
-        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
-        var created = await ReadJsonAsync(createResponse);
-        var courseId = created.GetProperty("courseId").GetInt32();
-        var location = $"/api/courses/{courseId}";
-
-        var listResponse = await authorized.GetAsync("/api/courses");
-        var list = (await ReadJsonAsync(listResponse)).EnumerateArray().ToList();
-        Assert.Contains(list, c => c.GetProperty("courseId").GetInt32() == courseId);
-
-        var getResponse = await authorized.GetAsync(location);
-        Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
-        Assert.Equal("Regression Course", (await ReadJsonAsync(getResponse)).GetProperty("name").GetString());
+        Assert.Equal(HttpStatusCode.NotFound, createResponse.StatusCode);
 
         var updateResponse = await authorized.PutAsJsonAsync(location, new
         {
             courseId,
-            genreId,
             name = "Updated Regression Course",
             technicalLevel = 3,
             description = "Updated",
             price = 3000,
             mode = "Hybrid",
         });
-        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
-        Assert.Equal("Updated Regression Course", (await ReadJsonAsync(updateResponse)).GetProperty("name").GetString());
+        Assert.Equal(HttpStatusCode.NotFound, updateResponse.StatusCode);
 
         var deleteResponse = await authorized.DeleteAsync(location);
-        Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, deleteResponse.StatusCode);
 
-        var afterDelete = await authorized.GetAsync(location);
-        Assert.Equal(HttpStatusCode.NotFound, afterDelete.StatusCode);
+        // Reads remain available to authenticated callers.
+        var listResponse = await authorized.GetAsync("/api/courses");
+        Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
+        var list = (await ReadJsonAsync(listResponse)).EnumerateArray().ToList();
+        Assert.Contains(list, c => c.GetProperty("courseId").GetInt32() == courseId);
+
+        var getResponse = await authorized.GetAsync(location);
+        Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
     }
 
     // ------------------------------------------------------------------ //

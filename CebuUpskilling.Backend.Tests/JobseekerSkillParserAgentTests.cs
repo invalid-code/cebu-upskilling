@@ -408,6 +408,108 @@ public class JobseekerSkillParserAgentTests
         Assert.Equal(0, ai.GenerationCalls);
     }
 
+    private static async Task<(JobseekerSkillParserAgent Agent, int UserId, Skill Skill, LearnerAssessment Assessment)>
+        CreateAssessmentWithQuestionsAsync(ApplicationDbContext context, int questionCount = 5)
+    {
+        var (agent, userId) = await CreateLearnerWithSkillAsync(context, new FakeGoogleAiService(questions: SampleQuestions()));
+        var skill = await context.Skills.SingleAsync(s => s.Name == "JavaScript");
+        var assessment = await context.LearnerAssessments.SingleAsync(a => a.Learner.UserId == userId);
+
+        for (var i = 0; i < questionCount; i++)
+        {
+            context.AssessmentQuestions.Add(new AssessmentQuestion
+            {
+                SkillId = skill.SkillId,
+                Text = $"JavaScript question {i}",
+                OptionA = "Correct answer",
+                OptionB = "Wrong option 1",
+                OptionC = "Wrong option 2",
+                OptionD = "Wrong option 3",
+                CorrectOption = 0,
+                Source = AssessmentSource.AI,
+            });
+        }
+        await context.SaveChangesAsync();
+
+        return (agent, userId, skill, assessment);
+    }
+
+    [Fact]
+    public async Task GetQuestionsAsync_ReturnsTheSameQuestionsForTheWholeAttempt()
+    {
+        var context = TestDbContextFactory.Create();
+        var (agent, userId, _, assessment) = await CreateAssessmentWithQuestionsAsync(context);
+
+        var first = await agent.GetQuestionsAsync(userId, assessment.LearnerAssessmentId);
+        var second = await agent.GetQuestionsAsync(userId, assessment.LearnerAssessmentId);
+
+        Assert.NotNull(first);
+        Assert.NotNull(second);
+        Assert.Equal(5, first!.Questions.Count);
+        Assert.Equal(
+            first.Questions.Select(q => q.QuestionId).ToList(),
+            second!.Questions.Select(q => q.QuestionId).ToList());
+    }
+
+    [Fact]
+    public async Task SubmitAssessmentAsync_PartialAnswerSet_IsScoredAgainstTheServedQuestions()
+    {
+        var context = TestDbContextFactory.Create();
+        var (agent, userId, _, assessment) = await CreateAssessmentWithQuestionsAsync(context);
+        var served = await agent.GetQuestionsAsync(userId, assessment.LearnerAssessmentId);
+
+        var answers = new List<SubmitAnswerRequest> { new(served!.Questions[0].QuestionId, 0) };
+        var result = await agent.SubmitAssessmentAsync(
+            userId, assessment.LearnerAssessmentId, new SubmitAssessmentRequest(answers));
+
+        Assert.NotNull(result);
+        Assert.Equal(5, result!.TotalQuestions);
+        Assert.Equal(1, result.CorrectAnswers);
+        Assert.Equal(20, result.ScorePercent);
+        Assert.Equal(1, result.ScoredLevel);
+    }
+
+    [Fact]
+    public async Task SubmitAssessmentAsync_ForgedAndRepeatedQuestionIds_AreIgnored()
+    {
+        var context = TestDbContextFactory.Create();
+        var (agent, userId, _, assessment) = await CreateAssessmentWithQuestionsAsync(context);
+        var served = await agent.GetQuestionsAsync(userId, assessment.LearnerAssessmentId);
+
+        var answers = new List<SubmitAnswerRequest>
+        {
+            new(served!.Questions[0].QuestionId, 0),
+            new(served.Questions[1].QuestionId, 0),
+            new(served.Questions[1].QuestionId, 0),   // repeated id counts once
+            new(99999, 0),                            // never served
+        };
+        var result = await agent.SubmitAssessmentAsync(
+            userId, assessment.LearnerAssessmentId, new SubmitAssessmentRequest(answers));
+
+        Assert.NotNull(result);
+        Assert.Equal(5, result!.TotalQuestions);
+        Assert.Equal(2, result.CorrectAnswers);
+        Assert.Equal(40, result.ScorePercent);
+    }
+
+    [Fact]
+    public async Task SubmitAssessmentAsync_WrongAnswer_ScoresZeroAcrossTheServedSet()
+    {
+        var context = TestDbContextFactory.Create();
+        var (agent, userId, _, assessment) = await CreateAssessmentWithQuestionsAsync(context);
+        var served = await agent.GetQuestionsAsync(userId, assessment.LearnerAssessmentId);
+
+        var answers = new List<SubmitAnswerRequest> { new(served!.Questions[0].QuestionId, 1) };
+        var result = await agent.SubmitAssessmentAsync(
+            userId, assessment.LearnerAssessmentId, new SubmitAssessmentRequest(answers));
+
+        Assert.NotNull(result);
+        Assert.Equal(5, result!.TotalQuestions);
+        Assert.Equal(0, result.CorrectAnswers);
+        Assert.Equal(0, result.ScorePercent);
+        Assert.Equal(1, result.ScoredLevel);
+    }
+
     [Fact]
     public async Task EnsureQuestionsForSkillAsync_WithExistingQuestions_ReturnsZeroWithoutCallingAi()
     {

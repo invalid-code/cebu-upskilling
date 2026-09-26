@@ -21,6 +21,24 @@ public class CoursesController : BaseEntityController<Course>
 
     protected override int GetId(Course entity) => entity.CourseId;
 
+    // Course writes are owned by CourseManagementController (Recruiter/CourseProvider,
+    // scoped to the caller's CompanyId). The generic create/update/delete inherited from
+    // BaseEntityController<Course> would let any authenticated caller publish courses
+    // under another company (Course.Status/CompanyId/CreatedBy are bindable) and delete
+    // courses, cascading to modules, lessons, learner notes and discussion posts.
+    // Reads stay open: the catalogue is authenticated-but-public content.
+    [HttpPost]
+    public override Task<ActionResult<Course>> Create(Course entity) =>
+        Task.FromResult<ActionResult<Course>>(NotFound());
+
+    [HttpPut("{id}")]
+    public override Task<ActionResult<Course>> Update(int id, Course entity) =>
+        Task.FromResult<ActionResult<Course>>(NotFound());
+
+    [HttpDelete("{id}")]
+    public override Task<IActionResult> Delete(int id) =>
+        Task.FromResult<IActionResult>(NotFound());
+
     [HttpGet("{id}/detail")]
     public async Task<ActionResult<CourseDetailDto>> GetCourseDetail(int id)
     {

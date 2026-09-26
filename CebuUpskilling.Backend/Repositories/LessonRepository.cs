@@ -33,7 +33,7 @@ public class LessonRepository : EntityRepository<Lesson>, ILessonRepository
     public async Task<List<Lesson>> GetByCourseIdAsync(int courseId)
         => await _dbSet
             .Where(l => l.CourseId == courseId)
-            .OrderBy(l => l.LessonId)
+            .OrderBy(l => l.Order).ThenBy(l => l.LessonId)
             .ToListAsync();
 
     public async Task<List<Lesson>> GetByCourseIdWithContentAsync(int courseId)
@@ -43,6 +43,6 @@ public class LessonRepository : EntityRepository<Lesson>, ILessonRepository
             .Include(l => l.Exercises)
                 .ThenInclude(e => e.ExerciseContent)
             .Where(l => l.CourseId == courseId)
-            .OrderBy(l => l.LessonId)
+            .OrderBy(l => l.Order).ThenBy(l => l.LessonId)
             .ToListAsync();
 }

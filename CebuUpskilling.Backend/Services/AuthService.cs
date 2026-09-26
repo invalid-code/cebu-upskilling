@@ -5,9 +5,11 @@ using System.Text;
 using CebuUpskilling.Backend.Data;
 using CebuUpskilling.Backend.DTOs;
 using CebuUpskilling.Backend.Entities;
+using CebuUpskilling.Backend.Options;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
 namespace CebuUpskilling.Backend.Services;
@@ -84,8 +86,7 @@ public class AuthService : IAuthService
     private readonly IResumeService _resumeService;
     private readonly IResumeParseQueue _parseQueue;
     private readonly ILogger<AuthService> _logger;
-
-    private const string FrontendBaseUrl = "http://localhost:5173";
+    private readonly string _frontendBaseUrl;
 
     public AuthService(
         ApplicationDbContext context,
@@ -95,7 +96,8 @@ public class AuthService : IAuthService
         IGoogleTokenVerifier googleTokenVerifier,
         IResumeService resumeService,
         IResumeParseQueue parseQueue,
-        ILogger<AuthService> logger)
+        ILogger<AuthService> logger,
+        IOptions<FrontendOptions>? frontendOptions = null)
     {
         _context = context;
         _tokenService = tokenService;
@@ -105,7 +107,13 @@ public class AuthService : IAuthService
         _resumeService = resumeService;
         _parseQueue = parseQueue;
         _logger = logger;
+        _frontendBaseUrl = (frontendOptions?.Value.BaseUrl ?? FrontendDefaultBaseUrl).TrimEnd('/');
     }
+
+    // Fallback for callers that do not supply FrontendOptions (unit tests). The
+    // production path resolves Frontend:BaseUrl so reset/confirmation links work
+    // outside local development.
+    private const string FrontendDefaultBaseUrl = "http://localhost:5173";
 
     public async Task<AuthResponse> RegisterAsync(RegisterRequest request, IFormFile? resumeFile = null, CancellationToken ct = default)
     {
@@ -544,7 +552,7 @@ public class AuthService : IAuthService
         user.PasswordResetTokenExpiry = DateTime.UtcNow.AddMinutes(30);
         await _context.SaveChangesAsync();
 
-        var resetUrl = $"{FrontendBaseUrl}/reset-password?email={Uri.EscapeDataString(user.EmailAddress)}&token={token}";
+        var resetUrl = $"{_frontendBaseUrl}/reset-password?email={Uri.EscapeDataString(user.EmailAddress)}&token={token}";
         var body = $"<p>We received a request to reset your password.</p>" +
                    $"<p>Your password reset token is: <strong>{token}</strong></p>" +
                    $"<p>Or open this link: <a href=\"{resetUrl}\">{resetUrl}</a></p>" +
@@ -600,7 +608,7 @@ public class AuthService : IAuthService
         user.EmailConfirmationTokenExpiry = DateTime.UtcNow.AddHours(24);
         await _context.SaveChangesAsync();
 
-        var confirmUrl = $"{FrontendBaseUrl}/confirm-email?email={Uri.EscapeDataString(user.EmailAddress)}&token={token}";
+        var confirmUrl = $"{_frontendBaseUrl}/confirm-email?email={Uri.EscapeDataString(user.EmailAddress)}&token={token}";
         var body = $"<p>Welcome to Cebu Upskilling! Please confirm your email address.</p>" +
                    $"<p>Your confirmation token is: <strong>{token}</strong></p>" +
                    $"<p>Or open this link: <a href=\"{confirmUrl}\">{confirmUrl}</a></p>";
