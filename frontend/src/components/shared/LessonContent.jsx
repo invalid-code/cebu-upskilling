@@ -120,6 +120,8 @@ export default function LessonContent({ lesson, moduleNumber, lessonNumber }) {
     }
   };
 
+  const blocks = Array.isArray(lesson.contentBlocks) ? lesson.contentBlocks : [];
+
   return (
     <div style={styles.container}>
       {moduleNumber != null && lessonNumber != null && (
@@ -129,11 +131,11 @@ export default function LessonContent({ lesson, moduleNumber, lessonNumber }) {
       )}
       <h2 style={styles.lessonTitle}>{lesson.name}</h2>
 
-      {lesson.contentBlocks.map((block, index) =>
+      {blocks.map((block, index) =>
         renderContentBlock(block, index)
       )}
 
-      {lesson.contentBlocks.length === 0 && lesson.description && (
+      {blocks.length === 0 && lesson.description && (
         <div style={styles.paragraph}>{lesson.description}</div>
       )}
     </div>

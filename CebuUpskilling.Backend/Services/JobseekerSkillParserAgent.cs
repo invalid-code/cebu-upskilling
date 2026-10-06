@@ -2,6 +2,7 @@ using System.Text.Json;
 using CebuUpskilling.Backend.DTOs;
 using CebuUpskilling.Backend.Entities;
 using CebuUpskilling.Backend.Repositories;
+using Microsoft.EntityFrameworkCore;
 
 namespace CebuUpskilling.Backend.Services;
 
@@ -70,8 +71,7 @@ public class JobseekerSkillParserAgent : IJobseekerSkillParserAgent
             return new ParseSkillsResult(new List<ParsedSkillResult>());
         }
 
-        var skills = await UpsertSkillsAsync(names);
-        await _skills.SaveChangesAsync(ct);
+        var skills = await UpsertSkillsAsync(names, ct);
 
         var learner = await _learners.GetByUserIdAsync(userId);
         if (learner == null)
@@ -135,7 +135,7 @@ public class JobseekerSkillParserAgent : IJobseekerSkillParserAgent
         return new ParseSkillsResult(parsed);
     }
 
-    private async Task<List<Skill>> UpsertSkillsAsync(IEnumerable<string> names)
+    private async Task<List<Skill>> UpsertSkillsAsync(IEnumerable<string> names, CancellationToken ct = default)
     {
         var normalizedNames = names
             .Select(n => n?.Trim())
@@ -148,6 +148,7 @@ public class JobseekerSkillParserAgent : IJobseekerSkillParserAgent
         var existingByNormalized = existing.ToDictionary(s => s.Name, StringComparer.OrdinalIgnoreCase);
 
         var skills = new List<Skill>();
+        var added = new List<Skill>();
         foreach (var name in normalizedNames)
         {
             if (existingByNormalized.TryGetValue(name, out var skill))
@@ -157,9 +158,29 @@ public class JobseekerSkillParserAgent : IJobseekerSkillParserAgent
             else
             {
                 var created = new Skill { Name = name, Category = null };
-                await _skills.AddAsync(created);
+                await _skills.AddAsync(created, ct);
+                added.Add(created);
                 skills.Add(created);
             }
+        }
+
+        if (added.Count == 0) return skills;
+
+        try
+        {
+            await _skills.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex)
+        {
+            // A concurrent parse inserted the same new skill name first and the
+            // unique index rejected ours: evict the losers and reuse the winners
+            // instead of failing the whole parse.
+            _logger.LogWarning(ex, "Concurrent skill insert detected; reusing existing skills");
+            foreach (var loser in added) _skills.Detach(loser);
+            var winners = await _skills.GetByNamesAsync(normalizedNames);
+            var winnersByName = winners.ToDictionary(s => s.Name, StringComparer.OrdinalIgnoreCase);
+            if (normalizedNames.Any(n => !winnersByName.ContainsKey(n))) throw;
+            skills = normalizedNames.Select(n => winnersByName[n]).ToList();
         }
 
         return skills;

@@ -22,7 +22,9 @@ public class DiscussionsController : ControllerBase
         _logger = logger;
     }
 
-    private int UserId => int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+    private int UserId => User.TryGetUserId(out var id)
+        ? id
+        : throw new UnauthorizedAccessException("Invalid user identity");
 
     [HttpGet("lessons/{lessonId}")]
     public async Task<ActionResult<LessonDiscussionResponse>> GetLessonDiscussion(int lessonId)

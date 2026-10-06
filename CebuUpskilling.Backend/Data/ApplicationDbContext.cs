@@ -155,6 +155,21 @@ public class ApplicationDbContext : DbContext
             .HasIndex(u => u.EmailAddress)
             .IsUnique();
 
+        // Check-then-insert races (concurrent double-apply / double-register /
+        // concurrent skill parses) must fail at the database, not silently
+        // duplicate. Services catch DbUpdateException and return the idempotent
+        // outcome (AlreadyApplied / "Email already registered" / reuse winner).
+        modelBuilder.Entity<Application>()
+            .HasIndex(a => new { a.LearnerId, a.PostId })
+            .IsUnique();
+
+        modelBuilder.Entity<Skill>()
+            .HasIndex(s => s.Name)
+            .IsUnique();
+
+        modelBuilder.Entity<LearnerAssessment>()
+            .HasIndex(a => new { a.LearnerId, a.SkillId });
+
         modelBuilder.Entity<Company>()
             .HasIndex(c => c.Name)
             .IsUnique();

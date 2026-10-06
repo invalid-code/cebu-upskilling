@@ -177,6 +177,9 @@ namespace CebuUpskilling.Backend.Migrations
 
                     b.HasIndex("PostId");
 
+                    b.HasIndex("LearnerId", "PostId")
+                        .IsUnique();
+
                     b.ToTable("Applications");
                 });
 
@@ -629,6 +632,8 @@ namespace CebuUpskilling.Backend.Migrations
 
                     b.HasIndex("SkillId");
 
+                    b.HasIndex("LearnerId", "SkillId");
+
                     b.ToTable("LearnerAssessments");
                 });
 
@@ -1007,6 +1012,9 @@ namespace CebuUpskilling.Backend.Migrations
                         .HasColumnType("character varying(100)");
 
                     b.HasKey("SkillId");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
 
                     b.ToTable("Skills");
                 });

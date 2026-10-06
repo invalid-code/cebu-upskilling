@@ -202,6 +202,14 @@ export default function LandingPage() {
     // Scroll reveal + one-shot animations
     const revealed = new WeakSet();
 
+    // Counter values are numeric; the unit suffix (<i>) is the page's own
+    // static markup. Use textContent + re-attach instead of innerHTML so no
+    // HTML string is ever parsed here.
+    function setCount(el, value, dec, unitEl) {
+      el.textContent = fmt(value, dec);
+      if (unitEl) el.appendChild(unitEl);
+    }
+
     function runCount(el) {
       if (!el || el.dataset.done) return;
       el.dataset.done = '1';
@@ -209,9 +217,8 @@ export default function LandingPage() {
       if (Number.isNaN(end)) return;
       const dec = parseInt(el.getAttribute('data-dec') || '0', 10);
       const unitEl = el.querySelector('i');
-      const unit = unitEl ? unitEl.outerHTML : '';
       if (reduce) {
-        el.innerHTML = fmt(end, dec) + unit;
+        setCount(el, end, dec, unitEl);
         return;
       }
       let t0 = null;
@@ -220,7 +227,7 @@ export default function LandingPage() {
         if (t0 === null) t0 = t;
         const p = Math.min((t - t0) / dur, 1);
         const e = 1 - Math.pow(1 - p, 4);
-        el.innerHTML = fmt(end * e, dec) + unit;
+        setCount(el, end * e, dec, unitEl);
         if (p < 1) trackRaf(requestAnimationFrame(frame));
       };
       trackRaf(requestAnimationFrame(frame));

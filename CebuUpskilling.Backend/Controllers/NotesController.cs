@@ -22,7 +22,9 @@ public class NotesController : ControllerBase
         _logger = logger;
     }
 
-    private int UserId => int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+    private int UserId => User.TryGetUserId(out var id)
+        ? id
+        : throw new UnauthorizedAccessException("Invalid user identity");
 
     [HttpGet("courses/{courseId}")]
     public async Task<ActionResult<CourseNotesResponse>> GetCourseNotes(int courseId)

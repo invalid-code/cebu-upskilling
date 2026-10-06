@@ -11,6 +11,21 @@ function clearSession() {
   localStorage.removeItem('user');
 }
 
+// Redirect to /login after the session is cleared, unless already there
+// (avoids a redirect loop when the login page itself gets a 401).
+function redirectToLogin() {
+  try {
+    if (typeof window !== 'undefined' && window.location?.pathname !== '/login') {
+      window.location.href = '/login';
+    }
+  } catch {
+    // non-browser environment (tests): ignore
+  }
+}
+
+// console.debug is chatty in production; keep warn/error which carry signal.
+const debug = import.meta.env?.DEV ? console.debug.bind(console) : () => {};
+
 function request(path, options = {}) {
   let token = localStorage.getItem('token');
   if (token && isTokenExpired(token)) {
@@ -24,7 +39,7 @@ function request(path, options = {}) {
   };
 
   const method = options.method || 'GET';
-  console.debug(`[API] ${method} ${path}`);
+  debug(`[API] ${method} ${path}`);
 
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -52,7 +67,7 @@ function request(path, options = {}) {
         if (localStorage.getItem('token')) {
           console.warn(`[API] ${method} ${path} → 401: session expired, clearing token`);
           clearSession();
-          window.location.href = '/login';
+          redirectToLogin();
           resolve(null);
           return;
         }
@@ -86,12 +101,12 @@ function request(path, options = {}) {
       }
 
       if (xhr.status === 204) {
-        console.debug(`[API] ${method} ${path} → 204 No Content`);
+        debug(`[API] ${method} ${path} → 204 No Content`);
         resolve(null);
         return;
       }
 
-      console.debug(`[API] ${method} ${path} → ${xhr.status}`);
+      debug(`[API] ${method} ${path} → ${xhr.status}`);
       try {
         resolve(JSON.parse(xhr.responseText));
       } catch {
@@ -122,7 +137,7 @@ function postForm(path, formData) {
     token = null;
   }
   const method = 'POST';
-  console.debug(`[API] ${method} ${path} (form)`);
+  debug(`[API] ${method} ${path} (form)`);
 
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -132,7 +147,7 @@ function postForm(path, formData) {
     xhr.onload = () => {
       if (xhr.status === 401 && localStorage.getItem('token')) {
         clearSession();
-        window.location.href = '/login';
+        redirectToLogin();
         resolve(null);
         return;
       }
@@ -159,7 +174,7 @@ function postForm(path, formData) {
         reject(err);
         return;
       }
-      console.debug(`[API] ${method} ${path} → ${xhr.status}`);
+      debug(`[API] ${method} ${path} → ${xhr.status}`);
       try {
         resolve(JSON.parse(xhr.responseText));
       } catch {
@@ -190,7 +205,7 @@ function upload(path, file) {
     token = null;
   }
   const method = 'POST';
-  console.debug(`[API] ${method} ${path}`);
+  debug(`[API] ${method} ${path}`);
 
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -200,7 +215,7 @@ function upload(path, file) {
     xhr.onload = () => {
       if (xhr.status === 401 && localStorage.getItem('token')) {
         clearSession();
-        window.location.href = '/login';
+        redirectToLogin();
         resolve(null);
         return;
       }
@@ -235,7 +250,7 @@ function upload(path, file) {
         reject(new Error('Upload did not complete — the server did not confirm the file. Please try again.'));
         return;
       }
-      console.debug(`[API] ${method} ${path} → ${xhr.status} url=${data.url}`);
+      debug(`[API] ${method} ${path} → ${xhr.status} url=${data.url}`);
       resolve(data);
     };
     xhr.onerror = () => {

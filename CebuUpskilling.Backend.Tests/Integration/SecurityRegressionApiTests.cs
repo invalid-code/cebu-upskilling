@@ -548,6 +548,7 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
             TechnicalLevel = 2,
             Description = "Course",
             Price = 1000,
+            Status = "Published",
         };
         context.Courses.Add(course);
         await context.SaveChangesAsync();

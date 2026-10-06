@@ -25,7 +25,7 @@ public class EnrollmentsController : BaseEntityController<LearnerStudyCourse>
     [Authorize(Roles = "Learner")]
     public override async Task<ActionResult<List<LearnerStudyCourse>>> GetAll()
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        if (!User.TryGetUserId(out var userId)) return Unauthorized(new { error = "Unauthorized" });
         _logger.LogInformation("HTTP GET /api/enrollments called by user {UserId}", userId);
 
         var enrollments = await _enrollmentsService.GetMyEnrollmentsAsync(userId);
@@ -39,7 +39,7 @@ public class EnrollmentsController : BaseEntityController<LearnerStudyCourse>
     [Authorize(Roles = "Learner")]
     public override async Task<ActionResult<LearnerStudyCourse>> Create(LearnerStudyCourse entity)
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        if (!User.TryGetUserId(out var userId)) return Unauthorized(new { error = "Unauthorized" });
         _logger.LogInformation("HTTP POST /api/enrollments called by user {UserId} for course {CourseId}", userId, entity.CourseId);
 
         var outcome = await _enrollmentsService.EnrollAsync(userId, entity.CourseId);

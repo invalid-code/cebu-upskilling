@@ -50,7 +50,7 @@ Career pathway platform connecting learners and employers in Cebu — skill-gap 
 │  React SPA :5173   │──XHR──▶│  ASP.NET Core API        │
 │  Vite + React Router 7     │  :5000 / :5179 (dev)     │
 │  contexts, lucide  │◀──────│  :8080 (docker/prod)     │
-└─────────┬──────────┘   JWT  │  Controllers (17)        │
+└─────────┬──────────┘   JWT  │  Controllers (22)        │
           │                   │  Services (Agent, Gap,   │
           │                   │   Auth, Enroll, Stats…)  │
           │                   │  EF Core → PostgreSQL    │
@@ -75,7 +75,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for entity-relationship details
 ```
 .
 ├── CebuUpskilling.Backend/       # ASP.NET Core 10 Web API
-│   ├── Controllers/              # 17 controllers (Auth, Posts, Assessments, …)
+│   ├── Controllers/              # 22 controllers (Auth, Posts, Assessments, …)
 │   ├── Services/                 # Business logic (AuthService, JobseekerSkillParserAgent, …)
 │   ├── Repositories/             # Generic + specialized repositories
 │   ├── Entities/                 # 26 entities (AppUser, Learner, Course, Skill, …)
@@ -106,12 +106,12 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for entity-relationship details
 │   ├── .env.example / .env.development
 │   └── README.md
 ├── mobile/                       # Expo 54 / React Native 0.81
-│   ├── App.js                    # Single-file app: AuthContext + 5 tabs
+│   ├── App.js                    # AuthContext + tab navigation (Home/Skills/Jobs/Learn/Applications/Account)
 │   ├── app.json
 │   ├── logger.js
 │   └── README.md
-├── scripts/                      # Reserved for automation (currently empty)
 ├── docker-compose.yml            # db (postgres:16) + api
+├── docs/                         # API.md + ARCHITECTURE.md
 ├── CebuUpskilling.sln
 ├── CebuUpskillingDocumentation.pdf # 13-page product spec (PDF 1.7)
 ├── global.json                   # .NET SDK 10.0.302

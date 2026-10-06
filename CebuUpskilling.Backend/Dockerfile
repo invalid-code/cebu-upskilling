@@ -18,6 +18,9 @@ RUN apt-get update \
 ENV ASPNETCORE_HTTP_PORTS=8080
 EXPOSE 8080
 
+RUN mkdir -p /app/logs && chown -R app:app /app
+USER app
+
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
     CMD curl --fail --silent http://localhost:8080/health || exit 1
 

@@ -553,8 +553,9 @@ public class SecurityApiTests : ProductionApiTestBase
     [Fact]
     public async Task ServerError_ReturnsGenericMessageWithoutStackTrace()
     {
-        // A validly-signed token that omits the NameIdentifier claim causes the
-        // stats endpoint to throw an unhandled NullReferenceException (500).
+        // A validly-signed token that omits the NameIdentifier claim is
+        // rejected with 401 (controllers use TryGetUserId, never int.Parse),
+        // and the body stays a generic message with no leak.
         var (key, issuer, audience) = JwtConfig();
         var handler = new JwtSecurityTokenHandler();
         var token = handler.WriteToken(new JwtSecurityToken(
@@ -572,7 +573,7 @@ public class SecurityApiTests : ProductionApiTestBase
 
         var response = await AuthorizedClient(token).GetAsync("/api/stats/week");
 
-        Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
 
         var body = await response.Content.ReadAsStringAsync();
         Assert.DoesNotContain("Exception", body, StringComparison.OrdinalIgnoreCase);
@@ -580,6 +581,6 @@ public class SecurityApiTests : ProductionApiTestBase
         Assert.DoesNotContain("System.", body, StringComparison.OrdinalIgnoreCase);
 
         var json = await ReadJsonAsync(response);
-        Assert.Equal("An unexpected error occurred", json.GetProperty("error").GetString());
+        Assert.Equal("Unauthorized", json.GetProperty("error").GetString());
     }
 }

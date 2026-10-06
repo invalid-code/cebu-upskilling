@@ -51,7 +51,7 @@ public class AssessmentsController : BaseEntityController<LearnerAssessment>
     [HttpGet("results")]
     public async Task<ActionResult<List<AssessmentResultResponse>>> GetRecentResults()
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        if (!User.TryGetUserId(out var userId)) return Unauthorized(new { error = "Unauthorized" });
         _logger.LogInformation("HTTP GET /api/assessments/results called by user {UserId}", userId);
 
         var results = await _jobseekerSkillParserAgent.GetRecentResultsAsync(userId);
@@ -62,7 +62,7 @@ public class AssessmentsController : BaseEntityController<LearnerAssessment>
     [HttpGet("available")]
     public async Task<ActionResult<AvailableAssessmentsResponse>> GetAvailableAssessments()
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        if (!User.TryGetUserId(out var userId)) return Unauthorized(new { error = "Unauthorized" });
         _logger.LogInformation("HTTP GET /api/assessments/available called by user {UserId}", userId);
 
         var result = await _jobseekerSkillParserAgent.GetAvailableAssessmentsAsync(userId);
@@ -76,7 +76,7 @@ public class AssessmentsController : BaseEntityController<LearnerAssessment>
     [HttpGet("recommended")]
     public async Task<ActionResult<RecommendedAssessmentResponse>> GetRecommended()
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        if (!User.TryGetUserId(out var userId)) return Unauthorized(new { error = "Unauthorized" });
         _logger.LogInformation("HTTP GET /api/assessments/recommended called by user {UserId}", userId);
 
         var result = await _jobseekerSkillParserAgent.GetRecommendedAsync(userId);
@@ -90,7 +90,7 @@ public class AssessmentsController : BaseEntityController<LearnerAssessment>
     [HttpPost("start")]
     public async Task<ActionResult<StartAssessmentResponse>> StartAssessment([FromBody] StartAssessmentRequest request)
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        if (!User.TryGetUserId(out var userId)) return Unauthorized(new { error = "Unauthorized" });
         _logger.LogInformation("HTTP POST /api/assessments/start called by user {UserId} for skill {SkillId}", userId, request.SkillId);
 
         var result = await _jobseekerSkillParserAgent.StartAssessmentAsync(userId, request);
@@ -104,7 +104,7 @@ public class AssessmentsController : BaseEntityController<LearnerAssessment>
     [HttpGet("{assessmentId}/questions")]
     public async Task<ActionResult<AssessmentQuestionsResponse>> GetQuestions(int assessmentId)
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        if (!User.TryGetUserId(out var userId)) return Unauthorized(new { error = "Unauthorized" });
         _logger.LogInformation("HTTP GET /api/assessments/{AssessmentId}/questions called by user {UserId}", assessmentId, userId);
 
         var result = await _jobseekerSkillParserAgent.GetQuestionsAsync(userId, assessmentId);
@@ -118,7 +118,7 @@ public class AssessmentsController : BaseEntityController<LearnerAssessment>
     [HttpPost("{assessmentId}/submit")]
     public async Task<ActionResult<SubmitAssessmentResponse>> SubmitAssessment(int assessmentId, [FromBody] SubmitAssessmentRequest request)
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        if (!User.TryGetUserId(out var userId)) return Unauthorized(new { error = "Unauthorized" });
         _logger.LogInformation("HTTP POST /api/assessments/{AssessmentId}/submit called by user {UserId}", assessmentId, userId);
 
         var result = await _jobseekerSkillParserAgent.SubmitAssessmentAsync(userId, assessmentId, request);
@@ -132,7 +132,7 @@ public class AssessmentsController : BaseEntityController<LearnerAssessment>
     [HttpPost("{assessmentId}/integrity-event")]
     public IActionResult LogIntegrityEvent(int assessmentId, [FromBody] LogIntegrityEventRequest request)
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        if (!User.TryGetUserId(out var userId)) return Unauthorized(new { error = "Unauthorized" });
         _logger.LogWarning(
             "Assessment integrity event: user {UserId} left assessment {AssessmentId} tab (event={EventType}, detail={Detail}) at {OccurredAt}",
             userId, assessmentId, request.EventType, request.Detail, DateTime.UtcNow);
@@ -144,7 +144,7 @@ public class AssessmentsController : BaseEntityController<LearnerAssessment>
     [HttpPost("company/questions")]
     public async Task<ActionResult<CreatedCompanyQuestionResponse>> CreateCompanyQuestion([FromBody] CreateCompanyQuestionRequest request)
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        if (!User.TryGetUserId(out var userId)) return Unauthorized(new { error = "Unauthorized" });
         _logger.LogInformation("HTTP POST /api/assessments/company/questions called by user {UserId} for skill {SkillId}", userId, request.SkillId);
 
         var result = await _jobseekerSkillParserAgent.CreateCompanyQuestionAsync(userId, request);
@@ -158,7 +158,7 @@ public class AssessmentsController : BaseEntityController<LearnerAssessment>
     [HttpPost("provider/questions")]
     public async Task<ActionResult<CreatedProviderQuestionResponse>> CreateProviderQuestion([FromBody] CreateProviderQuestionRequest request)
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        if (!User.TryGetUserId(out var userId)) return Unauthorized(new { error = "Unauthorized" });
         _logger.LogInformation("HTTP POST /api/assessments/provider/questions called by user {UserId} for skill {SkillId}", userId, request.SkillId);
 
         var result = await _jobseekerSkillParserAgent.CreateProviderQuestionAsync(userId, request);

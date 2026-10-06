@@ -114,13 +114,20 @@ public class CourseManagementController(ApplicationDbContext db) : ControllerBas
 
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id) {
+        // Deleting cascades to modules, lessons, notes, discussions and
+        // enrollments: refuse while learners are enrolled so progress is never
+        // destroyed. Unpublish (Draft) instead, or wait until unenrolled.
         if (IsCourseProvider()) {
             var uid = UserId().ToString();
             var pc = await db.Courses.SingleOrDefaultAsync(c => c.CourseId == id && c.CreatedBy == uid); if (pc is null) return NotFound();
+            if (await db.LearnerStudyCourses.AnyAsync(lsc => lsc.CourseId == id))
+                return Conflict(new { error = "Cannot delete a course with enrolled learners. Unpublish it instead." });
             db.Courses.Remove(pc); await db.SaveChangesAsync(); return NoContent();
         }
         var companyId = await CompanyId(); if (companyId is null) return Forbid();
         var course = await db.Courses.SingleOrDefaultAsync(c => c.CourseId == id && c.CompanyId == companyId); if (course is null) return NotFound();
+        if (await db.LearnerStudyCourses.AnyAsync(lsc => lsc.CourseId == id))
+            return Conflict(new { error = "Cannot delete a course with enrolled learners. Unpublish it instead." });
         db.Courses.Remove(course); await db.SaveChangesAsync(); return NoContent();
     }
 

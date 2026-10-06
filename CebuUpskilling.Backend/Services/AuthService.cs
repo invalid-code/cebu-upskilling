@@ -153,6 +153,14 @@ public class AuthService : IAuthService
             throw new InvalidOperationException("Email already registered");
         }
 
+        // Transactions are only supported by relational databases (e.g. PostgreSQL).
+        // Skip the transaction for non-relational providers like the in-memory test database.
+        IDbContextTransaction? transaction = null;
+        if (_context.Database.ProviderName != "Microsoft.EntityFrameworkCore.InMemory")
+        {
+            transaction = await _context.Database.BeginTransactionAsync();
+        }
+
         var addressParts = AddressParser.Parse(request.Address);
 
         var user = new AppUser
@@ -173,9 +181,43 @@ public class AuthService : IAuthService
             Country = addressParts.Country,
         };
 
-        _context.Users.Add(user);
-        await _context.SaveChangesAsync();
-        _logger.LogInformation("User registered successfully: {UserId} ({Email}), Role: {Role}", user.UserId, user.EmailAddress, user.Role);
+        try
+        {
+            _context.Users.Add(user);
+            await _context.SaveChangesAsync();
+            _logger.LogInformation("User registered successfully: {UserId} ({Email}), Role: {Role}", user.UserId, user.EmailAddress, user.Role);
+
+            if (request.Role == "Learner")
+            {
+                var learner = new Learner { UserId = user.UserId, IsPremium = false };
+                _context.Learners.Add(learner);
+                await _context.SaveChangesAsync();
+                _logger.LogInformation("Learner profile created for user {UserId}", user.UserId);
+            }
+
+            if (transaction != null)
+                await transaction.CommitAsync();
+        }
+        catch (DbUpdateException ex)
+        {
+            if (transaction != null)
+                await transaction.RollbackAsync();
+            // Lost a concurrent registration race for the same email: the
+            // unique index rejected the second insert. Report the friendly
+            // outcome instead of a 500, and never leave an orphaned AppUser.
+            _logger.LogWarning(ex, "Registration failed: concurrent duplicate email {Email}", request.EmailAddress);
+            throw new InvalidOperationException("Email already registered");
+        }
+        catch
+        {
+            if (transaction != null)
+                await transaction.RollbackAsync();
+            throw;
+        }
+        finally
+        {
+            transaction?.Dispose();
+        }
 
         if (request.Role == "Learner")
         {
@@ -189,11 +231,6 @@ public class AuthService : IAuthService
                 await resumeFile.CopyToAsync(buffer, ct);
                 resumeBytes = buffer.ToArray();
             }
-
-            var learner = new Learner { UserId = user.UserId, IsPremium = false };
-            _context.Learners.Add(learner);
-            await _context.SaveChangesAsync();
-            _logger.LogInformation("Learner profile created for user {UserId}", user.UserId);
 
             // Skill parsing (Gemini) and the resume upload are slow, so they run
             // in the background: enqueue the work and return immediately. The

@@ -56,12 +56,23 @@ public class AuthController : BaseEntityController<AppUser>
     {
         var email = form.EmailAddress ?? string.Empty;
         _logger.LogInformation("HTTP POST /api/auth/register (multipart) called for {Email}", email);
+        // The form path has no FluentValidator (unlike the JSON path), so
+        // enforce the essentials here instead of letting empty values through
+        // to service-level checks.
+        if (string.IsNullOrWhiteSpace(form.EmailAddress) || string.IsNullOrWhiteSpace(form.Password))
+        {
+            _logger.LogWarning("Registration rejected: email and password are required");
+            return BadRequest(new { error = "Email address and password are required" });
+        }
         if (string.Equals(form.Role, "Recruiter", StringComparison.OrdinalIgnoreCase))
         {
             _logger.LogWarning("Registration rejected for {Email}: self-service Recruiter role is not allowed", email);
             return BadRequest(new { error = "Recruiter accounts must register together with a company via /api/auth/register-company" });
         }
-        var resumeFile = form.ResumeFile ?? form.Resume ?? form.File ?? Request.Form.Files.FirstOrDefault();
+        // Only accept explicitly named file fields: falling back to
+        // Request.Form.Files.FirstOrDefault() could mistake an unrelated
+        // uploaded file for the resume.
+        var resumeFile = form.ResumeFile ?? form.Resume ?? form.File;
         var request = new RegisterRequest(
             form.FirstName ?? string.Empty,
             form.LastName ?? string.Empty,
@@ -209,7 +220,7 @@ public class AuthController : BaseEntityController<AppUser>
     [HttpPatch("profile")]
     public async Task<ActionResult<AuthResponse>> UpdateProfile(UpdateProfileRequest request)
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        if (!User.TryGetUserId(out var userId)) return Unauthorized(new { error = "Unauthorized" });
         _logger.LogInformation("HTTP PATCH /api/auth/profile called by user {UserId}", userId);
         try
         {
@@ -235,6 +246,7 @@ public class AuthController : BaseEntityController<AppUser>
     }
 
     [AllowAnonymous]
+    [EnableRateLimiting("auth")]
     [HttpPost("confirm-email")]
     public async Task<IActionResult> ConfirmEmail([FromBody] ConfirmEmailRequest request)
     {
@@ -248,6 +260,7 @@ public class AuthController : BaseEntityController<AppUser>
     }
 
     [AllowAnonymous]
+    [EnableRateLimiting("auth")]
     [HttpPost("resend-confirmation")]
     public async Task<IActionResult> ResendConfirmation([FromBody] EmailRequest request)
     {
@@ -256,6 +269,7 @@ public class AuthController : BaseEntityController<AppUser>
     }
 
     [AllowAnonymous]
+    [EnableRateLimiting("auth")]
     [HttpPost("forgot-password")]
     public async Task<IActionResult> ForgotPassword([FromBody] EmailRequest request)
     {
@@ -264,6 +278,7 @@ public class AuthController : BaseEntityController<AppUser>
     }
 
     [AllowAnonymous]
+    [EnableRateLimiting("auth")]
     [HttpPost("reset-password")]
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
     {

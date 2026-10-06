@@ -825,6 +825,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
             TechnicalLevel = 3,
             Description = "Build production-ready web apps",
             Price = 5000,
+            Status = "Published",
         };
         db.Courses.Add(course);
         await db.SaveChangesAsync();

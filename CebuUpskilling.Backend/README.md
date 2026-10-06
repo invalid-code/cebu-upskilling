@@ -209,7 +209,7 @@ Design-time factory: `Data/DesignTimeDbContextFactory.cs` (used by `dotnet ef`).
 ```
 CebuUpskilling.Backend/
 ├── Program.cs                 # DI, middleware pipeline, startup validation
-├── Controllers/               # 19 controllers (see docs/API.md)
+├── Controllers/               # 22 controllers (see docs/API.md)
 │   ├── AuthController.cs
 │   ├── PostsController.cs (api/posts)  # job posts
 │   ├── MarketTrendsController.cs (api/market-trends)  # skill/role demand

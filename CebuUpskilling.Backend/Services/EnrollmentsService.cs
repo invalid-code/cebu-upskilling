@@ -1,5 +1,6 @@
 using CebuUpskilling.Backend.Entities;
 using CebuUpskilling.Backend.Repositories;
+using Microsoft.EntityFrameworkCore;
 
 namespace CebuUpskilling.Backend.Services;
 
@@ -89,7 +90,17 @@ public class EnrollmentsService : IEnrollmentsService
         };
 
         await _learnerStudyCourses.AddAsync(enrollment);
-        await _learnerStudyCourses.SaveChangesAsync();
+        try
+        {
+            await _learnerStudyCourses.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex)
+        {
+            // Lost a concurrent double-enroll race: the composite PK rejected
+            // the second insert. The learner is already enrolled.
+            _logger.LogInformation(ex, "User {UserId} concurrent enroll in course {CourseId}; already enrolled", userId, courseId);
+            return new EnrollOutcome(false, EnrollFailure.AlreadyEnrolled);
+        }
 
         _logger.LogInformation("User {UserId} enrolled in course {CourseId}", userId, courseId);
         return new EnrollOutcome(true, CourseId: courseId, Started: enrollment.Started);

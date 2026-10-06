@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Play, Pause, SkipForward, SkipBack, Maximize, Volume2, VolumeX, CheckCircle2 } from 'lucide-react';
 import { api } from '../../api/client';
 import { useToast } from '../../context/ToastContext';
+import { resolveFileUrl } from '../../utils/fileUrl';
 
 const styles = {
   container: {
@@ -133,7 +134,8 @@ export default function VideoPlayer({ media = [], lessonName, currentIndex = 0, 
   const [muted, setMuted] = useState(false);
   const [completed, setCompleted] = useState(false);
 
-  const videoMedia = media.find((m) => (m.type || '').toLowerCase().startsWith('video'));
+  const mediaList = Array.isArray(media) ? media : [];
+  const videoMedia = mediaList.find((m) => (m.type || '').toLowerCase().startsWith('video'));
 
   useEffect(() => {
     setIsPlaying(false);
@@ -198,7 +200,7 @@ export default function VideoPlayer({ media = [], lessonName, currentIndex = 0, 
         <video
           ref={videoRef}
           style={styles.video}
-          src={videoMedia.pathFile}
+          src={resolveFileUrl(videoMedia.pathFile)}
           onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
           onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
           onPlay={() => setIsPlaying(true)}

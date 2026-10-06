@@ -1,6 +1,7 @@
 using CebuUpskilling.Backend.DTOs;
 using CebuUpskilling.Backend.Entities;
 using CebuUpskilling.Backend.Repositories;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace CebuUpskilling.Backend.Services;
@@ -144,7 +145,20 @@ public class ApplicationsService : IApplicationsService
         }
 
         await _applications.AddAsync(application);
-        await _applications.SaveChangesAsync();
+        try
+        {
+            await _applications.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex)
+        {
+            // Lost a concurrent double-apply race: the unique
+            // (LearnerId, PostId) index rejected the second insert. The learner
+            // already applied, so return the idempotent outcome.
+            _logger.LogInformation(ex, "User {UserId} concurrent apply to post {PostId}; returning existing application", userId, postId);
+            var winner = await _applications.GetByLearnerAndPostAsync(learner.LearnerId, postId);
+            if (winner == null) throw;
+            return new ApplyOutcome(false, ApplyFailure.AlreadyApplied, ToSummary(winner));
+        }
 
         var created = await _applications.GetByLearnerAndPostAsync(learner.LearnerId, postId);
         _logger.LogInformation("User {UserId} applied to post {PostId}", userId, postId);

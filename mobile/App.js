@@ -12,20 +12,58 @@ const colors = { bg: '#e8f0ee', surface: '#f5faf8', ink: '#1a2e27', muted: '#5c7
 
 async function request(path, options = {}) {
   const method = (options.method || 'GET').toUpperCase();
+  const hasBody = options.body != null;
   logger.debug(`[API] ${method} ${path}`);
+  // Set by AuthProvider: clears the signed-in user when the server rejects
+  // the token (mirrors the web client's 401 handling).
+  const onUnauthorized = request.onUnauthorized;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000);
   try {
     const token = await SecureStore.getItemAsync('token');
-    const response = await fetch(`${API_URL}${path}`, { ...options, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...options.headers } });
-    const data = response.status === 204 ? null : await response.json();
+    const headers = {
+      ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...options.headers,
+    };
+    const response = await fetch(`${API_URL}${path}`, { ...options, headers, signal: controller.signal });
+    let data = null;
+    if (response.status !== 204) {
+      const text = await response.text();
+      if (text) {
+        try {
+          data = JSON.parse(text);
+        } catch {
+          data = { error: text.slice(0, 200) };
+        }
+      }
+    }
     if (!response.ok) {
       logger.warn(`[API] ${method} ${path} → ${response.status}: ${data?.error || ''}`);
-      throw new Error(data?.error || `Request failed (${response.status})`);
+      if (response.status === 401 && typeof onUnauthorized === 'function') {
+        try { await onUnauthorized(); } catch { /* session cleanup is best-effort */ }
+      }
+      const error = new Error(data?.error || `Request failed (${response.status})`);
+      error.status = response.status;
+      throw error;
     }
     logger.debug(`[API] ${method} ${path} → ${response.status}`);
     return data;
   } catch (error) {
-    logger.error(`[API] ${method} ${path} → network error`, error?.message || error);
+    if (error?.name === 'AbortError') {
+      const timeoutError = new Error('Request timed out — check your connection and try again');
+      timeoutError.status = 0;
+      throw timeoutError;
+    }
+    if (error?.status == null) {
+      logger.error(`[API] ${method} ${path} → network error`, error?.message || error);
+      const networkError = new Error(error?.message || 'Network error — check your connection and try again');
+      networkError.status = 0;
+      throw networkError;
+    }
     throw error;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
@@ -33,15 +71,49 @@ const AuthContext = createContext(null);
 function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [checking, setChecking] = useState(true);
-  useEffect(() => { SecureStore.getItemAsync('user').then((value) => { if (value) { setUser(JSON.parse(value)); logger.info('[Auth] Session restored from secure storage'); } else { logger.debug('[Auth] No stored session'); } }).catch((error) => logger.warn('[Auth] Failed to restore session:', error?.message || error)).finally(() => setChecking(false)); }, []);
-  const login = async (email, password) => { const data = await request('/auth/login', { method: 'POST', body: JSON.stringify({ emailAddress: email, password }) }); await SecureStore.setItemAsync('token', data.token); await SecureStore.setItemAsync('user', JSON.stringify(data)); setUser(data); logger.info(`[Auth] Signed in as ${data.emailAddress || data.email}`); };
-  const logout = async () => { await SecureStore.deleteItemAsync('token'); await SecureStore.deleteItemAsync('user'); setUser(null); logger.info('[Auth] Signed out'); };
+  useEffect(() => {
+    request.onUnauthorized = async () => {
+      try {
+        await SecureStore.deleteItemAsync('token');
+        await SecureStore.deleteItemAsync('user');
+      } finally {
+        setUser(null);
+      }
+      logger.info('[Auth] Session expired, signed out');
+    };
+    SecureStore.getItemAsync('user').then((value) => {
+      if (!value) { logger.debug('[Auth] No stored session'); return; }
+      try {
+        setUser(JSON.parse(value));
+        logger.info('[Auth] Session restored from secure storage');
+      } catch {
+        SecureStore.deleteItemAsync('user').catch(() => {});
+        SecureStore.deleteItemAsync('token').catch(() => {});
+        logger.warn('[Auth] Stored session was corrupt, cleared');
+      }
+    }).catch((error) => logger.warn('[Auth] Failed to restore session:', error?.message || error)).finally(() => setChecking(false));
+    return () => { request.onUnauthorized = null; };
+  }, []);
+  const login = async (email, password) => { const cleanEmail = (email || '').trim(); const data = await request('/auth/login', { method: 'POST', body: JSON.stringify({ emailAddress: cleanEmail, password }) }); await SecureStore.setItemAsync('token', data.token); await SecureStore.setItemAsync('user', JSON.stringify(data)); setUser(data); logger.info(`[Auth] Signed in as ${data.emailAddress || data.email}`); };
+  const logout = async () => {
+    try {
+      const token = await SecureStore.getItemAsync('token');
+      if (token) {
+        await fetch(`${API_URL}/auth/logout`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
+      }
+    } finally {
+      await SecureStore.deleteItemAsync('token');
+      await SecureStore.deleteItemAsync('user');
+      setUser(null);
+      logger.info('[Auth] Signed out');
+    }
+  };
   return <AuthContext.Provider value={{ user, checking, login, logout }}>{children}</AuthContext.Provider>;
 }
 const useAuth = () => useContext(AuthContext);
 
 function Button({ children, onPress, secondary = false }) { return <Pressable accessibilityRole="button" onPress={onPress} style={[styles.button, secondary && styles.buttonSecondary]}><Text style={[styles.buttonText, secondary && styles.buttonSecondaryText]}>{children}</Text></Pressable>; }
-function Screen({ children }) { return <SafeAreaView style={styles.safe} edges={['top']}><ScrollView contentContainerStyle={styles.content} refreshControl={undefined}>{children}</ScrollView></SafeAreaView>; }
+function Screen({ children, onRefresh, refreshing }) { return <SafeAreaView style={styles.safe} edges={['top']}><ScrollView contentContainerStyle={styles.content} refreshControl={onRefresh ? <RefreshControl refreshing={!!refreshing} onRefresh={onRefresh} tintColor={colors.teal} /> : undefined}>{children}</ScrollView></SafeAreaView>; }
 function Header({ eyebrow, title, subtitle }) { return <View style={styles.header}><Text style={styles.eyebrow}>{eyebrow}</Text><Text style={styles.title}>{title}</Text>{subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}</View>; }
 function Card({ children }) { return <View style={styles.card}>{children}</View>; }
 function Loading() { return <View style={styles.loading}><ActivityIndicator color={colors.teal} /></View>; }
@@ -49,7 +121,7 @@ function Loading() { return <View style={styles.loading}><ActivityIndicator colo
 function LoginScreen() { const { login } = useAuth(); const [email, setEmail] = useState(''); const [password, setPassword] = useState(''); const [fieldError, setFieldError] = useState(''); const submit = async () => { const emailTrim = email.trim(); if (!emailTrim || !emailTrim.includes('@')) { setFieldError('Please enter a valid email address'); Alert.alert('Validation failed', 'Please enter a valid email address'); return; } if (!password || password.length < 6) { setFieldError('Password must be at least 6 characters'); Alert.alert('Validation failed', 'Password must be at least 6 characters'); return; } setFieldError(''); try { await login(email, password); Alert.alert('Welcome back!', 'You’re signed in — let’s keep building your pathway.'); } catch (error) { const msg = error.message || 'Unable to sign in'; const isRate = msg.toLowerCase().includes('too many') || msg.includes('429'); logger.warn('[Auth] Sign in failed:', msg); Alert.alert(isRate ? 'Too many attempts' : 'Unable to sign in', isRate ? 'Please wait a moment before trying again.' : msg); } }; return <SafeAreaView style={styles.login}><View><Text style={styles.brandMark}>CU</Text><Text style={styles.loginTitle}>Your next move is clear.</Text><Text style={styles.subtitle}>Build skills, find work, and move forward in Cebu.</Text><TextInput autoCapitalize="none" keyboardType="email-address" placeholder="Email address" value={email} onChangeText={(v) => { setEmail(v); if (fieldError) setFieldError(''); }} style={[styles.input, fieldError && styles.inputError]} /><TextInput secureTextEntry placeholder="Password" value={password} onChangeText={(v) => { setPassword(v); if (fieldError) setFieldError(''); }} style={[styles.input, fieldError && styles.inputError]} />{fieldError ? <Text style={styles.fieldError}>{fieldError}</Text> : null}<Button onPress={submit}>Sign in</Button></View></SafeAreaView>; }
 
 function HomeScreen() { const { user } = useAuth(); const [stats, setStats] = useState(null); const [refreshing, setRefreshing] = useState(false); const load = () => request('/stats/week').then(setStats).catch(() => setStats({ learningTimeHours: 0, coursesActive: 0, jobsWorthApplying: 0 })); useEffect(load, []); const refresh = async () => { setRefreshing(true); await load(); setRefreshing(false); Alert.alert('Refreshed', 'Your pathway is up to date.'); }; return <SafeAreaView style={styles.safe} edges={['top']}><ScrollView contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.teal} />}><Header eyebrow="MY PATHWAY" title={`Hi, ${user?.firstName || 'Learner'}.`} subtitle="Keep closing the gaps that matter most." /><Card><Text style={styles.cardEyebrow}>THIS WEEK</Text><Text style={styles.cardTitle}>Small steps add up.</Text><Text style={styles.cardText}>Keep your pathway moving with focused learning and timely applications.</Text><Button secondary onPress={() => Alert.alert('Pathway', 'Your pathway view is up to date — keep closing those gaps!')}>View pathway</Button></Card><View style={styles.stats}>{[['Learning', `${stats?.learningTimeHours || 0}h`], ['Active courses', stats?.coursesActive || 0], ['Jobs to explore', stats?.jobsWorthApplying || 0]].map(([label, value]) => <Card key={label}><Text style={styles.statValue}>{value}</Text><Text style={styles.statLabel}>{label}</Text></Card>)}</View></ScrollView></SafeAreaView>; }
-function ListScreen({ title, endpoint, empty, renderItem }) { const [items, setItems] = useState(null); const [error, setError] = useState(''); const [retryKey, setRetryKey] = useState(0); useEffect(() => { setError(''); request(endpoint).then(setItems).catch((err) => { const msg = err?.message || 'Could not load content'; setError(msg); setItems([]); logger.warn(`[List] ${endpoint} failed:`, msg); }); }, [endpoint, retryKey]); if (!items) return <Screen><Loading /></Screen>; if (error) return <Screen><Header eyebrow="MY PATHWAY" title={title} subtitle="Your next best opportunities, in one place." /><Card><Text style={styles.cardTitle}>Couldn’t load {title.toLowerCase()}</Text><Text style={[styles.cardText, { color: '#b42318' }]}>{error.includes('429') || error.toLowerCase().includes('too many') ? 'Too many requests — please wait a moment and retry.' : error}</Text><Button secondary onPress={() => { setItems(null); setRetryKey((k) => k + 1); }}>Try again</Button></Card></Screen>; return <Screen><Header eyebrow="MY PATHWAY" title={title} subtitle="Your next best opportunities, in one place." />{items.length ? items.map(renderItem) : <Card><Text style={styles.cardTitle}>{empty}</Text><Text style={styles.cardText}>Check back soon as new opportunities are added.</Text></Card>}</Screen>; }
+function ListScreen({ title, endpoint, empty, renderItem }) { const [items, setItems] = useState(null); const [error, setError] = useState(''); const [retryKey, setRetryKey] = useState(0); const [refreshing, setRefreshing] = useState(false); const load = async () => { setError(''); try { const data = await request(endpoint); setItems(Array.isArray(data) ? data : (data?.items ?? [])); } catch (err) { const msg = err?.message || 'Could not load content'; setError(msg); setItems([]); logger.warn(`[List] ${endpoint} failed:`, msg); } }; useEffect(() => { setItems(null); load(); }, [endpoint, retryKey]); const refresh = async () => { setRefreshing(true); await load(); setRefreshing(false); }; if (!items) return <Screen><Loading /></Screen>; if (error) return <Screen onRefresh={refresh} refreshing={refreshing}><Header eyebrow="MY PATHWAY" title={title} subtitle="Your next best opportunities, in one place." /><Card><Text style={styles.cardTitle}>Couldn’t load {title.toLowerCase()}</Text><Text style={[styles.cardText, { color: '#b42318' }]}>{error.includes('429') || error.toLowerCase().includes('too many') ? 'Too many requests — please wait a moment and retry.' : error}</Text><Button secondary onPress={() => { setItems(null); setRetryKey((k) => k + 1); }}>Try again</Button></Card></Screen>; return <Screen onRefresh={refresh} refreshing={refreshing}><Header eyebrow="MY PATHWAY" title={title} subtitle="Your next best opportunities, in one place." />{items.length ? items.map(renderItem) : <Card><Text style={styles.cardTitle}>{empty}</Text><Text style={styles.cardText}>Check back soon as new opportunities are added.</Text></Card>}</Screen>; }
 function SkillsScreen() { return <ListScreen title="Skill profile" endpoint="/skills" empty="No skills added yet." renderItem={(item, index) => <Card key={item.skillId || index}><Text style={styles.cardTitle}>{item.name || item.skillName}</Text><Text style={styles.cardText}>Current level: {item.level || item.currentLevel || 'Not assessed'}</Text></Card>} />; }
 function CompanyLogo({ name, url, size = 42 }) {
   const [failed, setFailed] = useState(false);
@@ -82,7 +154,7 @@ function JobsListScreen({ onOpenCompany }) {
       {(item.companyName || item.company) && (
         <Pressable onPress={() => item.companyId != null && onOpenCompany(item.companyId)} disabled={item.companyId == null}>
           <Text style={[styles.cardText, item.companyId != null && styles.companyLink]}>
-            {item.companyName || item.company}{item.industry ? ` · ${item.industry}` : ''}{item.companySize ? ` · ${item.companySize}` : ''}
+            {item.companyName || item.company}{item.companyIndustry || item.industry ? ` · ${item.companyIndustry || item.industry}` : ''}{item.companySize ? ` · ${item.companySize}` : ''}
           </Text>
         </Pressable>
       )}
@@ -141,7 +213,7 @@ function AccountScreen() { const { user, logout } = useAuth(); const [company, s
 
 const Tab = createBottomTabNavigator();
 const tabOptions = { headerShown: false, tabBarActiveTintColor: colors.teal, tabBarInactiveTintColor: colors.muted, tabBarStyle: { height: 68, paddingBottom: 10, backgroundColor: colors.surface, borderTopColor: colors.line }, tabBarLabelStyle: { fontSize: 11 } };
-function AppTabs() { return <Tab.Navigator screenOptions={tabOptions}><Tab.Screen name="Home" component={HomeScreen} options={{ tabBarIcon: ({ color, size }) => <Ionicons name="home-outline" color={color} size={size} /> }} /><Tab.Screen name="Skills" component={SkillsScreen} options={{ tabBarIcon: ({ color, size }) => <Ionicons name="sparkles-outline" color={color} size={size} /> }} /><Tab.Screen name="Jobs" component={JobsScreen} options={{ tabBarIcon: ({ color, size }) => <Ionicons name="briefcase-outline" color={color} size={size} /> }} /><Tab.Screen name="Learn" component={LearnScreen} options={{ tabBarIcon: ({ color, size }) => <Ionicons name="book-outline" color={color} size={size} /> }} /><Tab.Screen name="Account" component={AccountScreen} options={{ tabBarIcon: ({ color, size }) => <Ionicons name="person-outline" color={color} size={size} /> }} /></Tab.Navigator>; }
+function AppTabs() { return <Tab.Navigator screenOptions={tabOptions}><Tab.Screen name="Home" component={HomeScreen} options={{ tabBarIcon: ({ color, size }) => <Ionicons name="home-outline" color={color} size={size} /> }} /><Tab.Screen name="Skills" component={SkillsScreen} options={{ tabBarIcon: ({ color, size }) => <Ionicons name="sparkles-outline" color={color} size={size} /> }} /><Tab.Screen name="Jobs" component={JobsScreen} options={{ tabBarIcon: ({ color, size }) => <Ionicons name="briefcase-outline" color={color} size={size} /> }} /><Tab.Screen name="Learn" component={LearnScreen} options={{ tabBarIcon: ({ color, size }) => <Ionicons name="book-outline" color={color} size={size} /> }} /><Tab.Screen name="Applications" component={ApplicationsScreen} options={{ tabBarIcon: ({ color, size }) => <Ionicons name="file-tray-outline" color={color} size={size} /> }} /><Tab.Screen name="Account" component={AccountScreen} options={{ tabBarIcon: ({ color, size }) => <Ionicons name="person-outline" color={color} size={size} /> }} /></Tab.Navigator>; }
 function NativeApp() { const { user, checking } = useAuth(); if (checking) return <Loading />; return user ? <AppTabs /> : <LoginScreen />; }
 export default function App() { return <SafeAreaProvider><AuthProvider><NavigationContainer theme={{ ...DefaultTheme, colors: { ...DefaultTheme.colors, background: colors.bg } }}><NativeApp /></NavigationContainer></AuthProvider></SafeAreaProvider>; }
 

@@ -85,7 +85,6 @@ const styles = {
     color: 'var(--ink)',
     resize: 'vertical',
     minHeight: 90,
-    maxLength: 4000,
     fontFamily: 'inherit',
   },
   actions: {
