@@ -19,7 +19,7 @@ public class EnrollmentsController : BaseEntityController<LearnerStudyCourse>
         _enrollmentsService = enrollmentsService;
     }
 
-    protected override int GetId(LearnerStudyCourse entity) => entity.CourseId;
+    protected override Guid GetId(LearnerStudyCourse entity) => entity.CourseId;
 
     [HttpGet]
     [Authorize(Roles = "Learner")]
@@ -70,14 +70,14 @@ public class EnrollmentsController : BaseEntityController<LearnerStudyCourse>
     // would act on an arbitrary learner's row (IDOR between learners). Enrollment
     // state is only exposed through GetAll (claim-scoped) and Create above.
     [HttpGet("{id}")]
-    public override Task<ActionResult<LearnerStudyCourse>> GetById(int id) =>
+    public override Task<ActionResult<LearnerStudyCourse>> GetById(Guid id) =>
         Task.FromResult<ActionResult<LearnerStudyCourse>>(NotFound());
 
     [HttpPut("{id}")]
-    public override Task<ActionResult<LearnerStudyCourse>> Update(int id, LearnerStudyCourse entity) =>
+    public override Task<ActionResult<LearnerStudyCourse>> Update(Guid id, LearnerStudyCourse entity) =>
         Task.FromResult<ActionResult<LearnerStudyCourse>>(NotFound());
 
     [HttpDelete("{id}")]
-    public override Task<IActionResult> Delete(int id) =>
+    public override Task<IActionResult> Delete(Guid id) =>
         Task.FromResult<IActionResult>(NotFound());
 }

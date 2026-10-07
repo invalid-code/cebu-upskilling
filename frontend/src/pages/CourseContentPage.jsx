@@ -178,13 +178,13 @@ export default function CourseContentPage() {
   const modules = Array.isArray(courseData.modules) ? courseData.modules : [];
   const lessonsOf = (m) => (Array.isArray(m?.lessons) ? m.lessons : []);
   const currentModule = modules.find(m =>
-    lessonsOf(m).some(l => l.lessonId === parseInt(lessonId))
+    lessonsOf(m).some(l => l.lessonId === lessonId)
   ) || modules[0];
   const currentLessonIndex = modules.findIndex(m =>
-    lessonsOf(m).some(l => l.lessonId === parseInt(lessonId))
+    lessonsOf(m).some(l => l.lessonId === lessonId)
   );
   const currentModuleNumber = currentModule?.moduleNumber ?? 1;
-  const lessonIndexInModule = currentModule ? lessonsOf(currentModule).findIndex(l => l.lessonId === parseInt(lessonId)) : -1;
+  const lessonIndexInModule = currentModule ? lessonsOf(currentModule).findIndex(l => l.lessonId === lessonId) : -1;
   const currentLessonNumber = lessonIndexInModule >= 0 ? lessonIndexInModule + 1 : 1;
 
   if (!courseData.currentLesson) {
@@ -236,7 +236,7 @@ export default function CourseContentPage() {
         <div style={styles.leftSidebar}>
           <ModuleOutline
             modules={courseData.modules}
-            currentLessonId={parseInt(lessonId)}
+            currentLessonId={lessonId}
             onLessonClick={handleLessonClick}
           />
         </div>

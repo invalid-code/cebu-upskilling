@@ -62,7 +62,7 @@ public class NotesServiceTests
         return course;
     }
 
-    private static async Task EnrollAsync(ApplicationDbContext context, int learnerId, int courseId)
+    private static async Task EnrollAsync(ApplicationDbContext context, Guid learnerId, Guid courseId)
     {
         context.LearnerStudyCourses.Add(new LearnerStudyCourse
         {
@@ -80,7 +80,7 @@ public class NotesServiceTests
     {
         var context = TestDbContextFactory.Create();
 
-        var result = await CreateService(context).GetCourseNotesAsync(999, 1);
+        var result = await CreateService(context).GetCourseNotesAsync(Guid.NewGuid(), Guid.NewGuid());
 
         Assert.Null(result);
     }
@@ -133,7 +133,7 @@ public class NotesServiceTests
         var context = TestDbContextFactory.Create();
         var (user, _) = await CreateLearnerAsync(context);
 
-        var result = await CreateService(context).UpsertLessonNoteAsync(user.UserId, 999, "draft");
+        var result = await CreateService(context).UpsertLessonNoteAsync(user.UserId, Guid.NewGuid(), "draft");
 
         Assert.Null(result);
     }
@@ -236,7 +236,7 @@ public class NotesServiceTests
         var context = TestDbContextFactory.Create();
         var (user, _) = await CreateLearnerAsync(context);
 
-        var result = await CreateService(context).DeleteLessonNoteAsync(user.UserId, 999);
+        var result = await CreateService(context).DeleteLessonNoteAsync(user.UserId, Guid.NewGuid());
 
         Assert.False(result);
     }

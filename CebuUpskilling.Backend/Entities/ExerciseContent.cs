@@ -5,9 +5,9 @@ namespace CebuUpskilling.Backend.Entities;
 public class ExerciseContent
 {
     [Key]
-    public int ExerciseContentId { get; set; }
+    public Guid ExerciseContentId { get; set; }
 
-    public int ExerciseId { get; set; }
+    public Guid ExerciseId { get; set; }
 
     [Required, MaxLength(100)]
     public string BlockType { get; set; } = string.Empty;

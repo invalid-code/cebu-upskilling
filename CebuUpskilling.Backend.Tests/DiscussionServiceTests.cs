@@ -62,7 +62,7 @@ public class DiscussionServiceTests
         return course;
     }
 
-    private static async Task EnrollAsync(ApplicationDbContext context, int learnerId, int courseId)
+    private static async Task EnrollAsync(ApplicationDbContext context, Guid learnerId, Guid courseId)
     {
         context.LearnerStudyCourses.Add(new LearnerStudyCourse
         {
@@ -80,7 +80,7 @@ public class DiscussionServiceTests
     {
         var context = TestDbContextFactory.Create();
 
-        var result = await CreateService(context).GetLessonDiscussionAsync(999, 1);
+        var result = await CreateService(context).GetLessonDiscussionAsync(Guid.NewGuid(), Guid.NewGuid());
 
         Assert.Null(result);
     }
@@ -91,7 +91,7 @@ public class DiscussionServiceTests
         var context = TestDbContextFactory.Create();
         var (user, _) = await CreateLearnerAsync(context);
 
-        var result = await CreateService(context).GetLessonDiscussionAsync(user.UserId, 999);
+        var result = await CreateService(context).GetLessonDiscussionAsync(user.UserId, Guid.NewGuid());
 
         Assert.Null(result);
     }
@@ -154,7 +154,7 @@ public class DiscussionServiceTests
         var context = TestDbContextFactory.Create();
         var (user, _) = await CreateLearnerAsync(context);
 
-        var result = await CreateService(context).CreatePostAsync(user.UserId, 999, "unheard");
+        var result = await CreateService(context).CreatePostAsync(user.UserId, Guid.NewGuid(), "unheard");
 
         Assert.Null(result);
     }

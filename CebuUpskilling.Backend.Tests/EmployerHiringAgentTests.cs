@@ -134,7 +134,7 @@ public class EmployerHiringAgentTests
         var (_, recruiter) = await CreateRecruiterAsync(context);
         var agent = CreateAgent(context, new FakeGoogleAiService());
 
-        var result = await agent.RankApplicantsAsync(recruiter.UserId, postId: 9999, companyId: 1);
+        var result = await agent.RankApplicantsAsync(recruiter.UserId, postId: Guid.NewGuid(), companyId: Guid.NewGuid());
 
         Assert.False(result.AiRanked);
         Assert.Empty(result.Candidates);
@@ -153,7 +153,7 @@ public class EmployerHiringAgentTests
             new Application { LearnerId = learnerA.LearnerId, PostId = post.PostId, Status = "applied", AppliedAt = DateTime.UtcNow.AddHours(-2) },
             new Application { LearnerId = learnerB.LearnerId, PostId = post.PostId, Status = "applied", AppliedAt = DateTime.UtcNow.AddHours(-1) });
         await context.SaveChangesAsync();
-        var appIds = context.Applications.Select(a => a.ApplicationId).OrderBy(id => id).ToList();
+        var appIds = context.Applications.OrderBy(a => a.AppliedAt).Select(a => a.ApplicationId).ToList();
 
         var ai = new FakeGoogleAiService
         {

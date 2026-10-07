@@ -5,12 +5,12 @@ namespace CebuUpskilling.Backend.Entities;
 public class RoleSkill
 {
     [Key]
-    public int RoleSkillId { get; set; }
+    public Guid RoleSkillId { get; set; }
 
     [Required, MaxLength(100)]
     public string TargetRole { get; set; } = string.Empty;
 
-    public int SkillId { get; set; }
+    public Guid SkillId { get; set; }
 
     public int RequiredLevel { get; set; }
 

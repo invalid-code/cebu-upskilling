@@ -6,7 +6,7 @@ public record WeeklyStats(double LearningTimeHours, int CoursesActive, int JobsW
 
 public interface IStatsService
 {
-    Task<WeeklyStats> GetWeeklyStatsAsync(int userId);
+    Task<WeeklyStats> GetWeeklyStatsAsync(Guid userId);
 }
 
 public class StatsService : IStatsService
@@ -28,7 +28,7 @@ public class StatsService : IStatsService
         _logger = logger;
     }
 
-    public async Task<WeeklyStats> GetWeeklyStatsAsync(int userId)
+    public async Task<WeeklyStats> GetWeeklyStatsAsync(Guid userId)
     {
         _logger.LogInformation("Computing weekly stats for user {UserId}", userId);
 

@@ -19,8 +19,8 @@ public record PostRequest(
 );
 
 public record PostResponse(
-    int PostId,
-    int CompanyId,
+    Guid PostId,
+    Guid CompanyId,
     string CompanyName,
     string Title,
     string? Description,
@@ -48,7 +48,7 @@ public record PostQueryParams(
     string? JobType = null,
     string? Location = null,
     bool? IsRemote = null,
-    int? CompanyId = null,
+    Guid? CompanyId = null,
     bool? IsActive = null,
     string? SortBy = "newest",
     int Page = 1,
@@ -62,10 +62,10 @@ public record PagedPostsResponse(
     int PageSize
 );
 
-public record RequiredSkillInput(int SkillId, int RequiredLevel);
+public record RequiredSkillInput(Guid SkillId, int RequiredLevel);
 
 public record RequiredSkillDto(
-    int SkillId,
+    Guid SkillId,
     string SkillName,
     string? Category,
     int RequiredLevel);

@@ -28,7 +28,7 @@ public class CourseGenerationController : ControllerBase
             return BadRequest(new { error = "Brief is required" });
         }
 
-        if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId))
+        if (!Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId))
         {
             return Unauthorized(new { error = "Invalid authentication token" });
         }
@@ -61,7 +61,7 @@ public class CourseGenerationController : ControllerBase
             return BadRequest(new { error = "Draft is required" });
         }
 
-        if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId))
+        if (!Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId))
         {
             return Unauthorized(new { error = "Invalid authentication token" });
         }

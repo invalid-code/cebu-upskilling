@@ -8,6 +8,6 @@ public class EnrollRequestValidator : AbstractValidator<LearnerStudyCourse>
     public EnrollRequestValidator()
     {
         RuleFor(x => x.CourseId)
-            .GreaterThan(0).WithMessage("Course ID must be greater than 0");
+            .NotEmpty().WithMessage("Course ID must not be empty");
     }
 }

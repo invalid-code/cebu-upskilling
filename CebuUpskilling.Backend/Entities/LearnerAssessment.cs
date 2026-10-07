@@ -5,11 +5,11 @@ namespace CebuUpskilling.Backend.Entities;
 public class LearnerAssessment
 {
     [Key]
-    public int LearnerAssessmentId { get; set; }
+    public Guid LearnerAssessmentId { get; set; }
 
-    public int LearnerId { get; set; }
+    public Guid LearnerId { get; set; }
 
-    public int SkillId { get; set; }
+    public Guid SkillId { get; set; }
 
     public int ScoredLevel { get; set; }
 

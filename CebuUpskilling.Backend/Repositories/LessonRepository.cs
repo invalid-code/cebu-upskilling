@@ -6,9 +6,9 @@ namespace CebuUpskilling.Backend.Repositories;
 
 public interface ILessonRepository : IEntityRepository<Lesson>
 {
-    Task<Lesson?> GetWithContentAsync(int lessonId);
-    Task<List<Lesson>> GetByCourseIdAsync(int courseId);
-    Task<List<Lesson>> GetByCourseIdWithContentAsync(int courseId);
+    Task<Lesson?> GetWithContentAsync(Guid lessonId);
+    Task<List<Lesson>> GetByCourseIdAsync(Guid courseId);
+    Task<List<Lesson>> GetByCourseIdWithContentAsync(Guid courseId);
 }
 
 public class LessonRepository : EntityRepository<Lesson>, ILessonRepository
@@ -18,10 +18,10 @@ public class LessonRepository : EntityRepository<Lesson>, ILessonRepository
     public override async Task<List<Lesson>> GetAllAsync()
         => await _dbSet.Include(l => l.Course).ToListAsync();
 
-    public override async Task<Lesson?> GetByIdAsync(int id)
+    public override async Task<Lesson?> GetByIdAsync(Guid id)
         => await _dbSet.Include(l => l.Course).FirstOrDefaultAsync(l => l.LessonId == id);
 
-    public async Task<Lesson?> GetWithContentAsync(int lessonId)
+    public async Task<Lesson?> GetWithContentAsync(Guid lessonId)
         => await _dbSet
             .Include(l => l.Course)
             .Include(l => l.LessonContents.OrderBy(lc => lc.LessonOrder).ThenBy(lc => lc.TopicOrder))
@@ -30,13 +30,13 @@ public class LessonRepository : EntityRepository<Lesson>, ILessonRepository
                 .ThenInclude(e => e.ExerciseContent)
             .FirstOrDefaultAsync(l => l.LessonId == lessonId);
 
-    public async Task<List<Lesson>> GetByCourseIdAsync(int courseId)
+    public async Task<List<Lesson>> GetByCourseIdAsync(Guid courseId)
         => await _dbSet
             .Where(l => l.CourseId == courseId)
             .OrderBy(l => l.Order).ThenBy(l => l.LessonId)
             .ToListAsync();
 
-    public async Task<List<Lesson>> GetByCourseIdWithContentAsync(int courseId)
+    public async Task<List<Lesson>> GetByCourseIdWithContentAsync(Guid courseId)
         => await _dbSet
             .Include(l => l.LessonContents.OrderBy(lc => lc.LessonOrder).ThenBy(lc => lc.TopicOrder))
             .Include(l => l.Media)

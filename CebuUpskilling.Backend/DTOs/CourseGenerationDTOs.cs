@@ -20,10 +20,10 @@ public record CourseGenerationPromptContext(
     IReadOnlyList<CourseGenerationAvailableSkill> AvailableSkills
 );
 
-public record CourseGenerationAvailableSkill(int SkillId, string Name, string? Category);
+public record CourseGenerationAvailableSkill(Guid SkillId, string Name, string? Category);
 
 public record CourseGenerationSkillMatch(
-    int SkillId,
+    Guid SkillId,
     string Name,
     string? Category
 );
@@ -53,12 +53,12 @@ public record CourseGenerationLessonDraft(
 
 public record CommitCourseGenerationRequest(
     [property: Required] CourseGenerationResult Draft,
-    int? GenreId,
+    Guid? GenreId,
     int? Price
 );
 
 public record CommitCourseGenerationResponse(
-    int CourseId,
+    Guid CourseId,
     string Name,
     string Status
 );

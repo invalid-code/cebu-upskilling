@@ -63,7 +63,7 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
 
         var submitB = await AuthorizedClient(learnerB).PostAsJsonAsync(
             $"/api/assessments/{assessmentId}/submit",
-            new { answers = new[] { new { questionId = 1, selectedOption = 0 } } });
+            new { answers = new[] { new { questionId = Guid.NewGuid(), selectedOption = 0 } } });
         Assert.Equal(HttpStatusCode.BadRequest, submitB.StatusCode);
     }
 
@@ -80,9 +80,9 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.NotFound, (await clientB.GetAsync("/api/assessments")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await clientB.GetAsync($"/api/assessments/{assessmentId}")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await clientB.PostAsJsonAsync("/api/assessments",
-            new { learnerId = learnerIdA, skillId = 1, scoredLevel = 5, verified = true })).StatusCode);
+            new { learnerId = learnerIdA, skillId = Guid.NewGuid(), scoredLevel = 5, verified = true })).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await clientB.PutAsJsonAsync($"/api/assessments/{assessmentId}",
-            new { learnerId = learnerIdA, skillId = 1, scoredLevel = 5, verified = true })).StatusCode);
+            new { learnerId = learnerIdA, skillId = Guid.NewGuid(), scoredLevel = 5, verified = true })).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await clientB.DeleteAsync($"/api/assessments/{assessmentId}")).StatusCode);
 
         await using var context = Factory.CreateDbContext();
@@ -104,7 +104,7 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
         var clientB = AuthorizedClient(learnerB);
         Assert.Equal(HttpStatusCode.NotFound, (await clientB.GetAsync($"/api/enrollments/{courseId}")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await clientB.PutAsJsonAsync($"/api/enrollments/{courseId}",
-            new { learnerId = 1, courseId, lastTotalProgressPercent = 100 })).StatusCode);
+            new { learnerId = Guid.NewGuid(), courseId, lastTotalProgressPercent = 100 })).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await clientB.DeleteAsync($"/api/enrollments/{courseId}")).StatusCode);
 
         await using var context = Factory.CreateDbContext();
@@ -175,14 +175,14 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
             password = "P@ssw0rd!",
             role = "Learner",
             resume = "Experienced software developer.",
-            userId = 123456,
+            userId = Guid.NewGuid(),
             emailConfirmed = true,
             isPremium = true,
             passwordHash = "attacker-supplied-hash",
         });
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await ReadJsonAsync(response);
-        Assert.NotEqual(123456, body.GetProperty("userId").GetInt32());
+        Assert.NotEqual(Guid.Empty, body.GetProperty("userId").GetGuid());
         Assert.Equal("Learner", body.GetProperty("role").GetString());
 
         await using var context = Factory.CreateDbContext();
@@ -204,7 +204,7 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
             targetRole = "Backend Developer",
             role = "Admin",
             emailConfirmed = true,
-            userId = 1,
+            userId = Guid.NewGuid(),
         });
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await ReadJsonAsync(response);
@@ -229,7 +229,7 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
         {
             postId,
             status = "hired",
-            userId = 1,
+            userId = Guid.NewGuid(),
             resumeUrl = "https://storage.example/resume.pdf",
         });
 
@@ -251,7 +251,7 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var body = await ReadJsonAsync(response);
-        Assert.True(body.GetProperty("companyId").GetInt32() > 0);
+        Assert.NotEqual(Guid.Empty, body.GetProperty("companyId").GetGuid());
         Assert.Equal("Overpost Corp", body.GetProperty("name").GetString());
     }
 
@@ -276,7 +276,7 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
         });
         Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
         var created = await ReadJsonAsync(createResponse);
-        var postId = created.GetProperty("postId").GetInt32();
+        var postId = created.GetProperty("postId").GetGuid();
 
         var getResponse = await authorized.GetAsync($"/api/posts/{postId}");
         Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
@@ -325,10 +325,18 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
     {
         var (token, _, _) = await RegisterRecruiterWithCompanyAsync("secreg.xss.question@example.com");
         const string payload = "<script>document.cookie</script>";
+        Guid skillId;
+        await using (var context = Factory.CreateDbContext())
+        {
+            var skill = new CebuUpskilling.Backend.Entities.Skill { Name = "XSS Skill", Category = "Test" };
+            context.Skills.Add(skill);
+            await context.SaveChangesAsync();
+            skillId = skill.SkillId;
+        }
 
         var response = await AuthorizedClient(token).PostAsJsonAsync("/api/assessments/company/questions", new
         {
-            skillId = 1,
+            skillId,
             text = payload,
             optionA = "a",
             optionB = "b",
@@ -443,7 +451,7 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
     // Helpers
     // ------------------------------------------------------------------ //
 
-    private async Task<(int LearnerId, int UserId)> GetLearnerIdsAsync(string email)
+    private async Task<(Guid LearnerId, Guid UserId)> GetLearnerIdsAsync(string email)
     {
         await using var context = Factory.CreateDbContext();
         var user = await context.Users.SingleAsync(u => u.EmailAddress == email);
@@ -451,13 +459,16 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
         return (learner.LearnerId, user.UserId);
     }
 
-    private async Task<int> SeedAssessmentAsync(int learnerId)
+    private async Task<Guid> SeedAssessmentAsync(Guid learnerId)
     {
         await using var context = Factory.CreateDbContext();
+        var skill = new CebuUpskilling.Backend.Entities.Skill { Name = $"Security Skill {Guid.NewGuid():N}" };
+        context.Skills.Add(skill);
+        await context.SaveChangesAsync();
         var assessment = new CebuUpskilling.Backend.Entities.LearnerAssessment
         {
             LearnerId = learnerId,
-            SkillId = 1,
+            SkillId = skill.SkillId,
             ScoredLevel = 0,
             Verified = false,
             CompletedAt = DateTime.UtcNow,
@@ -467,7 +478,7 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
         return assessment.LearnerAssessmentId;
     }
 
-    private async Task<(string Token, int CompanyId, int RecruiterId)> RegisterRecruiterWithCompanyAsync(string email)
+    private async Task<(string Token, Guid CompanyId, Guid RecruiterId)> RegisterRecruiterWithCompanyAsync(string email)
     {
         var response = await RegisterCompanyAsync(new
         {
@@ -480,12 +491,12 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
         response.EnsureSuccessStatusCode();
         var body = await ReadJsonAsync(response);
         var token = body.GetProperty("token").GetString()!;
-        var companyId = body.GetProperty("companyId").GetInt32();
+        var companyId = body.GetProperty("companyId").GetGuid();
 
-        return (token, companyId, body.GetProperty("userId").GetInt32());
+        return (token, companyId, body.GetProperty("userId").GetGuid());
     }
 
-    private async Task<int> CreatePostAsync(string token, int companyId, int recruiterId, string title)
+    private async Task<Guid> CreatePostAsync(string token, Guid companyId, Guid recruiterId, string title)
     {
         var response = await AuthorizedClient(token).PostAsJsonAsync("/api/posts", new
         {
@@ -494,15 +505,15 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
         });
         response.EnsureSuccessStatusCode();
         var body = await ReadJsonAsync(response);
-        return body.GetProperty("postId").GetInt32();
+        return body.GetProperty("postId").GetGuid();
     }
 
-    private async Task<int> CreateGenreAsync()
+    private async Task<Guid> CreateGenreAsync()
     {
         await using var context = Factory.CreateDbContext();
         var subDiscipline = new CebuUpskilling.Backend.Entities.SubDiscipline
         {
-            DisciplineId = 1,
+            DisciplineId = Guid.NewGuid(),
             Name = "Computer Science",
             Description = "CS",
         };
@@ -520,7 +531,7 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
         return genre.GenreId;
     }
 
-    private async Task<(int CourseId, int LessonId)> CreateCourseWithLessonsAsync()
+    private async Task<(Guid CourseId, Guid LessonId)> CreateCourseWithLessonsAsync()
     {
         var course = await CreateCourseAsync("Security Regression Course");
 
@@ -536,7 +547,7 @@ public class SecurityRegressionApiTests : ProductionApiTestBase
         return (course, lesson.LessonId);
     }
 
-    private async Task<int> CreateCourseAsync(string name)
+    private async Task<Guid> CreateCourseAsync(string name)
     {
         var genreId = await CreateGenreAsync();
         await using var context = Factory.CreateDbContext();

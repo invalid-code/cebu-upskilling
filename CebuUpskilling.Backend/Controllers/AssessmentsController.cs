@@ -20,7 +20,7 @@ public class AssessmentsController : BaseEntityController<LearnerAssessment>
         _jobseekerSkillParserAgent = jobseekerSkillParserAgent;
     }
 
-    protected override int GetId(LearnerAssessment entity) => entity.LearnerAssessmentId;
+    protected override Guid GetId(LearnerAssessment entity) => entity.LearnerAssessmentId;
 
     // Assessment records are read/written exclusively through the learner-scoped
     // endpoints below (which resolve the learner from claims). The generic CRUD
@@ -32,7 +32,7 @@ public class AssessmentsController : BaseEntityController<LearnerAssessment>
         Task.FromResult<ActionResult<List<LearnerAssessment>>>(NotFound());
 
     [HttpGet("{id}")]
-    public override Task<ActionResult<LearnerAssessment>> GetById(int id) =>
+    public override Task<ActionResult<LearnerAssessment>> GetById(Guid id) =>
         Task.FromResult<ActionResult<LearnerAssessment>>(NotFound());
 
     [HttpPost]
@@ -40,11 +40,11 @@ public class AssessmentsController : BaseEntityController<LearnerAssessment>
         Task.FromResult<ActionResult<LearnerAssessment>>(NotFound());
 
     [HttpPut("{id}")]
-    public override Task<ActionResult<LearnerAssessment>> Update(int id, LearnerAssessment entity) =>
+    public override Task<ActionResult<LearnerAssessment>> Update(Guid id, LearnerAssessment entity) =>
         Task.FromResult<ActionResult<LearnerAssessment>>(NotFound());
 
     [HttpDelete("{id}")]
-    public override Task<IActionResult> Delete(int id) =>
+    public override Task<IActionResult> Delete(Guid id) =>
         Task.FromResult<IActionResult>(NotFound());
 
     [Authorize(Roles = "Learner")]
@@ -102,7 +102,7 @@ public class AssessmentsController : BaseEntityController<LearnerAssessment>
 
     [Authorize(Roles = "Learner")]
     [HttpGet("{assessmentId}/questions")]
-    public async Task<ActionResult<AssessmentQuestionsResponse>> GetQuestions(int assessmentId)
+    public async Task<ActionResult<AssessmentQuestionsResponse>> GetQuestions(Guid assessmentId)
     {
         if (!User.TryGetUserId(out var userId)) return Unauthorized(new { error = "Unauthorized" });
         _logger.LogInformation("HTTP GET /api/assessments/{AssessmentId}/questions called by user {UserId}", assessmentId, userId);
@@ -116,7 +116,7 @@ public class AssessmentsController : BaseEntityController<LearnerAssessment>
 
     [Authorize(Roles = "Learner")]
     [HttpPost("{assessmentId}/submit")]
-    public async Task<ActionResult<SubmitAssessmentResponse>> SubmitAssessment(int assessmentId, [FromBody] SubmitAssessmentRequest request)
+    public async Task<ActionResult<SubmitAssessmentResponse>> SubmitAssessment(Guid assessmentId, [FromBody] SubmitAssessmentRequest request)
     {
         if (!User.TryGetUserId(out var userId)) return Unauthorized(new { error = "Unauthorized" });
         _logger.LogInformation("HTTP POST /api/assessments/{AssessmentId}/submit called by user {UserId}", assessmentId, userId);
@@ -130,7 +130,7 @@ public class AssessmentsController : BaseEntityController<LearnerAssessment>
 
     [Authorize(Roles = "Learner")]
     [HttpPost("{assessmentId}/integrity-event")]
-    public IActionResult LogIntegrityEvent(int assessmentId, [FromBody] LogIntegrityEventRequest request)
+    public IActionResult LogIntegrityEvent(Guid assessmentId, [FromBody] LogIntegrityEventRequest request)
     {
         if (!User.TryGetUserId(out var userId)) return Unauthorized(new { error = "Unauthorized" });
         _logger.LogWarning(

@@ -1,7 +1,7 @@
 namespace CebuUpskilling.Backend.DTOs;
 
 public record DiscussionPostDto(
-    int PostId,
+    Guid PostId,
     string AuthorName,
     string Content,
     DateTime CreatedAt,
@@ -9,7 +9,7 @@ public record DiscussionPostDto(
 );
 
 public record LessonDiscussionResponse(
-    int LessonId,
+    Guid LessonId,
     List<DiscussionPostDto> Posts
 );
 

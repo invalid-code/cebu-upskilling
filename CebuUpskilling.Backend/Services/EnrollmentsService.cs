@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CebuUpskilling.Backend.Services;
 
-public record EnrollmentSummary(int CourseId, string CourseName, DateTime? Started, int LastTotalProgressPercent);
+public record EnrollmentSummary(Guid CourseId, string CourseName, DateTime? Started, int LastTotalProgressPercent);
 
 public enum EnrollFailure
 {
@@ -13,12 +13,12 @@ public enum EnrollFailure
     AlreadyEnrolled,
 }
 
-public record EnrollOutcome(bool Success, EnrollFailure? Failure = null, int? CourseId = null, DateTime? Started = null);
+public record EnrollOutcome(bool Success, EnrollFailure? Failure = null, Guid? CourseId = null, DateTime? Started = null);
 
 public interface IEnrollmentsService
 {
-    Task<List<EnrollmentSummary>?> GetMyEnrollmentsAsync(int userId);
-    Task<EnrollOutcome> EnrollAsync(int userId, int courseId);
+    Task<List<EnrollmentSummary>?> GetMyEnrollmentsAsync(Guid userId);
+    Task<EnrollOutcome> EnrollAsync(Guid userId, Guid courseId);
 }
 
 public class EnrollmentsService : IEnrollmentsService
@@ -40,7 +40,7 @@ public class EnrollmentsService : IEnrollmentsService
         _logger = logger;
     }
 
-    public async Task<List<EnrollmentSummary>?> GetMyEnrollmentsAsync(int userId)
+    public async Task<List<EnrollmentSummary>?> GetMyEnrollmentsAsync(Guid userId)
     {
         var learner = await _learners.GetByUserIdAsync(userId);
         if (learner == null)
@@ -56,7 +56,7 @@ public class EnrollmentsService : IEnrollmentsService
             .ToList();
     }
 
-    public async Task<EnrollOutcome> EnrollAsync(int userId, int courseId)
+    public async Task<EnrollOutcome> EnrollAsync(Guid userId, Guid courseId)
     {
         _logger.LogInformation("User {UserId} attempting to enroll in course {CourseId}", userId, courseId);
 

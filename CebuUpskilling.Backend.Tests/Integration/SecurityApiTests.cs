@@ -49,7 +49,7 @@ public class SecurityApiTests : ProductionApiTestBase
         return $"{Base64Url(header)}.{Base64Url(payload)}.";
     }
 
-    private async Task<(string Token, int UserId)> RegisterUserAsync(string email, string role = "Learner", string? targetRole = null)
+    private async Task<(string Token, Guid UserId)> RegisterUserAsync(string email, string role = "Learner", string? targetRole = null)
     {
         var response = await RegisterAsync(new
         {
@@ -63,10 +63,10 @@ public class SecurityApiTests : ProductionApiTestBase
         });
         response.EnsureSuccessStatusCode();
         var body = await ReadJsonAsync(response);
-        return (body.GetProperty("token").GetString()!, body.GetProperty("userId").GetInt32());
+        return (body.GetProperty("token").GetString()!, body.GetProperty("userId").GetGuid());
     }
 
-    private async Task<int> GetLearnerIdAsync(int userId)
+    private async Task<Guid> GetLearnerIdAsync(Guid userId)
     {
         using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -422,10 +422,13 @@ public class SecurityApiTests : ProductionApiTestBase
         using (var scope = Factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var skill = new Skill { Name = $"Results Skill {Guid.NewGuid():N}" };
+            db.Skills.Add(skill);
+            await db.SaveChangesAsync();
             db.LearnerAssessments.Add(new LearnerAssessment
             {
                 LearnerId = learnerIdB,
-                SkillId = 1,
+                SkillId = skill.SkillId,
                 ScoredLevel = 4,
                 Verified = true,
                 CompletedAt = DateTime.UtcNow,

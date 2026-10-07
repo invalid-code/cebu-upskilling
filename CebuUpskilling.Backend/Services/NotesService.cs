@@ -6,10 +6,10 @@ namespace CebuUpskilling.Backend.Services;
 
 public interface INotesService
 {
-    Task<CourseNotesResponse?> GetCourseNotesAsync(int userId, int courseId, CancellationToken cancellationToken = default);
-    Task<LearnerNoteDto?> GetLessonNoteAsync(int userId, int lessonId, CancellationToken cancellationToken = default);
-    Task<LearnerNoteDto?> UpsertLessonNoteAsync(int userId, int lessonId, string content, CancellationToken cancellationToken = default);
-    Task<bool> DeleteLessonNoteAsync(int userId, int lessonId, CancellationToken cancellationToken = default);
+    Task<CourseNotesResponse?> GetCourseNotesAsync(Guid userId, Guid courseId, CancellationToken cancellationToken = default);
+    Task<LearnerNoteDto?> GetLessonNoteAsync(Guid userId, Guid lessonId, CancellationToken cancellationToken = default);
+    Task<LearnerNoteDto?> UpsertLessonNoteAsync(Guid userId, Guid lessonId, string content, CancellationToken cancellationToken = default);
+    Task<bool> DeleteLessonNoteAsync(Guid userId, Guid lessonId, CancellationToken cancellationToken = default);
 }
 
 public class NotesService : INotesService
@@ -34,7 +34,7 @@ public class NotesService : INotesService
         _logger = logger;
     }
 
-    public async Task<CourseNotesResponse?> GetCourseNotesAsync(int userId, int courseId, CancellationToken cancellationToken = default)
+    public async Task<CourseNotesResponse?> GetCourseNotesAsync(Guid userId, Guid courseId, CancellationToken cancellationToken = default)
     {
         _logger.LogDebug("Getting notes for user {UserId}, course {CourseId}", userId, courseId);
 
@@ -59,7 +59,7 @@ public class NotesService : INotesService
         );
     }
 
-    public async Task<LearnerNoteDto?> GetLessonNoteAsync(int userId, int lessonId, CancellationToken cancellationToken = default)
+    public async Task<LearnerNoteDto?> GetLessonNoteAsync(Guid userId, Guid lessonId, CancellationToken cancellationToken = default)
     {
         _logger.LogDebug("Getting note for user {UserId}, lesson {LessonId}", userId, lessonId);
 
@@ -90,7 +90,7 @@ public class NotesService : INotesService
             : MapToDto(note);
     }
 
-    public async Task<LearnerNoteDto?> UpsertLessonNoteAsync(int userId, int lessonId, string content, CancellationToken cancellationToken = default)
+    public async Task<LearnerNoteDto?> UpsertLessonNoteAsync(Guid userId, Guid lessonId, string content, CancellationToken cancellationToken = default)
     {
         _logger.LogDebug("Upserting note for user {UserId}, lesson {LessonId}", userId, lessonId);
 
@@ -133,7 +133,7 @@ public class NotesService : INotesService
         return MapToDto(note);
     }
 
-    public async Task<bool> DeleteLessonNoteAsync(int userId, int lessonId, CancellationToken cancellationToken = default)
+    public async Task<bool> DeleteLessonNoteAsync(Guid userId, Guid lessonId, CancellationToken cancellationToken = default)
     {
         _logger.LogDebug("Deleting note for user {UserId}, lesson {LessonId}", userId, lessonId);
 

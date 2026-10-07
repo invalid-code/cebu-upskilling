@@ -496,7 +496,7 @@ export default function AssessmentModal({ open, onClose, assessmentId, skillName
     setSubmitting(true);
     try {
       const answerList = Object.entries(answers).map(([questionId, selectedOption]) => ({
-        questionId: parseInt(questionId),
+        questionId,
         selectedOption,
       }));
 

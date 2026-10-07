@@ -6,11 +6,11 @@ namespace CebuUpskilling.Backend.Entities;
 public class Application
 {
     [Key]
-    public int ApplicationId { get; set; }
+    public Guid ApplicationId { get; set; }
 
-    public int LearnerId { get; set; }
+    public Guid LearnerId { get; set; }
 
-    public int PostId { get; set; }
+    public Guid PostId { get; set; }
 
     [MaxLength(50)]
     public string Status { get; set; } = "applied";

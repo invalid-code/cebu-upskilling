@@ -7,10 +7,10 @@ namespace CebuUpskilling.Backend.Services;
 public interface IEntityService<T> where T : class
 {
     Task<List<T>> GetAllAsync();
-    Task<T?> GetByIdAsync(int id);
+    Task<T?> GetByIdAsync(Guid id);
     Task<T> CreateAsync(T entity);
-    Task<T?> UpdateAsync(int id, T entity);
-    Task<bool> DeleteAsync(int id);
+    Task<T?> UpdateAsync(Guid id, T entity);
+    Task<bool> DeleteAsync(Guid id);
 }
 
 public abstract class BaseEntityService<T> : IEntityService<T> where T : class
@@ -32,7 +32,7 @@ public abstract class BaseEntityService<T> : IEntityService<T> where T : class
         return await _repository.GetAllAsync();
     }
 
-    public virtual async Task<T?> GetByIdAsync(int id)
+    public virtual async Task<T?> GetByIdAsync(Guid id)
     {
         _logger.LogDebug("Fetching {Entity} {Id}", _entityName, id);
         return await _repository.GetByIdAsync(id);
@@ -47,7 +47,7 @@ public abstract class BaseEntityService<T> : IEntityService<T> where T : class
         return entity;
     }
 
-    public virtual async Task<T?> UpdateAsync(int id, T entity)
+    public virtual async Task<T?> UpdateAsync(Guid id, T entity)
     {
         _logger.LogInformation("Updating {Entity} {Id}", _entityName, id);
         var existing = await GetByIdAsync(id);
@@ -62,7 +62,7 @@ public abstract class BaseEntityService<T> : IEntityService<T> where T : class
         return existing;
     }
 
-    public virtual async Task<bool> DeleteAsync(int id)
+    public virtual async Task<bool> DeleteAsync(Guid id)
     {
         _logger.LogInformation("Deleting {Entity} {Id}", _entityName, id);
         var existing = await GetByIdAsync(id);
@@ -99,10 +99,10 @@ public class CourseService : BaseEntityService<Course>
 public interface IPostService
 {
     Task<PagedPostsResponse> SearchAsync(PostQueryParams query);
-    Task<PostResponse?> GetByIdAsync(int id);
-    Task<PostResponse> CreateAsync(PostRequest request, int companyId);
-    Task<PostResponse?> UpdateAsync(int id, PostRequest request);
-    Task<bool> DeleteAsync(int id);
+    Task<PostResponse?> GetByIdAsync(Guid id);
+    Task<PostResponse> CreateAsync(PostRequest request, Guid companyId);
+    Task<PostResponse?> UpdateAsync(Guid id, PostRequest request);
+    Task<bool> DeleteAsync(Guid id);
 }
 
 public class PostService : BaseEntityService<Post>, IPostService
@@ -133,13 +133,13 @@ public class PostService : BaseEntityService<Post>, IPostService
     /// Updates the persisted job-market trends for the affected skills/roles.
     /// Trend failures never fail the post change itself.
     /// </summary>
-    private async Task RefreshMarketTrendsAsync(IEnumerable<int> skillIds, params string?[] targetRoles)
+    private async Task RefreshMarketTrendsAsync(IEnumerable<Guid> skillIds, params string?[] targetRoles)
     {
         if (_trends == null) return;
 
         try
         {
-            var ids = skillIds.Where(id => id > 0).Distinct().ToList();
+            var ids = skillIds.Where(id => id != Guid.Empty).Distinct().ToList();
             if (ids.Count > 0)
                 await _trends.RefreshSkillsAsync(ids);
 
@@ -179,19 +179,19 @@ public class PostService : BaseEntityService<Post>, IPostService
         }
         else
         {
-            await RefreshMarketTrendsAsync(Enumerable.Empty<int>(), entity.TargetRole);
+            await RefreshMarketTrendsAsync(Enumerable.Empty<Guid>(), entity.TargetRole);
         }
 
         return entity;
     }
 
-    public override async Task<Post?> UpdateAsync(int id, Post entity)
+    public override async Task<Post?> UpdateAsync(Guid id, Post entity)
     {
         if (string.IsNullOrWhiteSpace(entity.TargetRole))
             entity.TargetRole = entity.Title;
 
         var previous = await _repository.GetByIdAsync(id);
-        var previousSkillIds = previous?.PostSkills?.Select(ps => ps.SkillId).ToList() ?? new List<int>();
+        var previousSkillIds = previous?.PostSkills?.Select(ps => ps.SkillId).ToList() ?? new List<Guid>();
         var previousRole = previous?.TargetRole;
 
         var updated = await base.UpdateAsync(id, entity);
@@ -207,13 +207,13 @@ public class PostService : BaseEntityService<Post>, IPostService
         }
         else
         {
-            await RefreshMarketTrendsAsync(Enumerable.Empty<int>(), previousRole, updated.TargetRole);
+            await RefreshMarketTrendsAsync(Enumerable.Empty<Guid>(), previousRole, updated.TargetRole);
         }
 
         return updated;
     }
 
-    public override async Task<bool> DeleteAsync(int id)
+    public override async Task<bool> DeleteAsync(Guid id)
     {
         var existing = await GetByIdAsync(id);
         if (existing == null) return false;
@@ -261,7 +261,7 @@ public class PostService : BaseEntityService<Post>, IPostService
     private async Task SyncPostSkillsAsync(Post post, List<RequiredSkillInput> required)
     {
         var validItems = required
-            .Where(r => r.SkillId > 0 && r.RequiredLevel >= 1 && r.RequiredLevel <= 5)
+            .Where(r => r.SkillId != Guid.Empty && r.RequiredLevel >= 1 && r.RequiredLevel <= 5)
             .GroupBy(r => r.SkillId)
             .Select(g => new RequiredSkillInput(g.Key, g.Max(r => r.RequiredLevel)))
             .ToList();
@@ -309,7 +309,7 @@ public class PostService : BaseEntityService<Post>, IPostService
 
         var all = await _postRepository.GetByTargetRoleAsync(targetRole);
 
-        var requiredBySkill = new Dictionary<int, int>();
+        var requiredBySkill = new Dictionary<Guid, int>();
         foreach (var post in all)
         {
             foreach (var ps in post.PostSkills ?? new List<PostSkill>())
@@ -356,14 +356,14 @@ public class PostService : BaseEntityService<Post>, IPostService
             Math.Clamp(query.PageSize, 1, 100));
     }
 
-    public async Task<PostResponse?> GetByIdAsync(int id)
+    public async Task<PostResponse?> GetByIdAsync(Guid id)
     {
         _logger.LogDebug("Fetching post {PostId}", id);
         var post = await _repository.GetByIdAsync(id);
         return post == null ? null : ToResponse(post);
     }
 
-    public async Task<PostResponse> CreateAsync(PostRequest request, int companyId)
+    public async Task<PostResponse> CreateAsync(PostRequest request, Guid companyId)
     {
         _logger.LogInformation("Creating post for company {CompanyId}", companyId);
         var post = new Post
@@ -397,7 +397,7 @@ public class PostService : BaseEntityService<Post>, IPostService
         }
         else
         {
-            await RefreshMarketTrendsAsync(Enumerable.Empty<int>(), post.TargetRole);
+            await RefreshMarketTrendsAsync(Enumerable.Empty<Guid>(), post.TargetRole);
         }
 
         _logger.LogInformation("Created post {PostId} for company {CompanyId}", post.PostId, companyId);
@@ -406,7 +406,7 @@ public class PostService : BaseEntityService<Post>, IPostService
         return ToResponse(created!);
     }
 
-    public async Task<PostResponse?> UpdateAsync(int id, PostRequest request)
+    public async Task<PostResponse?> UpdateAsync(Guid id, PostRequest request)
     {
         _logger.LogInformation("Updating post {PostId}", id);
         var existing = await _repository.GetByIdAsync(id);
@@ -435,7 +435,7 @@ public class PostService : BaseEntityService<Post>, IPostService
         if (!string.IsNullOrWhiteSpace(request.Schedule))
             existing.Schedule = NormalizeSchedule(request.Schedule);
 
-        var previousSkillIds = existing.PostSkills?.Select(ps => ps.SkillId).ToList() ?? new List<int>();
+        var previousSkillIds = existing.PostSkills?.Select(ps => ps.SkillId).ToList() ?? new List<Guid>();
 
         await _repository.SaveChangesAsync();
 
@@ -451,7 +451,7 @@ public class PostService : BaseEntityService<Post>, IPostService
         }
         else
         {
-            await RefreshMarketTrendsAsync(Enumerable.Empty<int>(), oldTargetRole, existing.TargetRole);
+            await RefreshMarketTrendsAsync(Enumerable.Empty<Guid>(), oldTargetRole, existing.TargetRole);
         }
         _logger.LogInformation("Updated post {PostId}", id);
 

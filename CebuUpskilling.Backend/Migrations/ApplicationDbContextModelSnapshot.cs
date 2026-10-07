@@ -24,11 +24,9 @@ namespace CebuUpskilling.Backend.Migrations
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.AppUser", b =>
                 {
-                    b.Property<int>("UserId")
+                    b.Property<Guid>("UserId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("UserId"));
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Address")
                         .HasMaxLength(255)
@@ -41,8 +39,8 @@ namespace CebuUpskilling.Backend.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
 
-                    b.Property<int?>("CompanyId")
-                        .HasColumnType("integer");
+                    b.Property<Guid?>("CompanyId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Country")
                         .HasMaxLength(100)
@@ -140,11 +138,9 @@ namespace CebuUpskilling.Backend.Migrations
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.Application", b =>
                 {
-                    b.Property<int>("ApplicationId")
+                    b.Property<Guid>("ApplicationId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("ApplicationId"));
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime>("AppliedAt")
                         .HasColumnType("timestamp with time zone");
@@ -153,11 +149,11 @@ namespace CebuUpskilling.Backend.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
 
-                    b.Property<int>("LearnerId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("LearnerId")
+                        .HasColumnType("uuid");
 
-                    b.Property<int>("PostId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("PostId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("ResumeUrl")
                         .HasMaxLength(1000)
@@ -173,8 +169,6 @@ namespace CebuUpskilling.Backend.Migrations
 
                     b.HasKey("ApplicationId");
 
-                    b.HasIndex("LearnerId");
-
                     b.HasIndex("PostId");
 
                     b.HasIndex("LearnerId", "PostId")
@@ -185,14 +179,12 @@ namespace CebuUpskilling.Backend.Migrations
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.AssessmentQuestion", b =>
                 {
-                    b.Property<int>("AssessmentQuestionId")
+                    b.Property<Guid>("AssessmentQuestionId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                        .HasColumnType("uuid");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("AssessmentQuestionId"));
-
-                    b.Property<int?>("CompanyId")
-                        .HasColumnType("integer");
+                    b.Property<Guid?>("CompanyId")
+                        .HasColumnType("uuid");
 
                     b.Property<int>("CorrectOption")
                         .HasColumnType("integer");
@@ -213,8 +205,8 @@ namespace CebuUpskilling.Backend.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int>("SkillId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("SkillId")
+                        .HasColumnType("uuid");
 
                     b.Property<int>("Source")
                         .HasColumnType("integer");
@@ -234,11 +226,9 @@ namespace CebuUpskilling.Backend.Migrations
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.Company", b =>
                 {
-                    b.Property<int>("CompanyId")
+                    b.Property<Guid>("CompanyId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("CompanyId"));
+                        .HasColumnType("uuid");
 
                     b.Property<string>("CompanySize")
                         .HasMaxLength(20)
@@ -295,14 +285,12 @@ namespace CebuUpskilling.Backend.Migrations
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.Course", b =>
                 {
-                    b.Property<int>("CourseId")
+                    b.Property<Guid>("CourseId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                        .HasColumnType("uuid");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("CourseId"));
-
-                    b.Property<int?>("CompanyId")
-                        .HasColumnType("integer");
+                    b.Property<Guid?>("CompanyId")
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -314,8 +302,8 @@ namespace CebuUpskilling.Backend.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
 
-                    b.Property<int>("GenreId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("GenreId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Mode")
                         .IsRequired()
@@ -355,14 +343,12 @@ namespace CebuUpskilling.Backend.Migrations
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.CourseModule", b =>
                 {
-                    b.Property<int>("ModuleId")
+                    b.Property<Guid>("ModuleId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                        .HasColumnType("uuid");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("ModuleId"));
-
-                    b.Property<int>("CourseId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("CourseId")
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -397,11 +383,11 @@ namespace CebuUpskilling.Backend.Migrations
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.CourseSkill", b =>
                 {
-                    b.Property<int>("CourseId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("CourseId")
+                        .HasColumnType("uuid");
 
-                    b.Property<int>("SkillId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("SkillId")
+                        .HasColumnType("uuid");
 
                     b.HasKey("CourseId", "SkillId");
 
@@ -412,11 +398,9 @@ namespace CebuUpskilling.Backend.Migrations
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.Discipline", b =>
                 {
-                    b.Property<int>("DomainId")
+                    b.Property<Guid>("DomainId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("DomainId"));
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -446,11 +430,9 @@ namespace CebuUpskilling.Backend.Migrations
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.DiscussionPost", b =>
                 {
-                    b.Property<int>("DiscussionPostId")
+                    b.Property<Guid>("DiscussionPostId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("DiscussionPostId"));
+                        .HasColumnType("uuid");
 
                     b.Property<string>("AuthorName")
                         .IsRequired()
@@ -465,11 +447,11 @@ namespace CebuUpskilling.Backend.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int>("LearnerId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("LearnerId")
+                        .HasColumnType("uuid");
 
-                    b.Property<int>("LessonId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("LessonId")
+                        .HasColumnType("uuid");
 
                     b.HasKey("DiscussionPostId");
 
@@ -482,20 +464,18 @@ namespace CebuUpskilling.Backend.Migrations
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.Exercise", b =>
                 {
-                    b.Property<int>("ExerciseId")
+                    b.Property<Guid>("ExerciseId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("ExerciseId"));
+                        .HasColumnType("uuid");
 
                     b.Property<string>("AnswerKey")
                         .HasColumnType("text");
 
-                    b.Property<int?>("ExerciseContentId")
-                        .HasColumnType("integer");
+                    b.Property<Guid?>("ExerciseContentId")
+                        .HasColumnType("uuid");
 
-                    b.Property<int>("LessonId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("LessonId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Type")
                         .IsRequired()
@@ -511,11 +491,9 @@ namespace CebuUpskilling.Backend.Migrations
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.ExerciseContent", b =>
                 {
-                    b.Property<int>("ExerciseContentId")
+                    b.Property<Guid>("ExerciseContentId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("ExerciseContentId"));
+                        .HasColumnType("uuid");
 
                     b.Property<string>("BlockType")
                         .IsRequired()
@@ -525,8 +503,8 @@ namespace CebuUpskilling.Backend.Migrations
                     b.Property<string>("Content")
                         .HasColumnType("text");
 
-                    b.Property<int>("ExerciseId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("ExerciseId")
+                        .HasColumnType("uuid");
 
                     b.Property<double>("MbSize")
                         .HasColumnType("double precision");
@@ -541,11 +519,9 @@ namespace CebuUpskilling.Backend.Migrations
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.Genre", b =>
                 {
-                    b.Property<int>("GenreId")
+                    b.Property<Guid>("GenreId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("GenreId"));
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -562,8 +538,8 @@ namespace CebuUpskilling.Backend.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
 
-                    b.Property<int>("SubDisciplineId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("SubDisciplineId")
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -580,17 +556,15 @@ namespace CebuUpskilling.Backend.Migrations
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.Learner", b =>
                 {
-                    b.Property<int>("LearnerId")
+                    b.Property<Guid>("LearnerId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("LearnerId"));
+                        .HasColumnType("uuid");
 
                     b.Property<bool>("IsPremium")
                         .HasColumnType("boolean");
 
-                    b.Property<int>("UserId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
 
                     b.HasKey("LearnerId");
 
@@ -602,17 +576,15 @@ namespace CebuUpskilling.Backend.Migrations
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.LearnerAssessment", b =>
                 {
-                    b.Property<int>("LearnerAssessmentId")
+                    b.Property<Guid>("LearnerAssessmentId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("LearnerAssessmentId"));
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime>("CompletedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int>("LearnerId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("LearnerId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("QuestionIdsJson")
                         .HasColumnType("text");
@@ -620,15 +592,13 @@ namespace CebuUpskilling.Backend.Migrations
                     b.Property<int>("ScoredLevel")
                         .HasColumnType("integer");
 
-                    b.Property<int>("SkillId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("SkillId")
+                        .HasColumnType("uuid");
 
                     b.Property<bool>("Verified")
                         .HasColumnType("boolean");
 
                     b.HasKey("LearnerAssessmentId");
-
-                    b.HasIndex("LearnerId");
 
                     b.HasIndex("SkillId");
 
@@ -639,22 +609,20 @@ namespace CebuUpskilling.Backend.Migrations
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.LearnerNote", b =>
                 {
-                    b.Property<int>("LearnerNoteId")
+                    b.Property<Guid>("LearnerNoteId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("LearnerNoteId"));
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Content")
                         .IsRequired()
                         .HasMaxLength(20000)
                         .HasColumnType("character varying(20000)");
 
-                    b.Property<int>("LearnerId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("LearnerId")
+                        .HasColumnType("uuid");
 
-                    b.Property<int>("LessonId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("LessonId")
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -670,20 +638,18 @@ namespace CebuUpskilling.Backend.Migrations
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.LearnerSkill", b =>
                 {
-                    b.Property<int>("LearnerSkillId")
+                    b.Property<Guid>("LearnerSkillId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("LearnerSkillId"));
+                        .HasColumnType("uuid");
 
                     b.Property<int>("CurrentLevel")
                         .HasColumnType("integer");
 
-                    b.Property<int>("LearnerId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("LearnerId")
+                        .HasColumnType("uuid");
 
-                    b.Property<int>("SkillId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("SkillId")
+                        .HasColumnType("uuid");
 
                     b.Property<bool>("Verified")
                         .HasColumnType("boolean");
@@ -700,11 +666,11 @@ namespace CebuUpskilling.Backend.Migrations
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.LearnerStudyCourse", b =>
                 {
-                    b.Property<int>("LearnerId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("LearnerId")
+                        .HasColumnType("uuid");
 
-                    b.Property<int>("CourseId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("CourseId")
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime?>("LastOnline")
                         .HasColumnType("timestamp with time zone");
@@ -724,14 +690,12 @@ namespace CebuUpskilling.Backend.Migrations
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.Lesson", b =>
                 {
-                    b.Property<int>("LessonId")
+                    b.Property<Guid>("LessonId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                        .HasColumnType("uuid");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("LessonId"));
-
-                    b.Property<int>("CourseId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("CourseId")
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -743,8 +707,8 @@ namespace CebuUpskilling.Backend.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
 
-                    b.Property<int>("ModuleId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("ModuleId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -771,11 +735,9 @@ namespace CebuUpskilling.Backend.Migrations
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.LessonContent", b =>
                 {
-                    b.Property<int>("ContentId")
+                    b.Property<Guid>("ContentId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("ContentId"));
+                        .HasColumnType("uuid");
 
                     b.Property<string>("BlockType")
                         .IsRequired()
@@ -785,8 +747,8 @@ namespace CebuUpskilling.Backend.Migrations
                     b.Property<string>("Content")
                         .HasColumnType("text");
 
-                    b.Property<int>("LessonId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("LessonId")
+                        .HasColumnType("uuid");
 
                     b.Property<int>("LessonOrder")
                         .HasColumnType("integer");
@@ -806,14 +768,12 @@ namespace CebuUpskilling.Backend.Migrations
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.Media", b =>
                 {
-                    b.Property<int>("MediaId")
+                    b.Property<Guid>("MediaId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                        .HasColumnType("uuid");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("MediaId"));
-
-                    b.Property<int>("LessonId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("LessonId")
+                        .HasColumnType("uuid");
 
                     b.Property<double>("MbSize")
                         .HasColumnType("double precision");
@@ -837,18 +797,16 @@ namespace CebuUpskilling.Backend.Migrations
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.Post", b =>
                 {
-                    b.Property<int>("PostId")
+                    b.Property<Guid>("PostId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("PostId"));
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Benefits")
                         .HasMaxLength(5000)
                         .HasColumnType("character varying(5000)");
 
-                    b.Property<int>("CompanyId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("CompanyLogoUrl")
                         .HasMaxLength(500)
@@ -915,11 +873,11 @@ namespace CebuUpskilling.Backend.Migrations
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.PostCourseRequired", b =>
                 {
-                    b.Property<int>("PostId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("PostId")
+                        .HasColumnType("uuid");
 
-                    b.Property<int>("CourseId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("CourseId")
+                        .HasColumnType("uuid");
 
                     b.HasKey("PostId", "CourseId");
 
@@ -930,11 +888,11 @@ namespace CebuUpskilling.Backend.Migrations
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.PostSkill", b =>
                 {
-                    b.Property<int>("PostId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("PostId")
+                        .HasColumnType("uuid");
 
-                    b.Property<int>("SkillId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("SkillId")
+                        .HasColumnType("uuid");
 
                     b.Property<int>("RequiredLevel")
                         .HasColumnType("integer");
@@ -970,17 +928,15 @@ namespace CebuUpskilling.Backend.Migrations
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.RoleSkill", b =>
                 {
-                    b.Property<int>("RoleSkillId")
+                    b.Property<Guid>("RoleSkillId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("RoleSkillId"));
+                        .HasColumnType("uuid");
 
                     b.Property<int>("RequiredLevel")
                         .HasColumnType("integer");
 
-                    b.Property<int>("SkillId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("SkillId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("TargetRole")
                         .IsRequired()
@@ -996,11 +952,9 @@ namespace CebuUpskilling.Backend.Migrations
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.Skill", b =>
                 {
-                    b.Property<int>("SkillId")
+                    b.Property<Guid>("SkillId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("SkillId"));
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Category")
                         .HasMaxLength(50)
@@ -1021,8 +975,8 @@ namespace CebuUpskilling.Backend.Migrations
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.SkillMarketTrend", b =>
                 {
-                    b.Property<int>("SkillId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("SkillId")
+                        .HasColumnType("uuid");
 
                     b.Property<int>("ActivePostings")
                         .HasColumnType("integer");
@@ -1045,11 +999,9 @@ namespace CebuUpskilling.Backend.Migrations
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.SubDiscipline", b =>
                 {
-                    b.Property<int>("SubDisciplineId")
+                    b.Property<Guid>("SubDisciplineId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("SubDisciplineId"));
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -1061,8 +1013,8 @@ namespace CebuUpskilling.Backend.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
 
-                    b.Property<int>("DisciplineId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("DisciplineId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Name")
                         .IsRequired()

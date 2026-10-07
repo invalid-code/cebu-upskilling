@@ -2,15 +2,15 @@ using System.ComponentModel.DataAnnotations;
 
 namespace CebuUpskilling.Backend.DTOs;
 
-public record CourseManagementListDto(int CourseId, string Name, string? Description, string Status, int TechnicalLevel, string Mode, int ModuleCount, int LessonCount, DateTime? UpdatedAt);
+public record CourseManagementListDto(Guid CourseId, string Name, string? Description, string Status, int TechnicalLevel, string Mode, int ModuleCount, int LessonCount, DateTime? UpdatedAt);
 
-public record CourseManagementDto(int CourseId, string Name, string? Description, string Status, int TechnicalLevel, string Mode, int? Price, int? GenreId, List<CourseManagementModuleDto> Modules);
+public record CourseManagementDto(Guid CourseId, string Name, string? Description, string Status, int TechnicalLevel, string Mode, int? Price, Guid? GenreId, List<CourseManagementModuleDto> Modules);
 
-public record CourseManagementModuleDto(int ModuleId, string Name, string? Description, int Order, List<CourseManagementLessonDto> Lessons);
+public record CourseManagementModuleDto(Guid ModuleId, string Name, string? Description, int Order, List<CourseManagementLessonDto> Lessons);
 
-public record CourseManagementLessonDto(int LessonId, string Name, string? Description, int Order, List<CourseManagementContentDto> Contents, List<MediaDto> Media);
+public record CourseManagementLessonDto(Guid LessonId, string Name, string? Description, int Order, List<CourseManagementContentDto> Contents, List<MediaDto> Media);
 
-public record CourseManagementContentDto(int ContentId, string BlockType, string? Content, int LessonOrder);
+public record CourseManagementContentDto(Guid ContentId, string BlockType, string? Content, int LessonOrder);
 
 public class SaveCourseRequest
 {
@@ -19,7 +19,7 @@ public class SaveCourseRequest
     [Range(1, 5)] public int TechnicalLevel { get; set; } = 1;
     [Required, MaxLength(50)] public string Mode { get; set; } = "Online";
     public int? Price { get; set; }
-    public int? GenreId { get; set; }
+    public Guid? GenreId { get; set; }
     public List<SaveModuleRequest> Modules { get; set; } = new();
 }
 
@@ -30,7 +30,7 @@ public class SaveModuleRequest
     /// course being saved the module is updated in place instead of deleted and
     /// recreated, which keeps its lessons (and their notes/discussions) alive.
     /// </summary>
-    public int? ModuleId { get; set; }
+    public Guid? ModuleId { get; set; }
     [Required, MaxLength(255)] public string Name { get; set; } = string.Empty;
     [MaxLength(2000)] public string? Description { get; set; }
     public int Order { get; set; }
@@ -39,7 +39,7 @@ public class SaveModuleRequest
 
 public class SaveLessonRequest
 {
-    public int? LessonId { get; set; }
+    public Guid? LessonId { get; set; }
     [Required, MaxLength(255)] public string Name { get; set; } = string.Empty;
     [MaxLength(2000)] public string? Description { get; set; }
     public int Order { get; set; }

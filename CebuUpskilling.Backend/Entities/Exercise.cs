@@ -5,14 +5,14 @@ namespace CebuUpskilling.Backend.Entities;
 public class Exercise
 {
     [Key]
-    public int ExerciseId { get; set; }
+    public Guid ExerciseId { get; set; }
 
-    public int LessonId { get; set; }
+    public Guid LessonId { get; set; }
 
     [Required, MaxLength(100)]
     public string Type { get; set; } = string.Empty;
 
-    public int? ExerciseContentId { get; set; }
+    public Guid? ExerciseContentId { get; set; }
 
     public string? AnswerKey { get; set; }
 

@@ -95,7 +95,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         Assert.Equal(0, body.GetProperty("dayStreak").GetInt32());
 
         var recommended = body.GetProperty("recommendedCourses").EnumerateArray().ToList();
-        var course = recommended.Single(c => c.GetProperty("courseId").GetInt32() == courseId);
+        var course = recommended.Single(c => c.GetProperty("courseId").GetGuid() == courseId);
         Assert.Equal("JavaScript Essentials", course.GetProperty("name").GetString());
         Assert.True(course.GetProperty("isRecommended").GetBoolean());
         Assert.Equal("Language", course.GetProperty("skillCategory").GetString());
@@ -117,12 +117,12 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
 
         var enrolled = body.GetProperty("enrolledCourses").EnumerateArray().ToList();
         Assert.Single(enrolled);
-        Assert.Equal(courseId, enrolled[0].GetProperty("courseId").GetInt32());
+        Assert.Equal(courseId, enrolled[0].GetProperty("courseId").GetGuid());
         Assert.Equal("Modern Web Development", enrolled[0].GetProperty("courseName").GetString());
         Assert.Equal(1, body.GetProperty("coursesInProgress").GetInt32());
 
         var recommended = body.GetProperty("recommendedCourses").EnumerateArray().ToList();
-        Assert.DoesNotContain(recommended, c => c.GetProperty("courseId").GetInt32() == courseId);
+        Assert.DoesNotContain(recommended, c => c.GetProperty("courseId").GetGuid() == courseId);
     }
 
     [Fact]
@@ -147,14 +147,14 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await ReadJsonAsync(response);
-        Assert.Equal(courseId, body.GetProperty("courseId").GetInt32());
+        Assert.Equal(courseId, body.GetProperty("courseId").GetGuid());
         Assert.Equal("Modern Web Development", body.GetProperty("name").GetString());
         Assert.Equal(2, body.GetProperty("totalModules").GetInt32());
         Assert.False(body.GetProperty("isEnrolled").GetBoolean());
 
         var modules = body.GetProperty("modules").EnumerateArray().ToList();
         Assert.Equal(2, modules.Count);
-        Assert.Equal(lessonIds[0], modules[0].GetProperty("lessons")[0].GetProperty("lessonId").GetInt32());
+        Assert.Equal(lessonIds[0], modules[0].GetProperty("lessons")[0].GetProperty("lessonId").GetGuid());
     }
 
     [Fact]
@@ -177,7 +177,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
     {
         var token = await RegisterLearnerAsync("regr.detail.missing@example.com");
 
-        var response = await AuthorizedClient(token).GetAsync("/api/courses/999999/detail");
+        var response = await AuthorizedClient(token).GetAsync($"/api/courses/{Guid.NewGuid()}/detail");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -208,13 +208,13 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.OK, contentResponse.StatusCode);
         var content = await ReadJsonAsync(contentResponse);
 
-        Assert.Equal(courseId, content.GetProperty("courseId").GetInt32());
+        Assert.Equal(courseId, content.GetProperty("courseId").GetGuid());
         Assert.Equal("Modern Web Development", content.GetProperty("courseName").GetString());
         Assert.Equal(2, content.GetProperty("totalLessons").GetInt32());
         Assert.Equal(0, content.GetProperty("completedLessons").GetInt32());
         Assert.Equal(0, content.GetProperty("progressPercent").GetInt32());
         Assert.Equal(2, content.GetProperty("modules").EnumerateArray().ToList().Count);
-        Assert.Equal(lessonIds[0], content.GetProperty("currentLesson").GetProperty("lessonId").GetInt32());
+        Assert.Equal(lessonIds[0], content.GetProperty("currentLesson").GetProperty("lessonId").GetGuid());
 
         var lessonResponse = await AuthorizedClient(token).GetAsync($"/api/coursecontent/lessons/{lessonIds[0]}");
         Assert.Equal(HttpStatusCode.OK, lessonResponse.StatusCode);
@@ -282,7 +282,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
     {
         var token = await RegisterLearnerAsync("regr.assess.badskill@example.com");
 
-        var response = await AuthorizedClient(token).PostAsJsonAsync("/api/assessments/start", new { skillId = 999 });
+        var response = await AuthorizedClient(token).PostAsJsonAsync("/api/assessments/start", new { skillId = Guid.NewGuid() });
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -291,6 +291,12 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
     public async Task Assessments_StartQuestionsSubmit_FullFlowScoresExpert()
     {
         var token = await RegisterLearnerAsync("regr.assess.flow@example.com", "Frontend Developer");
+        Guid jsSkillId;
+        using (var scope = Factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            jsSkillId = (await db.Skills.SingleAsync(s => s.Name == "JavaScript")).SkillId;
+        }
 
         using (var scope = Factory.Services.CreateScope())
         {
@@ -299,7 +305,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
             {
                 db.AssessmentQuestions.Add(new AssessmentQuestion
                 {
-                    SkillId = 1,
+                    SkillId = jsSkillId,
                     Text = $"JavaScript question {i}",
                     OptionA = "Correct answer",
                     OptionB = "Wrong option 1",
@@ -312,10 +318,10 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
             await db.SaveChangesAsync();
         }
 
-        var startResponse = await AuthorizedClient(token).PostAsJsonAsync("/api/assessments/start", new { skillId = 1 });
+        var startResponse = await AuthorizedClient(token).PostAsJsonAsync("/api/assessments/start", new { skillId = jsSkillId });
         Assert.Equal(HttpStatusCode.OK, startResponse.StatusCode);
         var started = await ReadJsonAsync(startResponse);
-        var assessmentId = started.GetProperty("assessmentId").GetInt32();
+        var assessmentId = started.GetProperty("assessmentId").GetGuid();
         Assert.Equal("JavaScript", started.GetProperty("skillName").GetString());
 
         var questionsResponse = await AuthorizedClient(token).GetAsync($"/api/assessments/{assessmentId}/questions");
@@ -328,7 +334,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         Assert.Equal(4, questionList[0].GetProperty("options").EnumerateArray().ToList().Count);
 
         var answers = questionList
-            .Select(q => new { questionId = q.GetProperty("questionId").GetInt32(), selectedOption = 0 })
+            .Select(q => new { questionId = q.GetProperty("questionId").GetGuid(), selectedOption = 0 })
             .ToList();
 
         var submitResponse = await AuthorizedClient(token).PostAsJsonAsync(
@@ -348,10 +354,16 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
     public async Task Assessments_CompanyQuestion_RecruiterCreates()
     {
         var (token, _, companyId) = await RegisterRecruiterWithCompanyAsync("regr.assess.recruiter@example.com");
+        Guid jsSkillId;
+        using (var scope = Factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            jsSkillId = (await db.Skills.SingleAsync(s => s.Name == "JavaScript")).SkillId;
+        }
 
         var response = await AuthorizedClient(token).PostAsJsonAsync("/api/assessments/company/questions", new
         {
-            skillId = 1,
+            skillId = jsSkillId,
             text = "What does the 'const' keyword do in JavaScript?",
             optionA = "Declares a block-scoped constant binding",
             optionB = "Declares a function",
@@ -362,7 +374,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await ReadJsonAsync(response);
-        Assert.True(body.GetProperty("questionId").GetInt32() > 0);
+        Assert.NotEqual(Guid.Empty, body.GetProperty("questionId").GetGuid());
         Assert.Equal("Company", body.GetProperty("source").GetString());
         Assert.Equal("Acme Corp", body.GetProperty("companyName").GetString());
 
@@ -370,7 +382,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         {
             var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             var question = await db.AssessmentQuestions
-                .SingleAsync(q => q.AssessmentQuestionId == body.GetProperty("questionId").GetInt32());
+                .SingleAsync(q => q.AssessmentQuestionId == body.GetProperty("questionId").GetGuid());
             Assert.Equal(AssessmentSource.Company, question.Source);
             Assert.Equal(companyId, question.CompanyId);
         }
@@ -383,7 +395,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
 
         var response = await AuthorizedClient(token).PostAsJsonAsync("/api/assessments/company/questions", new
         {
-            skillId = 1,
+            skillId = Guid.NewGuid(),
             text = "Question",
             optionA = "a",
             optionB = "b",
@@ -419,7 +431,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         });
         Assert.Equal(HttpStatusCode.Created, applyResponse.StatusCode);
         var created = await ReadJsonAsync(applyResponse);
-        Assert.Equal(postId, created.GetProperty("postId").GetInt32());
+        Assert.Equal(postId, created.GetProperty("postId").GetGuid());
         Assert.Equal("Senior Developer", created.GetProperty("title").GetString());
         Assert.Equal("Acme Corp", created.GetProperty("company").GetString());
         Assert.Equal("applied", created.GetProperty("status").GetString());
@@ -452,7 +464,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
 
         var response = await AuthorizedClient(token).PostAsJsonAsync("/api/applications", new
         {
-            postId = 9999,
+            postId = Guid.NewGuid(),
             resumeUrl = "https://storage.example/resume.pdf",
         });
 
@@ -571,7 +583,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         var listResponse = await authorized.GetAsync("/api/courses");
         Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
         var list = (await ReadJsonAsync(listResponse)).EnumerateArray().ToList();
-        Assert.Contains(list, c => c.GetProperty("courseId").GetInt32() == courseId);
+        Assert.Contains(list, c => c.GetProperty("courseId").GetGuid() == courseId);
 
         var getResponse = await authorized.GetAsync(location);
         Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
@@ -597,7 +609,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var body = await ReadJsonAsync(response);
-        Assert.True(body.GetProperty("mediaId").GetInt32() > 0);
+        Assert.NotEqual(Guid.Empty, body.GetProperty("mediaId").GetGuid());
         Assert.StartsWith("https://fake-storage.example/", body.GetProperty("pathFile").GetString());
         Assert.Equal("video/mp4", body.GetProperty("type").GetString());
     }
@@ -637,7 +649,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var body = await ReadJsonAsync(response);
-        Assert.True(body.GetProperty("mediaId").GetInt32() > 0);
+        Assert.NotEqual(Guid.Empty, body.GetProperty("mediaId").GetGuid());
         Assert.StartsWith("https://fake-storage.example/", body.GetProperty("pathFile").GetString());
         Assert.Equal("application/pdf", body.GetProperty("type").GetString());
     }
@@ -710,13 +722,13 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
     }
 
-    private async Task<int> CreateCompanyCourseWithLessonAsync(int companyId)
+    private async Task<Guid> CreateCompanyCourseWithLessonAsync(Guid companyId)
     {
         using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         var course = new Course
         {
-            GenreId = 1,
+            GenreId = Guid.NewGuid(),
             CompanyId = companyId,
             Name = "Company Course",
             TechnicalLevel = 2,
@@ -738,7 +750,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
     // Helpers
     // ------------------------------------------------------------------ //
 
-    private async Task<(string Token, int UserId, int CompanyId)> RegisterRecruiterWithCompanyAsync(string email)
+    private async Task<(string Token, Guid UserId, Guid CompanyId)> RegisterRecruiterWithCompanyAsync(string email)
     {
         var response = await RegisterCompanyAsync(new
         {
@@ -751,13 +763,13 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         response.EnsureSuccessStatusCode();
         var body = await ReadJsonAsync(response);
         var token = body.GetProperty("token").GetString()!;
-        var userId = body.GetProperty("userId").GetInt32();
-        var companyId = body.GetProperty("companyId").GetInt32();
+        var userId = body.GetProperty("userId").GetGuid();
+        var companyId = body.GetProperty("companyId").GetGuid();
 
         return (token, userId, companyId);
     }
 
-    private async Task<int> CreatePostAsync(string token, int companyId, string title)
+    private async Task<Guid> CreatePostAsync(string token, Guid companyId, string title)
     {
         var response = await AuthorizedClient(token).PostAsJsonAsync("/api/posts", new
         {
@@ -766,17 +778,21 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         });
         response.EnsureSuccessStatusCode();
         var body = await ReadJsonAsync(response);
-        return body.GetProperty("postId").GetInt32();
+        return body.GetProperty("postId").GetGuid();
     }
 
-    private async Task<int> CreateGenreAsync()
+    private async Task<Guid> CreateGenreAsync()
     {
         using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
+        var discipline = new Discipline { Name = "Technology" };
+        db.Disciplines.Add(discipline);
+        await db.SaveChangesAsync();
+
         var subDiscipline = new SubDiscipline
         {
-            DisciplineId = 1,
+            DisciplineId = discipline.DomainId,
             Name = "Computer Science",
             Description = "CS",
         };
@@ -795,14 +811,18 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         return genre.GenreId;
     }
 
-    private async Task<(int CourseId, List<int> LessonIds)> CreateCourseWithLessonsAsync()
+    private async Task<(Guid CourseId, List<Guid> LessonIds)> CreateCourseWithLessonsAsync()
     {
         using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
+        var discipline = new Discipline { Name = "Technology" };
+        db.Disciplines.Add(discipline);
+        await db.SaveChangesAsync();
+
         var subDiscipline = new SubDiscipline
         {
-            DisciplineId = 1,
+            DisciplineId = discipline.DomainId,
             Name = "Computer Science",
             Description = "CS",
         };
@@ -830,7 +850,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
         db.Courses.Add(course);
         await db.SaveChangesAsync();
 
-        var lessonIds = new List<int>();
+        var lessonIds = new List<Guid>();
         var lessonSpecs = new[] { ("HTML Fundamentals", 1), ("CSS Styling", 2) };
         foreach (var (name, order) in lessonSpecs)
         {
@@ -838,7 +858,7 @@ public class FeatureRegressionApiTests : ProductionApiTestBase
             db.CourseModules.Add(module);
             await db.SaveChangesAsync();
 
-            var lesson = new Lesson { ModuleId = module.ModuleId, CourseId = course.CourseId, Name = name, Description = name };
+            var lesson = new Lesson { ModuleId = module.ModuleId, CourseId = course.CourseId, Name = name, Description = name, Order = order };
             db.Lessons.Add(lesson);
             await db.SaveChangesAsync();
 

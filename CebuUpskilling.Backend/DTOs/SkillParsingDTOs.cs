@@ -7,20 +7,20 @@ namespace CebuUpskilling.Backend.DTOs;
 
 /// <summary>Compact per-candidate profile sent to Gemini for ranking (no PII beyond an opaque id).</summary>
 public record CandidateSkillProfile(
-    int ApplicationId,
+    Guid ApplicationId,
     List<string> Skills
 );
 
 /// <summary>One ranked candidate as returned by the AI model.</summary>
 public record CandidateRanking(
-    int ApplicationId,
+    Guid ApplicationId,
     double Score,
     string Rationale
 );
 
 public record RankedCandidateDto(
-    int ApplicationId,
-    int LearnerId,
+    Guid ApplicationId,
+    Guid LearnerId,
     string LearnerName,
     string Status,
     DateTime AppliedAt,
@@ -30,7 +30,7 @@ public record RankedCandidateDto(
 );
 
 public record RankCandidatesResponse(
-    int PostId,
+    Guid PostId,
     bool AiRanked,
     List<RankedCandidateDto> Candidates
 );
@@ -52,7 +52,7 @@ public record DraftJobPostResponse(
 );
 
 public record ScreeningQuestionsResponse(
-    int PostId,
+    Guid PostId,
     List<CreatedCompanyQuestionResponse> Questions
 );
 
@@ -75,8 +75,8 @@ public record CreateJobPostFromRoleResponse(
 
 public record ParsedSkillResult(
     string SkillName,
-    int SkillId,
-    int? AssessmentId
+    Guid SkillId,
+    Guid? AssessmentId
 );
 
 public record ParseSkillsResult(

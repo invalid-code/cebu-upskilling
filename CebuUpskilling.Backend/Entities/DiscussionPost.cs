@@ -5,11 +5,11 @@ namespace CebuUpskilling.Backend.Entities;
 public class DiscussionPost
 {
     [Key]
-    public int DiscussionPostId { get; set; }
+    public Guid DiscussionPostId { get; set; }
 
-    public int LessonId { get; set; }
+    public Guid LessonId { get; set; }
 
-    public int LearnerId { get; set; }
+    public Guid LearnerId { get; set; }
 
     [Required, MaxLength(255)]
     public string AuthorName { get; set; } = string.Empty;

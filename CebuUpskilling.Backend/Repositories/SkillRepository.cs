@@ -6,17 +6,17 @@ namespace CebuUpskilling.Backend.Repositories;
 
 public interface ISkillRepository : IRepository<Skill>
 {
-    Task<Skill?> GetByIdAsync(int skillId);
+    Task<Skill?> GetByIdAsync(Guid skillId);
     Task<List<Skill>> GetByNamesAsync(IEnumerable<string> names);
     Task<List<Skill>> ListAllAsync();
-    Task<List<Skill>> GetByIdsAsync(IEnumerable<int> skillIds);
+    Task<List<Skill>> GetByIdsAsync(IEnumerable<Guid> skillIds);
 }
 
 public class SkillRepository : Repository<Skill>, ISkillRepository
 {
     public SkillRepository(ApplicationDbContext context) : base(context) { }
 
-    public async Task<Skill?> GetByIdAsync(int skillId) => await _dbSet.FindAsync(skillId);
+    public async Task<Skill?> GetByIdAsync(Guid skillId) => await _dbSet.FindAsync(skillId);
 
     public async Task<List<Skill>> GetByNamesAsync(IEnumerable<string> names)
     {
@@ -32,6 +32,6 @@ public class SkillRepository : Repository<Skill>, ISkillRepository
     public async Task<List<Skill>> ListAllAsync()
         => await _dbSet.OrderBy(s => s.Name).ToListAsync();
 
-    public async Task<List<Skill>> GetByIdsAsync(IEnumerable<int> skillIds)
+    public async Task<List<Skill>> GetByIdsAsync(IEnumerable<Guid> skillIds)
         => await _dbSet.Where(s => skillIds.Contains(s.SkillId)).ToListAsync();
 }

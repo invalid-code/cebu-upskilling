@@ -5,9 +5,9 @@ namespace CebuUpskilling.Backend.Entities;
 public class CourseModule : AuditableEntity
 {
     [Key]
-    public int ModuleId { get; set; }
+    public Guid ModuleId { get; set; }
 
-    public int CourseId { get; set; }
+    public Guid CourseId { get; set; }
 
     [Required, MaxLength(255)]
     public string Name { get; set; } = string.Empty;

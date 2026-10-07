@@ -24,7 +24,7 @@ public class CoursesController : BaseEntityController<Course>
         _db = db;
     }
 
-    protected override int GetId(Course entity) => entity.CourseId;
+    protected override Guid GetId(Course entity) => entity.CourseId;
 
     // Course writes are owned by CourseManagementController (Recruiter/CourseProvider,
     // scoped to the caller's CompanyId). The generic create/update/delete inherited from
@@ -36,11 +36,11 @@ public class CoursesController : BaseEntityController<Course>
         Task.FromResult<ActionResult<Course>>(NotFound());
 
     [HttpPut("{id}")]
-    public override Task<ActionResult<Course>> Update(int id, Course entity) =>
+    public override Task<ActionResult<Course>> Update(Guid id, Course entity) =>
         Task.FromResult<ActionResult<Course>>(NotFound());
 
     [HttpDelete("{id}")]
-    public override Task<IActionResult> Delete(int id) =>
+    public override Task<IActionResult> Delete(Guid id) =>
         Task.FromResult<IActionResult>(NotFound());
 
     // Reads are the authenticated catalogue: only Published courses, projected to
@@ -61,7 +61,7 @@ public class CoursesController : BaseEntityController<Course>
     }
 
     [HttpGet("{id}")]
-    public override async Task<ActionResult<Course>> GetById(int id)
+    public override async Task<ActionResult<Course>> GetById(Guid id)
     {
         _logger.LogInformation("HTTP GET /api/courses/{Id} called", id);
         var course = await _db.Courses.AsNoTracking()
@@ -78,7 +78,7 @@ public class CoursesController : BaseEntityController<Course>
     }
 
     [HttpGet("{id}/detail")]
-    public async Task<ActionResult<CourseDetailDto>> GetCourseDetail(int id)
+    public async Task<ActionResult<CourseDetailDto>> GetCourseDetail(Guid id)
     {
         if (!User.TryGetUserId(out var userId)) return Unauthorized(new { error = "Unauthorized" });
         _logger.LogInformation("HTTP GET /api/courses/{Id}/detail called by user {UserId}", id, userId);

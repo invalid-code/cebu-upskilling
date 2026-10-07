@@ -24,7 +24,7 @@ public class JwtTokenServiceTests
 
     private static AppUser CreateUser() => new()
     {
-        UserId = 42,
+        UserId = Guid.NewGuid(),
         FirstName = "Jose",
         LastName = "Rizal",
         EmailAddress = "jose@example.com",
@@ -43,11 +43,12 @@ public class JwtTokenServiceTests
     [Fact]
     public void GenerateToken_ContainsExpectedClaims()
     {
-        var token = CreateTokenService().GenerateToken(CreateUser());
+        var user = CreateUser();
+        var token = CreateTokenService().GenerateToken(user);
         var handler = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler();
         var jwt = handler.ReadJwtToken(token);
 
-        Assert.Equal("42", jwt.Claims.First(c => c.Type == ClaimTypes.NameIdentifier).Value);
+        Assert.Equal(user.UserId.ToString(), jwt.Claims.First(c => c.Type == ClaimTypes.NameIdentifier).Value);
         Assert.Equal("jose@example.com", jwt.Claims.First(c => c.Type == ClaimTypes.Email).Value);
         Assert.Equal("Jose Rizal", jwt.Claims.First(c => c.Type == ClaimTypes.Name).Value);
         Assert.Equal("Learner", jwt.Claims.First(c => c.Type == ClaimTypes.Role).Value);

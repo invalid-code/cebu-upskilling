@@ -6,8 +6,8 @@ namespace CebuUpskilling.Backend.Services;
 
 public interface ISkillGapService
 {
-    Task<List<SkillGapGroupDto>> GetSkillGapsAsync(int userId);
-    Task<List<SkillGapGroupDto>> GetSkillGapGroupsAsync(int userId);
+    Task<List<SkillGapGroupDto>> GetSkillGapsAsync(Guid userId);
+    Task<List<SkillGapGroupDto>> GetSkillGapGroupsAsync(Guid userId);
 }
 
 public class SkillGapService : ISkillGapService
@@ -35,17 +35,17 @@ public class SkillGapService : ISkillGapService
         _logger = logger;
     }
 
-    public Task<List<SkillGapGroupDto>> GetSkillGapsAsync(int userId)
+    public Task<List<SkillGapGroupDto>> GetSkillGapsAsync(Guid userId)
         => GetSkillGapGroupsAsync(userId);
 
-    public async Task<List<SkillGapGroupDto>> GetSkillGapGroupsAsync(int userId)
+    public async Task<List<SkillGapGroupDto>> GetSkillGapGroupsAsync(Guid userId)
     {
         var user = await _users.GetByIdAsync(userId);
 
         var learner = await _learners.GetByUserIdAsync(userId);
         var learnerSkillMap = learner != null
             ? (await _learnerSkills.GetByLearnerIdWithSkillAsync(learner.LearnerId)).ToDictionary(ls => ls.SkillId)
-            : new Dictionary<int, LearnerSkill>();
+            : new Dictionary<Guid, LearnerSkill>();
 
         var applications = learner != null
             ? await _applications.GetByLearnerIdAsync(learner.LearnerId)
@@ -102,7 +102,7 @@ public class SkillGapService : ISkillGapService
 
     private async Task<List<SkillGapResponse>> ComputeGapsForRoleAsync(
         string targetRole,
-        Dictionary<int, LearnerSkill> learnerSkillMap)
+        Dictionary<Guid, LearnerSkill> learnerSkillMap)
     {
         _logger.LogDebug("Computing skill gaps for role {TargetRole}", targetRole);
 

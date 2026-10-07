@@ -4,9 +4,9 @@ namespace CebuUpskilling.Backend.Entities;
 
 public class LearnerStudyCourse
 {
-    public int LearnerId { get; set; }
+    public Guid LearnerId { get; set; }
 
-    public int CourseId { get; set; }
+    public Guid CourseId { get; set; }
 
     public DateTime? Started { get; set; }
 

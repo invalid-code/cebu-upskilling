@@ -66,7 +66,7 @@ public class LearningPathwayAgentTests
     }
 
     private static async Task<Course> CreateCourseAsync(
-        ApplicationDbContext context, string name, Genre genre, params int[] skillIds)
+        ApplicationDbContext context, string name, Genre genre, params Guid[] skillIds)
     {
         var course = new Course { GenreId = genre.GenreId, Name = name, Price = 0, TechnicalLevel = 3 };
         context.Courses.Add(course);
@@ -173,7 +173,7 @@ public class LearningPathwayAgentTests
     {
         var context = TestDbContextFactory.Create();
 
-        Assert.Null(await CreateAgent(context).GenerateAsync(999));
+        Assert.Null(await CreateAgent(context).GenerateAsync(Guid.NewGuid()));
     }
 
     [Fact]

@@ -201,7 +201,7 @@ public class GoogleAiService : IGoogleAiService
             - rationale is one short sentence (max 160 chars) explaining the score.
 
             Output format:
-            - JSON array of objects with keys "applicationId" (integer), "score" (integer), "rationale" (string). Nothing else.
+            - JSON array of objects with keys "applicationId" (string Guid), "score" (integer), "rationale" (string). Nothing else.
             """;
 
         var messageContent = await SendPromptAsync(prompt, ct);
@@ -213,7 +213,7 @@ public class GoogleAiService : IGoogleAiService
             var rankings = JsonSerializer.Deserialize<List<CandidateRanking>>(ExtractJsonPayload(messageContent), QuestionJsonOptions)
                 ?? new List<CandidateRanking>();
 
-            var validIds = new HashSet<int>(candidates.Select(c => c.ApplicationId));
+            var validIds = new HashSet<Guid>(candidates.Select(c => c.ApplicationId));
             var cleaned = rankings
                 .Where(r => validIds.Contains(r.ApplicationId))
                 .Select(r => r with

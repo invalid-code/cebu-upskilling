@@ -170,7 +170,7 @@ public class AuthServiceTests
 
         var result = await service.RegisterAsync(NewRegisterRequest(), CreateFakePdf());
 
-        Assert.True(result.UserId > 0);
+        Assert.NotEqual(Guid.Empty, result.UserId);
         Assert.Equal("Jose", result.FirstName);
         Assert.Equal("jose@example.com", result.EmailAddress);
         Assert.Equal("Learner", result.Role);
@@ -392,8 +392,8 @@ public class AuthServiceTests
 
         var result = await service.CompanyRegisterAsync(NewCompanyRegisterRequest());
 
-        Assert.True(result.UserId > 0);
-        Assert.True(result.CompanyId > 0);
+        Assert.NotEqual(Guid.Empty, result.UserId);
+        Assert.NotEqual(Guid.Empty, result.CompanyId);
         Assert.Equal("Tech Solutions Inc", result.CompanyName);
         Assert.Equal("Maria", result.FirstName);
         Assert.Equal("maria@tech.com", result.EmailAddress);

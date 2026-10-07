@@ -17,13 +17,13 @@ public class CourseGenerationControllerRegressionTests
 {
     private sealed class FakeAgent : ICourseGenerationAgent
     {
-        public Func<int, CourseGenerationRequest, CancellationToken, Task<CourseGenerationDraftEnvelope>>? GenerateFunc;
-        public Func<int, CommitCourseGenerationRequest, CancellationToken, Task<CommitCourseGenerationResponse?>>? CommitFunc;
+        public Func<Guid, CourseGenerationRequest, CancellationToken, Task<CourseGenerationDraftEnvelope>>? GenerateFunc;
+        public Func<Guid, CommitCourseGenerationRequest, CancellationToken, Task<CommitCourseGenerationResponse?>>? CommitFunc;
 
-        public Task<CourseGenerationDraftEnvelope> GenerateAsync(int userId, CourseGenerationRequest request, CancellationToken ct = default)
+        public Task<CourseGenerationDraftEnvelope> GenerateAsync(Guid userId, CourseGenerationRequest request, CancellationToken ct = default)
             => GenerateFunc != null ? GenerateFunc(userId, request, ct) : Task.FromResult(new CourseGenerationDraftEnvelope { Draft = SampleDraft(), SkillCatalogSize = 1 });
 
-        public Task<CommitCourseGenerationResponse?> CommitAsync(int userId, CommitCourseGenerationRequest request, CancellationToken ct = default)
+        public Task<CommitCourseGenerationResponse?> CommitAsync(Guid userId, CommitCourseGenerationRequest request, CancellationToken ct = default)
             => CommitFunc != null ? CommitFunc(userId, request, ct) : Task.FromResult<CommitCourseGenerationResponse?>(null);
     }
 
@@ -39,7 +39,7 @@ public class CourseGenerationControllerRegressionTests
         },
         MatchedSkills: new List<CourseGenerationSkillMatch>());
 
-    private static CourseGenerationController CreateController(FakeAgent agent, string? userIdClaim = "42")
+    private static CourseGenerationController CreateController(FakeAgent agent, string? userIdClaim = "11111111-1111-1111-1111-111111111111")
     {
         var controller = new CourseGenerationController(agent, NullLogger<CourseGenerationController>.Instance);
         var claims = userIdClaim is null ? new ClaimsPrincipal() : new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier, userIdClaim) }));
@@ -149,12 +149,12 @@ public class CourseGenerationControllerRegressionTests
     [Fact]
     public async Task Commit_Success_ReturnsCreated()
     {
-        var response = new CommitCourseGenerationResponse(99, "Created Course", "Draft");
+        var response = new CommitCourseGenerationResponse(Guid.NewGuid(), "Created Course", "Draft");
         var agent = new FakeAgent { CommitFunc = (_, _, _) => Task.FromResult<CommitCourseGenerationResponse?>(response) };
         var controller = CreateController(agent);
-        var result = await controller.Commit(new CommitCourseGenerationRequest(SampleDraft(), GenreId: 2, Price: 500), CancellationToken.None);
+        var result = await controller.Commit(new CommitCourseGenerationRequest(SampleDraft(), GenreId: Guid.NewGuid(), Price: 500), CancellationToken.None);
         var created = Assert.IsType<CreatedResult>(result.Result);
-        Assert.Equal("/api/company/courses/99", created.Location);
+        Assert.Equal("/api/company/courses/" + response.CourseId, created.Location);
         Assert.Equal(response, created.Value);
     }
 }

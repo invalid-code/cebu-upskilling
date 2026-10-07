@@ -5,9 +5,9 @@ namespace CebuUpskilling.Backend.Entities;
 public class LessonContent
 {
     [Key]
-    public int ContentId { get; set; }
+    public Guid ContentId { get; set; }
 
-    public int LessonId { get; set; }
+    public Guid LessonId { get; set; }
 
     [Required, MaxLength(100)]
     public string BlockType { get; set; } = string.Empty;

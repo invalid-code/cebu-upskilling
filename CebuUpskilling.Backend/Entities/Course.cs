@@ -5,9 +5,9 @@ namespace CebuUpskilling.Backend.Entities;
 public class Course : AuditableEntity
 {
     [Key]
-    public int CourseId { get; set; }
+    public Guid CourseId { get; set; }
 
-    public int GenreId { get; set; }
+    public Guid GenreId { get; set; }
 
     [Required, MaxLength(255)]
     public string Name { get; set; } = string.Empty;
@@ -19,7 +19,7 @@ public class Course : AuditableEntity
 
     public int? Price { get; set; }
 
-    public int? CompanyId { get; set; }
+    public Guid? CompanyId { get; set; }
 
     [Required, MaxLength(20)]
     public string Status { get; set; } = "Draft";

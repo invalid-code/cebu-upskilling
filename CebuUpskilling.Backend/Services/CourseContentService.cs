@@ -5,9 +5,9 @@ namespace CebuUpskilling.Backend.Services;
 
 public interface ICourseContentService
 {
-    Task<CourseContentResponse?> GetCourseContentAsync(int userId, int courseId, int? lessonId = null);
-    Task<LessonDetailDto?> GetLessonDetailAsync(int userId, int lessonId);
-    Task<LessonProgressDto?> UpdateLessonProgressAsync(int userId, int lessonId, int progressPercent);
+    Task<CourseContentResponse?> GetCourseContentAsync(Guid userId, Guid courseId, Guid? lessonId = null);
+    Task<LessonDetailDto?> GetLessonDetailAsync(Guid userId, Guid lessonId);
+    Task<LessonProgressDto?> UpdateLessonProgressAsync(Guid userId, Guid lessonId, int progressPercent);
 }
 
 public class CourseContentService : ICourseContentService
@@ -32,7 +32,7 @@ public class CourseContentService : ICourseContentService
         _logger = logger;
     }
 
-    public async Task<CourseContentResponse?> GetCourseContentAsync(int userId, int courseId, int? lessonId = null)
+    public async Task<CourseContentResponse?> GetCourseContentAsync(Guid userId, Guid courseId, Guid? lessonId = null)
     {
         _logger.LogDebug("Getting course content for user {UserId}, course {CourseId}", userId, courseId);
 
@@ -67,7 +67,7 @@ public class CourseContentService : ICourseContentService
         var progressPercent = enrollment.LastTotalProgressPercent;
         var completedLessons = (int)Math.Ceiling(progressPercent / 100.0 * lessons.Count);
 
-        int currentLessonId;
+        Guid currentLessonId;
         if (lessonId.HasValue)
         {
             currentLessonId = lessonId.Value;
@@ -99,7 +99,7 @@ public class CourseContentService : ICourseContentService
         );
     }
 
-    public async Task<LessonDetailDto?> GetLessonDetailAsync(int userId, int lessonId)
+    public async Task<LessonDetailDto?> GetLessonDetailAsync(Guid userId, Guid lessonId)
     {
         _logger.LogDebug("Getting lesson detail for user {UserId}, lesson {LessonId}", userId, lessonId);
 
@@ -127,7 +127,7 @@ public class CourseContentService : ICourseContentService
         return MapToLessonDetailDto(lesson);
     }
 
-    public async Task<LessonProgressDto?> UpdateLessonProgressAsync(int userId, int lessonId, int progressPercent)
+    public async Task<LessonProgressDto?> UpdateLessonProgressAsync(Guid userId, Guid lessonId, int progressPercent)
     {
         _logger.LogDebug("Updating lesson progress for user {UserId}, lesson {LessonId} to {ProgressPercent}%", userId, lessonId, progressPercent);
 
@@ -185,7 +185,7 @@ public class CourseContentService : ICourseContentService
         ICollection<Entities.CourseModule> modules,
         List<Entities.Lesson> lessons,
         int completedLessons,
-        int currentLessonId)
+        Guid currentLessonId)
     {
         var lessonIndexByLessonId = lessons
             .Select((lesson, index) => (lesson.LessonId, Index: index))
@@ -256,7 +256,7 @@ public class CourseContentService : ICourseContentService
             LessonId: lesson.LessonId,
             Name: lesson.Name,
             Description: lesson.Description,
-            LessonOrder: lesson.LessonId,
+            LessonOrder: lesson.Order,
             ContentBlocks: contentBlocks,
             Media: media,
             Exercises: exercises

@@ -373,8 +373,8 @@ public class AuthFlowsRegressionApiTests : ProductionApiTestBase
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await ReadJsonAsync(response);
-        Assert.True(body.GetProperty("userId").GetInt32() > 0);
-        Assert.True(body.GetProperty("companyId").GetInt32() > 0);
+        Assert.NotEqual(Guid.Empty, body.GetProperty("userId").GetGuid());
+        Assert.NotEqual(Guid.Empty, body.GetProperty("companyId").GetGuid());
         Assert.Equal("Regression Corp", body.GetProperty("companyName").GetString());
         Assert.Equal("Recruiter", body.GetProperty("role").GetString());
         Assert.False(string.IsNullOrWhiteSpace(body.GetProperty("token").GetString()));

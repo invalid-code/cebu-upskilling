@@ -38,7 +38,7 @@ public class MediaController : ControllerBase
 
     [HttpPost("lessons/{lessonId}/video")]
     [RequestSizeLimit(524_288_000)]
-    public async Task<ActionResult<MediaDto>> UploadLessonVideo(int lessonId, IFormFile file)
+    public async Task<ActionResult<MediaDto>> UploadLessonVideo(Guid lessonId, IFormFile file)
     {
         if (!User.TryGetUserId(out var userId)) return Unauthorized(new { error = "Unauthorized" });
         _logger.LogInformation("HTTP POST /api/media/lessons/{LessonId}/video called by user {UserId}", lessonId, userId);
@@ -103,7 +103,7 @@ public class MediaController : ControllerBase
     /// </summary>
     [HttpPost("lessons/{lessonId}/documents")]
     [RequestSizeLimit(10_485_760)]
-    public async Task<ActionResult<MediaDto>> UploadLessonDocument(int lessonId, IFormFile file)
+    public async Task<ActionResult<MediaDto>> UploadLessonDocument(Guid lessonId, IFormFile file)
     {
         if (!User.TryGetUserId(out var userId)) return Unauthorized(new { error = "Unauthorized" });
         _logger.LogInformation("HTTP POST /api/media/lessons/{LessonId}/documents called by user {UserId}", lessonId, userId);
@@ -137,7 +137,7 @@ public class MediaController : ControllerBase
         }
     }
 
-    public async Task<bool> CanEnrolledLearnerAccessLessonAsync(int userId, int lessonId)
+    public async Task<bool> CanEnrolledLearnerAccessLessonAsync(Guid userId, Guid lessonId)
     {
         var learner = await _learners.GetByUserIdAsync(userId);
         if (learner == null)
@@ -157,7 +157,7 @@ public class MediaController : ControllerBase
     /// created the course. Owners were previously locked out of attaching
     /// lesson content entirely.
     /// </summary>
-    public async Task<bool> CanUploadToLessonAsync(int userId, int lessonId)
+    public async Task<bool> CanUploadToLessonAsync(Guid userId, Guid lessonId)
     {
         if (await CanEnrolledLearnerAccessLessonAsync(userId, lessonId))
             return true;

@@ -5,9 +5,9 @@ namespace CebuUpskilling.Backend.Entities;
 public class SubDiscipline : AuditableEntity
 {
     [Key]
-    public int SubDisciplineId { get; set; }
+    public Guid SubDisciplineId { get; set; }
 
-    public int DisciplineId { get; set; }
+    public Guid DisciplineId { get; set; }
 
     [Required, MaxLength(255)]
     public string Name { get; set; } = string.Empty;

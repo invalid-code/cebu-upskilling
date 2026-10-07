@@ -30,7 +30,7 @@ public abstract class BaseEntityController<T> : ControllerBase where T : class
     }
 
     [HttpGet("{id}")]
-    public virtual async Task<ActionResult<T>> GetById(int id)
+    public virtual async Task<ActionResult<T>> GetById(Guid id)
     {
         _logger.LogInformation("HTTP GET /api/{Entity}/{Id} called", _entityName, id);
         var entity = await _service.GetByIdAsync(id);
@@ -52,7 +52,7 @@ public abstract class BaseEntityController<T> : ControllerBase where T : class
     }
 
     [HttpPut("{id}")]
-    public virtual async Task<ActionResult<T>> Update(int id, T entity)
+    public virtual async Task<ActionResult<T>> Update(Guid id, T entity)
     {
         _logger.LogInformation("HTTP PUT /api/{Entity}/{Id} called", _entityName, id);
         var updated = await _service.UpdateAsync(id, entity);
@@ -65,7 +65,7 @@ public abstract class BaseEntityController<T> : ControllerBase where T : class
     }
 
     [HttpDelete("{id}")]
-    public virtual async Task<IActionResult> Delete(int id)
+    public virtual async Task<IActionResult> Delete(Guid id)
     {
         _logger.LogInformation("HTTP DELETE /api/{Entity}/{Id} called", _entityName, id);
         var result = await _service.DeleteAsync(id);
@@ -77,5 +77,5 @@ public abstract class BaseEntityController<T> : ControllerBase where T : class
         return NoContent();
     }
 
-    protected abstract int GetId(T entity);
+    protected abstract Guid GetId(T entity);
 }

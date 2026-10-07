@@ -25,7 +25,7 @@ public class LearnerNoteApiTests : ProductionApiTestBase
             new { content = "first draft" });
         Assert.Equal(HttpStatusCode.OK, putResponse.StatusCode);
         var created = await ReadJsonAsync(putResponse);
-        Assert.Equal(lessonId, created.GetProperty("lessonId").GetInt32());
+        Assert.Equal(lessonId, created.GetProperty("lessonId").GetGuid());
         Assert.Equal("first draft", created.GetProperty("content").GetString());
         Assert.Equal(JsonValueKind.String, created.GetProperty("updatedAt").ValueKind);
 
@@ -47,7 +47,7 @@ public class LearnerNoteApiTests : ProductionApiTestBase
         Assert.Equal(2, notes.Count);
         Assert.Equal(new[] { "first draft", "second draft" },
             notes.Select(n => n.GetProperty("content").GetString()));
-        Assert.All(notes, n => Assert.Equal(lessonId, n.GetProperty("lessonId").GetInt32()));
+        Assert.All(notes, n => Assert.Equal(lessonId, n.GetProperty("lessonId").GetGuid()));
     }
 
     [Fact]
@@ -148,7 +148,7 @@ public class LearnerNoteApiTests : ProductionApiTestBase
         var token = await RegisterLearnerAsync("notes.missinglesson@example.com");
 
         var response = await AuthorizedClient(token).PutAsJsonAsync(
-            "/api/notes/lessons/9999",
+            $"/api/notes/lessons/{Guid.NewGuid()}",
             new { content = "draft" });
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
@@ -182,12 +182,12 @@ public class LearnerNoteApiTests : ProductionApiTestBase
         registerResponse.EnsureSuccessStatusCode();
         var token = (await ReadJsonAsync(registerResponse)).GetProperty("token").GetString()!;
 
-        var response = await AuthorizedClient(token).GetAsync("/api/notes/courses/1");
+        var response = await AuthorizedClient(token).GetAsync($"/api/notes/courses/{Guid.NewGuid()}");
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
-    private async Task<(int CourseId, int LessonId)> CreateCourseWithLessonAsync(string token)
+    private async Task<(Guid CourseId, Guid LessonId)> CreateCourseWithLessonAsync(string token)
     {
         var courseId = await CreateCourseAsync(token);
 
@@ -216,7 +216,7 @@ public class LearnerNoteApiTests : ProductionApiTestBase
         return (courseId, lesson.LessonId);
     }
 
-    private async Task EnrollAsync(string token, int courseId)
+    private async Task EnrollAsync(string token, Guid courseId)
     {
         var response = await AuthorizedClient(token).PostAsJsonAsync("/api/enrollments", new { courseId });
         response.EnsureSuccessStatusCode();

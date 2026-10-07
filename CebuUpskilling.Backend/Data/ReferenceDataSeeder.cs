@@ -99,7 +99,7 @@ public static class ReferenceDataSeeder
     };
 
     private static SubDiscipline? NewSubDiscipline(
-        Dictionary<string, int> disciplines, string discipline, string name, string description, DateTime now)
+        Dictionary<string, Guid> disciplines, string discipline, string name, string description, DateTime now)
         => disciplines.TryGetValue(discipline, out var disciplineId) ? new SubDiscipline
         {
             DisciplineId = disciplineId,
@@ -109,7 +109,7 @@ public static class ReferenceDataSeeder
         } : null;
 
     private static Genre? NewGenre(
-        Dictionary<string, int> subs, string sub, string name, string description, DateTime now)
+        Dictionary<string, Guid> subs, string sub, string name, string description, DateTime now)
         => subs.TryGetValue(sub, out var subDisciplineId) ? new Genre
         {
             SubDisciplineId = subDisciplineId,

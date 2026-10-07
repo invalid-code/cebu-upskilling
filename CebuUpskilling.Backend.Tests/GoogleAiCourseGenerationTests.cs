@@ -83,8 +83,8 @@ public class GoogleAiCourseGenerationTests
             LessonsPerModule: 2,
             AvailableSkills: new List<CourseGenerationAvailableSkill>
             {
-                new(1, "Communication", "Soft"),
-                new(2, "React", "Frontend"),
+                new(Guid.NewGuid(), "Communication", "Soft"),
+                new(Guid.NewGuid(), "React", "Frontend"),
             });
 
     [Fact]

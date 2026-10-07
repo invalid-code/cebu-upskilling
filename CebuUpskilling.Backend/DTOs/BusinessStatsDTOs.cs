@@ -1,13 +1,13 @@
 namespace CebuUpskilling.Backend.DTOs;
 
-public record CompanySummary(int CompanyId, string Name, int JobPostings, int Recruiters);
+public record CompanySummary(Guid CompanyId, string Name, int JobPostings, int Recruiters);
 
 public record TalentPoolSummary(int TotalLearners, int SkillsTracked, double AvgSkillLevel);
 
-public record RequiredCourseDto(int CourseId, string Name, string Discipline, int TechnicalLevel, string Mode);
+public record RequiredCourseDto(Guid CourseId, string Name, string Discipline, int TechnicalLevel, string Mode);
 
 public record JobPostingDto(
-    int PostId,
+    Guid PostId,
     string Title,
     string? Description,
     string? Location,

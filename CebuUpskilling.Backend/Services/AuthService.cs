@@ -66,8 +66,8 @@ public interface IAuthService
     Task<CompanyRegisterResponse> CompanyRegisterAsync(CompanyRegisterRequest request);
     Task<AuthResponse> LoginAsync(LoginRequest request);
     Task<AuthResponse> GoogleAuthAsync(GoogleAuthRequest request);
-    Task<AuthResponse> UpdateProfileAsync(int userId, UpdateProfileRequest request);
-    Task<AuthResponse?> GetProfileAsync(int userId);
+    Task<AuthResponse> UpdateProfileAsync(Guid userId, UpdateProfileRequest request);
+    Task<AuthResponse?> GetProfileAsync(Guid userId);
 
     Task LogoutAsync(string? jti);
     Task SendEmailConfirmationAsync(string email);
@@ -473,7 +473,7 @@ public class AuthService : IAuthService
         return BuildAuthResponse(user, token, companyId: user.CompanyId, companyName: user.Company?.Name);
     }
 
-    public async Task<AuthResponse?> GetProfileAsync(int userId)
+    public async Task<AuthResponse?> GetProfileAsync(Guid userId)
     {
         var user = await _context.Users
             .Include(u => u.Company)
@@ -483,7 +483,7 @@ public class AuthService : IAuthService
         return BuildAuthResponse(user, token, companyId: user.CompanyId, companyName: user.Company?.Name);
     }
 
-    public async Task<AuthResponse> UpdateProfileAsync(int userId, UpdateProfileRequest request)
+    public async Task<AuthResponse> UpdateProfileAsync(Guid userId, UpdateProfileRequest request)
     {
         _logger.LogInformation("Profile update attempt for user {UserId}", userId);
 
@@ -682,7 +682,7 @@ public class AuthService : IAuthService
         string token,
         int parsedSkillCount = 0,
         int assessmentCount = 0,
-        int? companyId = null,
+        Guid? companyId = null,
         string? companyName = null) =>
         new(
             user.UserId,

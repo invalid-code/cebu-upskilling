@@ -24,11 +24,11 @@ public class ApplicationsController : ControllerBase
         _logger = logger;
     }
 
-    private int UserId => User.TryGetUserId(out var id)
+    private Guid UserId => User.TryGetUserId(out var id)
         ? id
         : throw new UnauthorizedAccessException("Invalid user identity");
 
-    private async Task<int?> GetUserCompanyIdAsync()
+    private async Task<Guid?> GetUserCompanyIdAsync()
         => (await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.UserId == UserId))?.CompanyId;
 
     [HttpGet]
@@ -58,7 +58,7 @@ public class ApplicationsController : ControllerBase
     }
 
     [HttpPatch("{postId}")]
-    public async Task<ActionResult> UpdateStatus(int postId, [FromBody] UpdateApplicationStatusRequest request)
+    public async Task<ActionResult> UpdateStatus(Guid postId, [FromBody] UpdateApplicationStatusRequest request)
     {
         _logger.LogInformation("HTTP PATCH /api/applications/{PostId} called by user {UserId}", postId, UserId);
         var updated = await _service.UpdateStatusAsync(UserId, postId, request.Status);
@@ -83,7 +83,7 @@ public class ApplicationsController : ControllerBase
 
     [HttpPatch("employer/{applicationId}")]
     [Authorize(Roles = "Recruiter")]
-    public async Task<ActionResult> UpdateApplicationStatus(int applicationId, [FromBody] EmployerUpdateApplicationStatusRequest request)
+    public async Task<ActionResult> UpdateApplicationStatus(Guid applicationId, [FromBody] EmployerUpdateApplicationStatusRequest request)
     {
         var companyId = await GetUserCompanyIdAsync();
         if (companyId == null)
@@ -106,7 +106,7 @@ public class ApplicationsController : ControllerBase
 
     [HttpGet("employer/{applicationId}")]
     [Authorize(Roles = "Recruiter")]
-    public async Task<ActionResult<ApplicationEmployerDetailDto>> GetCompanyApplicationDetail(int applicationId)
+    public async Task<ActionResult<ApplicationEmployerDetailDto>> GetCompanyApplicationDetail(Guid applicationId)
     {
         var companyId = await GetUserCompanyIdAsync();
         if (companyId == null)

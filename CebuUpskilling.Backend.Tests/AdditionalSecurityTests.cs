@@ -257,7 +257,7 @@ public class MassAssignmentRegressionTests
 // ------------------------------------------------------------------
 public class CourseContentIdorTests
 {
-    private static async Task<(ApplicationDbContext ctx, int learnerUserId, int courseId, int lessonId)> SeedAsync()
+    private static async Task<(ApplicationDbContext ctx, Guid learnerUserId, Guid courseId, Guid lessonId)> SeedAsync()
     {
         var ctx = TestDbContextFactory.Create();
         var user = new AppUser { FirstName = "Learner", LastName = "One", EmailAddress = $"idor.lesson.{Guid.NewGuid():N}@example.com", PasswordHash = "hash", Role = "Learner" };

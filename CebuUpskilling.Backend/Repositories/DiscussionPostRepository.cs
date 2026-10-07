@@ -6,7 +6,7 @@ namespace CebuUpskilling.Backend.Repositories;
 
 public interface IDiscussionPostRepository : IEntityRepository<DiscussionPost>
 {
-    Task<List<DiscussionPost>> GetByLessonAsync(int lessonId);
+    Task<List<DiscussionPost>> GetByLessonAsync(Guid lessonId);
 }
 
 public class DiscussionPostRepository : EntityRepository<DiscussionPost>, IDiscussionPostRepository
@@ -16,10 +16,10 @@ public class DiscussionPostRepository : EntityRepository<DiscussionPost>, IDiscu
     public override Task<List<DiscussionPost>> GetAllAsync()
         => _dbSet.ToListAsync();
 
-    public override async Task<DiscussionPost?> GetByIdAsync(int id)
+    public override async Task<DiscussionPost?> GetByIdAsync(Guid id)
         => await _dbSet.FirstOrDefaultAsync(p => p.DiscussionPostId == id);
 
-    public async Task<List<DiscussionPost>> GetByLessonAsync(int lessonId)
+    public async Task<List<DiscussionPost>> GetByLessonAsync(Guid lessonId)
         => await _dbSet
             .Where(p => p.LessonId == lessonId)
             .OrderBy(p => p.CreatedAt)

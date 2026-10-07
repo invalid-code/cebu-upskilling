@@ -72,7 +72,7 @@ public class CourseRecommendationTests
         ApplicationDbContext context,
         string name,
         Genre genre,
-        params int[] skillIds)
+        params Guid[] skillIds)
     {
         var course = new Course { GenreId = genre.GenreId, Name = name, Price = 0, TechnicalLevel = 3 };
         context.Courses.Add(course);

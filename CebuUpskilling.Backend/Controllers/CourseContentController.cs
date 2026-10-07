@@ -24,8 +24,8 @@ public class CourseContentController : ControllerBase
 
     [HttpGet("courses/{courseId}/content")]
     public async Task<ActionResult<CourseContentResponse>> GetCourseContent(
-        int courseId,
-        [FromQuery] int? lessonId = null)
+        Guid courseId,
+        [FromQuery] Guid? lessonId = null)
     {
         if (!User.TryGetUserId(out var userId)) return Unauthorized(new { error = "Unauthorized" });
         _logger.LogInformation("HTTP GET /api/coursecontent/courses/{CourseId}/content called by user {UserId}", courseId, userId);
@@ -38,7 +38,7 @@ public class CourseContentController : ControllerBase
     }
 
     [HttpGet("lessons/{lessonId}")]
-    public async Task<ActionResult<LessonDetailDto>> GetLessonDetail(int lessonId)
+    public async Task<ActionResult<LessonDetailDto>> GetLessonDetail(Guid lessonId)
     {
         if (!User.TryGetUserId(out var userId)) return Unauthorized(new { error = "Unauthorized" });
         _logger.LogInformation("HTTP GET /api/coursecontent/lessons/{LessonId} called by user {UserId}", lessonId, userId);
@@ -52,7 +52,7 @@ public class CourseContentController : ControllerBase
 
     [HttpPut("lessons/{lessonId}/progress")]
     public async Task<ActionResult<LessonProgressDto>> UpdateLessonProgress(
-        int lessonId,
+        Guid lessonId,
         [FromBody] UpdateLessonProgressRequest request)
     {
         if (!User.TryGetUserId(out var userId)) return Unauthorized(new { error = "Unauthorized" });

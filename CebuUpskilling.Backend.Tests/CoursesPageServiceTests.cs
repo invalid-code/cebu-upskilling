@@ -107,7 +107,7 @@ public class CoursesPageServiceTests
     {
         var context = TestDbContextFactory.Create();
 
-        var result = await CreateService(context).GetCoursesPageAsync(999);
+        var result = await CreateService(context).GetCoursesPageAsync(Guid.NewGuid());
 
         Assert.Null(result);
     }
@@ -353,10 +353,10 @@ public class CoursesPageServiceTests
     {
         var context = TestDbContextFactory.Create();
 
-        Assert.Null(await CreateService(context).GetCourseDetailAsync(999, 1));
+        Assert.Null(await CreateService(context).GetCourseDetailAsync(Guid.NewGuid(), Guid.NewGuid()));
 
         var (user, _) = await CreateLearnerAsync(context);
-        Assert.Null(await CreateService(context).GetCourseDetailAsync(user.UserId, 999));
+        Assert.Null(await CreateService(context).GetCourseDetailAsync(user.UserId, Guid.NewGuid()));
     }
 
     [Fact]

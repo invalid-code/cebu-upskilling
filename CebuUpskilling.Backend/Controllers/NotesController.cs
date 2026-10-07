@@ -22,12 +22,12 @@ public class NotesController : ControllerBase
         _logger = logger;
     }
 
-    private int UserId => User.TryGetUserId(out var id)
+    private Guid UserId => User.TryGetUserId(out var id)
         ? id
         : throw new UnauthorizedAccessException("Invalid user identity");
 
     [HttpGet("courses/{courseId}")]
-    public async Task<ActionResult<CourseNotesResponse>> GetCourseNotes(int courseId)
+    public async Task<ActionResult<CourseNotesResponse>> GetCourseNotes(Guid courseId)
     {
         _logger.LogInformation("HTTP GET /api/notes/courses/{CourseId} called by user {UserId}", courseId, UserId);
 
@@ -39,7 +39,7 @@ public class NotesController : ControllerBase
     }
 
     [HttpGet("lessons/{lessonId}")]
-    public async Task<ActionResult<LearnerNoteDto>> GetLessonNote(int lessonId)
+    public async Task<ActionResult<LearnerNoteDto>> GetLessonNote(Guid lessonId)
     {
         _logger.LogInformation("HTTP GET /api/notes/lessons/{LessonId} called by user {UserId}", lessonId, UserId);
 
@@ -51,7 +51,7 @@ public class NotesController : ControllerBase
     }
 
     [HttpPut("lessons/{lessonId}")]
-    public async Task<ActionResult<LearnerNoteDto>> UpsertLessonNote(int lessonId, [FromBody] UpsertNoteRequest request)
+    public async Task<ActionResult<LearnerNoteDto>> UpsertLessonNote(Guid lessonId, [FromBody] UpsertNoteRequest request)
     {
         _logger.LogInformation("HTTP PUT /api/notes/lessons/{LessonId} called by user {UserId}", lessonId, UserId);
 
@@ -63,7 +63,7 @@ public class NotesController : ControllerBase
     }
 
     [HttpDelete("lessons/{lessonId}")]
-    public async Task<IActionResult> DeleteLessonNote(int lessonId)
+    public async Task<IActionResult> DeleteLessonNote(Guid lessonId)
     {
         _logger.LogInformation("HTTP DELETE /api/notes/lessons/{LessonId} called by user {UserId}", lessonId, UserId);
 

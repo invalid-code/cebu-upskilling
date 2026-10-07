@@ -9,7 +9,7 @@ public class ApplyRequestValidator : AbstractValidator<ApplyRequest>
     public ApplyRequestValidator()
     {
         RuleFor(x => x.PostId)
-            .GreaterThan(0).WithMessage("Post ID must be greater than 0");
+            .NotEmpty().WithMessage("Post ID must not be empty");
     }
 }
 
@@ -32,7 +32,7 @@ public class UpdateLessonProgressRequestValidator : AbstractValidator<UpdateLess
     public UpdateLessonProgressRequestValidator()
     {
         RuleFor(x => x.LessonId)
-            .GreaterThan(0).WithMessage("Lesson ID must be greater than 0");
+            .NotEmpty().WithMessage("Lesson ID must not be empty");
 
         RuleFor(x => x.ProgressPercent)
             .InclusiveBetween(0, 100).WithMessage("Progress percent must be between 0 and 100");
@@ -67,7 +67,7 @@ public class SubmitAnswerRequestValidator : AbstractValidator<SubmitAnswerReques
     public SubmitAnswerRequestValidator()
     {
         RuleFor(x => x.QuestionId)
-            .GreaterThan(0).WithMessage("Question ID must be greater than 0");
+            .NotEmpty().WithMessage("Question ID must not be empty");
 
         RuleFor(x => x.SelectedOption)
             .GreaterThanOrEqualTo(0).WithMessage("Selected option must be a valid option index")
@@ -80,7 +80,7 @@ public class StartAssessmentRequestValidator : AbstractValidator<StartAssessment
     public StartAssessmentRequestValidator()
     {
         RuleFor(x => x.SkillId)
-            .GreaterThan(0).WithMessage("Skill ID must be greater than 0");
+            .NotEmpty().WithMessage("Skill ID must not be empty");
     }
 }
 
@@ -89,7 +89,7 @@ public class CreateCompanyQuestionRequestValidator : AbstractValidator<CreateCom
     public CreateCompanyQuestionRequestValidator()
     {
         RuleFor(x => x.SkillId)
-            .GreaterThan(0).WithMessage("Skill ID must be greater than 0");
+            .NotEmpty().WithMessage("Skill ID must not be empty");
 
         RuleFor(x => x.Text)
             .NotEmpty().WithMessage("Question text is required")

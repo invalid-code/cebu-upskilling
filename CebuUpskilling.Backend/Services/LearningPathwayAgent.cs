@@ -21,7 +21,7 @@ public interface ILearningPathwayAgent
     /// Builds the pathway for the learner behind <paramref name="userId"/>,
     /// or null when there is no learner profile or no target role to plan for.
     /// </summary>
-    Task<LearningPathwayResponse?> GenerateAsync(int userId, CancellationToken ct = default);
+    Task<LearningPathwayResponse?> GenerateAsync(Guid userId, CancellationToken ct = default);
 }
 
 public class LearningPathwayAgent : ILearningPathwayAgent
@@ -60,7 +60,7 @@ public class LearningPathwayAgent : ILearningPathwayAgent
         _logger = logger;
     }
 
-    public async Task<LearningPathwayResponse?> GenerateAsync(int userId, CancellationToken ct = default)
+    public async Task<LearningPathwayResponse?> GenerateAsync(Guid userId, CancellationToken ct = default)
     {
         var learner = await _learners.GetByUserIdAsync(userId);
         if (learner == null)
@@ -106,7 +106,7 @@ public class LearningPathwayAgent : ILearningPathwayAgent
             .ToList();
 
         var demandBySkill = gaps.Count == 0
-            ? new Dictionary<int, int>()
+            ? new Dictionary<Guid, int>()
             : await _db.SkillMarketTrends
                 .Where(t => gaps.Select(g => g.Skill.SkillId).Contains(t.SkillId))
                 .ToDictionaryAsync(t => t.SkillId, t => t.ActivePostings, ct);
@@ -202,7 +202,7 @@ public class LearningPathwayAgent : ILearningPathwayAgent
             : $"Enroll in {first.Name}";
     }
 
-    private async Task<string?> ResolveTargetRoleAsync(int userId, int learnerId)
+    private async Task<string?> ResolveTargetRoleAsync(Guid userId, Guid learnerId)
     {
         var profileRole = (await _users.GetByIdAsync(userId))?.TargetRole?.Trim();
         if (!string.IsNullOrWhiteSpace(profileRole))

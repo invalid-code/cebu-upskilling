@@ -7,9 +7,9 @@ namespace CebuUpskilling.Backend.Entities;
 public class Post
 {
     [Key]
-    public int PostId { get; set; }
+    public Guid PostId { get; set; }
 
-    public int CompanyId { get; set; }
+    public Guid CompanyId { get; set; }
 
     [Required, MaxLength(500)]
     public string Title { get; set; } = string.Empty;

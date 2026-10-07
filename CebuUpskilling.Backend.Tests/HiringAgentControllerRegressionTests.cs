@@ -19,34 +19,34 @@ public class HiringAgentControllerRegressionTests
 {
     private sealed class FakeAgent : IEmployerHiringAgent
     {
-        public RankCandidatesResponse? RankResponse { get; set; } = new RankCandidatesResponse(1, false, new());
+        public RankCandidatesResponse? RankResponse { get; set; } = new RankCandidatesResponse(Guid.NewGuid(), false, new());
         public DraftJobPostResponse? DraftResponse { get; set; }
-        public ScreeningQuestionsResponse? ScreeningResponse { get; set; } = new ScreeningQuestionsResponse(1, new());
+        public ScreeningQuestionsResponse? ScreeningResponse { get; set; } = new ScreeningQuestionsResponse(Guid.NewGuid(), new());
         public CreateJobPostFromRoleResponse? CreatedResponse { get; set; }
         public int RankCalls { get; private set; }
         public int DraftCalls { get; private set; }
         public int ScreeningCalls { get; private set; }
         public int CreateFromRoleCalls { get; private set; }
 
-        public Task<RankCandidatesResponse> RankApplicantsAsync(int userId, int postId, int companyId, CancellationToken ct = default)
+        public Task<RankCandidatesResponse> RankApplicantsAsync(Guid userId, Guid postId, Guid companyId, CancellationToken ct = default)
         {
             RankCalls++;
             return Task.FromResult(RankResponse ?? new RankCandidatesResponse(postId, false, new()));
         }
 
-        public Task<DraftJobPostResponse?> DraftJobPostAsync(int userId, DraftJobPostRequest request, CancellationToken ct = default)
+        public Task<DraftJobPostResponse?> DraftJobPostAsync(Guid userId, DraftJobPostRequest request, CancellationToken ct = default)
         {
             DraftCalls++;
             return Task.FromResult(DraftResponse);
         }
 
-        public Task<ScreeningQuestionsResponse> GenerateScreeningQuestionsAsync(int userId, int postId, int companyId, int perSkill = 3, CancellationToken ct = default)
+        public Task<ScreeningQuestionsResponse> GenerateScreeningQuestionsAsync(Guid userId, Guid postId, Guid companyId, int perSkill = 3, CancellationToken ct = default)
         {
             ScreeningCalls++;
             return Task.FromResult(ScreeningResponse ?? new ScreeningQuestionsResponse(postId, new()));
         }
 
-        public Task<CreateJobPostFromRoleResponse?> CreateJobPostFromTargetRoleAsync(int userId, int companyId, CreateJobPostFromRoleRequest? request, CancellationToken ct = default)
+        public Task<CreateJobPostFromRoleResponse?> CreateJobPostFromTargetRoleAsync(Guid userId, Guid companyId, CreateJobPostFromRoleRequest? request, CancellationToken ct = default)
         {
             CreateFromRoleCalls++;
             return Task.FromResult(CreatedResponse);
@@ -101,7 +101,7 @@ public class HiringAgentControllerRegressionTests
     public async Task Rank_MalformedClaim_ReturnsUnauthorized()
     {
         var (ctx, _, _, post) = await SeedAsync();
-        var controller = CreateController(ctx, new FakeAgent(), Principal("not-an-int"));
+        var controller = CreateController(ctx, new FakeAgent(), Principal("not-a-guid"));
         var result = await controller.RankApplicants(post.PostId);
         Assert.IsType<UnauthorizedObjectResult>(result.Result);
     }
@@ -114,7 +114,7 @@ public class HiringAgentControllerRegressionTests
         ctx.Users.Add(user);
         await ctx.SaveChangesAsync();
         var controller = CreateController(ctx, new FakeAgent(), Principal(user.UserId.ToString()));
-        var result = await controller.RankApplicants(999);
+        var result = await controller.RankApplicants(Guid.NewGuid());
         var bad = Assert.IsType<BadRequestObjectResult>(result.Result);
         Assert.Equal(400, bad.StatusCode);
     }
@@ -124,7 +124,7 @@ public class HiringAgentControllerRegressionTests
     {
         var (ctx, _, recruiter, _) = await SeedAsync();
         var controller = CreateController(ctx, new FakeAgent(), Principal(recruiter.UserId.ToString()));
-        var result = await controller.RankApplicants(999999);
+        var result = await controller.RankApplicants(Guid.NewGuid());
         Assert.IsType<NotFoundObjectResult>(result.Result);
     }
 
@@ -153,7 +153,7 @@ public class HiringAgentControllerRegressionTests
     public async Task Rank_OwnedPost_ReturnsOk_AndCallsAgent()
     {
         var (ctx, company, recruiter, post) = await SeedAsync();
-        var expected = new RankCandidatesResponse(post.PostId, true, new List<RankedCandidateDto> { new(1, 1, "Ana Tan", "applied", DateTime.UtcNow, 92, "Great", new List<string> { "React" }) });
+        var expected = new RankCandidatesResponse(post.PostId, true, new List<RankedCandidateDto> { new(Guid.NewGuid(), Guid.NewGuid(), "Ana Tan", "applied", DateTime.UtcNow, 92, "Great", new List<string> { "React" }) });
         var agent = new FakeAgent { RankResponse = expected };
         var controller = CreateController(ctx, agent, Principal(recruiter.UserId.ToString()));
         var result = await controller.RankApplicants(post.PostId);
@@ -237,7 +237,7 @@ public class HiringAgentControllerRegressionTests
     {
         var (ctx, _, recruiter, _) = await SeedAsync();
         var controller = CreateController(ctx, new FakeAgent(), Principal(recruiter.UserId.ToString()));
-        var result = await controller.GenerateScreeningQuestions(999999);
+        var result = await controller.GenerateScreeningQuestions(Guid.NewGuid());
         Assert.IsType<NotFoundObjectResult>(result.Result);
     }
 
@@ -261,7 +261,7 @@ public class HiringAgentControllerRegressionTests
     public async Task Screening_Success_ReturnsOk()
     {
         var (ctx, _, recruiter, post) = await SeedAsync();
-        var expected = new ScreeningQuestionsResponse(post.PostId, new List<CreatedCompanyQuestionResponse> { new(1, 1, "Q?", "Company", "Hiring Corp") });
+        var expected = new ScreeningQuestionsResponse(post.PostId, new List<CreatedCompanyQuestionResponse> { new(Guid.NewGuid(), Guid.NewGuid(), "Q?", "Company", "Hiring Corp") });
         var agent = new FakeAgent { ScreeningResponse = expected };
         var controller = CreateController(ctx, agent, Principal(recruiter.UserId.ToString()));
         var result = await controller.GenerateScreeningQuestions(post.PostId, perSkill: 3);
@@ -285,8 +285,8 @@ public class HiringAgentControllerRegressionTests
     private static CreateJobPostFromRoleRequest FromRoleRequest(string targetRole) =>
         new(null, targetRole, null, null, null, null);
 
-    private static CreateJobPostFromRoleResponse FromRoleResponse(int companyId) =>
-        new(new PostResponse(7, companyId, "Hiring Corp", "Backend Developer", "Desc",
+    private static CreateJobPostFromRoleResponse FromRoleResponse(Guid companyId) =>
+        new(new PostResponse(Guid.NewGuid(), companyId, "Hiring Corp", "Backend Developer", "Desc",
             "Backend Developer", null, null, "Full-time", null, null, null, false, null,
             true, null, null, null, DateTime.UtcNow, "Full-time", new()), AiDrafted: true);
 

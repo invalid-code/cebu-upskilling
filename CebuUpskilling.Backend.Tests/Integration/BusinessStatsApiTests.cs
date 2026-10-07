@@ -79,7 +79,7 @@ public class BusinessStatsApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.BadRequest, (await AuthorizedClient(orphanToken).GetAsync("/api/stats/business")).StatusCode);
     }
 
-    private async Task<(string token, int companyId)> RegisterRecruiterAsync(string email, string companyName)
+    private async Task<(string token, Guid companyId)> RegisterRecruiterAsync(string email, string companyName)
     {
         var registration = await RegisterCompanyAsync(new
         {
@@ -92,10 +92,10 @@ public class BusinessStatsApiTests : ProductionApiTestBase
         registration.EnsureSuccessStatusCode();
         var body = await ReadJsonAsync(registration);
 
-        return (body.GetProperty("token").GetString()!, body.GetProperty("companyId").GetInt32());
+        return (body.GetProperty("token").GetString()!, body.GetProperty("companyId").GetGuid());
     }
 
-    private async Task AddPostAsync(int companyId, string title)
+    private async Task AddPostAsync(Guid companyId, string title)
     {
         using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();

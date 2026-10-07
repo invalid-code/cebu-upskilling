@@ -8,7 +8,7 @@ namespace CebuUpskilling.Backend.Services;
 public interface IJobMarketTrendService
 {
     /// <summary>Recomputes skill demand rows for the given skills from current job posts.</summary>
-    Task RefreshSkillsAsync(IEnumerable<int> skillIds, CancellationToken cancellationToken = default);
+    Task RefreshSkillsAsync(IEnumerable<Guid> skillIds, CancellationToken cancellationToken = default);
 
     /// <summary>Recomputes role demand rows for the given target roles from current job posts.</summary>
     Task RefreshRolesAsync(IEnumerable<string> targetRoles, CancellationToken cancellationToken = default);
@@ -31,9 +31,9 @@ public class JobMarketTrendService : IJobMarketTrendService
         _logger = logger;
     }
 
-    public async Task RefreshSkillsAsync(IEnumerable<int> skillIds, CancellationToken cancellationToken = default)
+    public async Task RefreshSkillsAsync(IEnumerable<Guid> skillIds, CancellationToken cancellationToken = default)
     {
-        var ids = skillIds.Where(id => id > 0).Distinct().ToList();
+        var ids = skillIds.Where(id => id != Guid.Empty).Distinct().ToList();
         if (ids.Count == 0) return;
 
         var aggregates = await _db.PostSkills
@@ -53,7 +53,7 @@ public class JobMarketTrendService : IJobMarketTrendService
             .Where(t => ids.Contains(t.SkillId))
             .ToDictionaryAsync(t => t.SkillId, cancellationToken);
 
-        var found = new HashSet<int>();
+        var found = new HashSet<Guid>();
         foreach (var agg in aggregates)
         {
             found.Add(agg.SkillId);

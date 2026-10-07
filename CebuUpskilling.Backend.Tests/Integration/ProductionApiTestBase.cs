@@ -107,13 +107,13 @@ public abstract class ProductionApiTestBase : IClassFixture<ProductionApiFactory
         return body.GetProperty("token").GetString()!;
     }
 
-    protected async Task<int> CreateCourseAsync(string token, string name = "Modern Web Development")
+    protected async Task<Guid> CreateCourseAsync(string token, string name = "Modern Web Development")
     {
         using var context = Factory.CreateDbContext();
 
         var subDiscipline = new SubDiscipline
         {
-            DisciplineId = 1,
+            DisciplineId = Guid.NewGuid(),
             Name = "Computer Science",
             Description = "CS",
         };

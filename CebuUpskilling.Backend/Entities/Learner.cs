@@ -5,9 +5,9 @@ namespace CebuUpskilling.Backend.Entities;
 public class Learner
 {
     [Key]
-    public int LearnerId { get; set; }
+    public Guid LearnerId { get; set; }
 
-    public int UserId { get; set; }
+    public Guid UserId { get; set; }
 
     public bool IsPremium { get; set; }
 

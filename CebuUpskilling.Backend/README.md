@@ -321,4 +321,5 @@ Test project `CebuUpskilling.Backend.Tests` uses xUnit + Coverlet; `TestDbContex
 | 429 `Too Many Requests` | Per-IP rate limit hit — wait 60s or raise `RateLimiting__Global__PermitLimit`. |
 | Gemini returns empty skills | Check `GoogleAi:ApiKey` and `GoogleAi:Model`; service degrades gracefully (no crash). |
 | R2 uploads fail | Verify `R2:*` credentials and bucket CORS; `MediaController` will return 500 with handler message. |
+| `UseGuidIds` migration fails on an existing DB / old integer IDs | All PKs/FKs are UUIDs since `20261007103816_UseGuidIds` (irreversible, `Down()` throws). Existing databases predate it: back up, then `dotnet ef database drop --project CebuUpskilling.Backend` + `dotnet ef database update --project CebuUpskilling.Backend`. |
 

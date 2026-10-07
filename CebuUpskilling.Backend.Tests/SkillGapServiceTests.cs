@@ -58,7 +58,7 @@ public class SkillGapServiceTests
     {
         var context = TestDbContextFactory.Create();
 
-        var result = await CreateService(context).GetSkillGapsAsync(999);
+        var result = await CreateService(context).GetSkillGapsAsync(Guid.NewGuid());
 
         Assert.Empty(result);
     }

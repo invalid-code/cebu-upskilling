@@ -3,7 +3,7 @@ namespace CebuUpskilling.Backend.DTOs;
 using System.ComponentModel.DataAnnotations;
 
 public record CompanyResponse(
-    int CompanyId,
+    Guid CompanyId,
     string Name,
     string? Tagline,
     string? LogoUrl,

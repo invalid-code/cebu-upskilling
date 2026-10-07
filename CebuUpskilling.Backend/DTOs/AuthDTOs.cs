@@ -47,7 +47,7 @@ public record GoogleAuthRequest(
 );
 
 public record AuthResponse(
-    int UserId,
+    Guid UserId,
     string FirstName,
     string LastName,
     string EmailAddress,
@@ -63,18 +63,18 @@ public record AuthResponse(
     string Token,
     int ParsedSkillCount = 0,
     int AssessmentCount = 0,
-    int? CompanyId = null,
+    Guid? CompanyId = null,
     string? CompanyName = null,
     string? ResumeUrl = null
 );
 
 public record CompanyRegisterResponse(
-    int UserId,
+    Guid UserId,
     string FirstName,
     string LastName,
     string EmailAddress,
     string Role,
-    int CompanyId,
+    Guid CompanyId,
     string CompanyName,
     string Token
 );

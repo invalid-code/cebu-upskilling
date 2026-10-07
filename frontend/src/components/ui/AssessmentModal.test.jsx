@@ -14,8 +14,8 @@ const questionsPayload = {
   companyName: null,
   timeLimitMinutes: 10,
   questions: [
-    { questionId: 1, text: 'What is a closure?', options: ['Closure option 1', 'Option B', 'Option C', 'Option D'] },
-    { questionId: 2, text: 'What is hoisting?', options: ['Hoisting option 1', 'Option B', 'Option C', 'Option D'] },
+    { questionId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', text: 'What is a closure?', options: ['Closure option 1', 'Option B', 'Option C', 'Option D'] },
+    { questionId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', text: 'What is hoisting?', options: ['Hoisting option 1', 'Option B', 'Option C', 'Option D'] },
   ],
 };
 
@@ -37,7 +37,7 @@ describe('AssessmentModal', () => {
     api.get.mockResolvedValue(questionsPayload);
 
     const { container } = render(
-      <AssessmentModal open={false} onClose={vi.fn()} assessmentId={1} skillName="JavaScript" />,
+      <AssessmentModal open={false} onClose={vi.fn()} assessmentId="cccccccc-cccc-cccc-cccc-cccccccccccc" skillName="JavaScript" />,
     );
 
     expect(container).toBeEmptyDOMElement();
@@ -47,7 +47,7 @@ describe('AssessmentModal', () => {
     let resolveFn;
     api.get.mockImplementation(() => new Promise((resolve) => { resolveFn = resolve; }));
 
-    render(<AssessmentModal open onClose={vi.fn()} assessmentId={1} skillName="JavaScript" />);
+    render(<AssessmentModal open onClose={vi.fn()} assessmentId="cccccccc-cccc-cccc-cccc-cccccccccccc" skillName="JavaScript" />);
 
     expect(screen.getByText('Preparing your assessment...')).toBeInTheDocument();
 
@@ -58,7 +58,7 @@ describe('AssessmentModal', () => {
   it('loads and displays the first question with options', async () => {
     api.get.mockResolvedValue(questionsPayload);
 
-    render(<AssessmentModal open onClose={vi.fn()} assessmentId={1} skillName="JavaScript" />);
+    render(<AssessmentModal open onClose={vi.fn()} assessmentId="cccccccc-cccc-cccc-cccc-cccccccccccc" skillName="JavaScript" />);
 
     expect(await screen.findByText('Question 1 of 2')).toBeInTheDocument();
     expect(screen.getByText('What is a closure?')).toBeInTheDocument();
@@ -70,7 +70,7 @@ describe('AssessmentModal', () => {
   it('selects an answer and advances to the next question', async () => {
     api.get.mockResolvedValue(questionsPayload);
 
-    render(<AssessmentModal open onClose={vi.fn()} assessmentId={1} skillName="JavaScript" />);
+    render(<AssessmentModal open onClose={vi.fn()} assessmentId="cccccccc-cccc-cccc-cccc-cccccccccccc" skillName="JavaScript" />);
 
     await screen.findByText('What is a closure?');
     fireEvent.click(screen.getByText('Option B'));
@@ -84,7 +84,7 @@ describe('AssessmentModal', () => {
   it('backs up from the second question', async () => {
     api.get.mockResolvedValue(questionsPayload);
 
-    render(<AssessmentModal open onClose={vi.fn()} assessmentId={1} skillName="JavaScript" />);
+    render(<AssessmentModal open onClose={vi.fn()} assessmentId="cccccccc-cccc-cccc-cccc-cccccccccccc" skillName="JavaScript" />);
 
     await screen.findByText('What is a closure?');
     fireEvent.click(screen.getByRole('button', { name: /Next/ }));
@@ -98,7 +98,7 @@ describe('AssessmentModal', () => {
     api.get.mockResolvedValue(questionsPayload);
     api.post.mockResolvedValue(submitResult);
 
-    render(<AssessmentModal open onClose={vi.fn()} assessmentId={1} skillName="JavaScript" />);
+    render(<AssessmentModal open onClose={vi.fn()} assessmentId="cccccccc-cccc-cccc-cccc-cccccccccccc" skillName="JavaScript" />);
 
     await screen.findByText('What is a closure?');
     fireEvent.click(screen.getByText('Closure option 1'));
@@ -112,10 +112,10 @@ describe('AssessmentModal', () => {
     expect(screen.getByText(/You answered 2 of 2 correctly/)).toBeInTheDocument();
     expect(screen.getByText(/New verified level · 4 Expert/)).toBeInTheDocument();
 
-    expect(api.post).toHaveBeenCalledWith('/assessments/1/submit', {
+    expect(api.post).toHaveBeenCalledWith('/assessments/cccccccc-cccc-cccc-cccc-cccccccccccc/submit', {
       answers: [
-        { questionId: 1, selectedOption: 0 },
-        { questionId: 2, selectedOption: 0 },
+        { questionId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', selectedOption: 0 },
+        { questionId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', selectedOption: 0 },
       ],
     });
   });
@@ -123,7 +123,7 @@ describe('AssessmentModal', () => {
   it('shows an error when questions fail to load', async () => {
     api.get.mockRejectedValue(new Error('boom'));
 
-    render(<AssessmentModal open onClose={vi.fn()} assessmentId={1} skillName="JavaScript" />);
+    render(<AssessmentModal open onClose={vi.fn()} assessmentId="cccccccc-cccc-cccc-cccc-cccccccccccc" skillName="JavaScript" />);
 
     expect(await screen.findByText('Failed to load questions')).toBeInTheDocument();
     expect(screen.getByText('Error')).toBeInTheDocument();
@@ -133,7 +133,7 @@ describe('AssessmentModal', () => {
     api.get.mockRejectedValue(new Error('boom'));
     const onClose = vi.fn();
 
-    render(<AssessmentModal open onClose={onClose} assessmentId={1} skillName="JavaScript" />);
+    render(<AssessmentModal open onClose={onClose} assessmentId="cccccccc-cccc-cccc-cccc-cccccccccccc" skillName="JavaScript" />);
     await screen.findByText('Failed to load questions');
 
     fireEvent.click(screen.getByText('Close'));
@@ -144,7 +144,7 @@ describe('AssessmentModal', () => {
     api.get.mockResolvedValue(questionsPayload);
     api.post.mockResolvedValue({ recorded: true });
 
-    render(<AssessmentModal open onClose={vi.fn()} assessmentId={1} skillName="JavaScript" />);
+    render(<AssessmentModal open onClose={vi.fn()} assessmentId="cccccccc-cccc-cccc-cccc-cccccccccccc" skillName="JavaScript" />);
     await screen.findByText('What is a closure?');
 
     Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
@@ -153,7 +153,7 @@ describe('AssessmentModal', () => {
     fireEvent(document, new Event('visibilitychange'));
 
     expect(screen.getByText('You left the assessment tab')).toBeInTheDocument();
-    expect(api.post).toHaveBeenCalledWith('/assessments/1/integrity-event', {
+    expect(api.post).toHaveBeenCalledWith('/assessments/cccccccc-cccc-cccc-cccc-cccccccccccc/integrity-event', {
       eventType: 'TabLeft',
       detail: 'Learner left the assessment tab for JavaScript',
     });
@@ -166,14 +166,14 @@ describe('AssessmentModal', () => {
     api.get.mockResolvedValue(questionsPayload);
     api.post.mockResolvedValue({ recorded: true });
 
-    render(<AssessmentModal open onClose={vi.fn()} assessmentId={1} skillName="JavaScript" />);
+    render(<AssessmentModal open onClose={vi.fn()} assessmentId="cccccccc-cccc-cccc-cccc-cccccccccccc" skillName="JavaScript" />);
     await screen.findByText('What is a closure?');
 
     Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
     fireEvent(document, new Event('visibilitychange'));
 
     expect(api.post).toHaveBeenCalledTimes(1);
-    expect(api.post).toHaveBeenCalledWith('/assessments/1/integrity-event', {
+    expect(api.post).toHaveBeenCalledWith('/assessments/cccccccc-cccc-cccc-cccc-cccccccccccc/integrity-event', {
       eventType: 'TabLeft',
       detail: 'Learner left the assessment tab for JavaScript',
     });
@@ -183,7 +183,7 @@ describe('AssessmentModal', () => {
     api.get.mockResolvedValue(questionsPayload);
     api.post.mockResolvedValue(submitResult);
 
-    render(<AssessmentModal open onClose={vi.fn()} assessmentId={1} skillName="JavaScript" />);
+    render(<AssessmentModal open onClose={vi.fn()} assessmentId="cccccccc-cccc-cccc-cccc-cccccccccccc" skillName="JavaScript" />);
     await screen.findByText('What is a closure?');
     fireEvent.click(screen.getByText('Closure option 1'));
     fireEvent.click(screen.getByRole('button', { name: /Next/ }));

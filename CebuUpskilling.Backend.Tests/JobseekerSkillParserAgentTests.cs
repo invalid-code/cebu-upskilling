@@ -195,7 +195,7 @@ public class JobseekerSkillParserAgentTests
     // Assessment lifecycle via the agent (covers the merged company-question path)
     // -----------------------------------------------------------------
 
-    private static async Task<(JobseekerSkillParserAgent Agent, int UserId)> CreateLearnerWithSkillAsync(
+    private static async Task<(JobseekerSkillParserAgent Agent, Guid UserId)> CreateLearnerWithSkillAsync(
         ApplicationDbContext context, FakeGoogleAiService ai)
     {
         var user = new AppUser { FirstName = "Jose", LastName = "Rizal", EmailAddress = $"learner-{Guid.NewGuid():N}@example.com", PasswordHash = "hash", Role = "Learner", TargetRole = "Frontend Developer" };
@@ -334,7 +334,7 @@ public class JobseekerSkillParserAgentTests
         var agent = CreateAgent(context, new FakeGoogleAiService());
 
         Assert.Null(await agent.CreateProviderQuestionAsync(
-            provider.UserId, new CreateProviderQuestionRequest(9999, "Q?", "A", "B", "C", "D", 0)));
+            provider.UserId, new CreateProviderQuestionRequest(Guid.NewGuid(), "Q?", "A", "B", "C", "D", 0)));
         Assert.Null(await agent.CreateProviderQuestionAsync(
             provider.UserId, new CreateProviderQuestionRequest(skill.SkillId, "", "A", "B", "C", "D", 0)));
         Assert.Null(await agent.CreateProviderQuestionAsync(
@@ -408,7 +408,7 @@ public class JobseekerSkillParserAgentTests
         Assert.Equal(0, ai.GenerationCalls);
     }
 
-    private static async Task<(JobseekerSkillParserAgent Agent, int UserId, Skill Skill, LearnerAssessment Assessment)>
+    private static async Task<(JobseekerSkillParserAgent Agent, Guid UserId, Skill Skill, LearnerAssessment Assessment)>
         CreateAssessmentWithQuestionsAsync(ApplicationDbContext context, int questionCount = 5)
     {
         var (agent, userId) = await CreateLearnerWithSkillAsync(context, new FakeGoogleAiService(questions: SampleQuestions()));
@@ -481,7 +481,7 @@ public class JobseekerSkillParserAgentTests
             new(served!.Questions[0].QuestionId, 0),
             new(served.Questions[1].QuestionId, 0),
             new(served.Questions[1].QuestionId, 0),   // repeated id counts once
-            new(99999, 0),                            // never served
+            new(Guid.NewGuid(), 0),                            // never served
         };
         var result = await agent.SubmitAssessmentAsync(
             userId, assessment.LearnerAssessmentId, new SubmitAssessmentRequest(answers));
@@ -559,7 +559,7 @@ public class JobseekerSkillParserAgentTests
         var ai = new FakeGoogleAiService(questions: SampleQuestions());
         var agent = CreateAgent(context, ai);
 
-        Assert.Equal(0, await agent.EnsureQuestionsForSkillAsync(99999));
+        Assert.Equal(0, await agent.EnsureQuestionsForSkillAsync(Guid.NewGuid()));
         Assert.Equal(0, ai.GenerationCalls);
     }
 

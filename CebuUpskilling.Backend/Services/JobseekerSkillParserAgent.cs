@@ -62,7 +62,7 @@ public class JobseekerSkillParserAgent : IJobseekerSkillParserAgent
     // Skill parsing (from former SkillParsingService)
     // ---------------------------------------------------------------------
 
-    public async Task<ParseSkillsResult> ParseAndCreateAssessmentsAsync(int userId, string resumeText, CancellationToken ct = default)
+    public async Task<ParseSkillsResult> ParseAndCreateAssessmentsAsync(Guid userId, string resumeText, CancellationToken ct = default)
     {
         var names = await _ai.ParseSkillsFromResumeAsync(resumeText, ct);
         if (names.Count == 0)
@@ -81,7 +81,7 @@ public class JobseekerSkillParserAgent : IJobseekerSkillParserAgent
         }
 
         var existingAssessments = await _learnerAssessments.GetByLearnerIdAsync(learner.LearnerId);
-        var assessmentSkillIds = new HashSet<int>(existingAssessments.Select(a => a.SkillId));
+        var assessmentSkillIds = new HashSet<Guid>(existingAssessments.Select(a => a.SkillId));
 
         var createdAssessments = new List<LearnerAssessment>();
         var results = new List<(Skill Skill, LearnerAssessment? Assessment)>();
@@ -126,7 +126,7 @@ public class JobseekerSkillParserAgent : IJobseekerSkillParserAgent
         var parsed = results.Select(r => new ParsedSkillResult(
             r.Skill.Name,
             r.Skill.SkillId,
-            r.Assessment == null ? (int?)null : r.Assessment.LearnerAssessmentId
+            r.Assessment == null ? (Guid?)null : r.Assessment.LearnerAssessmentId
         )).ToList();
 
         _logger.LogInformation("Parsed {Parsed} skills and created {Created} assessments for user {UserId}",
@@ -190,7 +190,7 @@ public class JobseekerSkillParserAgent : IJobseekerSkillParserAgent
     // Assessment lifecycle (from former AssessmentService)
     // ---------------------------------------------------------------------
 
-    public async Task<List<AssessmentResultResponse>> GetRecentResultsAsync(int userId)
+    public async Task<List<AssessmentResultResponse>> GetRecentResultsAsync(Guid userId)
     {
         var learner = await _learners.GetByUserIdAsync(userId);
         if (learner == null)
@@ -214,7 +214,7 @@ public class JobseekerSkillParserAgent : IJobseekerSkillParserAgent
         return results;
     }
 
-    public async Task<RecommendedAssessmentResponse?> GetRecommendedAsync(int userId)
+    public async Task<RecommendedAssessmentResponse?> GetRecommendedAsync(Guid userId)
     {
         var user = await _users.GetByIdAsync(userId);
         if (user?.TargetRole == null)
@@ -273,7 +273,7 @@ public class JobseekerSkillParserAgent : IJobseekerSkillParserAgent
         return result;
     }
 
-    public async Task<AvailableAssessmentsResponse?> GetAvailableAssessmentsAsync(int userId)
+    public async Task<AvailableAssessmentsResponse?> GetAvailableAssessmentsAsync(Guid userId)
     {
         var user = await _users.GetByIdAsync(userId);
 
@@ -409,7 +409,7 @@ public class JobseekerSkillParserAgent : IJobseekerSkillParserAgent
         return response;
     }
 
-    public async Task<StartAssessmentResponse?> StartAssessmentAsync(int userId, StartAssessmentRequest request)
+    public async Task<StartAssessmentResponse?> StartAssessmentAsync(Guid userId, StartAssessmentRequest request)
     {
         var learner = await _learners.GetByUserIdAsync(userId);
         if (learner == null)
@@ -466,7 +466,7 @@ public class JobseekerSkillParserAgent : IJobseekerSkillParserAgent
         );
     }
 
-    public async Task<AssessmentQuestionsResponse?> GetQuestionsAsync(int userId, int assessmentId)
+    public async Task<AssessmentQuestionsResponse?> GetQuestionsAsync(Guid userId, Guid assessmentId)
     {
         var learner = await _learners.GetByUserIdAsync(userId);
         if (learner == null) return null;
@@ -563,7 +563,7 @@ public class JobseekerSkillParserAgent : IJobseekerSkillParserAgent
         );
     }
 
-    public async Task<SubmitAssessmentResponse?> SubmitAssessmentAsync(int userId, int assessmentId, SubmitAssessmentRequest request)
+    public async Task<SubmitAssessmentResponse?> SubmitAssessmentAsync(Guid userId, Guid assessmentId, SubmitAssessmentRequest request)
     {
         var learner = await _learners.GetByUserIdAsync(userId);
         if (learner == null) return null;
@@ -593,9 +593,9 @@ public class JobseekerSkillParserAgent : IJobseekerSkillParserAgent
         var servedIds = ParseQuestionIds(assessment.QuestionIdsJson);
         if (servedIds.Count == 0)
             servedIds = dbQuestions.Select(q => q.AssessmentQuestionId).ToList();
-        var served = new HashSet<int>(servedIds);
+        var served = new HashSet<Guid>(servedIds);
 
-        var counted = new HashSet<int>();
+        var counted = new HashSet<Guid>();
         int correctAnswers = 0;
         foreach (var answer in request.Answers)
         {
@@ -654,7 +654,7 @@ public class JobseekerSkillParserAgent : IJobseekerSkillParserAgent
         );
     }
 
-    public async Task<CreatedCompanyQuestionResponse?> CreateCompanyQuestionAsync(int userId, CreateCompanyQuestionRequest request)
+    public async Task<CreatedCompanyQuestionResponse?> CreateCompanyQuestionAsync(Guid userId, CreateCompanyQuestionRequest request)
     {
         var recruiter = await _users.GetByIdWithCompanyAsync(userId);
         if (recruiter?.Company == null)
@@ -709,7 +709,7 @@ public class JobseekerSkillParserAgent : IJobseekerSkillParserAgent
         );
     }
 
-    public async Task<CreatedProviderQuestionResponse?> CreateProviderQuestionAsync(int userId, CreateProviderQuestionRequest request)
+    public async Task<CreatedProviderQuestionResponse?> CreateProviderQuestionAsync(Guid userId, CreateProviderQuestionRequest request)
     {
         var provider = await _users.GetByIdAsync(userId);
         if (provider?.Role != "CourseProvider")
@@ -768,7 +768,7 @@ public class JobseekerSkillParserAgent : IJobseekerSkillParserAgent
     /// when none exist yet (any source). Used by the background parse worker
     /// so opening an assessment never waits on generation.
     /// </summary>
-    public async Task<int> EnsureQuestionsForSkillAsync(int skillId, CancellationToken ct = default)
+    public async Task<int> EnsureQuestionsForSkillAsync(Guid skillId, CancellationToken ct = default)
     {
         if ((await _assessmentQuestions.GetBySkillIdAsync(skillId)).Count > 0)
             return 0;
@@ -840,17 +840,17 @@ public class JobseekerSkillParserAgent : IJobseekerSkillParserAgent
         return served;
     }
 
-    private static List<int> ParseQuestionIds(string? json)
+    private static List<Guid> ParseQuestionIds(string? json)
     {
-        if (string.IsNullOrWhiteSpace(json)) return new List<int>();
+        if (string.IsNullOrWhiteSpace(json)) return new List<Guid>();
 
         try
         {
-            return JsonSerializer.Deserialize<List<int>>(json) ?? new List<int>();
+            return JsonSerializer.Deserialize<List<Guid>>(json) ?? new List<Guid>();
         }
         catch (JsonException)
         {
-            return new List<int>();   // unreadable snapshot: reselect and overwrite
+            return new List<Guid>();   // unreadable snapshot: reselect and overwrite
         }
     }
 
@@ -867,9 +867,9 @@ public class JobseekerSkillParserAgent : IJobseekerSkillParserAgent
     }
 
     private static int ResolveDisplayQuestionCount(
-        Dictionary<int, int> questionCounts,
-        Dictionary<int, int> companyQuestionCounts,
-        int skillId)
+        Dictionary<Guid, int> questionCounts,
+        Dictionary<Guid, int> companyQuestionCounts,
+        Guid skillId)
     {
         var companyCount = companyQuestionCounts.GetValueOrDefault(skillId, 0);
         if (companyCount > 0)

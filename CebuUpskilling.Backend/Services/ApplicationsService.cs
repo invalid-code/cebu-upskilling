@@ -35,12 +35,12 @@ public record ApplicationEmployerDetailOutcome(
 
 public interface IApplicationsService
 {
-    Task<List<ApplicationSummary>> GetMyApplicationsAsync(int userId);
-    Task<ApplyOutcome> ApplyAsync(int userId, int postId, string? resumeUrl = null, string? coverLetterUrl = null);
-    Task<bool> UpdateStatusAsync(int userId, int postId, string status);
-    Task<List<ApplicationEmployerSummary>> GetCompanyApplicationsAsync(int companyId);
-    Task<ApplicationEmployerDetailOutcome> GetCompanyApplicationDetailAsync(int companyId, int applicationId);
-    Task<EmployerApplicationOutcome> UpdateApplicationStatusAsync(int companyId, int applicationId, string status);
+    Task<List<ApplicationSummary>> GetMyApplicationsAsync(Guid userId);
+    Task<ApplyOutcome> ApplyAsync(Guid userId, Guid postId, string? resumeUrl = null, string? coverLetterUrl = null);
+    Task<bool> UpdateStatusAsync(Guid userId, Guid postId, string status);
+    Task<List<ApplicationEmployerSummary>> GetCompanyApplicationsAsync(Guid companyId);
+    Task<ApplicationEmployerDetailOutcome> GetCompanyApplicationDetailAsync(Guid companyId, Guid applicationId);
+    Task<EmployerApplicationOutcome> UpdateApplicationStatusAsync(Guid companyId, Guid applicationId, string status);
 }
 
 public class ApplicationsService : IApplicationsService
@@ -71,7 +71,7 @@ public class ApplicationsService : IApplicationsService
         _logger = logger;
     }
 
-    public async Task<List<ApplicationSummary>> GetMyApplicationsAsync(int userId)
+    public async Task<List<ApplicationSummary>> GetMyApplicationsAsync(Guid userId)
     {
         var learner = await _learners.GetByUserIdAsync(userId);
         if (learner == null)
@@ -84,7 +84,7 @@ public class ApplicationsService : IApplicationsService
         return apps.Select(ToSummary).ToList();
     }
 
-    public async Task<ApplyOutcome> ApplyAsync(int userId, int postId, string? resumeUrl = null, string? coverLetterUrl = null)
+    public async Task<ApplyOutcome> ApplyAsync(Guid userId, Guid postId, string? resumeUrl = null, string? coverLetterUrl = null)
     {
         _logger.LogInformation("User {UserId} applying to post {PostId}", userId, postId);
 
@@ -168,7 +168,7 @@ public class ApplicationsService : IApplicationsService
         return new ApplyOutcome(true, Application: ToSummary(created!));
     }
 
-    public async Task<bool> UpdateStatusAsync(int userId, int postId, string status)
+    public async Task<bool> UpdateStatusAsync(Guid userId, Guid postId, string status)
     {
         var learner = await _learners.GetByUserIdAsync(userId);
         if (learner == null) return false;
@@ -187,7 +187,7 @@ public class ApplicationsService : IApplicationsService
         return true;
     }
 
-    public async Task<List<ApplicationEmployerSummary>> GetCompanyApplicationsAsync(int companyId)
+    public async Task<List<ApplicationEmployerSummary>> GetCompanyApplicationsAsync(Guid companyId)
     {
         _logger.LogInformation("Fetching applications for company {CompanyId}", companyId);
         var apps = await _applications.GetByCompanyIdAsync(companyId);
@@ -197,7 +197,7 @@ public class ApplicationsService : IApplicationsService
             .ToList();
     }
 
-    public async Task<EmployerApplicationOutcome> UpdateApplicationStatusAsync(int companyId, int applicationId, string status)
+    public async Task<EmployerApplicationOutcome> UpdateApplicationStatusAsync(Guid companyId, Guid applicationId, string status)
     {
         _logger.LogInformation("Company {CompanyId} updating application {ApplicationId} to {Status}", companyId, applicationId, status);
 
@@ -229,7 +229,7 @@ public class ApplicationsService : IApplicationsService
         return new EmployerApplicationOutcome(true, Application: ToEmployerSummary(application));
     }
 
-    public async Task<ApplicationEmployerDetailOutcome> GetCompanyApplicationDetailAsync(int companyId, int applicationId)
+    public async Task<ApplicationEmployerDetailOutcome> GetCompanyApplicationDetailAsync(Guid companyId, Guid applicationId)
     {
         _logger.LogInformation("Company {CompanyId} fetching detail for application {ApplicationId}", companyId, applicationId);
 
@@ -263,7 +263,7 @@ public class ApplicationsService : IApplicationsService
             application.ApplicationId,
             application.PostId,
             application.Post?.Title ?? string.Empty,
-            learner?.LearnerId ?? 0,
+            learner?.LearnerId ?? Guid.Empty,
             learnerName,
             learner?.User?.EmailAddress,
             learner?.User?.TargetRole,
@@ -360,7 +360,7 @@ public class ApplicationsService : IApplicationsService
             application.ApplicationId,
             application.PostId,
             application.Post?.Title ?? string.Empty,
-            learner?.LearnerId ?? 0,
+            learner?.LearnerId ?? Guid.Empty,
             learnerName,
             learner?.User?.EmailAddress,
             application.Status,

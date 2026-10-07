@@ -27,14 +27,14 @@ const courseData = {
       name: 'HTML Fundamentals',
       completedLessonCount: 1,
       lessons: [
-        { lessonId: 5, name: 'HTML Introduction', durationMinutes: 12, isCompleted: true },
-        { lessonId: 6, name: 'HTML Tags', durationMinutes: 15, isCompleted: false },
+        { lessonId: '55555555-5555-5555-5555-555555555555', name: 'HTML Introduction', durationMinutes: 12, isCompleted: true },
+        { lessonId: '66666666-6666-6666-6666-666666666666', name: 'HTML Tags', durationMinutes: 15, isCompleted: false },
       ],
     },
   ],
 };
 
-function renderPage(initialPath = '/courses/1/learn/5') {
+function renderPage(initialPath = '/courses/11111111-1111-1111-1111-111111111111/learn/55555555-5555-5555-5555-555555555555') {
   localStorage.setItem('user', JSON.stringify({ firstName: 'Test', role: 'Learner' }));
   localStorage.setItem('token', 'abc');
   return render(
@@ -81,7 +81,7 @@ describe('CourseContentPage', () => {
     expect(screen.getByText(/HTML Fundamentals/)).toBeInTheDocument();
     expect(screen.getByText('Welcome aboard.')).toBeInTheDocument();
     expect(api.get).toHaveBeenCalledWith(
-      '/coursecontent/courses/1/content?lessonId=5',
+      '/coursecontent/courses/11111111-1111-1111-1111-111111111111/content?lessonId=55555555-5555-5555-5555-555555555555',
       { signal: expect.anything() },
     );
   });
@@ -89,11 +89,11 @@ describe('CourseContentPage', () => {
   it('fetches without a lessonId when none is present', async () => {
     api.get.mockResolvedValue(courseData);
 
-    renderPage('/courses/1/learn');
+    renderPage('/courses/11111111-1111-1111-1111-111111111111/learn');
 
     const titles = await screen.findAllByText('Modern Web Development');
     expect(titles.length).toBeGreaterThan(0);
-    expect(api.get).toHaveBeenCalledWith('/coursecontent/courses/1/content', { signal: expect.anything() });
+    expect(api.get).toHaveBeenCalledWith('/coursecontent/courses/11111111-1111-1111-1111-111111111111/content', { signal: expect.anything() });
   });
 
   it('renders an error message when the request fails', async () => {

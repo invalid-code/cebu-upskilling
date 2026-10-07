@@ -90,4 +90,4 @@ public class SkillsController : ControllerBase
 
 public record ParseSkillsRequest(string? ResumeText);
 
-public record LearnerSkillDto(int SkillId, string Name, string? Category, int CurrentLevel, bool Verified);
+public record LearnerSkillDto(Guid SkillId, string Name, string? Category, int CurrentLevel, bool Verified);

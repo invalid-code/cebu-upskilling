@@ -28,7 +28,7 @@ public class MediaService : IMediaService
         _logger = logger;
     }
 
-    public async Task<MediaDto> UploadLessonVideoAsync(int lessonId, IFormFile file, CancellationToken cancellationToken = default)
+    public async Task<MediaDto> UploadLessonVideoAsync(Guid lessonId, IFormFile file, CancellationToken cancellationToken = default)
     {
         var lesson = await _lessons.GetByIdAsync(lessonId);
         if (lesson == null)
@@ -83,7 +83,7 @@ public class MediaService : IMediaService
         return new DocumentUploadDto(publicUrl, file.FileName, file.Length);
     }
 
-    public async Task<MediaDto> UploadLessonDocumentAsync(int lessonId, IFormFile file, CancellationToken cancellationToken = default)
+    public async Task<MediaDto> UploadLessonDocumentAsync(Guid lessonId, IFormFile file, CancellationToken cancellationToken = default)
     {
         var lesson = await _lessons.GetByIdAsync(lessonId);
         if (lesson == null)

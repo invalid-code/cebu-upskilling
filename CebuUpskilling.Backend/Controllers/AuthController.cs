@@ -19,7 +19,7 @@ public class AuthController : BaseEntityController<AppUser>
         _authService = authService;
     }
 
-    protected override int GetId(AppUser entity) => entity.UserId;
+    protected override Guid GetId(AppUser entity) => entity.UserId;
 
     // User accounts are sensitive (email, address, token hashes). The generic CRUD
     // surface inherited from BaseEntityController<AppUser> would expose every user
@@ -29,7 +29,7 @@ public class AuthController : BaseEntityController<AppUser>
         Task.FromResult<ActionResult<List<AppUser>>>(NotFound());
 
     [HttpGet("{id}")]
-    public override Task<ActionResult<AppUser>> GetById(int id) =>
+    public override Task<ActionResult<AppUser>> GetById(Guid id) =>
         Task.FromResult<ActionResult<AppUser>>(NotFound());
 
     // Account write operations go exclusively through AuthService (register, login,
@@ -41,11 +41,11 @@ public class AuthController : BaseEntityController<AppUser>
         Task.FromResult<ActionResult<AppUser>>(NotFound());
 
     [HttpPut("{id}")]
-    public override Task<ActionResult<AppUser>> Update(int id, AppUser entity) =>
+    public override Task<ActionResult<AppUser>> Update(Guid id, AppUser entity) =>
         Task.FromResult<ActionResult<AppUser>>(NotFound());
 
     [HttpDelete("{id}")]
-    public override Task<IActionResult> Delete(int id) =>
+    public override Task<IActionResult> Delete(Guid id) =>
         Task.FromResult<IActionResult>(NotFound());
 
     [AllowAnonymous]
@@ -210,7 +210,7 @@ public class AuthController : BaseEntityController<AppUser>
     public async Task<ActionResult<AuthResponse>> GetProfile()
     {
         var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (userIdClaim == null || !int.TryParse(userIdClaim, out var userId))
+        if (userIdClaim == null || !Guid.TryParse(userIdClaim, out var userId))
             return Unauthorized(new { error = "Unauthorized" });
         var profile = await _authService.GetProfileAsync(userId);
         if (profile == null) return NotFound(new { error = "User not found" });

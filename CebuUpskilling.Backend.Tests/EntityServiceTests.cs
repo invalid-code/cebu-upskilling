@@ -69,7 +69,7 @@ public class EntityServiceTests
     {
         var context = TestDbContextFactory.Create();
 
-        var result = await CreateCourseService(context).GetByIdAsync(999);
+        var result = await CreateCourseService(context).GetByIdAsync(Guid.NewGuid());
 
         Assert.Null(result);
     }
@@ -100,7 +100,7 @@ public class EntityServiceTests
         var context = TestDbContextFactory.Create();
 
         var result = await CreateCourseService(context).UpdateAsync(
-            999,
+            Guid.NewGuid(),
             new Course { Name = "Anything" });
 
         Assert.Null(result);
@@ -124,7 +124,7 @@ public class EntityServiceTests
     {
         var context = TestDbContextFactory.Create();
 
-        var deleted = await CreateCourseService(context).DeleteAsync(999);
+        var deleted = await CreateCourseService(context).DeleteAsync(Guid.NewGuid());
 
         Assert.False(deleted);
     }

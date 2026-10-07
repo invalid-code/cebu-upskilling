@@ -34,7 +34,7 @@ public class StatsServiceTests
         return (user, learner);
     }
 
-    private static async Task<int> CreateCourseAsync(ApplicationDbContext context, string name)
+    private static async Task<Guid> CreateCourseAsync(ApplicationDbContext context, string name)
     {
         var course = new Course { Name = name };
         context.Courses.Add(course);
@@ -42,7 +42,7 @@ public class StatsServiceTests
         return course.CourseId;
     }
 
-    private static async Task<int> CreatePostAsync(ApplicationDbContext context)
+    private static async Task<Guid> CreatePostAsync(ApplicationDbContext context)
     {
         var company = new Company { Name = "Acme Corp" };
         context.Companies.Add(company);
@@ -73,7 +73,7 @@ public class StatsServiceTests
     {
         var context = TestDbContextFactory.Create();
 
-        var stats = await CreateService(context).GetWeeklyStatsAsync(999);
+        var stats = await CreateService(context).GetWeeklyStatsAsync(Guid.NewGuid());
 
         Assert.Equal(0, stats.LearningTimeHours);
         Assert.Equal(0, stats.CoursesActive);

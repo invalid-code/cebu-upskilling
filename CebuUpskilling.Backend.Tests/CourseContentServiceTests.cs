@@ -69,7 +69,7 @@ public class CourseContentServiceTests
         for (var i = 0; i < lessonCount; i++)
         {
             var module = modules[Math.Min(i * moduleCountValue / lessonCount, modules.Count - 1)];
-            var lesson = new Lesson { ModuleId = module.ModuleId, CourseId = course.CourseId, Name = $"Lesson {i + 1}" };
+            var lesson = new Lesson { ModuleId = module.ModuleId, CourseId = course.CourseId, Name = $"Lesson {i + 1}", Order = i + 1 };
             context.Lessons.Add(lesson);
             await context.SaveChangesAsync();
 
@@ -112,7 +112,7 @@ public class CourseContentServiceTests
         return course;
     }
 
-    private static async Task EnrollAsync(ApplicationDbContext context, int learnerId, int courseId, int progress)
+    private static async Task EnrollAsync(ApplicationDbContext context, Guid learnerId, Guid courseId, int progress)
     {
         context.LearnerStudyCourses.Add(new LearnerStudyCourse
         {
@@ -130,7 +130,7 @@ public class CourseContentServiceTests
     {
         var context = TestDbContextFactory.Create();
 
-        var result = await CreateService(context).GetCourseContentAsync(999, 1);
+        var result = await CreateService(context).GetCourseContentAsync(Guid.NewGuid(), Guid.NewGuid());
 
         Assert.Null(result);
     }
@@ -200,7 +200,7 @@ public class CourseContentServiceTests
         var course = await CreateCourseWithLessonsAsync(context, lessonCount: 2);
         await EnrollAsync(context, learner.LearnerId, course.CourseId, 0);
 
-        var lessons = context.Lessons.Where(l => l.CourseId == course.CourseId).OrderBy(l => l.LessonId).ToList();
+        var lessons = context.Lessons.Where(l => l.CourseId == course.CourseId).OrderBy(l => l.Order).ToList();
         var secondLessonId = lessons[1].LessonId;
 
         var result = await CreateService(context).GetCourseContentAsync(user.UserId, course.CourseId, secondLessonId);
@@ -239,10 +239,10 @@ public class CourseContentServiceTests
     {
         var context = TestDbContextFactory.Create();
 
-        Assert.Null(await CreateService(context).GetLessonDetailAsync(999, 1));
+        Assert.Null(await CreateService(context).GetLessonDetailAsync(Guid.NewGuid(), Guid.NewGuid()));
 
         var (user, _) = await CreateLearnerAsync(context);
-        Assert.Null(await CreateService(context).GetLessonDetailAsync(user.UserId, 999));
+        Assert.Null(await CreateService(context).GetLessonDetailAsync(user.UserId, Guid.NewGuid()));
     }
 
     [Fact]
@@ -258,7 +258,7 @@ public class CourseContentServiceTests
 
         Assert.NotNull(result);
         Assert.Equal(lesson.LessonId, result!.LessonId);
-        Assert.Equal(lesson.LessonId, result.LessonOrder);
+        Assert.Equal(lesson.Order, result.LessonOrder);
 
         var block = Assert.Single(result.ContentBlocks);
         Assert.Equal("text", block.BlockType);
@@ -297,7 +297,7 @@ public class CourseContentServiceTests
         var course = await CreateCourseWithLessonsAsync(context, lessonCount: 2);
         await EnrollAsync(context, learner.LearnerId, course.CourseId, 0);
 
-        var lessons = context.Lessons.Where(l => l.CourseId == course.CourseId).OrderBy(l => l.LessonId).ToList();
+        var lessons = context.Lessons.Where(l => l.CourseId == course.CourseId).OrderBy(l => l.Order).ToList();
         var service = CreateService(context);
 
         var first = await service.UpdateLessonProgressAsync(user.UserId, lessons[0].LessonId, 50);

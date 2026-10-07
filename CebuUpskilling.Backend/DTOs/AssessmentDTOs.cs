@@ -1,8 +1,8 @@
 namespace CebuUpskilling.Backend.DTOs;
 
 public record AssessmentResultResponse(
-    int AssessmentId,
-    int SkillId,
+    Guid AssessmentId,
+    Guid SkillId,
     string SkillName,
     int ScoredLevel,
     string LevelLabel,
@@ -11,7 +11,7 @@ public record AssessmentResultResponse(
 );
 
 public record RecommendedAssessmentResponse(
-    int SkillId,
+    Guid SkillId,
     string SkillName,
     string? Category,
     int CurrentLevel,
@@ -21,17 +21,17 @@ public record RecommendedAssessmentResponse(
     int Gap
 );
 
-public record StartAssessmentRequest(int SkillId);
+public record StartAssessmentRequest(Guid SkillId);
 
 public record StartAssessmentResponse(
-    int AssessmentId,
-    int SkillId,
+    Guid AssessmentId,
+    Guid SkillId,
     string SkillName,
     int TimeLimitMinutes
 );
 
 public record AssessmentQuestionDto(
-    int QuestionId,
+    Guid QuestionId,
     string Text,
     List<string> Options,
     string Source,
@@ -39,7 +39,7 @@ public record AssessmentQuestionDto(
 );
 
 public record AssessmentQuestionsResponse(
-    int AssessmentId,
+    Guid AssessmentId,
     string SkillName,
     int TimeLimitMinutes,
     List<AssessmentQuestionDto> Questions,
@@ -48,15 +48,15 @@ public record AssessmentQuestionsResponse(
     bool Proctored
 );
 
-public record SubmitAnswerRequest(int QuestionId, int SelectedOption);
+public record SubmitAnswerRequest(Guid QuestionId, int SelectedOption);
 
 public record SubmitAssessmentRequest(
     List<SubmitAnswerRequest> Answers
 );
 
 public record SubmitAssessmentResponse(
-    int AssessmentId,
-    int SkillId,
+    Guid AssessmentId,
+    Guid SkillId,
     string SkillName,
     int ScorePercent,
     int CorrectAnswers,
@@ -68,7 +68,7 @@ public record SubmitAssessmentResponse(
 );
 
 public record AvailableAssessmentDto(
-    int SkillId,
+    Guid SkillId,
     string SkillName,
     string? Category,
     int CurrentLevel,
@@ -102,7 +102,7 @@ public record GeneratedAssessmentQuestion(
 );
 
 public record CreateCompanyQuestionRequest(
-    int SkillId,
+    Guid SkillId,
     string Text,
     string OptionA,
     string OptionB,
@@ -112,15 +112,15 @@ public record CreateCompanyQuestionRequest(
 );
 
 public record CreatedCompanyQuestionResponse(
-    int QuestionId,
-    int SkillId,
+    Guid QuestionId,
+    Guid SkillId,
     string Text,
     string Source,
     string CompanyName
 );
 
 public record CreateProviderQuestionRequest(
-    int SkillId,
+    Guid SkillId,
     string Text,
     string OptionA,
     string OptionB,
@@ -130,8 +130,8 @@ public record CreateProviderQuestionRequest(
 );
 
 public record CreatedProviderQuestionResponse(
-    int QuestionId,
-    int SkillId,
+    Guid QuestionId,
+    Guid SkillId,
     string Text,
     string Source
 );

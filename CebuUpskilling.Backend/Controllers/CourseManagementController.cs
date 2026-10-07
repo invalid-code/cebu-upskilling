@@ -13,13 +13,13 @@ namespace CebuUpskilling.Backend.Controllers;
 [Authorize(Roles = "Recruiter,CourseProvider")]
 public class CourseManagementController(ApplicationDbContext db) : ControllerBase
 {
-    private async Task<int?> CompanyId() {
+    private async Task<Guid?> CompanyId() {
         var raw = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (!int.TryParse(raw, out var userId)) return null;
+        if (!Guid.TryParse(raw, out var userId)) return null;
         return await db.Users.Where(u => u.UserId == userId).Select(u => u.CompanyId).SingleOrDefaultAsync();
     }
 
-    private int UserId() => int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : 0;
+    private Guid UserId() => Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : Guid.Empty;
 
     private bool IsCourseProvider() => User.IsInRole("CourseProvider");
 
@@ -42,8 +42,8 @@ public class CourseManagementController(ApplicationDbContext db) : ControllerBas
         return Ok(courses);
     }
 
-    [HttpGet("{id:int}")]
-    public async Task<ActionResult<CourseManagementDto>> Get(int id) {
+    [HttpGet("{id:guid}")]
+    public async Task<ActionResult<CourseManagementDto>> Get(Guid id) {
         if (IsCourseProvider()) {
             var uid = UserId().ToString();
             var pc = await db.Courses.AsNoTracking().AsSplitQuery().Include(x => x.Modules.OrderBy(m => m.Order)).ThenInclude(m => m.Lessons.OrderBy(l => l.Order).ThenBy(l => l.LessonId)).ThenInclude(l => l.LessonContents).Include(x => x.Modules.OrderBy(m => m.Order)).ThenInclude(m => m.Lessons.OrderBy(l => l.Order).ThenBy(l => l.LessonId)).ThenInclude(l => l.Media).SingleOrDefaultAsync(x => x.CourseId == id && x.CreatedBy == uid);
@@ -73,8 +73,8 @@ public class CourseManagementController(ApplicationDbContext db) : ControllerBas
         return CreatedAtAction(nameof(Get), new { id = course.CourseId }, ToDto(course));
     }
 
-    [HttpPut("{id:int}")]
-    public async Task<ActionResult<CourseManagementDto>> Update(int id, SaveCourseRequest request) {
+    [HttpPut("{id:guid}")]
+    public async Task<ActionResult<CourseManagementDto>> Update(Guid id, SaveCourseRequest request) {
         if (IsCourseProvider()) {
             var uid = UserId().ToString();
             var pc = await db.Courses
@@ -100,8 +100,8 @@ public class CourseManagementController(ApplicationDbContext db) : ControllerBas
         await db.SaveChangesAsync(); return Ok(ToDto(course));
     }
 
-    [HttpPost("{id:int}/publish")]
-    public async Task<IActionResult> Publish(int id, [FromQuery] bool published = true) {
+    [HttpPost("{id:guid}/publish")]
+    public async Task<IActionResult> Publish(Guid id, [FromQuery] bool published = true) {
         if (IsCourseProvider()) {
             var uid = UserId().ToString();
             var pc = await db.Courses.SingleOrDefaultAsync(c => c.CourseId == id && c.CreatedBy == uid); if (pc is null) return NotFound();
@@ -112,8 +112,8 @@ public class CourseManagementController(ApplicationDbContext db) : ControllerBas
         course.Status = published ? "Published" : "Draft"; await db.SaveChangesAsync(); return NoContent();
     }
 
-    [HttpDelete("{id:int}")]
-    public async Task<IActionResult> Delete(int id) {
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id) {
         // Deleting cascades to modules, lessons, notes, discussions and
         // enrollments: refuse while learners are enrolled so progress is never
         // destroyed. Unpublish (Draft) instead, or wait until unenrolled.
@@ -131,32 +131,32 @@ public class CourseManagementController(ApplicationDbContext db) : ControllerBas
         db.Courses.Remove(course); await db.SaveChangesAsync(); return NoContent();
     }
 
-    private async Task<int> ResolveGenreIdAsync(int? requested)
+    private async Task<Guid> ResolveGenreIdAsync(Guid? requested)
     {
-        if (requested is > 0)
+        if (requested is not null && requested.Value != Guid.Empty)
         {
             var exists = await db.Genres.AnyAsync(g => g.GenreId == requested.Value);
             if (exists) return requested.Value;
             var fallback = await db.Genres.OrderBy(g => g.GenreId).Select(g => g.GenreId).FirstOrDefaultAsync();
-            if (fallback != 0) return fallback;
+            if (fallback != Guid.Empty) return fallback;
             if (db.Database.ProviderName == "Microsoft.EntityFrameworkCore.InMemory") return requested.Value;
             throw new InvalidOperationException("No genres are configured; cannot create course.");
         }
         var first = await db.Genres.OrderBy(g => g.GenreId).Select(g => g.GenreId).FirstOrDefaultAsync();
-        if (first != 0) return first;
-        if (db.Database.ProviderName == "Microsoft.EntityFrameworkCore.InMemory") return 1;
+        if (first != Guid.Empty) return first;
+        if (db.Database.ProviderName == "Microsoft.EntityFrameworkCore.InMemory") return Guid.NewGuid();
         throw new InvalidOperationException("No genres are configured; cannot create course.");
     }
 
-    private async Task<int> ResolveGenreIdForUpdateAsync(int? requested, int current)
+    private async Task<Guid> ResolveGenreIdForUpdateAsync(Guid? requested, Guid current)
     {
         if (requested is null) return current;
-        if (requested is > 0)
+        if (requested is not null && requested.Value != Guid.Empty)
         {
             var exists = await db.Genres.AnyAsync(g => g.GenreId == requested.Value);
             if (exists) return requested.Value;
             var fallback = await db.Genres.OrderBy(g => g.GenreId).Select(g => g.GenreId).FirstOrDefaultAsync();
-            if (fallback != 0) return fallback;
+            if (fallback != Guid.Empty) return fallback;
         }
         return current;
     }
@@ -169,15 +169,15 @@ public class CourseManagementController(ApplicationDbContext db) : ControllerBas
     {
         var liveModules = new List<CourseModule>();
         var oldModules = course.Modules.OrderBy(m => m.Order).ToList();
-        var oldLessons = oldModules.SelectMany(m => m.Lessons).Where(l => l.LessonId > 0).ToList();
+        var oldLessons = oldModules.SelectMany(m => m.Lessons).Where(l => l.LessonId != Guid.Empty).ToList();
         var oldLessonsById = oldLessons.ToDictionary(l => l.LessonId);
         var reusedModules = new HashSet<CourseModule>();
-        var reusedLessonIds = new HashSet<int>();
+        var reusedLessonIds = new HashSet<Guid>();
 
         foreach (var m in modules.OrderBy(x => x.Order))
         {
             CourseModule? module = null;
-            if (m.ModuleId is > 0)
+            if (m.ModuleId is not null && m.ModuleId.Value != Guid.Empty)
             {
                 var candidate = oldModules.FirstOrDefault(x => x.ModuleId == m.ModuleId.Value);
                 if (candidate is not null && reusedModules.Add(candidate))
@@ -198,7 +198,7 @@ public class CourseManagementController(ApplicationDbContext db) : ControllerBas
             foreach (var l in m.Lessons.OrderBy(x => x.Order))
             {
                 Lesson? lesson = null;
-                if (l.LessonId is > 0
+                if (l.LessonId is not null && l.LessonId.Value != Guid.Empty
                     && oldLessonsById.TryGetValue(l.LessonId.Value, out var existing)
                     && reusedLessonIds.Add(l.LessonId.Value))
                 {
@@ -225,7 +225,7 @@ public class CourseManagementController(ApplicationDbContext db) : ControllerBas
             }
         }
 
-        var removedLessonIds = new HashSet<int>();
+        var removedLessonIds = new HashSet<Guid>();
         foreach (var lesson in oldLessons)
         {
             if (reusedLessonIds.Contains(lesson.LessonId)) continue;
@@ -242,7 +242,7 @@ public class CourseManagementController(ApplicationDbContext db) : ControllerBas
         return new ModuleSyncResult(liveModules, removedLessonIds);
     }
 
-    private sealed record ModuleSyncResult(List<CourseModule> Modules, HashSet<int> RemovedLessonIds);
+    private sealed record ModuleSyncResult(List<CourseModule> Modules, HashSet<Guid> RemovedLessonIds);
 
     private void SaveTree(Course course, IEnumerable<SaveModuleRequest> modules)
     {
@@ -250,7 +250,7 @@ public class CourseManagementController(ApplicationDbContext db) : ControllerBas
         ReattachMedia(preserved, SyncModules(course, modules));
     }
 
-    private sealed record MediaSnapshot(int LessonId, int ModuleIndex, int LessonIndex, string PathFile, string Type, double MbSize);
+    private sealed record MediaSnapshot(Guid LessonId, int ModuleIndex, int LessonIndex, string PathFile, string Type, double MbSize);
 
     private static List<MediaSnapshot> SnapshotMedia(Course course)
         => course.Modules.OrderBy(m => m.Order)
