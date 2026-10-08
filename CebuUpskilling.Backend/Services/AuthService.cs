@@ -17,6 +17,9 @@ namespace CebuUpskilling.Backend.Services;
 public interface IJwtTokenService
 {
     string GenerateToken(AppUser user);
+    string GenerateRefreshToken();
+    TimeSpan AccessLifetime { get; }
+    TimeSpan RefreshLifetime { get; }
 }
 
 public class JwtTokenService : IJwtTokenService
@@ -29,6 +32,12 @@ public class JwtTokenService : IJwtTokenService
         _config = config;
         _logger = logger;
     }
+
+    public TimeSpan AccessLifetime =>
+        TimeSpan.FromMinutes(GetPositiveDouble("Jwt:AccessMinutes", 15));
+
+    public TimeSpan RefreshLifetime =>
+        TimeSpan.FromDays(GetPositiveDouble("Jwt:RefreshDays", 30));
 
     public string GenerateToken(AppUser user)
     {
@@ -50,13 +59,33 @@ public class JwtTokenService : IJwtTokenService
             issuer: _config["Jwt:Issuer"],
             audience: _config["Jwt:Audience"],
             claims: claims,
-            expires: DateTime.UtcNow.AddDays(7),
+            expires: DateTime.UtcNow.Add(AccessLifetime),
             signingCredentials: creds
         );
 
         var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
         _logger.LogDebug("JWT token generated for user {UserId} ({Email})", user.UserId, user.EmailAddress);
         return tokenString;
+    }
+
+    public string GenerateRefreshToken()
+    {
+        var bytes = RandomNumberGenerator.GetBytes(32);
+        return Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+    }
+
+    private double GetPositiveDouble(string key, double fallback)
+    {
+        var raw = _config[key];
+        if (string.IsNullOrWhiteSpace(raw)
+            || !double.TryParse(raw, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out var value)
+            || value <= 0)
+        {
+            return fallback;
+        }
+
+        return value;
     }
 }
 
@@ -69,7 +98,10 @@ public interface IAuthService
     Task<AuthResponse> UpdateProfileAsync(Guid userId, UpdateProfileRequest request);
     Task<AuthResponse?> GetProfileAsync(Guid userId);
 
-    Task LogoutAsync(string? jti);
+    Task<AuthResponse> RefreshAsync(string refreshToken);
+    Task RevokeRefreshTokenAsync(string? refreshToken);
+    Task RevokeAllUserRefreshTokensAsync(Guid userId);
+    Task LogoutAsync(string? jti, string? refreshToken = null);
     Task SendEmailConfirmationAsync(string email);
     Task<bool> ConfirmEmailAsync(string email, string token);
     Task SendPasswordResetAsync(string email);
@@ -257,6 +289,7 @@ public class AuthService : IAuthService
         }
 
         var token = _tokenService.GenerateToken(user);
+        var refreshToken = await IssueRefreshTokenAsync(user.UserId);
 
         return BuildAuthResponse(
             user,
@@ -264,7 +297,8 @@ public class AuthService : IAuthService
             0,
             0,
             user.CompanyId,
-            user.Company?.Name);
+            user.Company?.Name,
+            refreshToken);
     }
 
     public async Task<CompanyRegisterResponse> CompanyRegisterAsync(CompanyRegisterRequest request)
@@ -343,6 +377,7 @@ public class AuthService : IAuthService
             }
 
             var token = _tokenService.GenerateToken(user);
+            var refreshToken = await IssueRefreshTokenAsync(user.UserId);
 
             return new CompanyRegisterResponse(
                 user.UserId,
@@ -352,7 +387,8 @@ public class AuthService : IAuthService
                 user.Role,
                 company.CompanyId,
                 company.Name,
-                token
+                token,
+                refreshToken
             );
         }
         catch (Exception ex)
@@ -412,8 +448,9 @@ public class AuthService : IAuthService
         _logger.LogInformation("User logged in successfully: {UserId} ({Email}), Role: {Role}", user.UserId, user.EmailAddress, user.Role);
 
         var token = _tokenService.GenerateToken(user);
+        var refreshToken = await IssueRefreshTokenAsync(user.UserId);
 
-        return BuildAuthResponse(user, token, companyId: user.CompanyId, companyName: user.Company?.Name);
+        return BuildAuthResponse(user, token, companyId: user.CompanyId, companyName: user.Company?.Name, refreshToken: refreshToken);
     }
 
     public async Task<AuthResponse> GoogleAuthAsync(GoogleAuthRequest request)
@@ -469,8 +506,9 @@ public class AuthService : IAuthService
         }
 
         var token = _tokenService.GenerateToken(user);
+        var refreshToken = await IssueRefreshTokenAsync(user.UserId);
 
-        return BuildAuthResponse(user, token, companyId: user.CompanyId, companyName: user.Company?.Name);
+        return BuildAuthResponse(user, token, companyId: user.CompanyId, companyName: user.Company?.Name, refreshToken: refreshToken);
     }
 
     public async Task<AuthResponse?> GetProfileAsync(Guid userId)
@@ -522,14 +560,109 @@ public class AuthService : IAuthService
         return BuildAuthResponse(user, token, companyId: user.CompanyId, companyName: user.Company?.Name);
     }
 
-    public Task LogoutAsync(string? jti)
+    public async Task<AuthResponse> RefreshAsync(string refreshToken)
+    {
+        if (string.IsNullOrWhiteSpace(refreshToken))
+            throw new UnauthorizedAccessException("Invalid refresh token");
+
+        var hash = HashToken(refreshToken.Trim());
+        var stored = await _context.RefreshTokens
+            .FirstOrDefaultAsync(t => t.TokenHash == hash);
+
+        if (stored == null)
+        {
+            _logger.LogWarning("Refresh failed: unknown token");
+            throw new UnauthorizedAccessException("Invalid refresh token");
+        }
+
+        if (stored.RevokedAt != null)
+        {
+            // Rotated token reused: possible theft — revoke all sessions for the user.
+            _logger.LogWarning("Refresh token reuse detected for user {UserId}; revoking all sessions", stored.UserId);
+            await RevokeAllUserRefreshTokensAsync(stored.UserId);
+            throw new UnauthorizedAccessException("Invalid refresh token");
+        }
+
+        if (stored.ExpiresAt < DateTime.UtcNow)
+        {
+            _logger.LogWarning("Refresh failed: expired token for user {UserId}", stored.UserId);
+            _context.RefreshTokens.Remove(stored);
+            await _context.SaveChangesAsync();
+            throw new UnauthorizedAccessException("Invalid refresh token");
+        }
+
+        var user = await _context.Users
+            .Include(u => u.Company)
+            .FirstOrDefaultAsync(u => u.UserId == stored.UserId);
+        if (user == null)
+        {
+            _context.RefreshTokens.Remove(stored);
+            await _context.SaveChangesAsync();
+            throw new UnauthorizedAccessException("Invalid refresh token");
+        }
+
+        // Rotate: revoke the presented token and issue a fresh pair.
+        var nextRaw = _tokenService.GenerateRefreshToken();
+        var nextHash = HashToken(nextRaw);
+        stored.RevokedAt = DateTime.UtcNow;
+        stored.ReplacedByHash = nextHash;
+        _context.RefreshTokens.Add(new RefreshToken
+        {
+            UserId = user.UserId,
+            TokenHash = nextHash,
+            ExpiresAt = DateTime.UtcNow.Add(_tokenService.RefreshLifetime),
+            CreatedAt = DateTime.UtcNow,
+        });
+        await _context.SaveChangesAsync();
+
+        var accessToken = _tokenService.GenerateToken(user);
+        _logger.LogInformation("Refreshed session for user {UserId}", user.UserId);
+        return BuildAuthResponse(user, accessToken, companyId: user.CompanyId, companyName: user.Company?.Name, refreshToken: nextRaw);
+    }
+
+    public async Task RevokeRefreshTokenAsync(string? refreshToken)
+    {
+        if (string.IsNullOrWhiteSpace(refreshToken)) return;
+        var hash = HashToken(refreshToken.Trim());
+        var stored = await _context.RefreshTokens.FirstOrDefaultAsync(t => t.TokenHash == hash);
+        if (stored == null || stored.RevokedAt != null) return;
+        stored.RevokedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task RevokeAllUserRefreshTokensAsync(Guid userId)
+    {
+        var tokens = await _context.RefreshTokens
+            .Where(t => t.UserId == userId && t.RevokedAt == null)
+            .ToListAsync();
+        foreach (var token in tokens)
+            token.RevokedAt = DateTime.UtcNow;
+        if (tokens.Count > 0)
+            await _context.SaveChangesAsync();
+    }
+
+    private async Task<string> IssueRefreshTokenAsync(Guid userId)
+    {
+        var raw = _tokenService.GenerateRefreshToken();
+        _context.RefreshTokens.Add(new RefreshToken
+        {
+            UserId = userId,
+            TokenHash = HashToken(raw),
+            ExpiresAt = DateTime.UtcNow.Add(_tokenService.RefreshLifetime),
+            CreatedAt = DateTime.UtcNow,
+        });
+        await _context.SaveChangesAsync();
+        return raw;
+    }
+
+    public async Task LogoutAsync(string? jti, string? refreshToken = null)
     {
         if (!string.IsNullOrEmpty(jti))
         {
             _revocationStore.Revoke(jti, DateTime.UtcNow.AddDays(8));
         }
 
-        return Task.CompletedTask;
+        await RevokeRefreshTokenAsync(refreshToken);
     }
 
     public async Task SendEmailConfirmationAsync(string email)
@@ -683,7 +816,8 @@ public class AuthService : IAuthService
         int parsedSkillCount = 0,
         int assessmentCount = 0,
         Guid? companyId = null,
-        string? companyName = null) =>
+        string? companyName = null,
+        string? refreshToken = null) =>
         new(
             user.UserId,
             user.FirstName,
@@ -703,6 +837,7 @@ public class AuthService : IAuthService
             assessmentCount,
             companyId,
             companyName,
-            user.ResumeUrl
+            user.ResumeUrl,
+            refreshToken
         );
 }

@@ -8,8 +8,78 @@ import { isTokenExpired } from '../lib/jwt';
 
 function clearSession() {
   localStorage.removeItem('token');
+  localStorage.removeItem('refreshToken');
   localStorage.removeItem('user');
-  evictClientCache();
+}
+
+function getRefreshToken() {
+  try {
+    return localStorage.getItem('refreshToken');
+  } catch {
+    return null;
+  }
+}
+
+// Paths that must never trigger a refresh attempt (avoids retry loops).
+function isRefreshExempt(path) {
+  return path === '/auth/refresh' || path === '/auth/logout';
+}
+
+// Single-flight refresh: concurrent 401s share one /auth/refresh call.
+let refreshPromise = null;
+function refreshSession() {
+  if (refreshPromise) return refreshPromise;
+  const rt = getRefreshToken();
+  if (!rt) return Promise.resolve(null);
+  refreshPromise = new Promise((resolve) => {
+    let settled = false;
+    const done = (data) => {
+      if (!settled) {
+        settled = true;
+        resolve(data);
+      }
+    };
+    try {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${API_BASE}/auth/refresh`);
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const data = JSON.parse(xhr.responseText);
+            if (data && data.token) localStorage.setItem('token', data.token);
+            if (data && data.refreshToken) localStorage.setItem('refreshToken', data.refreshToken);
+            if (data && (data.userId || data.emailAddress)) {
+              try {
+                localStorage.setItem('user', JSON.stringify(data));
+              } catch {
+                // storage full/blocked: access token is still usable
+              }
+            }
+            done(data);
+          } catch {
+            done(null);
+          }
+        } else {
+          clearSession();
+          redirectToLogin();
+          done(null);
+        }
+      };
+      xhr.onerror = () => {
+        clearSession();
+        redirectToLogin();
+        done(null);
+      };
+      xhr.onabort = () => done(null);
+      xhr.send(JSON.stringify({ refreshToken: rt }));
+    } catch {
+      done(null);
+    }
+  }).finally(() => {
+    refreshPromise = null;
+  });
+  return refreshPromise;
 }
 
 // Redirect to /login after the session is cleared, unless already there
@@ -142,21 +212,32 @@ function evictClientCache() {
 }
 
 function request(path, options = {}) {
-  let token = localStorage.getItem('token');
+  const { _retried, ...rest } = options;
+  // Proactive rotation stays synchronous on the fast path (valid/missing token)
+  // so callers — and the XHR test fakes — observe the request immediately.
+  // Only an expired access token with a refresh token available goes async.
+  const token = localStorage.getItem('token');
   if (token && isTokenExpired(token)) {
+    if (getRefreshToken()) {
+      return refreshSession().then(() => request(path, { ...rest, _retried }));
+    }
     clearSession();
-    token = null;
+    return sendWithToken(null, path, rest, _retried);
   }
+  return sendWithToken(token, path, rest, _retried);
+}
+
+function sendWithToken(token, path, rest, _retried) {
   const headers = {
     'Content-Type': 'application/json',
     ...(token && { Authorization: `Bearer ${token}` }),
-    ...options.headers,
+    ...rest.headers,
   };
 
-  const method = options.method || 'GET';
+  const method = rest.method || 'GET';
   debug(`[API] ${method} ${path}`);
 
-  if (method === 'GET' && !isAuthPath(path) && !isCacheBypass(options)) {
+  if (method === 'GET' && !isAuthPath(path) && !isCacheBypass(rest)) {
     const key = getCacheKey(path, token);
     const cached = readGetCache(key);
     if (cached !== undefined) {
@@ -178,7 +259,7 @@ function request(path, options = {}) {
       debug(`[API] GET ${path} (coalesced)`);
       return pending;
     }
-    const promise = sendRequest(path, options, headers, method, {
+    const promise = sendRequest(path, { ...rest, _retried }, headers, method, {
       key,
       persist: isSessionCacheable(path),
     });
@@ -189,7 +270,7 @@ function request(path, options = {}) {
     );
     return promise;
   }
-  return sendRequest(path, options, headers, method, null);
+  return sendRequest(path, { ...rest, _retried }, headers, method, null);
 }
 
 function sendRequest(path, options, headers, method, cacheInfo) {
@@ -213,10 +294,22 @@ function sendRequest(path, options, headers, method, cacheInfo) {
 
     xhr.onload = () => {
       if (xhr.status === 401) {
-        // If a token exists, the session expired/invalidated → clear and redirect.
-        // If no token exists, this is a failed login attempt (e.g. wrong password) →
-        // fall through to the normal error path so the error message can display.
-        if (localStorage.getItem('token')) {
+        // If a token exists, the session expired/invalidated → try one silent
+        // refresh before giving up. If no token exists, this is a failed login
+        // attempt (e.g. wrong password) → fall through to the normal error path
+        // so the error message can display.
+        if (localStorage.getItem('token') || getRefreshToken()) {
+          if (!options._retried && getRefreshToken() && !isRefreshExempt(path)) {
+            refreshSession().then((data) => {
+              if (data && localStorage.getItem('token')) {
+                request(path, { ...options, _retried: true }).then(resolve, reject);
+              } else {
+                // Refresh failed: session already cleared + redirect issued.
+                resolve(null);
+              }
+            });
+            return;
+          }
           console.warn(`[API] ${method} ${path} → 401: session expired, clearing token`);
           clearSession();
           redirectToLogin();
@@ -291,27 +384,44 @@ function sendRequest(path, options, headers, method, cacheInfo) {
 }
 
 /** Sends multipart/form-data (XHR, no JSON Content-Type). */
-function postForm(path, formData) {
-  let token = localStorage.getItem('token');
+function postForm(path, formData, internal = {}) {
+  const token = localStorage.getItem('token');
   if (token && isTokenExpired(token)) {
+    if (getRefreshToken()) {
+      return refreshSession().then(() => postForm(path, formData, internal));
+    }
     clearSession();
-    token = null;
+    return sendForm(null, path, formData, internal);
   }
+  return sendForm(token, path, formData, internal);
+}
+
+function sendForm(token, path, formData, internal) {
   const method = 'POST';
   debug(`[API] ${method} ${path} (form)`);
 
   return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open(method, `${API_BASE}${path}`);
-    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      const xhr = new XMLHttpRequest();
+      xhr.open(method, `${API_BASE}${path}`);
+      if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
 
-    xhr.onload = () => {
-      if (xhr.status === 401 && localStorage.getItem('token')) {
-        clearSession();
-        redirectToLogin();
-        resolve(null);
-        return;
-      }
+      xhr.onload = () => {
+        if (xhr.status === 401 && (localStorage.getItem('token') || getRefreshToken())) {
+          if (!internal._retried && getRefreshToken() && !isRefreshExempt(path)) {
+            refreshSession().then((data) => {
+              if (data && localStorage.getItem('token')) {
+                postForm(path, formData, { _retried: true }).then(resolve, reject);
+              } else {
+                resolve(null);
+              }
+            });
+            return;
+          }
+          clearSession();
+          redirectToLogin();
+          resolve(null);
+          return;
+        }
       if (xhr.status < 200 || xhr.status >= 300) {
         let message = `HTTP ${xhr.status}`;
         try {
@@ -360,27 +470,44 @@ function postForm(path, formData) {
 }
 
 /** Uploads a file via multipart/form-data (XHR so the fetch patch does not interfere). */
-function upload(path, file) {
-  let token = localStorage.getItem('token');
+function upload(path, file, internal = {}) {
+  const token = localStorage.getItem('token');
   if (token && isTokenExpired(token)) {
+    if (getRefreshToken()) {
+      return refreshSession().then(() => upload(path, file, internal));
+    }
     clearSession();
-    token = null;
+    return sendUpload(null, path, file, internal);
   }
+  return sendUpload(token, path, file, internal);
+}
+
+function sendUpload(token, path, file, internal) {
   const method = 'POST';
   debug(`[API] ${method} ${path}`);
 
   return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open(method, `${API_BASE}${path}`);
-    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      const xhr = new XMLHttpRequest();
+      xhr.open(method, `${API_BASE}${path}`);
+      if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
 
-    xhr.onload = () => {
-      if (xhr.status === 401 && localStorage.getItem('token')) {
-        clearSession();
-        redirectToLogin();
-        resolve(null);
-        return;
-      }
+      xhr.onload = () => {
+        if (xhr.status === 401 && (localStorage.getItem('token') || getRefreshToken())) {
+          if (!internal._retried && getRefreshToken() && !isRefreshExempt(path)) {
+            refreshSession().then((data) => {
+              if (data && localStorage.getItem('token')) {
+                upload(path, file, { _retried: true }).then(resolve, reject);
+              } else {
+                resolve(null);
+              }
+            });
+            return;
+          }
+          clearSession();
+          redirectToLogin();
+          resolve(null);
+          return;
+        }
       if (xhr.status < 200 || xhr.status >= 300) {
         let message = `HTTP ${xhr.status}`;
         try {

@@ -29,6 +29,8 @@ services:
       Jwt__Key: ${JWT_KEY:-}
       Jwt__Issuer: ${JWT_ISSUER:-cebu-upskilling}
       Jwt__Audience: ${JWT_AUDIENCE:-cebu-upskilling-frontend}
+      Jwt__AccessMinutes: ${JWT_ACCESS_MINUTES:-15}
+      Jwt__RefreshDays: ${JWT_REFRESH_DAYS:-30}
       R2__AccountId: ${R2_ACCOUNT_ID:-}
       R2__AccessKeyId: ${R2_ACCESS_KEY_ID:-}
       R2__SecretAccessKey: ${R2_SECRET_ACCESS_KEY:-}

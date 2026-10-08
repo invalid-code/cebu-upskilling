@@ -236,13 +236,31 @@ public class AuthController : BaseEntityController<AppUser>
     }
 
     [HttpPost("logout")]
-    public async Task<IActionResult> Logout()
+    public async Task<IActionResult> Logout([FromBody] LogoutRequest? request)
     {
         var jti = User.FindFirst(JwtRegisteredClaimNames.Jti)?.Value
                   ?? User.FindFirst("jti")?.Value;
-        await _authService.LogoutAsync(jti);
+        await _authService.LogoutAsync(jti, request?.RefreshToken);
         _logger.LogInformation("User logged out (JTI revoked)");
         return Ok(new { message = "Logged out successfully" });
+    }
+
+    [AllowAnonymous]
+    [EnableRateLimiting("auth")]
+    [HttpPost("refresh")]
+    public async Task<ActionResult<AuthResponse>> Refresh(RefreshRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request?.RefreshToken))
+            return Unauthorized(new { error = "Invalid refresh token" });
+        try
+        {
+            var result = await _authService.RefreshAsync(request.RefreshToken);
+            return Ok(result);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Unauthorized(new { error = "Invalid refresh token" });
+        }
     }
 
     [AllowAnonymous]

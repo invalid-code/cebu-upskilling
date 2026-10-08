@@ -13,6 +13,17 @@ export function getInitialUser() {
   }
 }
 
+function persistSession(res) {
+  if (!res) return;
+  if (res.token) localStorage.setItem('token', res.token);
+  if (res.refreshToken) localStorage.setItem('refreshToken', res.refreshToken);
+  try {
+    localStorage.setItem('user', JSON.stringify(res));
+  } catch {
+    // storage full/blocked: tokens are still usable
+  }
+}
+
 export const useAuthStore = create((set) => ({
   user: getInitialUser(),
   loading: false,
@@ -21,16 +32,14 @@ export const useAuthStore = create((set) => ({
 
   login: async (email, password) => {
     const res = await api.post('/auth/login', { emailAddress: email, password });
-    localStorage.setItem('token', res.token);
-    localStorage.setItem('user', JSON.stringify(res));
+    persistSession(res);
     set({ user: res });
     return res;
   },
 
   loginWithGoogle: async (idToken, role) => {
     const res = await api.post('/auth/google', role ? { idToken, role } : { idToken });
-    localStorage.setItem('token', res.token);
-    localStorage.setItem('user', JSON.stringify(res));
+    persistSession(res);
     set({ user: res });
     return res;
   },
@@ -60,37 +69,37 @@ export const useAuthStore = create((set) => ({
       const { resume: _ignored, resumeFile: _ignored2, ...jsonData } = data || {};
       res = await api.post('/auth/register', jsonData);
     }
-    localStorage.setItem('token', res.token);
-    localStorage.setItem('user', JSON.stringify(res));
+    persistSession(res);
     set({ user: res });
     return res;
   },
 
   registerCompany: async (data) => {
     const res = await api.post('/auth/register-company', data);
-    localStorage.setItem('token', res.token);
-    localStorage.setItem('user', JSON.stringify(res));
+    persistSession(res);
     set({ user: res });
     return res;
   },
 
   updateProfile: async (data) => {
     const res = await api.patch('/auth/profile', data);
-    localStorage.setItem('user', JSON.stringify(res));
+    persistSession(res);
     set({ user: res });
     return res;
   },
 
   logout: async () => {
     const token = localStorage.getItem('token');
+    const refreshToken = localStorage.getItem('refreshToken');
     localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
     useNotificationStore.getState()._reset();
     set({ user: null });
 
     if (token) {
       try {
-        await api.post('/auth/logout', undefined, {
+        await api.post('/auth/logout', refreshToken ? { refreshToken } : undefined, {
           headers: { Authorization: `Bearer ${token}` },
         });
       } catch {

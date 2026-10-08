@@ -66,6 +66,15 @@ describe('AuthContext', () => {
     expect(JSON.parse(localStorage.getItem('user')).firstName).toBe('Ada');
   });
 
+  it('login stores the refresh token when the server issues one', async () => {
+    api.post.mockResolvedValue({ token: 'jwt-token', refreshToken: 'rt-1', firstName: 'Ada', role: 'Learner' });
+
+    renderWithAuth();
+    fireEvent.click(screen.getByText('login'));
+
+    await waitFor(() => expect(localStorage.getItem('refreshToken')).toBe('rt-1'));
+  });
+
   it('loginWithGoogle posts the ID token and stores the session', async () => {
     api.post.mockResolvedValue({ token: 'g-token', firstName: 'Ana', role: 'Learner' });
 

@@ -36,7 +36,10 @@ public class AuthAssessmentsSecurityRegressionTests
         public Task<AuthResponse> GoogleAuthAsync(GoogleAuthRequest r) => throw new NotImplementedException();
         public Task<AuthResponse> UpdateProfileAsync(Guid userId, UpdateProfileRequest r) => throw new NotImplementedException();
         public Task<AuthResponse?> GetProfileAsync(Guid userId) => Task.FromResult<AuthResponse?>(null);
-        public Task LogoutAsync(string? jti) => Task.CompletedTask;
+        public Task<AuthResponse> RefreshAsync(string refreshToken) => throw new NotImplementedException();
+        public Task RevokeRefreshTokenAsync(string? refreshToken) => Task.CompletedTask;
+        public Task RevokeAllUserRefreshTokensAsync(Guid userId) => Task.CompletedTask;
+        public Task LogoutAsync(string? jti, string? refreshToken = null) => Task.CompletedTask;
         public Task<bool> ConfirmEmailAsync(string email, string token) => Task.FromResult(false);
         public Task SendEmailConfirmationAsync(string email) => Task.CompletedTask;
         public Task SendPasswordResetAsync(string email) => Task.CompletedTask;

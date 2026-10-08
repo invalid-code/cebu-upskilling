@@ -152,6 +152,70 @@ describe('api client', () => {
     expect(window.location.href).toBe('');
   });
 
+  it('retries once after a silent refresh on 401 when a refresh token exists', async () => {
+    const fresh = makeToken({ exp: future, nonce: 'retry-401' });
+    localStorage.setItem('token', makeToken({ exp: future }));
+    localStorage.setItem('refreshToken', 'rt-1');
+
+    const promise = api.get('/courses');
+    respond(lastRequest(), { status: 401, body: '{"error":"Unauthorized"}' });
+
+    // Silent refresh fires synchronously from the 401 handler.
+    expect(lastRequest().opened.url).toBe(`${API_BASE}/auth/refresh`);
+    expect(lastRequest().sent).toBe('{"refreshToken":"rt-1"}');
+    respond(lastRequest(), {
+      body: JSON.stringify({ token: fresh, refreshToken: 'rt-2', userId: 'u1', emailAddress: 'a@b.c' }),
+    });
+
+    // Retry happens on the next microtask with the rotated pair.
+    await new Promise((r) => setTimeout(r, 0));
+    expect(lastRequest().opened.url).toBe(`${API_BASE}/courses`);
+    expect(lastRequest().headers.Authorization).toBe(`Bearer ${fresh}`);
+    respond(lastRequest(), { body: '[]' });
+
+    await expect(promise).resolves.toEqual([]);
+    expect(localStorage.getItem('token')).toBe(fresh);
+    expect(localStorage.getItem('refreshToken')).toBe('rt-2');
+  });
+
+  it('clears the session when the silent refresh fails on 401', async () => {
+    localStorage.setItem('token', makeToken({ exp: future }));
+    localStorage.setItem('refreshToken', 'rt-stale');
+    localStorage.setItem('user', '{}');
+
+    const promise = api.get('/courses');
+    respond(lastRequest(), { status: 401, body: '{"error":"Unauthorized"}' });
+
+    expect(lastRequest().opened.url).toBe(`${API_BASE}/auth/refresh`);
+    respond(lastRequest(), { status: 401, body: '{"error":"Invalid refresh token"}' });
+
+    await expect(promise).resolves.toBeNull();
+    expect(localStorage.getItem('token')).toBeNull();
+    expect(localStorage.getItem('refreshToken')).toBeNull();
+    expect(window.location.href).toBe('/login');
+  });
+
+  it('proactively refreshes an expired access token before sending', async () => {
+    const fresh = makeToken({ exp: future, nonce: 'proactive' });
+    localStorage.setItem('token', makeToken({ exp: past }));
+    localStorage.setItem('refreshToken', 'rt-1');
+
+    const promise = api.get('/courses');
+
+    // First XHR is the proactive refresh, not the data request.
+    expect(lastRequest().opened.url).toBe(`${API_BASE}/auth/refresh`);
+    respond(lastRequest(), {
+      body: JSON.stringify({ token: fresh, refreshToken: 'rt-2' }),
+    });
+
+    await new Promise((r) => setTimeout(r, 0));
+    expect(lastRequest().opened.url).toBe(`${API_BASE}/courses`);
+    expect(lastRequest().headers.Authorization).toBe(`Bearer ${fresh}`);
+    respond(lastRequest(), { body: '[]' });
+
+    await expect(promise).resolves.toEqual([]);
+  });
+
   it('stringifies bodies for post, put, and patch', () => {
     api.post('/enrollments', { courseId: 1 });
     expect(lastRequest().opened.method).toBe('POST');

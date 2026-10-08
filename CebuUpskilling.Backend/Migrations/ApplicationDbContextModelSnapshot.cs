@@ -904,6 +904,43 @@ namespace CebuUpskilling.Backend.Migrations
                     b.ToTable("PostSkills");
                 });
 
+            modelBuilder.Entity("CebuUpskilling.Backend.Entities.RefreshToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ReplacedByHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.HasIndex("UserId", "ExpiresAt");
+
+                    b.ToTable("RefreshTokens");
+                });
+
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.RoleMarketTrend", b =>
                 {
                     b.Property<string>("TargetRole")
@@ -1353,6 +1390,17 @@ namespace CebuUpskilling.Backend.Migrations
                     b.Navigation("Post");
 
                     b.Navigation("Skill");
+                });
+
+            modelBuilder.Entity("CebuUpskilling.Backend.Entities.RefreshToken", b =>
+                {
+                    b.HasOne("CebuUpskilling.Backend.Entities.AppUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.RoleSkill", b =>

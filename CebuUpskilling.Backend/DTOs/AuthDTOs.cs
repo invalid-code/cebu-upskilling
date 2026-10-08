@@ -65,7 +65,8 @@ public record AuthResponse(
     int AssessmentCount = 0,
     Guid? CompanyId = null,
     string? CompanyName = null,
-    string? ResumeUrl = null
+    string? ResumeUrl = null,
+    string? RefreshToken = null
 );
 
 public record CompanyRegisterResponse(
@@ -76,7 +77,8 @@ public record CompanyRegisterResponse(
     string Role,
     Guid CompanyId,
     string CompanyName,
-    string Token
+    string Token,
+    string? RefreshToken = null
 );
 
 public record EmailRequest(
@@ -92,4 +94,12 @@ public record ResetPasswordRequest(
     [Required] string Email,
     [Required] string Token,
     [Required, MinLength(6)] string NewPassword
+);
+
+public record RefreshRequest(
+    [Required] string RefreshToken
+);
+
+public record LogoutRequest(
+    string? RefreshToken = null
 );

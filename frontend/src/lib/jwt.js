@@ -26,12 +26,13 @@ export function isTokenExpired(token, leewaySeconds = 0) {
   return payload.exp <= nowSeconds - leewaySeconds;
 }
 
-// Returns true unless a stored token exists and is expired. A missing token
-// is treated as a valid (non-expired) session so callers can decide based on
-// the presence of `user` instead. If an expired token is found it is cleared.
+// Returns true unless the session is unrecoverable. An expired access token is
+// still a valid session when a refresh token exists: the API client will rotate
+// it silently. Only clear when there is no refresh token to recover with.
 export function hasValidSession() {
   const token = localStorage.getItem('token');
   if (token && isTokenExpired(token)) {
+    if (localStorage.getItem('refreshToken')) return true;
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     return false;

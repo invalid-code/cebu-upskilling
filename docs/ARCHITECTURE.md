@@ -28,7 +28,7 @@ ForwardedHeaders -> SecurityHeaders -> ExceptionHandler -> CORS -> StaticFiles
 - **ExceptionHandler** (`Handlers/GlobalExceptionHandler.cs`): `KeyNotFound→404`, `UnauthorizedAccessException→401`, `InvalidOperationException→400`, S3→503 sanitized, else `500 {error}`.
 - **CORS**: explicit origins, methods `GET,POST,PUT,PATCH,DELETE`, headers `Authorization, Content-Type`, no credentials/wildcards, 1h preflight cache.
 - **RateLimiter** (`Options/RateLimitingOptions.cs`): per-IP fixed windows — global 120/60s, auth group 10/60s, queue 0 → `429`.
-- **Auth**: JWT HMAC-SHA256 (fail-fast when `Jwt:Key` missing/short), 7-day expiry, claims `NameIdentifier/Email/Name/Role/JTI`.
+- **Auth**: JWT HMAC-SHA256 (fail-fast when `Jwt:Key` missing/short), 15-min access + 30-day rotating refresh tokens, claims `NameIdentifier/Email/Name/Role/JTI`.
 - **RevokedToken** (`Middleware/RevokedTokenMiddleware.cs`): rejects logged-out JTIs (`ITokenRevocationStore`, in-memory 8-day TTL — single instance; needs Redis/DB for multi-instance prod).
 - **DuplicateRequestCache** (`Middleware/DuplicateRequestCacheMiddleware.cs`): short-lived (15s default) per-user `IMemoryCache` for identical `GET /api/*` JSON responses (`X-Cache: HIT/MISS`); writes evict the caller's entries.
 - **ServiceCache** (`Services/ServiceCacheKeys.cs`, `Options/ServiceCacheOptions.cs`): `IMemoryCache` inside services — market trends (4h, generation-bumped on refresh), per-user gaps/pathway/courses-page (2min), weekly stats (5min), Gemini resume-parse/course-outline by input hash (24h; failures and empty AI results never cached). Nulls (missing learner/role) are never cached.
@@ -46,7 +46,7 @@ ForwardedHeaders -> SecurityHeaders -> ExceptionHandler -> CORS -> StaticFiles
 
 | Service | Responsibility |
 |---------|---------------|
-| `AuthService` (+ `JwtTokenService`) | Register (transactional user+learner), company register, login, Google provisioning, email confirm/reset, profile; best-effort emails |
+| `AuthService` (+ `JwtTokenService`) | Register (transactional user+learner), company register, login, Google provisioning, refresh rotation (reuse detection), email confirm/reset, profile; best-effort emails |
 | `JobseekerSkillParserAgent` | Resume → Gemini skill parse → skill upsert (unique-index race-safe) → `LearnerSkill` + assessment stubs; full assessment lifecycle |
 | `GoogleAiService` | Gemini HTTP client; all failures → `null`, callers degrade (empty skills, fallback scores, 502/503) |
 | `SkillGapService` | Gap groups per applied role (fallback `TargetRole`) with match % |

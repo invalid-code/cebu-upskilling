@@ -39,6 +39,82 @@ function isAuthPath(path) {
   return path === '/auth' || (typeof path === 'string' && path.startsWith('/auth/'));
 }
 
+function isRefreshExempt(path) {
+  return path === '/auth/refresh' || path === '/auth/logout';
+}
+
+// Best-effort JWT expiry check (no validation — the server stays authoritative).
+// Opaque/non-JWT tokens are treated as non-expired.
+function isTokenExpired(token) {
+  if (!token || typeof token !== 'string') return false;
+  const parts = token.split('.');
+  if (parts.length !== 3) return false;
+  try {
+    let payload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    while (payload.length % 4) payload += '=';
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
+    let output = '';
+    let i = 0;
+    const clean = payload.replace(/[^A-Za-z0-9+/=]/g, '');
+    while (i < clean.length) {
+      const enc1 = chars.indexOf(clean.charAt(i++));
+      const enc2 = chars.indexOf(clean.charAt(i++));
+      const enc3 = chars.indexOf(clean.charAt(i++));
+      const enc4 = chars.indexOf(clean.charAt(i++));
+      const chr1 = (enc1 << 2) | (enc2 >> 4);
+      const chr2 = ((enc2 & 15) << 4) | (enc3 >> 2);
+      const chr3 = ((enc3 & 3) << 6) | enc4;
+      output += String.fromCharCode(chr1);
+      if (enc3 !== 64) output += String.fromCharCode(chr2);
+      if (enc4 !== 64) output += String.fromCharCode(chr3);
+    }
+    const decoded = JSON.parse(decodeURIComponent(output.split('').map((c) => `%${(`00${c.charCodeAt(0).toString(16)}`).slice(-2)}`).join('')));
+    return typeof decoded.exp === 'number' && decoded.exp <= Date.now() / 1000;
+  } catch {
+    return false;
+  }
+}
+
+// Single-flight silent refresh: concurrent 401s share one /auth/refresh call.
+// Stores the rotated pair and returns it, or null when recovery failed.
+let refreshPromise = null;
+async function refreshSession() {
+  if (refreshPromise) return refreshPromise;
+  refreshPromise = (async () => {
+    let stored = null;
+    try {
+      stored = await SecureStore.getItemAsync('refreshToken');
+    } catch {
+      stored = null;
+    }
+    if (!stored) return null;
+    try {
+      const response = await fetch(`${API_URL}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: stored }),
+      });
+      if (!response.ok) return null;
+      const text = await response.text();
+      const data = text ? JSON.parse(text) : null;
+      if (!data || !data.token) return null;
+      await SecureStore.setItemAsync('token', data.token);
+      if (data.refreshToken) await SecureStore.setItemAsync('refreshToken', data.refreshToken);
+      if (data.userId || data.emailAddress) {
+        await SecureStore.setItemAsync('user', JSON.stringify(data)).catch(() => {});
+      }
+      logger.debug('[Auth] Session refreshed silently');
+      return data;
+    } catch (error) {
+      logger.warn('[Auth] Silent refresh failed:', error?.message || error);
+      return null;
+    }
+  })().finally(() => {
+    refreshPromise = null;
+  });
+  return refreshPromise;
+}
+
 function isPersistable(path) {
   if (typeof path !== 'string') return false;
   const clean = path.split('?')[0];
@@ -108,7 +184,7 @@ async function evictCaches() {
 async function request(path, options = {}) {
   const method = (options.method || 'GET').toUpperCase();
   const hasBody = options.body != null;
-  const { bypassCache, ...fetchOptions } = options;
+  const { bypassCache, _retried, ...fetchOptions } = options;
   logger.debug(`[API] ${method} ${path}`);
   // Set by AuthProvider: clears the signed-in user when the server rejects
   // the token (mirrors the web client's 401 handling).
@@ -118,6 +194,22 @@ async function request(path, options = {}) {
     token = await SecureStore.getItemAsync('token');
   } catch {
     token = null;
+  }
+  if (token && isTokenExpired(token)) {
+    let rt = null;
+    try {
+      rt = await SecureStore.getItemAsync('refreshToken');
+    } catch {
+      rt = null;
+    }
+    if (rt) {
+      await refreshSession();
+      try {
+        token = await SecureStore.getItemAsync('token');
+      } catch {
+        token = null;
+      }
+    }
   }
   if (method === 'GET' && !isAuthPath(path) && bypassCache !== true) {
     const key = getCacheKey(path, token);
@@ -142,7 +234,7 @@ async function request(path, options = {}) {
     const promise = sendRequest(path, fetchOptions, method, hasBody, onUnauthorized, token, {
       key,
       persist: isPersistable(path),
-    });
+    }, _retried);
     inflightGets.set(key, promise);
     promise.then(
       () => inflightGets.delete(key),
@@ -150,12 +242,12 @@ async function request(path, options = {}) {
     );
     return promise;
   }
-  const data = await sendRequest(path, fetchOptions, method, hasBody, onUnauthorized, token, null);
+  const data = await sendRequest(path, fetchOptions, method, hasBody, onUnauthorized, token, null, _retried);
   if (method !== 'GET') await evictCaches();
   return data;
 }
 
-async function sendRequest(path, fetchOptions, method, hasBody, onUnauthorized, token, cacheInfo) {
+async function sendRequest(path, fetchOptions, method, hasBody, onUnauthorized, token, cacheInfo, retried = false) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 30000);
   try {
@@ -178,8 +270,24 @@ async function sendRequest(path, fetchOptions, method, hasBody, onUnauthorized, 
     }
     if (!response.ok) {
       logger.warn(`[API] ${method} ${path} → ${response.status}: ${data?.error || ''}`);
-      if (response.status === 401 && typeof onUnauthorized === 'function') {
-        try { await onUnauthorized(); } catch { /* session cleanup is best-effort */ }
+      if (response.status === 401) {
+        // One silent refresh before treating the session as dead. The refresh
+        // and logout endpoints themselves never retry (avoids loops).
+        if (!retried && !isRefreshExempt(path)) {
+          const refreshed = await refreshSession();
+          if (refreshed) {
+            let freshToken = null;
+            try {
+              freshToken = await SecureStore.getItemAsync('token');
+            } catch {
+              freshToken = null;
+            }
+            return sendRequest(path, fetchOptions, method, hasBody, onUnauthorized, freshToken, cacheInfo, true);
+          }
+        }
+        if (typeof onUnauthorized === 'function') {
+          try { await onUnauthorized(); } catch { /* session cleanup is best-effort */ }
+        }
       }
       const error = new Error(data?.error || `Request failed (${response.status})`);
       error.status = response.status;
@@ -217,6 +325,7 @@ function AuthProvider({ children }) {
     request.onUnauthorized = async () => {
       try {
         await SecureStore.deleteItemAsync('token');
+        await SecureStore.deleteItemAsync('refreshToken');
         await SecureStore.deleteItemAsync('user');
       } finally {
         setUser(null);
@@ -232,20 +341,32 @@ function AuthProvider({ children }) {
       } catch {
         SecureStore.deleteItemAsync('user').catch(() => {});
         SecureStore.deleteItemAsync('token').catch(() => {});
+        SecureStore.deleteItemAsync('refreshToken').catch(() => {});
         logger.warn('[Auth] Stored session was corrupt, cleared');
       }
     }).catch((error) => logger.warn('[Auth] Failed to restore session:', error?.message || error)).finally(() => setChecking(false));
     return () => { request.onUnauthorized = null; };
   }, []);
-  const login = async (email, password) => { const cleanEmail = (email || '').trim(); const data = await request('/auth/login', { method: 'POST', body: JSON.stringify({ emailAddress: cleanEmail, password }) }); await SecureStore.setItemAsync('token', data.token); await SecureStore.setItemAsync('user', JSON.stringify(data)); setUser(data); logger.info(`[Auth] Signed in as ${data.emailAddress || data.email}`); };
+  const login = async (email, password) => { const cleanEmail = (email || '').trim(); const data = await request('/auth/login', { method: 'POST', body: JSON.stringify({ emailAddress: cleanEmail, password }) }); await SecureStore.setItemAsync('token', data.token); if (data.refreshToken) await SecureStore.setItemAsync('refreshToken', data.refreshToken); await SecureStore.setItemAsync('user', JSON.stringify(data)); setUser(data); logger.info(`[Auth] Signed in as ${data.emailAddress || data.email}`); };
   const logout = async () => {
     try {
       const token = await SecureStore.getItemAsync('token');
       if (token) {
-        await fetch(`${API_URL}/auth/logout`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
+        let refreshToken = null;
+        try {
+          refreshToken = await SecureStore.getItemAsync('refreshToken');
+        } catch {
+          refreshToken = null;
+        }
+        await fetch(`${API_URL}/auth/logout`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: refreshToken ? JSON.stringify({ refreshToken }) : undefined,
+        }).catch(() => {});
       }
     } finally {
       await SecureStore.deleteItemAsync('token');
+      await SecureStore.deleteItemAsync('refreshToken');
       await SecureStore.deleteItemAsync('user');
       setUser(null);
       await evictCaches();

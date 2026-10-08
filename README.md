@@ -39,7 +39,7 @@ Career pathway platform connecting learners and employers in Cebu — skill-gap 
 - View business stats: company summary, talent pool, skill demand/supply, job posting counts.
 
 **Platform**
-- JWT auth (HMAC-SHA256, 7-day expiry, JTI revocation), role-based authorization (`Learner` / `Recruiter`), rate-limiting (global 120/60s, auth 10/60s), health check, Serilog logging.
+- JWT auth (HMAC-SHA256, 15-min access + 30-day rotating refresh tokens, JTI revocation), role-based authorization (`Learner` / `Recruiter`), rate-limiting (global 120/60s, auth 10/60s), health check, Serilog logging.
 
 ---
 
@@ -229,6 +229,7 @@ All backend options bind from `appsettings.json` → `appsettings.Development.js
 | **Connection string** | `ConnectionStrings__DefaultConnection` | `""` (set via secrets) | yes for DB |
 | **JWT key** | `Jwt__Key` | `""` | **yes** (≥32 chars) |
 | **JWT issuer/audience** | `Jwt__Issuer` / `Jwt__Audience` | `cebu-upskilling` / `cebu-upskilling-frontend` | — |
+| **JWT lifetimes** | `Jwt__AccessMinutes` / `Jwt__RefreshDays` | `15` / `30` | — |
 | **CORS origins** | `Cors__AllowedOrigins` / `CORS_ALLOWED_ORIGINS` | `http://localhost:5173` | — |
 | **Frontend base URL** | `Frontend__BaseUrl` | `http://localhost:5173` (compose: `FRONTEND_BASE_URL`) | for email links |
 | **R2 Account** | `R2__AccountId` | `""` | for media upload |

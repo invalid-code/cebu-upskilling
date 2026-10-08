@@ -18,6 +18,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<Exercise> Exercises => Set<Exercise>();
     public DbSet<ExerciseContent> ExerciseContents => Set<ExerciseContent>();
     public DbSet<AppUser> Users => Set<AppUser>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<Learner> Learners => Set<Learner>();
     public DbSet<LearnerStudyCourse> LearnerStudyCourses => Set<LearnerStudyCourse>();
     public DbSet<Company> Companies => Set<Company>();
@@ -154,6 +155,19 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<AppUser>()
             .HasIndex(u => u.EmailAddress)
             .IsUnique();
+
+        modelBuilder.Entity<RefreshToken>()
+            .HasOne(t => t.User)
+            .WithMany()
+            .HasForeignKey(t => t.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<RefreshToken>()
+            .HasIndex(t => t.TokenHash)
+            .IsUnique();
+
+        modelBuilder.Entity<RefreshToken>()
+            .HasIndex(t => new { t.UserId, t.ExpiresAt });
 
         // Check-then-insert races (concurrent double-apply / double-register /
         // concurrent skill parses) must fail at the database, not silently

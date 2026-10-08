@@ -7,7 +7,7 @@ Related: [Backend README](../CebuUpskilling.Backend/README.md) · [Architecture]
 ## Auth
 
 All endpoints require `Authorization: Bearer <JWT>` unless marked **public**.
-JWT: HMAC-SHA256, 7-day expiry, JTI revocation on logout (8-day TTL, single-instance in-memory store).
+JWT: HMAC-SHA256, 15-min access expiry (`Jwt:AccessMinutes`), 30-day rotating refresh tokens (`Jwt:RefreshDays`, SHA-256 hash stored, reuse revokes all sessions). JTI revocation on logout (8-day TTL, single-instance in-memory store).
 Rate limiting: global 120 req/60s per IP; auth group 10 req/60s per IP.
 
 | Method | Path | Access | Notes |
@@ -18,7 +18,8 @@ Rate limiting: global 120 req/60s per IP; auth group 10 req/60s per IP.
 | POST | `/api/auth/google` | public | `{ idToken, role? }` — new accounts provisioned (Learner creates profile) |
 | GET | `/api/auth/profile` | auth | Returns profile (+ fresh token) |
 | PATCH | `/api/auth/profile` | auth | Update profile |
-| POST | `/api/auth/logout` | auth | Revokes current JTI |
+| POST | `/api/auth/logout` | auth | Revokes current JTI (+ `{ refreshToken }` in body revokes that session too) |
+| POST | `/api/auth/refresh` | public | `{ refreshToken }` → rotates to a new access + refresh pair; reuse of a rotated token revokes all user sessions |
 | POST | `/api/auth/confirm-email` | public | `{ email, token }` (24h token) |
 | POST | `/api/auth/resend-confirmation` | public | `{ email }` — always 200 (no account enumeration) |
 | POST | `/api/auth/forgot-password` | public | `{ email }` — always 200 |
