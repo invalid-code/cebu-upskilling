@@ -20,6 +20,16 @@ using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Error tracking is optional: without a Sentry DSN the app runs unchanged.
+if (!string.IsNullOrWhiteSpace(builder.Configuration["Sentry:Dsn"]))
+{
+    builder.WebHost.UseSentry(options =>
+    {
+        options.TracesSampleRate = 0.1;
+        options.SendDefaultPii = false;
+    });
+}
+
 builder.Host.UseSerilog((context, configuration) =>
     configuration.ReadFrom.Configuration(context.Configuration));
 

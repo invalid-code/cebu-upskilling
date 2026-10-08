@@ -40,6 +40,7 @@ services:
       GoogleAi__Model: ${GOOGLE_AI_MODEL:-gemini-2.5-flash}
       GoogleAi__BaseUrl: ${GOOGLE_AI_BASE_URL:-https://generativelanguage.googleapis.com/v1beta}
       GoogleOAuth__ClientId: ${GOOGLE_OAUTH_CLIENT_ID:-}
+      Sentry__Dsn: ${SENTRY_DSN:-}
       Cors__AllowedOrigins: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173,https://cebu-upskilling.vercel.app}
       Frontend__BaseUrl: ${FRONTEND_BASE_URL:-https://cebu-upskilling.vercel.app}
     ports:

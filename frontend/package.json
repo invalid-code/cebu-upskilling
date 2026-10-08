@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^0.10.18",
+    "@sentry/react": "^11.5.0",
     "dompurify": "^3.4.16",
     "lucide-react": "^1.28.0",
     "mammoth": "^1.12.1",
