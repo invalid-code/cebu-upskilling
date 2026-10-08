@@ -25,6 +25,7 @@ public class JobseekerSkillParserAgent : IJobseekerSkillParserAgent
     private readonly IAppUserRepository _users;
     private readonly IRoleSkillRepository _roleSkills;
     private readonly IAssessmentQuestionRepository _assessmentQuestions;
+    private readonly IAnalyticsService _analytics;
     private readonly ILogger<JobseekerSkillParserAgent> _logger;
 
     private static readonly Dictionary<int, string> LevelLabels = new()
@@ -45,7 +46,8 @@ public class JobseekerSkillParserAgent : IJobseekerSkillParserAgent
         IAppUserRepository users,
         IRoleSkillRepository roleSkills,
         IAssessmentQuestionRepository assessmentQuestions,
-        ILogger<JobseekerSkillParserAgent> logger)
+        ILogger<JobseekerSkillParserAgent> logger,
+        IAnalyticsService? analyticsService = null)
     {
         _ai = ai;
         _skills = skills;
@@ -55,6 +57,7 @@ public class JobseekerSkillParserAgent : IJobseekerSkillParserAgent
         _users = users;
         _roleSkills = roleSkills;
         _assessmentQuestions = assessmentQuestions;
+        _analytics = analyticsService ?? new NoOpAnalyticsService();
         _logger = logger;
     }
 
@@ -639,6 +642,14 @@ public class JobseekerSkillParserAgent : IJobseekerSkillParserAgent
 
         _logger.LogInformation("Assessment {AssessmentId} submitted: {Correct}/{Total} ({Percent}%), level {Level}",
             assessmentId, correctAnswers, totalQuestions, scorePercent, scoredLevel);
+
+        await _analytics.TrackAsync("assessment_completed", userId, new Dictionary<string, object?>
+        {
+            ["assessmentId"] = assessment.LearnerAssessmentId,
+            ["skillId"] = assessment.SkillId,
+            ["scorePercent"] = scorePercent,
+            ["scoredLevel"] = scoredLevel,
+        });
 
         return new SubmitAssessmentResponse(
             AssessmentId: assessment.LearnerAssessmentId,

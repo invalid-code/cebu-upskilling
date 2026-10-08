@@ -26,17 +26,20 @@ public class EnrollmentsService : IEnrollmentsService
     private readonly ILearnerRepository _learners;
     private readonly ICourseRepository _courses;
     private readonly ILearnerStudyCourseRepository _learnerStudyCourses;
+    private readonly IAnalyticsService _analytics;
     private readonly ILogger<EnrollmentsService> _logger;
 
     public EnrollmentsService(
         ILearnerRepository learners,
         ICourseRepository courses,
         ILearnerStudyCourseRepository learnerStudyCourses,
-        ILogger<EnrollmentsService> logger)
+        ILogger<EnrollmentsService> logger,
+        IAnalyticsService? analyticsService = null)
     {
         _learners = learners;
         _courses = courses;
         _learnerStudyCourses = learnerStudyCourses;
+        _analytics = analyticsService ?? new NoOpAnalyticsService();
         _logger = logger;
     }
 
@@ -103,6 +106,10 @@ public class EnrollmentsService : IEnrollmentsService
         }
 
         _logger.LogInformation("User {UserId} enrolled in course {CourseId}", userId, courseId);
+        await _analytics.TrackAsync("enrollment_completed", userId, new Dictionary<string, object?>
+        {
+            ["courseId"] = courseId,
+        });
         return new EnrollOutcome(true, CourseId: courseId, Started: enrollment.Started);
     }
 }

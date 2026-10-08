@@ -22,6 +22,7 @@
     "mammoth": "^1.12.1",
     "marked": "^18.0.11",
     "pdfjs-dist": "^6.2.108",
+    "posthog-js": "^1.438.2",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.2",

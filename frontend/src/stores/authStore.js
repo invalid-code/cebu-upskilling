@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { api } from '../api/client';
 import { hasValidSession } from '../lib/jwt';
+import { identifyUser, resetAnalytics } from '../lib/analytics';
 import { useNotificationStore } from './notificationStore';
 
 export function getInitialUser() {
@@ -22,6 +23,14 @@ function persistSession(res) {
   } catch {
     // storage full/blocked: tokens are still usable
   }
+  identifyUser(res);
+}
+
+function clearSession() {
+  localStorage.removeItem('token');
+  localStorage.removeItem('refreshToken');
+  localStorage.removeItem('user');
+  resetAnalytics();
 }
 
 export const useAuthStore = create((set) => ({
@@ -91,9 +100,7 @@ export const useAuthStore = create((set) => ({
   logout: async () => {
     const token = localStorage.getItem('token');
     const refreshToken = localStorage.getItem('refreshToken');
-    localStorage.removeItem('token');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user');
+    clearSession();
     useNotificationStore.getState()._reset();
     set({ user: null });
 

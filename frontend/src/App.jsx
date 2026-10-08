@@ -1,4 +1,6 @@
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
+import { trackPageview } from './lib/analytics';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { EnrollmentsProvider } from './context/EnrollmentsContext';
 import { ApplicationsProvider } from './context/ApplicationsContext';
@@ -85,9 +87,18 @@ function RootRoute() {
   return <LandingPage />;
 }
 
+function RouteTracker() {
+  const location = useLocation();
+  useEffect(() => {
+    trackPageview(location.pathname);
+  }, [location.pathname]);
+  return null;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
+      <RouteTracker />
       <AuthProvider>
         <CookieConsentProvider>
           <EnrollmentsProvider>

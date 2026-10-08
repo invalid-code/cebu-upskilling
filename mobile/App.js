@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
@@ -15,6 +15,39 @@ if (process.env.EXPO_PUBLIC_SENTRY_DSN) {
     tracesSampleRate: 0.1,
     sendDefaultPii: false,
   });
+}
+
+// ---- Product analytics (PostHog, opt-in) ----
+// Off by default; the Account screen toggle persists the choice in
+// SecureStore. Null client when no key is configured (dev without .env.local).
+import { PostHog } from 'posthog-react-native';
+const posthogClient = process.env.EXPO_PUBLIC_POSTHOG_KEY
+  ? new PostHog(process.env.EXPO_PUBLIC_POSTHOG_KEY, {
+      host: process.env.EXPO_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com',
+    })
+  : null;
+const ANALYTICS_FLAG = 'analytics_opt_in';
+if (posthogClient) posthogClient.optOut();
+async function restoreAnalyticsOptIn() {
+  if (!posthogClient) return false;
+  try {
+    const enabled = await SecureStore.getItemAsync(ANALYTICS_FLAG);
+    if (enabled === '1') posthogClient.optIn();
+    return enabled === '1';
+  } catch { return false; }
+}
+async function setAnalyticsOptIn(enabled) {
+  try {
+    await SecureStore.setItemAsync(ANALYTICS_FLAG, enabled ? '1' : '0');
+  } catch { /* non-fatal */ }
+  if (!posthogClient) return;
+  if (enabled) posthogClient.optIn();
+  else posthogClient.optOut();
+}
+function identifyAnalyticsUser(data) {
+  if (!posthogClient || !data) return;
+  const id = data.userId || data.UserId || data.id;
+  if (id) posthogClient.identify(String(id));
 }
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000/api';
@@ -342,8 +375,7 @@ function AuthProvider({ children }) {
       evictCaches().catch(() => {});
       logger.info('[Auth] Session expired, signed out');
     };
-    SecureStore.getItemAsync('user').then((value) => {
-      if (!value) { logger.debug('[Auth] No stored session'); return; }
+    SecureStore.getItemAsync('user').then((value) => {      if (!value) { logger.debug('[Auth] No stored session'); return; }
       try {
         setUser(JSON.parse(value));
         logger.info('[Auth] Session restored from secure storage');
@@ -354,9 +386,10 @@ function AuthProvider({ children }) {
         logger.warn('[Auth] Stored session was corrupt, cleared');
       }
     }).catch((error) => logger.warn('[Auth] Failed to restore session:', error?.message || error)).finally(() => setChecking(false));
+    restoreAnalyticsOptIn().catch(() => {});
     return () => { request.onUnauthorized = null; };
   }, []);
-  const login = async (email, password) => { const cleanEmail = (email || '').trim(); const data = await request('/auth/login', { method: 'POST', body: JSON.stringify({ emailAddress: cleanEmail, password }) }); await SecureStore.setItemAsync('token', data.token); if (data.refreshToken) await SecureStore.setItemAsync('refreshToken', data.refreshToken); await SecureStore.setItemAsync('user', JSON.stringify(data)); setUser(data); logger.info(`[Auth] Signed in as ${data.emailAddress || data.email}`); };
+  const login = async (email, password) => { const cleanEmail = (email || '').trim(); const data = await request('/auth/login', { method: 'POST', body: JSON.stringify({ emailAddress: cleanEmail, password }) }); await SecureStore.setItemAsync('token', data.token); if (data.refreshToken) await SecureStore.setItemAsync('refreshToken', data.refreshToken); await SecureStore.setItemAsync('user', JSON.stringify(data)); setUser(data); identifyAnalyticsUser(data); logger.info(`[Auth] Signed in as ${data.emailAddress || data.email}`); };
   const logout = async () => {
     try {
       const token = await SecureStore.getItemAsync('token');
@@ -378,6 +411,7 @@ function AuthProvider({ children }) {
       await SecureStore.deleteItemAsync('refreshToken');
       await SecureStore.deleteItemAsync('user');
       setUser(null);
+      try { posthogClient?.reset(); } catch { /* non-fatal */ }
       await evictCaches();
       logger.info('[Auth] Signed out');
     }
@@ -487,7 +521,7 @@ function CompanyDetailScreen({ companyId, onClose }) {
 }
 function LearnScreen() { return <ListScreen title="Learn" endpoint="/courses" empty="No courses available." renderItem={(item, index) => <Card key={item.courseId || index}><Text style={styles.cardEyebrow}>{item.mode || 'ONLINE'}</Text><Text style={styles.cardTitle}>{item.name || item.title}</Text><Text style={styles.cardText}>{item.description || 'Build a practical skill for your target role.'}</Text><Button secondary onPress={() => Alert.alert('Course opened', `${item.name || 'This course'} is ready — happy learning!`)}>Open course</Button></Card>} />; }
 function ApplicationsScreen() { return <ListScreen title="Applications" endpoint="/applications" empty="No applications yet." renderItem={(item, index) => <Card key={item.applicationId || index}><Text style={styles.cardTitle}>{item.jobTitle || item.job?.title || 'Job application'}</Text><Text style={styles.cardText}>Status: {item.status || 'Submitted'}</Text></Card>} />; }
-function AccountScreen() { const { user, logout } = useAuth(); const [company, setCompany] = useState(null); useEffect(() => { if (user?.companyId == null) return; let cancelled = false; request(`/companies/${user.companyId}`).then((c) => { if (!cancelled) setCompany(c); }).catch(() => {}); return () => { cancelled = true; }; }, [user?.companyId]); return <Screen><Header eyebrow="ACCOUNT" title="Your profile" subtitle="Keep your pathway details up to date." /><Card><Text style={styles.cardTitle}>{user?.firstName} {user?.lastName}</Text><Text style={styles.cardText}>{user?.emailAddress || user?.email}</Text><Text style={styles.cardText}>Target role: {user?.targetRole || 'Not set'}</Text>{company && <View style={{ marginTop: 10 }}><CompanyLogo name={company.name} url={company.logoUrl} size={40} /><Text style={styles.cardTitle}>{company.name}</Text><Text style={styles.cardText}>{[company.industry, company.companySize ? `${company.companySize} employees` : '', company.location].filter(Boolean).join(' · ') || 'Your company'}</Text></View>}</Card><Button secondary onPress={logout}>Sign out</Button></Screen>; }
+function AccountScreen() { const { user, logout } = useAuth(); const [company, setCompany] = useState(null); const [analyticsEnabled, setAnalyticsEnabled] = useState(false); useEffect(() => { if (user?.companyId == null) return; let cancelled = false; request(`/companies/${user.companyId}`).then((c) => { if (!cancelled) setCompany(c); }).catch(() => {}); return () => { cancelled = true; }; }, [user?.companyId]); useEffect(() => { SecureStore.getItemAsync('analytics_opt_in').then((v) => setAnalyticsEnabled(v === '1')).catch(() => {}); }, []); const toggleAnalytics = async (value) => { setAnalyticsEnabled(value); await setAnalyticsOptIn(value); }; return <Screen><Header eyebrow="ACCOUNT" title="Your profile" subtitle="Keep your pathway details up to date." /><Card><Text style={styles.cardTitle}>{user?.firstName} {user?.lastName}</Text><Text style={styles.cardText}>{user?.emailAddress || user?.email}</Text><Text style={styles.cardText}>Target role: {user?.targetRole || 'Not set'}</Text>{company && <View style={{ marginTop: 10 }}><CompanyLogo name={company.name} url={company.logoUrl} size={40} /><Text style={styles.cardTitle}>{company.name}</Text><Text style={styles.cardText}>{[company.industry, company.companySize ? `${company.companySize} employees` : '', company.location].filter(Boolean).join(' · ') || 'Your company'}</Text></View>}</Card>{posthogClient && <Card><View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}><View style={{ flex: 1 }}><Text style={styles.cardTitle}>Usage analytics</Text><Text style={styles.cardText}>Help improve the app by sharing anonymous usage data.</Text></View><Switch value={analyticsEnabled} onValueChange={toggleAnalytics} /></View></Card>}<Button secondary onPress={logout}>Sign out</Button></Screen>; }
 
 const Tab = createBottomTabNavigator();
 const tabOptions = { headerShown: false, tabBarActiveTintColor: colors.teal, tabBarInactiveTintColor: colors.muted, tabBarStyle: { height: 68, paddingBottom: 10, backgroundColor: colors.surface, borderTopColor: colors.line }, tabBarLabelStyle: { fontSize: 11 } };

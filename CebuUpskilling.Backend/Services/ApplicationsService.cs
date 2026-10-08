@@ -53,6 +53,7 @@ public class ApplicationsService : IApplicationsService
     private readonly IApplicationRepository _applications;
     private readonly IAppUserRepository _users;
     private readonly IEmailService _emailService;
+    private readonly IAnalyticsService _analytics;
     private readonly ILogger<ApplicationsService> _logger;
 
     public ApplicationsService(
@@ -61,13 +62,15 @@ public class ApplicationsService : IApplicationsService
         IApplicationRepository applications,
         IAppUserRepository users,
         IEmailService emailService,
-        ILogger<ApplicationsService> logger)
+        ILogger<ApplicationsService> logger,
+        IAnalyticsService? analyticsService = null)
     {
         _learners = learners;
         _posts = posts;
         _applications = applications;
         _users = users;
         _emailService = emailService;
+        _analytics = analyticsService ?? new NoOpAnalyticsService();
         _logger = logger;
     }
 
@@ -162,6 +165,12 @@ public class ApplicationsService : IApplicationsService
 
         var created = await _applications.GetByLearnerAndPostAsync(learner.LearnerId, postId);
         _logger.LogInformation("User {UserId} applied to post {PostId}", userId, postId);
+
+        await _analytics.TrackAsync("application_submitted", userId, new Dictionary<string, object?>
+        {
+            ["postId"] = postId,
+            ["applicationId"] = created?.ApplicationId,
+        });
 
         await NotifyCompanyOfApplicationAsync(post, learner);
 

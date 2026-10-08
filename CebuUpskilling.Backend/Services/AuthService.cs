@@ -117,6 +117,7 @@ public class AuthService : IAuthService
     private readonly IGoogleTokenVerifier _googleTokenVerifier;
     private readonly IResumeService _resumeService;
     private readonly IResumeParseQueue _parseQueue;
+    private readonly IAnalyticsService _analytics;
     private readonly ILogger<AuthService> _logger;
     private readonly string _frontendBaseUrl;
 
@@ -129,7 +130,8 @@ public class AuthService : IAuthService
         IResumeService resumeService,
         IResumeParseQueue parseQueue,
         ILogger<AuthService> logger,
-        IOptions<FrontendOptions>? frontendOptions = null)
+        IOptions<FrontendOptions>? frontendOptions = null,
+        IAnalyticsService? analyticsService = null)
     {
         _context = context;
         _tokenService = tokenService;
@@ -138,6 +140,7 @@ public class AuthService : IAuthService
         _googleTokenVerifier = googleTokenVerifier;
         _resumeService = resumeService;
         _parseQueue = parseQueue;
+        _analytics = analyticsService ?? new NoOpAnalyticsService();
         _logger = logger;
         _frontendBaseUrl = (frontendOptions?.Value.BaseUrl ?? FrontendDefaultBaseUrl).TrimEnd('/');
     }
@@ -291,6 +294,12 @@ public class AuthService : IAuthService
         var token = _tokenService.GenerateToken(user);
         var refreshToken = await IssueRefreshTokenAsync(user.UserId);
 
+        await _analytics.TrackAsync("user_registered", user.UserId, new Dictionary<string, object?>
+        {
+            ["role"] = user.Role,
+            ["method"] = "password",
+        });
+
         return BuildAuthResponse(
             user,
             token,
@@ -378,6 +387,13 @@ public class AuthService : IAuthService
 
             var token = _tokenService.GenerateToken(user);
             var refreshToken = await IssueRefreshTokenAsync(user.UserId);
+
+            await _analytics.TrackAsync("user_registered", user.UserId, new Dictionary<string, object?>
+            {
+                ["role"] = user.Role,
+                ["method"] = "company",
+                ["companyId"] = company.CompanyId,
+            });
 
             return new CompanyRegisterResponse(
                 user.UserId,
@@ -492,6 +508,12 @@ public class AuthService : IAuthService
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
             _logger.LogInformation("User registered via Google: {UserId} ({Email}), Role: {Role}", user.UserId, user.EmailAddress, user.Role);
+
+            await _analytics.TrackAsync("user_registered", user.UserId, new Dictionary<string, object?>
+            {
+                ["role"] = user.Role,
+                ["method"] = "google",
+            });
 
             if (role == "Learner")
             {

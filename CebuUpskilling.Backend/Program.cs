@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using PostHog.Config;
 using Serilog;
 using System.Threading.RateLimiting;
 
@@ -28,6 +29,23 @@ if (!string.IsNullOrWhiteSpace(builder.Configuration["Sentry:Dsn"]))
         options.TracesSampleRate = 0.1;
         options.SendDefaultPii = false;
     });
+}
+
+// Product analytics is optional: without a PostHog key, event tracking no-ops.
+if (!string.IsNullOrWhiteSpace(builder.Configuration["PostHog:ApiKey"]))
+{
+    builder.Services.AddPostHog();
+    builder.Services.Configure<PostHog.PostHogOptions>(options =>
+    {
+        options.ProjectApiKey = builder.Configuration["PostHog:ApiKey"];
+        var host = builder.Configuration["PostHog:Host"];
+        options.HostUrl = new Uri(string.IsNullOrWhiteSpace(host) ? "https://us.i.posthog.com" : host);
+    });
+    builder.Services.AddSingleton<IAnalyticsService, PostHogAnalyticsService>();
+}
+else
+{
+    builder.Services.AddSingleton<IAnalyticsService, NoOpAnalyticsService>();
 }
 
 builder.Host.UseSerilog((context, configuration) =>
