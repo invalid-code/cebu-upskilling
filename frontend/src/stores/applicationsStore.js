@@ -19,18 +19,33 @@ function normalize(summary) {
 export const useApplicationsStore = create((set, get) => ({
   applications: [],
   loading: false,
+  // Stale-while-settled: mounts within `staleTimeMs` reuse the list instead
+  // of refetching (the api client additionally dedupes in-flight GETs).
+  // `_reset` (called between tests and on logout) clears both.
+  lastFetchedAt: null,
+  lastUserId: null,
 
-  fetchApplications: async (signal, explicitUser) => {
+  fetchApplications: async (signal, explicitUser, options = {}) => {
     const user = explicitUser !== undefined ? explicitUser : useAuthStore.getState().user;
     const userId = user?.UserId ?? user?.userId ?? null;
     if (!userId) {
-      set({ applications: [] });
+      set({ applications: [], lastFetchedAt: null, lastUserId: null });
+      return;
+    }
+    const { lastFetchedAt, lastUserId } = get();
+    const staleTimeMs = options.staleTimeMs ?? 30000;
+    if (
+      !options.force &&
+      lastUserId === userId &&
+      lastFetchedAt &&
+      Date.now() - lastFetchedAt < staleTimeMs
+    ) {
       return;
     }
     set({ loading: true });
     try {
       const data = await api.get('/applications', { signal });
-      set({ applications: (data || []).map(normalize) });
+      set({ applications: (data || []).map(normalize), lastFetchedAt: Date.now(), lastUserId: userId });
     } catch (err) {
       if (err?.name === 'AbortError') return;
       set({ applications: [] });
@@ -64,6 +79,9 @@ export const useApplicationsStore = create((set, get) => ({
             coverLetterUrl: options.coverLetterUrl || null,
           },
         ],
+        // The list was just changed locally: it is the freshest state.
+        lastFetchedAt: Date.now(),
+        lastUserId: userId,
       }));
     } catch (err) {
       console.warn('[Applications] Failed to apply to job:', id, err?.message || err);
@@ -72,6 +90,8 @@ export const useApplicationsStore = create((set, get) => ({
   },
 
   updateStatus: async (jobId, status) => {
+    const { user } = useAuthStore.getState();
+    const userId = user?.UserId ?? user?.userId ?? null;
     set((state) => ({
       applications: state.applications.map((app) =>
         app.id === jobId
@@ -82,6 +102,8 @@ export const useApplicationsStore = create((set, get) => ({
             }
           : app,
       ),
+      lastFetchedAt: Date.now(),
+      lastUserId: userId ?? state.lastUserId,
     }));
     try {
       await api.patch(`/applications/${jobId}`, { status });
@@ -92,5 +114,5 @@ export const useApplicationsStore = create((set, get) => ({
 
   isApplied: (jobId) => get().applications.some((a) => a.id === jobId),
 
-  _reset: () => set({ applications: [], loading: false }),
+  _reset: () => set({ applications: [], loading: false, lastFetchedAt: null, lastUserId: null }),
 }));

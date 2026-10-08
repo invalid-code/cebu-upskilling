@@ -253,9 +253,10 @@ CebuUpskilling.Backend/
 │   └── DesignTimeDbContextFactory.cs
 ├── Middleware/
 │   ├── SecurityHeadersMiddleware.cs
-│   └── RevokedTokenMiddleware.cs
+│   ├── RevokedTokenMiddleware.cs
+│   └── DuplicateRequestCacheMiddleware.cs
 ├── Handlers/GlobalExceptionHandler.cs
-├── Options/                   # R2Options, GoogleAiOptions, EmailOptions, RateLimitingOptions, SkillsSeedOptions
+├── Options/                   # R2Options, GoogleAiOptions, EmailOptions, RateLimitingOptions, SkillsSeedOptions, DuplicateRequestCacheOptions, ServiceCacheOptions
 ├── Migrations/
 ├── Properties/launchSettings.json
 ├── appsettings.json / appsettings.Development.json
@@ -271,7 +272,7 @@ Order in `Program.cs:319-331`:
 
 ```
 ForwardedHeaders → SecurityHeaders → ExceptionHandler → Cors → StaticFiles → RateLimiter
-  → Authentication (JwtBearer) → RevokedToken → Authorization → Controllers
+  → Authentication (JwtBearer) → RevokedToken → Authorization → DuplicateRequestCache → Controllers
 ```
 
 - **ForwardedHeaders** (`Program.cs:239-260`, `app.UseForwardedHeaders()`): honors `X-Forwarded-For`/`X-Forwarded-Proto` **only** from `ForwardedHeaders:KnownProxies`/`KnownNetworks`; everything else is ignored. Must run first so rate limiting and error responses see the real client IP.
@@ -281,6 +282,7 @@ ForwardedHeaders → SecurityHeaders → ExceptionHandler → Cors → StaticFil
 - **RateLimiting** (`Program.cs:262-317`, `Options/RateLimitingOptions.cs`): partition by `Connection.RemoteIpAddress` (already resolved by ForwardedHeaders) → `unknown`; `FixedWindow` Global 120/60s and Auth 10/60s; `QueueLimit 0` / `RejectionStatusCode 429`.
 - **Auth** (`Services/AuthService.cs`, `Program.cs:129-154`): HMAC-SHA256, 7-day expiry, claims `NameIdentifier/Email/Name/Role/JTI`; login/register confirm email (24h token SHA256, `FixedTimeEquals`), password reset 30-min token, logout revokes JTI 8 days; BCrypt hashes.
 - **RevokedToken** (`Middleware/RevokedTokenMiddleware.cs`): after auth, checks `Jti` vs `ITokenRevocationStore`; `401 {error: Token has been revoked…}`.
+- **DuplicateRequestCache** (`Middleware/DuplicateRequestCacheMiddleware.cs`, `Options/DuplicateRequestCacheOptions.cs`): after authorization, serves identical `GET /api/*` (non-auth) `200` JSON from `IMemoryCache` (default 15s, 256KB max, `X-Cache: HIT/MISS`). Key includes user id (or client IP when anonymous) + sorted query, so users never share entries; concurrent duplicates coalesce on a per-key gate; the caller's writes (`POST/PUT/PATCH/DELETE`) evict their GET entries. Respects `Cache-Control: no-cache/no-store`.
 
 ---
 

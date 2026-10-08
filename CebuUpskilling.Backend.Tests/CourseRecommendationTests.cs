@@ -1,8 +1,11 @@
 using CebuUpskilling.Backend.Data;
 using CebuUpskilling.Backend.Entities;
+using CebuUpskilling.Backend.Options;
 using CebuUpskilling.Backend.Repositories;
 using CebuUpskilling.Backend.Services;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 
 namespace CebuUpskilling.Backend.Tests;
 
@@ -23,6 +26,8 @@ public class CourseRecommendationTests
         new RoleSkillRepository(context),
         new LearnerSkillRepository(context),
         new ApplicationRepository(context),
+        new MemoryCache(new MemoryCacheOptions()),
+        Microsoft.Extensions.Options.Options.Create(new ServiceCacheOptions()),
         NullLogger<CoursesPageService>.Instance
     );
 

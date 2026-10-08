@@ -64,7 +64,7 @@ Career pathway platform connecting learners and employers in Cebu — skill-gap 
                                 5432 pgdata Bucket generative-language
 ```
 
-**Request flow:** `Browser/Mobile → CORS → SecurityHeaders → ExceptionHandler → RateLimiter (client IP via ForwardedHeaders) → Authentication (JWT) → RevokedTokenMiddleware → Authorization (role) → Controller → Service → Repository → ApplicationDbContext → PostgreSQL`. File uploads go through `MediaController → R2StorageService → Media` record (+ `wwwroot/uploads/documents` for documents).
+**Request flow:** `Browser/Mobile → CORS → SecurityHeaders → ExceptionHandler → RateLimiter (client IP via ForwardedHeaders) → Authentication (JWT) → RevokedTokenMiddleware → Authorization (role) → DuplicateRequestCache (identical GET, per-user, 15s, X-Cache HIT/MISS) → Controller → Service → Repository → ApplicationDbContext → PostgreSQL`. File uploads go through `MediaController → R2StorageService → Media` record (+ `wwwroot/uploads/documents` for documents).
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for entity-relationship details, middleware pipeline, and service responsibilities.
 
@@ -245,6 +245,8 @@ All backend options bind from `appsettings.json` → `appsettings.Development.js
 | **Rate limiting** | `RateLimiting__Enabled` | `true` | — |
 | **Global limit** | `RateLimiting__Global__PermitLimit` / `WindowSeconds` | `120` / `60` | — |
 | **Auth limit** | `RateLimiting__Auth__PermitLimit` / `WindowSeconds` | `10` / `60` | — |
+| **Duplicate cache** | `DuplicateRequestCache__Enabled` / `TtlSeconds` / `MaxCachedBodyBytes` | `true` / `15` / `262144` | identical GET only |
+| **Service cache** | `ServiceCache__Enabled` / `ReferenceDataMinutes` / `UserComputedMinutes` / `StatsMinutes` / `GeminiHours` | `true` / `240` / `2` / `5` / `24` | nulls/failures never cached |
 | **Trusted proxies** | `ForwardedHeaders__KnownProxies` / `ForwardedHeaders__KnownNetworks` | `127.0.0.1`, `::1` (comma/CIDR lists) | behind LB set these |
 | **Postgres (compose)** | `POSTGRES_USER/PASSWORD/DB` | `postgres/postgres/cebuupskilling` | compose only |
 | **Frontend API** | `VITE_API_URL` | `/api` (proxy) / `http://localhost:5179/api` (dev) | — |

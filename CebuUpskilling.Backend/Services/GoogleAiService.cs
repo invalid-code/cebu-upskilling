@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 using System.Text.Json.Serialization;
 using CebuUpskilling.Backend.DTOs;
 using CebuUpskilling.Backend.Options;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 
 namespace CebuUpskilling.Backend.Services;
@@ -12,6 +13,8 @@ public class GoogleAiService : IGoogleAiService
 {
     private readonly HttpClient _httpClient;
     private readonly GoogleAiOptions _options;
+    private readonly IMemoryCache _cache;
+    private readonly ServiceCacheOptions _cacheOptions;
     private readonly ILogger<GoogleAiService> _logger;
 
     private static readonly JsonSerializerOptions QuestionJsonOptions = new()
@@ -51,10 +54,17 @@ public class GoogleAiService : IGoogleAiService
     private static string NormalizeExcludedName(string name) =>
         name.Trim().ToLowerInvariant().Replace("-", "").Replace(" ", "").Replace("_", "");
 
-    public GoogleAiService(HttpClient httpClient, IOptions<GoogleAiOptions> options, ILogger<GoogleAiService> logger)
+    public GoogleAiService(
+        HttpClient httpClient,
+        IOptions<GoogleAiOptions> options,
+        IMemoryCache cache,
+        IOptions<ServiceCacheOptions> cacheOptions,
+        ILogger<GoogleAiService> logger)
     {
         _httpClient = httpClient;
         _options = options.Value;
+        _cache = cache;
+        _cacheOptions = cacheOptions.Value;
         _logger = logger;
     }
 
@@ -65,6 +75,27 @@ public class GoogleAiService : IGoogleAiService
             _logger.LogDebug("Gemini API key or resume text is empty; skipping skill parsing");
             return new List<string>();
         }
+
+        if (!_cacheOptions.Enabled)
+            return await ParseSkillsUncachedAsync(resumeText, ct);
+
+        var key = ServiceCacheKeys.GeminiResumeSkills(ServiceCacheKeys.Sha256(resumeText));
+        if (_cache.TryGetValue<List<string>>(key, out var cached) && cached is not null)
+        {
+            _logger.LogDebug("Gemini resume-parse cache HIT");
+            return cached;
+        }
+
+        var skills = await ParseSkillsUncachedAsync(resumeText, ct);
+        // Empty means the model failed or found nothing — never cache that, or a
+        // transient outage would stick for the full TTL.
+        if (skills.Count > 0)
+            _cache.Set(key, skills, TimeSpan.FromHours(Math.Max(1, _cacheOptions.GeminiHours)));
+        return skills;
+    }
+
+    private async Task<List<string>> ParseSkillsUncachedAsync(string resumeText, CancellationToken ct = default)
+    {
 
         var prompt = $"""
             Extract skills from the provided resume text.
@@ -311,6 +342,26 @@ public class GoogleAiService : IGoogleAiService
             return null;
         }
 
+        if (!_cacheOptions.Enabled)
+            return await GenerateCourseOutlineUncachedAsync(context, ct);
+
+        // The skill catalog is embedded in the key, so catalog growth
+        // self-invalidates older outlines. Failures (null) are never cached.
+        var key = ServiceCacheKeys.GeminiCourseOutline(ServiceCacheKeys.Sha256(JsonSerializer.Serialize(context)));
+        if (_cache.TryGetValue<CourseGenerationResult>(key, out var cached) && cached is not null)
+        {
+            _logger.LogDebug("Gemini course-outline cache HIT");
+            return cached;
+        }
+
+        var outline = await GenerateCourseOutlineUncachedAsync(context, ct);
+        if (outline is not null)
+            _cache.Set(key, outline, TimeSpan.FromHours(Math.Max(1, _cacheOptions.GeminiHours)));
+        return outline;
+    }
+
+    private async Task<CourseGenerationResult?> GenerateCourseOutlineUncachedAsync(CourseGenerationPromptContext context, CancellationToken ct = default)
+    {
         var skillList = context.AvailableSkills.Count == 0
             ? "(no skills are catalogued in the platform yet — match against general industry knowledge)"
             : string.Join(", ", context.AvailableSkills.Select(s => SanitizeUntrusted(s.Name) ?? s.Name));

@@ -9,6 +9,7 @@ import { isTokenExpired } from '../lib/jwt';
 function clearSession() {
   localStorage.removeItem('token');
   localStorage.removeItem('user');
+  evictClientCache();
 }
 
 // Redirect to /login after the session is cleared, unless already there
@@ -26,6 +27,120 @@ function redirectToLogin() {
 // console.debug is chatty in production; keep warn/error which carry signal.
 const debug = import.meta.env?.DEV ? console.debug.bind(console) : () => {};
 
+// ---- GET response cache (memory + session) ----
+// Dedupes double renders and polling storms without touching any page.
+// Memory (20s TTL) with in-flight coalescing; slow-moving catalog endpoints
+// additionally persist to sessionStorage (5min, tab-scoped) so reloads paint
+// instantly. Keys embed the session token, so users never share entries.
+// Successful mutations and logout evict everything (blast radius is one TTL
+// window of extra fetches). The server applies its own X-Cache layer too.
+const GET_CACHE_TTL_MS = 20000;
+const GET_CACHE_MAX_ENTRIES = 200;
+const SESSION_CACHE_TTL_MS = 5 * 60 * 1000;
+const SESSION_CACHE_PREFIX = 'api-cache:v1:';
+// Slow-moving reads worth persisting across reloads. Write-heavy personal
+// lists (enrollments, applications, notes, discussions) are excluded: a
+// reload must not resurrect pre-mutation state.
+const SESSION_CACHE_ALLOWLIST = [
+  '/posts',
+  '/courses',
+  '/coursespage',
+  '/skills',
+  '/markettrends',
+  '/skillgaps',
+  '/learningpathways',
+  '/stats/week',
+];
+const getCache = new Map();
+const inflightGets = new Map();
+
+function tokenScope(token) {
+  return token ? `t:${String(token).slice(-12)}` : 'anon';
+}
+
+function getCacheKey(path, token) {
+  return `${tokenScope(token)} ${path}`;
+}
+
+function isCacheBypass(options) {
+  if (options?.cache === 'no-store' || options?.bypassCache === true) return true;
+  const header = options?.headers?.['Cache-Control'] ?? options?.headers?.['cache-control'];
+  return typeof header === 'string' && /no-(cache|store)/i.test(header);
+}
+
+function isAuthPath(path) {
+  return path === '/auth' || path.startsWith('/auth/');
+}
+
+function isSessionCacheable(path) {
+  const clean = path.split('?')[0];
+  return SESSION_CACHE_ALLOWLIST.some((p) => clean === p || clean.startsWith(`${p}/`));
+}
+
+function readGetCache(key) {
+  const entry = getCache.get(key);
+  if (!entry) return undefined;
+  if (Date.now() > entry.expiry) {
+    getCache.delete(key);
+    return undefined;
+  }
+  return entry.data;
+}
+
+function writeGetCache(key, data) {
+  getCache.set(key, { expiry: Date.now() + GET_CACHE_TTL_MS, data });
+  while (getCache.size > GET_CACHE_MAX_ENTRIES) {
+    getCache.delete(getCache.keys().next().value);
+  }
+}
+
+function readSessionCache(key) {
+  try {
+    if (typeof sessionStorage === 'undefined') return undefined;
+    const raw = sessionStorage.getItem(SESSION_CACHE_PREFIX + key);
+    if (!raw) return undefined;
+    const entry = JSON.parse(raw);
+    if (!entry || typeof entry.expiry !== 'number' || Date.now() > entry.expiry) {
+      sessionStorage.removeItem(SESSION_CACHE_PREFIX + key);
+      return undefined;
+    }
+    return entry.data;
+  } catch {
+    return undefined;
+  }
+}
+
+function writeSessionCache(key, data) {
+  try {
+    if (typeof sessionStorage === 'undefined') return;
+    sessionStorage.setItem(
+      SESSION_CACHE_PREFIX + key,
+      JSON.stringify({ expiry: Date.now() + SESSION_CACHE_TTL_MS, data }),
+    );
+  } catch {
+    // Quota or private mode: the memory cache still applies.
+  }
+}
+
+function evictSessionCache() {
+  try {
+    if (typeof sessionStorage === 'undefined') return;
+    const keys = [];
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const k = sessionStorage.key(i);
+      if (k && k.startsWith(SESSION_CACHE_PREFIX)) keys.push(k);
+    }
+    keys.forEach((k) => sessionStorage.removeItem(k));
+  } catch {
+    // ignore unavailable storage
+  }
+}
+
+function evictClientCache() {
+  getCache.clear();
+  evictSessionCache();
+}
+
 function request(path, options = {}) {
   let token = localStorage.getItem('token');
   if (token && isTokenExpired(token)) {
@@ -41,6 +156,43 @@ function request(path, options = {}) {
   const method = options.method || 'GET';
   debug(`[API] ${method} ${path}`);
 
+  if (method === 'GET' && !isAuthPath(path) && !isCacheBypass(options)) {
+    const key = getCacheKey(path, token);
+    const cached = readGetCache(key);
+    if (cached !== undefined) {
+      debug(`[API] GET ${path} (memory HIT)`);
+      return Promise.resolve(cached);
+    }
+    if (isSessionCacheable(path)) {
+      const persisted = readSessionCache(key);
+      if (persisted !== undefined) {
+        debug(`[API] GET ${path} (session HIT)`);
+        writeGetCache(key, persisted);
+        return Promise.resolve(persisted);
+      }
+    }
+    // A shared promise ignores later callers' abort signals; the originating
+    // request still honours its own signal.
+    const pending = inflightGets.get(key);
+    if (pending) {
+      debug(`[API] GET ${path} (coalesced)`);
+      return pending;
+    }
+    const promise = sendRequest(path, options, headers, method, {
+      key,
+      persist: isSessionCacheable(path),
+    });
+    inflightGets.set(key, promise);
+    promise.then(
+      () => inflightGets.delete(key),
+      () => inflightGets.delete(key),
+    );
+    return promise;
+  }
+  return sendRequest(path, options, headers, method, null);
+}
+
+function sendRequest(path, options, headers, method, cacheInfo) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open(method, `${API_BASE}${path}`);
@@ -102,16 +254,25 @@ function request(path, options = {}) {
 
       if (xhr.status === 204) {
         debug(`[API] ${method} ${path} → 204 No Content`);
+        if (method !== 'GET') evictClientCache();
         resolve(null);
         return;
       }
 
       debug(`[API] ${method} ${path} → ${xhr.status}`);
+      let data;
       try {
-        resolve(JSON.parse(xhr.responseText));
+        data = JSON.parse(xhr.responseText);
       } catch {
-        resolve(xhr.responseText);
+        data = xhr.responseText;
       }
+      if (cacheInfo) {
+        writeGetCache(cacheInfo.key, data);
+        if (cacheInfo.persist) writeSessionCache(cacheInfo.key, data);
+      } else if (method !== 'GET') {
+        evictClientCache();
+      }
+      resolve(data);
     };
 
     xhr.onerror = () => {
@@ -180,6 +341,7 @@ function postForm(path, formData) {
       } catch {
         resolve(xhr.responseText);
       }
+      evictClientCache();
     };
 
     xhr.onerror = () => {
@@ -251,6 +413,7 @@ function upload(path, file) {
         return;
       }
       debug(`[API] ${method} ${path} → ${xhr.status} url=${data.url}`);
+      evictClientCache();
       resolve(data);
     };
     xhr.onerror = () => {
@@ -274,4 +437,14 @@ export const api = {
   delete: (path) => request(path, { method: 'DELETE' }),
   upload: (path, file) => upload(path, file),
   postForm: (path, formData) => postForm(path, formData),
+  /** Test/support hook: drops the memory + session GET caches. */
+  _clearCache: () => {
+    evictClientCache();
+    inflightGets.clear();
+  },
+  /** Test hook: drops the memory cache only (session persistence stays). */
+  _clearMemoryCache: () => {
+    getCache.clear();
+    inflightGets.clear();
+  },
 };

@@ -19,7 +19,8 @@ Mobile base URL via `EXPO_PUBLIC_API_URL` (default `http://localhost:5000/api`).
 
 ```
 ForwardedHeaders -> SecurityHeaders -> ExceptionHandler -> CORS -> StaticFiles
-  -> RateLimiter -> Authentication (JWT) -> RevokedToken -> Authorization -> Controllers
+  -> RateLimiter -> Authentication (JWT) -> RevokedToken -> Authorization
+  -> DuplicateRequestCache -> Controllers
 ```
 
 - **ForwardedHeaders** honors `X-Forwarded-For/Proto` only from `ForwardedHeaders:KnownProxies/KnownNetworks` (loopback by default). Must stay first so rate limiting sees the real IP and spoofed headers are ignored.
@@ -29,6 +30,8 @@ ForwardedHeaders -> SecurityHeaders -> ExceptionHandler -> CORS -> StaticFiles
 - **RateLimiter** (`Options/RateLimitingOptions.cs`): per-IP fixed windows — global 120/60s, auth group 10/60s, queue 0 → `429`.
 - **Auth**: JWT HMAC-SHA256 (fail-fast when `Jwt:Key` missing/short), 7-day expiry, claims `NameIdentifier/Email/Name/Role/JTI`.
 - **RevokedToken** (`Middleware/RevokedTokenMiddleware.cs`): rejects logged-out JTIs (`ITokenRevocationStore`, in-memory 8-day TTL — single instance; needs Redis/DB for multi-instance prod).
+- **DuplicateRequestCache** (`Middleware/DuplicateRequestCacheMiddleware.cs`): short-lived (15s default) per-user `IMemoryCache` for identical `GET /api/*` JSON responses (`X-Cache: HIT/MISS`); writes evict the caller's entries.
+- **ServiceCache** (`Services/ServiceCacheKeys.cs`, `Options/ServiceCacheOptions.cs`): `IMemoryCache` inside services — market trends (4h, generation-bumped on refresh), per-user gaps/pathway/courses-page (2min), weekly stats (5min), Gemini resume-parse/course-outline by input hash (24h; failures and empty AI results never cached). Nulls (missing learner/role) are never cached.
 
 ## Domain model (26 entities)
 

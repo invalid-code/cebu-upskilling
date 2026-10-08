@@ -38,12 +38,21 @@ public class ProductionApiFactory : WebApplicationFactory<Program>
     /// </summary>
     public bool EnableRateLimiting { get; set; }
 
+    /// <summary>
+    /// When false (the default), duplicate GET response caching is disabled so tests
+    /// that seed the in-memory store directly (bypassing the API write path that
+    /// invalidates the cache) never observe a stale HIT. Set true to exercise the
+    /// real <c>DuplicateRequestCacheMiddleware</c> pipeline.
+    /// </summary>
+    public bool EnableDuplicateCache { get; set; }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseSetting("Jwt:Key", "test-signing-key-that-is-at-least-32-characters-long");
         builder.UseSetting("Jwt:Issuer", "CebuUpskilling");
         builder.UseSetting("Jwt:Audience", "CebuUpskillingClient");
         builder.UseSetting("RateLimiting:Enabled", EnableRateLimiting ? "true" : "false");
+        builder.UseSetting("DuplicateRequestCache:Enabled", EnableDuplicateCache ? "true" : "false");
 
         builder.ConfigureAppConfiguration((_, config) =>
         {

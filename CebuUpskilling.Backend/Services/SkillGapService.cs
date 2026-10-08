@@ -1,6 +1,9 @@
 using CebuUpskilling.Backend.DTOs;
 using CebuUpskilling.Backend.Entities;
+using CebuUpskilling.Backend.Options;
 using CebuUpskilling.Backend.Repositories;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Options;
 
 namespace CebuUpskilling.Backend.Services;
 
@@ -17,6 +20,8 @@ public class SkillGapService : ISkillGapService
     private readonly ILearnerRepository _learners;
     private readonly ILearnerSkillRepository _learnerSkills;
     private readonly IApplicationRepository _applications;
+    private readonly IMemoryCache _cache;
+    private readonly ServiceCacheOptions _cacheOptions;
     private readonly ILogger<SkillGapService> _logger;
 
     public SkillGapService(
@@ -25,6 +30,8 @@ public class SkillGapService : ISkillGapService
         ILearnerRepository learners,
         ILearnerSkillRepository learnerSkills,
         IApplicationRepository applications,
+        IMemoryCache cache,
+        IOptions<ServiceCacheOptions> cacheOptions,
         ILogger<SkillGapService> logger)
     {
         _users = users;
@@ -32,6 +39,8 @@ public class SkillGapService : ISkillGapService
         _learners = learners;
         _learnerSkills = learnerSkills;
         _applications = applications;
+        _cache = cache;
+        _cacheOptions = cacheOptions.Value;
         _logger = logger;
     }
 
@@ -39,6 +48,23 @@ public class SkillGapService : ISkillGapService
         => GetSkillGapGroupsAsync(userId);
 
     public async Task<List<SkillGapGroupDto>> GetSkillGapGroupsAsync(Guid userId)
+    {
+        if (!_cacheOptions.Enabled)
+            return await LoadSkillGapGroupsAsync(userId);
+
+        var key = ServiceCacheKeys.SkillGaps(userId);
+        if (_cache.TryGetValue<List<SkillGapGroupDto>>(key, out var cached) && cached is not null)
+        {
+            _logger.LogDebug("Skill gaps cache HIT for user {UserId}", userId);
+            return cached;
+        }
+
+        var groups = await LoadSkillGapGroupsAsync(userId);
+        _cache.Set(key, groups, TimeSpan.FromMinutes(Math.Max(1, _cacheOptions.UserComputedMinutes)));
+        return groups;
+    }
+
+    private async Task<List<SkillGapGroupDto>> LoadSkillGapGroupsAsync(Guid userId)
     {
         var user = await _users.GetByIdAsync(userId);
 

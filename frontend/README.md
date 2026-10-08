@@ -31,10 +31,10 @@ Coverage thresholds (in `vite.config.js`): lines 50, branches 45, functions 40.
 
 ```
 src/
-  api/client.js        # XHR client: JWT attach, expiry pre-check, 401 → clear + /login, friendly errors
+  api/client.js        # XHR client: JWT attach, expiry pre-check, 401 → clear + /login, friendly errors, GET cache (memory 20s + session 5min catalog)
   lib/                 # jwt (decode/expiry/session), markdown (marked + DOMPurify), proctoring, parsePolling
   utils/               # validation, fileUrl (R2/legacy /uploads), resumeText (lazy pdfjs/mammoth)
-  stores/              # Zustand: auth, enrollments, applications, toast, notification, cookieConsent
+  stores/              # Zustand: auth, enrollments, applications, toast, notification, cookieConsent (lists skip refetch within 30s unless forced)
   context/             # Thin shims over the stores (Auth, Enrollments, Applications, Toast, CookieConsent)
   components/          # Layout, RoleRoute, GoogleSignInButton, jobs/, shared/ (15), ui/ (9)
   pages/               # ~21 route pages (Overview, Skills, Jobs, Courses, …)
@@ -52,5 +52,6 @@ e2e/                   # Playwright specs + helpers (mock API, fake token) + fix
 ## Notes
 
 - Heavy deps (`@mediapipe/tasks-vision`, `pdfjs-dist`, `mammoth`, `marked`) are lazy-imported; keep them out of the initial bundle.
+- GET caching (`api/client.js`): memory 20s + in-flight coalescing, per-token keys; catalog paths (`/posts`, `/courses`, `/skills`, `/markettrends`, …) also persist to `sessionStorage` (5min). Mutations and logout evict; pull-to-refresh passes `{ bypassCache: true }` (or `Cache-Control: no-cache`). `/auth/*` and errors are never cached.
 - `Modal` implements focus trap / `Escape` / opener-restore; `index.css` honors `prefers-reduced-motion`.
 - If `/api` hits an unexpected host, check for the `fetch`-patching extension — XHR must stay.

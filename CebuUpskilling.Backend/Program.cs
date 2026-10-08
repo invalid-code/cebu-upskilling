@@ -294,6 +294,10 @@ if (rateLimitingOptions.Enabled)
     });
 }
 
+builder.Services.AddMemoryCache();
+builder.Services.Configure<DuplicateRequestCacheOptions>(builder.Configuration.GetSection(DuplicateRequestCacheOptions.SectionName));
+builder.Services.Configure<ServiceCacheOptions>(builder.Configuration.GetSection(ServiceCacheOptions.SectionName));
+
 var app = builder.Build();
 
 // Seed reference data (course taxonomy, skill catalog, role skill levels)
@@ -328,6 +332,7 @@ if (rateLimitingOptions.Enabled)
 app.UseAuthentication();
 app.UseMiddleware<CebuUpskilling.Backend.Middleware.RevokedTokenMiddleware>();
 app.UseAuthorization();
+app.UseMiddleware<CebuUpskilling.Backend.Middleware.DuplicateRequestCacheMiddleware>();
 app.MapControllers();
 app.MapHealthChecks("/health");
 

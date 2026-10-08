@@ -4,6 +4,7 @@ using System.Text.Json;
 using CebuUpskilling.Backend.DTOs;
 using CebuUpskilling.Backend.Options;
 using CebuUpskilling.Backend.Services;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace CebuUpskilling.Backend.Tests;
@@ -39,7 +40,7 @@ public class GoogleAiCourseGenerationTests
         };
         configure?.Invoke(options);
         var client = new HttpClient(handler) { BaseAddress = new Uri("https://generativelanguage.googleapis.com/v1beta/") };
-        return new GoogleAiService(client, Microsoft.Extensions.Options.Options.Create(options), NullLogger<GoogleAiService>.Instance);
+        return new GoogleAiService(client, Microsoft.Extensions.Options.Options.Create(options), new MemoryCache(new MemoryCacheOptions()), Microsoft.Extensions.Options.Options.Create(new ServiceCacheOptions()), NullLogger<GoogleAiService>.Instance);
     }
 
     private static HttpResponseMessage GenerateContentResponse(string content)

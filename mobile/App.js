@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,23 +11,160 @@ import { logger } from './logger';
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000/api';
 const colors = { bg: '#e8f0ee', surface: '#f5faf8', ink: '#1a2e27', muted: '#5c7a6e', line: '#c4d6cd', teal: '#1a6b5a', coral: '#d4775c', soft: '#c6e6df' };
 
+// ---- GET response cache (memory + AsyncStorage) ----
+// Mirrors the web client's api cache: 20s memory TTL with in-flight
+// coalescing, plus 5min persisted catalog so tabs paint instantly (and work
+// briefly offline). Keys embed the session token: users never share entries.
+// Successful mutations, logout, and 401 session resets evict. Pull-to-refresh
+// passes { bypassCache: true }.
+const GET_CACHE_TTL_MS = 20000;
+const PERSISTED_CACHE_TTL_MS = 5 * 60 * 1000;
+const PERSISTED_PREFIX = 'api-cache:v1:';
+// Slow-moving reads worth persisting. Write-heavy personal lists
+// (applications) always go to the network so a restart never resurrects
+// pre-mutation state.
+const PERSISTED_ALLOWLIST = ['/posts', '/courses', '/coursespage', '/skills', '/markettrends', '/skillgaps', '/learningpathways', '/stats/week'];
+const getCache = new Map();
+const inflightGets = new Map();
+
+function tokenScope(token) {
+  return token ? `t:${String(token).slice(-12)}` : 'anon';
+}
+
+function getCacheKey(path, token) {
+  return `${tokenScope(token)} ${path}`;
+}
+
+function isAuthPath(path) {
+  return path === '/auth' || (typeof path === 'string' && path.startsWith('/auth/'));
+}
+
+function isPersistable(path) {
+  if (typeof path !== 'string') return false;
+  const clean = path.split('?')[0];
+  return PERSISTED_ALLOWLIST.some((p) => clean === p || clean.startsWith(`${p}/`));
+}
+
+function readGetCache(key) {
+  const entry = getCache.get(key);
+  if (!entry) return undefined;
+  if (Date.now() > entry.expiry) {
+    getCache.delete(key);
+    return undefined;
+  }
+  return entry.data;
+}
+
+function writeGetCache(key, data) {
+  getCache.set(key, { expiry: Date.now() + GET_CACHE_TTL_MS, data });
+  while (getCache.size > 200) {
+    getCache.delete(getCache.keys().next().value);
+  }
+}
+
+async function readPersistedCache(key) {
+  try {
+    const raw = await AsyncStorage.getItem(PERSISTED_PREFIX + key);
+    if (!raw) return undefined;
+    const entry = JSON.parse(raw);
+    if (!entry || typeof entry.expiry !== 'number' || Date.now() > entry.expiry) {
+      AsyncStorage.removeItem(PERSISTED_PREFIX + key).catch(() => {});
+      return undefined;
+    }
+    return entry.data;
+  } catch {
+    return undefined;
+  }
+}
+
+async function writePersistedCache(key, data) {
+  try {
+    await AsyncStorage.setItem(PERSISTED_PREFIX + key, JSON.stringify({ expiry: Date.now() + PERSISTED_CACHE_TTL_MS, data }));
+  } catch {
+    // Quota/full storage: the memory cache still applies.
+  }
+}
+
+async function evictPersistedCache() {
+  try {
+    const keys = await AsyncStorage.getAllKeys();
+    const ours = keys.filter((k) => k.startsWith(PERSISTED_PREFIX));
+    if (ours.length > 0) await AsyncStorage.multiRemove(ours);
+  } catch {
+    // Cache eviction is best-effort.
+  }
+}
+
+function evictMemoryCache() {
+  getCache.clear();
+  inflightGets.clear();
+}
+
+async function evictCaches() {
+  evictMemoryCache();
+  await evictPersistedCache();
+}
+
 async function request(path, options = {}) {
   const method = (options.method || 'GET').toUpperCase();
   const hasBody = options.body != null;
+  const { bypassCache, ...fetchOptions } = options;
   logger.debug(`[API] ${method} ${path}`);
   // Set by AuthProvider: clears the signed-in user when the server rejects
   // the token (mirrors the web client's 401 handling).
   const onUnauthorized = request.onUnauthorized;
+  let token = null;
+  try {
+    token = await SecureStore.getItemAsync('token');
+  } catch {
+    token = null;
+  }
+  if (method === 'GET' && !isAuthPath(path) && bypassCache !== true) {
+    const key = getCacheKey(path, token);
+    const cached = readGetCache(key);
+    if (cached !== undefined) {
+      logger.debug(`[API] GET ${path} (memory HIT)`);
+      return cached;
+    }
+    if (isPersistable(path)) {
+      const persisted = await readPersistedCache(key);
+      if (persisted !== undefined) {
+        logger.debug(`[API] GET ${path} (persisted HIT)`);
+        writeGetCache(key, persisted);
+        return persisted;
+      }
+    }
+    const pending = inflightGets.get(key);
+    if (pending) {
+      logger.debug(`[API] GET ${path} (coalesced)`);
+      return pending;
+    }
+    const promise = sendRequest(path, fetchOptions, method, hasBody, onUnauthorized, token, {
+      key,
+      persist: isPersistable(path),
+    });
+    inflightGets.set(key, promise);
+    promise.then(
+      () => inflightGets.delete(key),
+      () => inflightGets.delete(key),
+    );
+    return promise;
+  }
+  const data = await sendRequest(path, fetchOptions, method, hasBody, onUnauthorized, token, null);
+  if (method !== 'GET') await evictCaches();
+  return data;
+}
+
+async function sendRequest(path, fetchOptions, method, hasBody, onUnauthorized, token, cacheInfo) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 30000);
   try {
-    const token = await SecureStore.getItemAsync('token');
     const headers = {
       ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers,
+      ...fetchOptions.headers,
     };
-    const response = await fetch(`${API_URL}${path}`, { ...options, headers, signal: controller.signal });
+    const response = await fetch(`${API_URL}${path}`, { ...fetchOptions, headers, signal: controller.signal });
     let data = null;
     if (response.status !== 204) {
       const text = await response.text();
@@ -48,6 +186,10 @@ async function request(path, options = {}) {
       throw error;
     }
     logger.debug(`[API] ${method} ${path} → ${response.status}`);
+    if (cacheInfo) {
+      writeGetCache(cacheInfo.key, data);
+      if (cacheInfo.persist) await writePersistedCache(cacheInfo.key, data);
+    }
     return data;
   } catch (error) {
     if (error?.name === 'AbortError') {
@@ -79,6 +221,7 @@ function AuthProvider({ children }) {
       } finally {
         setUser(null);
       }
+      evictCaches().catch(() => {});
       logger.info('[Auth] Session expired, signed out');
     };
     SecureStore.getItemAsync('user').then((value) => {
@@ -105,6 +248,7 @@ function AuthProvider({ children }) {
       await SecureStore.deleteItemAsync('token');
       await SecureStore.deleteItemAsync('user');
       setUser(null);
+      await evictCaches();
       logger.info('[Auth] Signed out');
     }
   };
@@ -120,8 +264,8 @@ function Loading() { return <View style={styles.loading}><ActivityIndicator colo
 
 function LoginScreen() { const { login } = useAuth(); const [email, setEmail] = useState(''); const [password, setPassword] = useState(''); const [fieldError, setFieldError] = useState(''); const submit = async () => { const emailTrim = email.trim(); if (!emailTrim || !emailTrim.includes('@')) { setFieldError('Please enter a valid email address'); Alert.alert('Validation failed', 'Please enter a valid email address'); return; } if (!password || password.length < 6) { setFieldError('Password must be at least 6 characters'); Alert.alert('Validation failed', 'Password must be at least 6 characters'); return; } setFieldError(''); try { await login(email, password); Alert.alert('Welcome back!', 'You’re signed in — let’s keep building your pathway.'); } catch (error) { const msg = error.message || 'Unable to sign in'; const isRate = msg.toLowerCase().includes('too many') || msg.includes('429'); logger.warn('[Auth] Sign in failed:', msg); Alert.alert(isRate ? 'Too many attempts' : 'Unable to sign in', isRate ? 'Please wait a moment before trying again.' : msg); } }; return <SafeAreaView style={styles.login}><View><Text style={styles.brandMark}>CU</Text><Text style={styles.loginTitle}>Your next move is clear.</Text><Text style={styles.subtitle}>Build skills, find work, and move forward in Cebu.</Text><TextInput autoCapitalize="none" keyboardType="email-address" placeholder="Email address" value={email} onChangeText={(v) => { setEmail(v); if (fieldError) setFieldError(''); }} style={[styles.input, fieldError && styles.inputError]} /><TextInput secureTextEntry placeholder="Password" value={password} onChangeText={(v) => { setPassword(v); if (fieldError) setFieldError(''); }} style={[styles.input, fieldError && styles.inputError]} />{fieldError ? <Text style={styles.fieldError}>{fieldError}</Text> : null}<Button onPress={submit}>Sign in</Button></View></SafeAreaView>; }
 
-function HomeScreen() { const { user } = useAuth(); const [stats, setStats] = useState(null); const [refreshing, setRefreshing] = useState(false); const load = () => request('/stats/week').then(setStats).catch(() => setStats({ learningTimeHours: 0, coursesActive: 0, jobsWorthApplying: 0 })); useEffect(load, []); const refresh = async () => { setRefreshing(true); await load(); setRefreshing(false); Alert.alert('Refreshed', 'Your pathway is up to date.'); }; return <SafeAreaView style={styles.safe} edges={['top']}><ScrollView contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.teal} />}><Header eyebrow="MY PATHWAY" title={`Hi, ${user?.firstName || 'Learner'}.`} subtitle="Keep closing the gaps that matter most." /><Card><Text style={styles.cardEyebrow}>THIS WEEK</Text><Text style={styles.cardTitle}>Small steps add up.</Text><Text style={styles.cardText}>Keep your pathway moving with focused learning and timely applications.</Text><Button secondary onPress={() => Alert.alert('Pathway', 'Your pathway view is up to date — keep closing those gaps!')}>View pathway</Button></Card><View style={styles.stats}>{[['Learning', `${stats?.learningTimeHours || 0}h`], ['Active courses', stats?.coursesActive || 0], ['Jobs to explore', stats?.jobsWorthApplying || 0]].map(([label, value]) => <Card key={label}><Text style={styles.statValue}>{value}</Text><Text style={styles.statLabel}>{label}</Text></Card>)}</View></ScrollView></SafeAreaView>; }
-function ListScreen({ title, endpoint, empty, renderItem }) { const [items, setItems] = useState(null); const [error, setError] = useState(''); const [retryKey, setRetryKey] = useState(0); const [refreshing, setRefreshing] = useState(false); const load = async () => { setError(''); try { const data = await request(endpoint); setItems(Array.isArray(data) ? data : (data?.items ?? [])); } catch (err) { const msg = err?.message || 'Could not load content'; setError(msg); setItems([]); logger.warn(`[List] ${endpoint} failed:`, msg); } }; useEffect(() => { setItems(null); load(); }, [endpoint, retryKey]); const refresh = async () => { setRefreshing(true); await load(); setRefreshing(false); }; if (!items) return <Screen><Loading /></Screen>; if (error) return <Screen onRefresh={refresh} refreshing={refreshing}><Header eyebrow="MY PATHWAY" title={title} subtitle="Your next best opportunities, in one place." /><Card><Text style={styles.cardTitle}>Couldn’t load {title.toLowerCase()}</Text><Text style={[styles.cardText, { color: '#b42318' }]}>{error.includes('429') || error.toLowerCase().includes('too many') ? 'Too many requests — please wait a moment and retry.' : error}</Text><Button secondary onPress={() => { setItems(null); setRetryKey((k) => k + 1); }}>Try again</Button></Card></Screen>; return <Screen onRefresh={refresh} refreshing={refreshing}><Header eyebrow="MY PATHWAY" title={title} subtitle="Your next best opportunities, in one place." />{items.length ? items.map(renderItem) : <Card><Text style={styles.cardTitle}>{empty}</Text><Text style={styles.cardText}>Check back soon as new opportunities are added.</Text></Card>}</Screen>; }
+function HomeScreen() { const { user } = useAuth(); const [stats, setStats] = useState(null); const [refreshing, setRefreshing] = useState(false); const load = (bypass = false) => request('/stats/week', bypass ? { bypassCache: true } : undefined).then(setStats).catch(() => setStats({ learningTimeHours: 0, coursesActive: 0, jobsWorthApplying: 0 })); useEffect(() => { load(); }, []); const refresh = async () => { setRefreshing(true); await load(true); setRefreshing(false); Alert.alert('Refreshed', 'Your pathway is up to date.'); }; return <SafeAreaView style={styles.safe} edges={['top']}><ScrollView contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.teal} />}><Header eyebrow="MY PATHWAY" title={`Hi, ${user?.firstName || 'Learner'}.`} subtitle="Keep closing the gaps that matter most." /><Card><Text style={styles.cardEyebrow}>THIS WEEK</Text><Text style={styles.cardTitle}>Small steps add up.</Text><Text style={styles.cardText}>Keep your pathway moving with focused learning and timely applications.</Text><Button secondary onPress={() => Alert.alert('Pathway', 'Your pathway view is up to date — keep closing those gaps!')}>View pathway</Button></Card><View style={styles.stats}>{[['Learning', `${stats?.learningTimeHours || 0}h`], ['Active courses', stats?.coursesActive || 0], ['Jobs to explore', stats?.jobsWorthApplying || 0]].map(([label, value]) => <Card key={label}><Text style={styles.statValue}>{value}</Text><Text style={styles.statLabel}>{label}</Text></Card>)}</View></ScrollView></SafeAreaView>; }
+function ListScreen({ title, endpoint, empty, renderItem }) { const [items, setItems] = useState(null); const [error, setError] = useState(''); const [retryKey, setRetryKey] = useState(0); const [refreshing, setRefreshing] = useState(false); const load = async (bypass = false) => { setError(''); try { const data = await request(endpoint, bypass ? { bypassCache: true } : undefined); setItems(Array.isArray(data) ? data : (data?.items ?? [])); } catch (err) { const msg = err?.message || 'Could not load content'; setError(msg); setItems([]); logger.warn(`[List] ${endpoint} failed:`, msg); } }; useEffect(() => { setItems(null); load(); }, [endpoint, retryKey]); const refresh = async () => { setRefreshing(true); await load(true); setRefreshing(false); }; if (!items) return <Screen><Loading /></Screen>; if (error) return <Screen onRefresh={refresh} refreshing={refreshing}><Header eyebrow="MY PATHWAY" title={title} subtitle="Your next best opportunities, in one place." /><Card><Text style={styles.cardTitle}>Couldn’t load {title.toLowerCase()}</Text><Text style={[styles.cardText, { color: '#b42318' }]}>{error.includes('429') || error.toLowerCase().includes('too many') ? 'Too many requests — please wait a moment and retry.' : error}</Text><Button secondary onPress={() => { setItems(null); setRetryKey((k) => k + 1); }}>Try again</Button></Card></Screen>; return <Screen onRefresh={refresh} refreshing={refreshing}><Header eyebrow="MY PATHWAY" title={title} subtitle="Your next best opportunities, in one place." />{items.length ? items.map(renderItem) : <Card><Text style={styles.cardTitle}>{empty}</Text><Text style={styles.cardText}>Check back soon as new opportunities are added.</Text></Card>}</Screen>; }
 function SkillsScreen() { return <ListScreen title="Skill profile" endpoint="/skills" empty="No skills added yet." renderItem={(item, index) => <Card key={item.skillId || index}><Text style={styles.cardTitle}>{item.name || item.skillName}</Text><Text style={styles.cardText}>Current level: {item.level || item.currentLevel || 'Not assessed'}</Text></Card>} />; }
 function CompanyLogo({ name, url, size = 42 }) {
   const [failed, setFailed] = useState(false);
@@ -131,7 +275,11 @@ function CompanyLogo({ name, url, size = 42 }) {
     const initials = words.length === 0 ? '?' : words.length === 1 ? words[0].slice(0, 2) : `${words[0][0]}${words[1][0]}`;
     return <View style={[styles.logoFallback, { width: size, height: size }]}><Text style={{ color: colors.teal, fontWeight: '800', fontSize: size * 0.34 }}>{initials.toUpperCase()}</Text></View>;
   }
-  return <Image source={{ uri: url }} style={{ width: size, height: size, borderRadius: 10, backgroundColor: colors.soft }} onError={() => setFailed(true)} accessibilityLabel={`${name} logo`} />;
+  // `cache: 'force-cache'` uses the native image cache on iOS (Android
+  // already caches via the networking layer). For full disk+memory caching
+  // with cache policies, swap this for `expo-image`
+  // (`npx expo install expo-image`, then `import { Image } from 'expo-image'`).
+  return <Image source={{ uri: url, cache: 'force-cache' }} style={{ width: size, height: size, borderRadius: 10, backgroundColor: colors.soft }} onError={() => setFailed(true)} accessibilityLabel={`${name} logo`} />;
 }
 
 function JobsScreen() {

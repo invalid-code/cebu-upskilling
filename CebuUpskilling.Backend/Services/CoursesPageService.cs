@@ -1,6 +1,9 @@
 using CebuUpskilling.Backend.DTOs;
 using CebuUpskilling.Backend.Entities;
+using CebuUpskilling.Backend.Options;
 using CebuUpskilling.Backend.Repositories;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Options;
 
 namespace CebuUpskilling.Backend.Services;
 
@@ -19,6 +22,8 @@ public class CoursesPageService : ICoursesPageService
     private readonly IRoleSkillRepository _roleSkills;
     private readonly ILearnerSkillRepository _learnerSkills;
     private readonly IApplicationRepository _applications;
+    private readonly IMemoryCache _cache;
+    private readonly ServiceCacheOptions _cacheOptions;
     private readonly ILogger<CoursesPageService> _logger;
 
     public CoursesPageService(
@@ -29,6 +34,8 @@ public class CoursesPageService : ICoursesPageService
         IRoleSkillRepository roleSkills,
         ILearnerSkillRepository learnerSkills,
         IApplicationRepository applications,
+        IMemoryCache cache,
+        IOptions<ServiceCacheOptions> cacheOptions,
         ILogger<CoursesPageService> logger)
     {
         _users = users;
@@ -38,10 +45,32 @@ public class CoursesPageService : ICoursesPageService
         _roleSkills = roleSkills;
         _learnerSkills = learnerSkills;
         _applications = applications;
+        _cache = cache;
+        _cacheOptions = cacheOptions.Value;
         _logger = logger;
     }
 
     public async Task<CoursesPageResponse?> GetCoursesPageAsync(Guid userId, string? category = null)
+    {
+        if (!_cacheOptions.Enabled)
+            return await LoadCoursesPageAsync(userId, category);
+
+        var key = ServiceCacheKeys.CoursesPage(userId, category);
+        if (_cache.TryGetValue<CoursesPageResponse>(key, out var cached) && cached is not null)
+        {
+            _logger.LogDebug("Courses page cache HIT for user {UserId}", userId);
+            return cached;
+        }
+
+        // Missing learner profiles (null) are not cached: the profile may be
+        // created immediately after this call.
+        var page = await LoadCoursesPageAsync(userId, category);
+        if (page is not null)
+            _cache.Set(key, page, TimeSpan.FromMinutes(Math.Max(1, _cacheOptions.UserComputedMinutes)));
+        return page;
+    }
+
+    private async Task<CoursesPageResponse?> LoadCoursesPageAsync(Guid userId, string? category = null)
     {
         _logger.LogDebug("Getting courses page for user {UserId}, category {Category}", userId, category);
 

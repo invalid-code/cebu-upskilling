@@ -82,6 +82,10 @@ afterEach(async () => {
     useToastStore.getState()._reset();
     useNotificationStore.getState()._reset();
     useCookieConsentStore.getState()._reset();
+    // The api client caches GETs in memory/session: drop it so tests start cold.
+    // (Files that mock ../api/client get a no-op via optional chaining.)
+    const { api } = await import('../api/client');
+    api._clearCache?.();
   } catch {
     // ignore if stores not yet loaded
   }

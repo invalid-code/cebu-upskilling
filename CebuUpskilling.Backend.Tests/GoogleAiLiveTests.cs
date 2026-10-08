@@ -1,5 +1,6 @@
 using CebuUpskilling.Backend.Options;
 using CebuUpskilling.Backend.Services;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
@@ -25,7 +26,7 @@ public class GoogleAiLiveTests
 
         var baseUrl = options.BaseUrl.EndsWith('/') ? options.BaseUrl : options.BaseUrl + "/";
         var client = new HttpClient { BaseAddress = new Uri(baseUrl), Timeout = TimeSpan.FromSeconds(60) };
-        return new GoogleAiService(client, Microsoft.Extensions.Options.Options.Create(options), NullLogger<GoogleAiService>.Instance);
+        return new GoogleAiService(client, Microsoft.Extensions.Options.Options.Create(options), new MemoryCache(new MemoryCacheOptions()), Microsoft.Extensions.Options.Options.Create(new ServiceCacheOptions()), NullLogger<GoogleAiService>.Instance);
     }
 
     [LiveExternalIntegrationFact]
