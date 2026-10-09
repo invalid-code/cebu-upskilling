@@ -19,6 +19,8 @@ node_modules
 dist
 dist-ssr
 coverage
+# Local Expo state (device registry, fingerprints) — per-machine, never commit.
+.expo/
 playwright-report/
 test-results/
 .playwright/
