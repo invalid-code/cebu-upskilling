@@ -20,6 +20,14 @@
 #                       https://cebu-upskilling.onrender.com/api — baked
 #                       into the mobile bundle as EXPO_PUBLIC_API_URL
 #                       (App.js falls back to http://localhost:5000/api).
+#   SENTRY_DSN_MOBILE   Sentry DSN of the mobile project — baked into the
+#                       mobile bundle as EXPO_PUBLIC_SENTRY_DSN. Empty is
+#                       allowed (error tracking stays disabled in the bundle).
+#   POSTHOG_KEY_MOBILE  PostHog project API key (phc_…) — baked into the
+#                       mobile bundle as EXPO_PUBLIC_POSTHOG_KEY. Empty is
+#                       allowed (analytics stays opted-out in the bundle).
+#   POSTHOG_HOST_MOBILE PostHog host, e.g. https://us.i.posthog.com.
+#                       Defaults to the US host when empty.
 # One-time EAS setup (not done by CI — run locally once):
 #   1. `npx eas-cli@latest init` inside mobile/ to link app.json to the
 #      Expo project (writes extra.eas.projectId).
@@ -154,6 +162,9 @@ jobs:
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
       EXPO_PUBLIC_API_URL: ${{ secrets.PROD_API_URL }}
+      EXPO_PUBLIC_SENTRY_DSN: ${{ secrets.SENTRY_DSN_MOBILE }}
+      EXPO_PUBLIC_POSTHOG_KEY: ${{ secrets.POSTHOG_KEY_MOBILE }}
+      EXPO_PUBLIC_POSTHOG_HOST: ${{ secrets.POSTHOG_HOST_MOBILE }}
     steps:
       - uses: actions/checkout@v4
 
@@ -172,6 +183,14 @@ jobs:
       # the localhost fallback from App.js and every API call would fail.
       - name: Check production API URL is set
         run: '[ -n "$EXPO_PUBLIC_API_URL" ] || (echo "PROD_API_URL secret is not set" && exit 1)'
+
+      # Sentry/PostHog keys are optional: the bundle degrades gracefully
+      # (tracking stays disabled) when they are empty. Warn so a missing
+      # secret is noticed rather than shipping blind silently.
+      - name: Check observability keys are set
+        run: |
+          [ -n "$EXPO_PUBLIC_SENTRY_DSN" ] || echo "::warning::SENTRY_DSN_MOBILE secret is not set — mobile build will ship without error tracking."
+          [ -n "$EXPO_PUBLIC_POSTHOG_KEY" ] || echo "::warning::POSTHOG_KEY_MOBILE secret is not set — mobile build will ship without analytics."
 
       # Queues a production cloud build for Android (.aab) and iOS (.ipa)
       # using mobile/eas.json. Waits for completion so a failed build fails

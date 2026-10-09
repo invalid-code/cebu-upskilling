@@ -20,6 +20,12 @@
     },
     "ios": {
       "bundleIdentifier": "com.cebuupskilling.mobile"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "699787b4-ba87-49d7-9e89-cff5bd6b2511"
+      }
+    },
+    "owner": "invalid-code"
   }
 }
