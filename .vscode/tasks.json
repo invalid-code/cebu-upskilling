@@ -48,7 +48,8 @@
 			"dependsOrder": "parallel",
 			"dependsOn": [
 				"frontend dev server",
-				"start backend"
+				"start backend",
+				"mobile: start dev client (LAN)"
 			],
 			"group": {
 				"kind": "build",
