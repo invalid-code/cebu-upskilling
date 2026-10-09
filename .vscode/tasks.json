@@ -54,6 +54,76 @@
 				"kind": "build",
 				"isDefault": true
 			}
+		},
+		{
+			"label": "mobile: install dependencies",
+			"type": "shell",
+			"command": "npm ci",
+			"problemMatcher": [],
+			"detail": "expo",
+			"options": {
+				"cwd": "${workspaceFolder}/mobile",
+			}
+		},
+		{
+			"label": "mobile: check config",
+			"type": "shell",
+			"command": "npx expo config --type public",
+			"problemMatcher": [],
+			"detail": "expo",
+			"options": {
+				"cwd": "${workspaceFolder}/mobile",
+			}
+		},
+		{
+			"label": "mobile: start dev client (LAN)",
+			"type": "shell",
+			"command": "npx expo start --dev-client",
+			"problemMatcher": [],
+			"detail": "expo",
+			"options": {
+				"cwd": "${workspaceFolder}/mobile",
+			}
+		},
+		{
+			"label": "mobile: start dev client (tunnel)",
+			"type": "shell",
+			"command": "npx expo start --dev-client --tunnel",
+			"problemMatcher": [],
+			"detail": "expo (use when phone and computer are on different networks)",
+			"options": {
+				"cwd": "${workspaceFolder}/mobile",
+			}
+		},
+		{
+			"label": "mobile: start dev client (clear cache)",
+			"type": "shell",
+			"command": "npx expo start --dev-client --clear",
+			"problemMatcher": [],
+			"detail": "expo (fixes stale-bundle / 'main has not been registered' errors)",
+			"options": {
+				"cwd": "${workspaceFolder}/mobile",
+			}
+		},
+		{
+			"label": "mobile: build dev client (EAS)",
+			"type": "shell",
+			"command": "eas build -p android --profile development",
+			"problemMatcher": [],
+			"detail": "eas (rebuild after adding native deps; install the APK on your phone)",
+			"options": {
+				"cwd": "${workspaceFolder}/mobile",
+			}
+		},
+		{
+			"label": "mobile: doctor",
+			"type": "shell",
+			"command": "npx expo doctor",
+			"problemMatcher": [],
+			"detail": "expo (SDK/dependency compatibility check)",
+			"options": {
+				"cwd": "${workspaceFolder}/mobile",
+			}
 		}
 	]
 }
