@@ -9,8 +9,12 @@
     "plugins": [
       "expo-secure-store",
       "expo-font",
-      "@sentry/react-native"
+      "@sentry/react-native",
+      "expo-updates"
     ],
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "android": {
       "package": "com.cebuupskilling.mobile"
     },
