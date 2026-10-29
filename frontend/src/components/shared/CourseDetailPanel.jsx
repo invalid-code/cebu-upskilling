@@ -122,7 +122,7 @@ const styles = {
     height: 32,
     borderRadius: 8,
     background: 'var(--teal)',
-    color: 'var(--surface)',
+    color: '#fff',
     display: 'grid',
     placeItems: 'center',
     flexShrink: 0,
@@ -167,11 +167,11 @@ const styles = {
   },
   moduleIconCompleted: {
     background: 'var(--teal)',
-    color: 'var(--surface)',
+    color: '#fff',
   },
   moduleIconCurrent: {
     background: 'var(--coral)',
-    color: 'var(--surface)',
+    color: '#fff',
   },
   moduleIconPending: {
     background: 'var(--surface2)',
@@ -196,7 +196,7 @@ const styles = {
   resumeButton: {
     width: '100%',
     background: 'var(--teal)',
-    color: 'var(--surface)',
+    color: '#fff',
   },
 };
 

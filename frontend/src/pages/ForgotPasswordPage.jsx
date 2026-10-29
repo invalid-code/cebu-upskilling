@@ -48,7 +48,7 @@ const styles = {
     height: 30,
     borderRadius: '50%',
     background: 'var(--teal)',
-    color: 'var(--surface)',
+    color: '#fff',
     display: 'grid',
     placeItems: 'center',
     flexShrink: 0,

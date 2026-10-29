@@ -113,7 +113,7 @@ const styles = {
   },
   optionLetterSelected: {
     background: 'var(--teal)',
-    color: 'var(--surface)',
+    color: '#fff',
   },
   optionText: {
     fontSize: 14,

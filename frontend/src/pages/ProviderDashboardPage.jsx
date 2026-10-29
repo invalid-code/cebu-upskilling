@@ -25,7 +25,7 @@ const styles = {
   subtitle: { color: 'var(--muted)', margin: '10px 0 0', fontSize: 13, maxWidth: 560, lineHeight: 1.5 },
   date: { fontSize: 13, color: 'var(--muted)', margin: 0, whiteSpace: 'nowrap' },
   heroGrid: { display: 'grid', gridTemplateColumns: 'minmax(0, 1.55fr) minmax(280px, 0.85fr)', gap: 18 },
-  hero: { background: 'var(--teal)', color: 'var(--surface)', borderRadius: 22, padding: 30, position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: 228 },
+  hero: { background: 'var(--teal)', color: '#fff', borderRadius: 22, padding: 30, position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: 228 },
   heroH2: { fontFamily: "'Space Grotesk', sans-serif", fontSize: 'clamp(1.5rem, 2.6vw, 2rem)', lineHeight: 1.05, position: 'relative', zIndex: 1 },
   heroP: { color: 'rgba(233, 241, 253, 0.88)', position: 'relative', zIndex: 1, margin: '12px 0 22px', fontSize: 13, lineHeight: 1.5, maxWidth: 520 },
   heroActions: { display: 'flex', gap: 10, flexWrap: 'wrap', position: 'relative', zIndex: 1 },
@@ -188,7 +188,7 @@ export default function ProviderDashboardPage() {
             <Button variant="primary" onClick={() => navigate('/company-courses/new')} style={{ background: 'var(--surface)', color: 'var(--teal)', borderColor: 'transparent' }}>
               <Plus size={16} /> Create course
             </Button>
-            <Link to="/company-courses" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, color: 'var(--surface)', fontWeight: 700, fontSize: 13, textDecoration: 'none', border: '1px solid rgba(255,255,255,0.28)', padding: '10px 14px', borderRadius: 10 }}>
+            <Link to="/company-courses" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, color: '#fff', fontWeight: 700, fontSize: 13, textDecoration: 'none', border: '1px solid rgba(255,255,255,0.28)', padding: '10px 14px', borderRadius: 10 }}>
               Manage courses <ArrowRight size={14} />
             </Link>
           </div>
@@ -226,7 +226,7 @@ export default function ProviderDashboardPage() {
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
             <Button variant="secondary" onClick={() => navigate('/company-courses')} style={{ flex: 1 }}><Library size={14} /> Course studio</Button>
-            <Link to="/company-courses/new" style={{ flex: 1, display: 'inline-flex', justifyContent: 'center', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, background: 'var(--teal)', color: 'var(--surface)', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}><Plus size={14} /> New course</Link>
+            <Link to="/company-courses/new" style={{ flex: 1, display: 'inline-flex', justifyContent: 'center', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, background: 'var(--teal)', color: '#fff', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}><Plus size={14} /> New course</Link>
           </div>
         </Panel>
       </div>

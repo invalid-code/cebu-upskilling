@@ -121,7 +121,7 @@ const styles = {
   },
   filterTabActive: {
     background: 'var(--teal)',
-    color: 'var(--surface)',
+    color: '#fff',
     borderColor: 'var(--teal)',
   },
   empty: {

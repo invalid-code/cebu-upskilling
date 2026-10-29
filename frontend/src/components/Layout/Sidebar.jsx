@@ -37,8 +37,9 @@ const providerNav = [
 
 const styles = {
   rail: {
-    background: 'var(--teal)',
-    color: 'rgba(255, 255, 255, 0.96)',
+    background: 'var(--rail-bg)',
+    color: 'var(--rail-text)',
+    borderRight: '1px solid var(--rail-line)',
     padding: '24px 16px',
     position: 'sticky',
     top: 0,
@@ -60,7 +61,7 @@ const styles = {
     background: 'var(--coral)',
     display: 'grid',
     placeItems: 'center',
-    color: 'var(--surface)',
+    color: '#fff',
     fontFamily: "'Space Grotesk', sans-serif",
     fontWeight: 700,
     fontSize: 16,
@@ -71,17 +72,18 @@ const styles = {
     fontWeight: 700,
     fontSize: 14,
     fontFamily: "'Space Grotesk', sans-serif",
+    color: 'var(--rail-strong)',
   },
   brandSub: {
     display: 'block',
     fontSize: 11,
-    color: 'rgba(233, 241, 253, 0.83)',
+    color: 'var(--rail-muted)',
   },
   navLabel: {
     fontSize: 10,
     letterSpacing: '0.13em',
     textTransform: 'uppercase',
-    color: 'rgba(233, 241, 253, 0.76)',
+    color: 'var(--rail-muted)',
     margin: '14px 10px 7px',
   },
   nav: {
@@ -89,7 +91,7 @@ const styles = {
     gap: 4,
   },
   navLink: {
-    color: 'rgba(233, 241, 253, 0.88)',
+    color: 'var(--rail-text)',
     padding: 10,
     borderRadius: 10,
     textAlign: 'left',
@@ -102,7 +104,7 @@ const styles = {
   },
   account: {
     marginTop: 'auto',
-    borderTop: '1px solid rgba(255, 255, 255, 0.16)',
+    borderTop: '1px solid var(--rail-line)',
     padding: '16px 8px 0',
     display: 'flex',
     gap: 10,
@@ -112,7 +114,7 @@ const styles = {
     width: 33,
     height: 33,
     borderRadius: '50%',
-    background: 'var(--sand)',
+    background: 'var(--surface2)',
     color: 'var(--teal)',
     display: 'grid',
     placeItems: 'center',
@@ -123,16 +125,17 @@ const styles = {
   userName: {
     fontWeight: 700,
     fontSize: 12,
+    color: 'var(--rail-strong)',
   },
    userRole: {
      display: 'block',
-     color: 'rgba(233, 241, 253, 0.80)',
+     color: 'var(--rail-muted)',
      fontSize: 11,
    },
    logoutBtn: {
      background: 'transparent',
      border: 0,
-     color: 'rgba(233, 241, 253, 0.75)',
+     color: 'var(--rail-muted)',
      cursor: 'pointer',
      padding: 4,
      borderRadius: 8,
@@ -150,8 +153,8 @@ function NavItem({ to, icon: Icon, label }) {
       end={to === '/dashboard'}
       style={({ isActive }) => ({
         ...styles.navLink,
-        background: isActive ? 'rgba(10, 53, 112, 0.48)' : 'transparent',
-        color: isActive ? 'var(--surface)' : 'rgba(233, 241, 253, 0.88)',
+        background: isActive ? 'var(--rail-active-bg)' : 'transparent',
+        color: isActive ? 'var(--rail-active-text)' : 'var(--rail-text)',
       })}
     >
       <Icon size={16} />

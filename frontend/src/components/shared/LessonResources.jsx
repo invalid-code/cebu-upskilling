@@ -119,7 +119,7 @@ const styles = {
     width: '100%',
     padding: '10px 16px',
     background: 'var(--teal)',
-    color: 'var(--surface)',
+    color: '#fff',
     border: 0,
     borderRadius: 8,
     fontSize: 13,

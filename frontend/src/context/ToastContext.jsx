@@ -27,7 +27,7 @@ export function ToastProvider({ children }) {
           right: 22,
           bottom: 22,
           ...(variantStyles[toast?.variant] || variantStyles.info),
-          color: 'var(--surface)',
+          color: '#fff',
           padding: '13px 16px',
           borderRadius: 11,
           boxShadow: 'var(--shadow)',

@@ -78,7 +78,7 @@ const styles = {
     height: 36,
     borderRadius: 10,
     background: 'var(--teal)',
-    color: 'var(--surface)',
+    color: '#fff',
     display: 'grid',
     placeItems: 'center',
     flexShrink: 0,
@@ -110,7 +110,7 @@ const styles = {
   },
   lessonItemCurrent: {
     background: 'var(--teal)',
-    color: 'var(--surface)',
+    color: '#fff',
   },
   lessonItemCompleted: {
     background: 'var(--teal-soft)',
@@ -125,11 +125,11 @@ const styles = {
   },
   lessonIconCompleted: {
     background: 'var(--teal)',
-    color: 'var(--surface)',
+    color: '#fff',
   },
   lessonIconCurrent: {
     background: 'var(--coral)',
-    color: 'var(--surface)',
+    color: '#fff',
   },
   lessonIconPending: {
     background: 'var(--surface2)',

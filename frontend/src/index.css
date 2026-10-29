@@ -46,6 +46,15 @@
   --radius: 10px;
   --radius-lg: 18px;
   --radius-xl: 22px;
+  /* Sidebar / mobile nav rail. Kept separate from --teal so the rail can
+     stay a deep panel in dark mode while links and buttons stay bright. */
+  --rail-bg: #dde6f2;
+  --rail-text: #223147;
+  --rail-muted: #5d646e;
+  --rail-strong: #0e1928;
+  --rail-active-bg: #1452a5;
+  --rail-active-text: #fff;
+  --rail-line: #c3c8cf;
 }
 
 :root.dark {
@@ -75,6 +84,13 @@
   --status-wait: #d4a845;
   --status-idle: #6b7b8f;
   --shadow: 0 16px 42px rgba(0, 0, 0, 0.35);
+  --rail-bg: #0a0f14;
+  --rail-text: #b9c6d7;
+  --rail-muted: #8194ab;
+  --rail-strong: #e8ecf1;
+  --rail-active-bg: #1a2f4a;
+  --rail-active-text: #e8ecf1;
+  --rail-line: #223049;
 }
 
 * {

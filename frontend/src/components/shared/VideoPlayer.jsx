@@ -77,7 +77,7 @@ const styles = {
     width: 36,
     height: 36,
     background: 'var(--teal)',
-    color: 'var(--surface)',
+    color: '#fff',
   },
   timeDisplay: {
     fontSize: 12,

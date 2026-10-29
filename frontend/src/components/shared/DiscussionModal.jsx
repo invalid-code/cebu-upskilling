@@ -99,7 +99,7 @@ const styles = {
     gap: 6,
     padding: '10px 18px',
     background: 'var(--teal)',
-    color: 'var(--surface)',
+    color: '#fff',
     border: 0,
     borderRadius: 10,
     fontSize: 13,

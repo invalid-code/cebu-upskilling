@@ -114,7 +114,7 @@ export default function ProfilePage() {
       </div>
 
       <section style={{ display: 'grid', gridTemplateColumns: 'minmax(230px, 0.75fr) minmax(0, 1.6fr)', gap: 18, alignItems: 'start' }}>
-        <Panel style={{ background: 'var(--teal)', color: 'var(--surface)', minHeight: 245, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+        <Panel style={{ background: 'var(--teal)', color: '#fff', minHeight: 245, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
           <div>
             <div style={{ width: 66, height: 66, borderRadius: '50%', background: 'var(--sand)', color: 'var(--teal)', display: 'grid', placeItems: 'center', fontSize: 22, fontWeight: 800, marginBottom: 24 }}>{initials || 'U'}</div>
             <h2 style={{ margin: 0, fontFamily: "'Space Grotesk', sans-serif", fontSize: 25 }}>{fullName}</h2>

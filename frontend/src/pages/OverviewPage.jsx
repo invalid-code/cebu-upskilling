@@ -33,7 +33,7 @@ const styles = {
   col12: { gridColumn: '1 / -1' },
   hero: {
     background: 'var(--teal)',
-    color: 'var(--surface)',
+    color: '#fff',
     borderRadius: 22,
     padding: 30,
     position: 'relative',

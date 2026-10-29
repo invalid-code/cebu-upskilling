@@ -31,7 +31,7 @@ const styles = {
     bottom: 12,
     left: 12,
     right: 12,
-    background: 'var(--teal)',
+    background: 'var(--rail-bg)',
     zIndex: 5,
     borderRadius: 14,
     padding: 7,
@@ -40,7 +40,7 @@ const styles = {
   },
   link: {
     background: 'transparent',
-    color: 'var(--surface)',
+    color: 'var(--rail-strong)',
     fontSize: 10,
     padding: 7,
     display: 'grid',

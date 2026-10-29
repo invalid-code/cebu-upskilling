@@ -3,11 +3,11 @@ import { Loader2 } from 'lucide-react';
 const variants = {
   primary: {
     background: 'var(--coral)',
-    color: 'var(--surface)',
+    color: '#fff',
   },
   secondary: {
     background: 'var(--teal)',
-    color: 'var(--surface)',
+    color: '#fff',
   },
   ghost: {
     background: 'var(--surface2)',
