@@ -1,32 +1,114 @@
-# AGENTS.md — Cebu Upskilling
+# Project Rules
 
-Career-pathway platform: ASP.NET Core 10 API + React 19/Vite SPA + Expo mobile.
-Three separately-run roots: `CebuUpskilling.Backend/`, `frontend/`, `mobile/`.
-Detailed references (read these, don't re-derive): root `README.md`, `CebuUpskilling.Backend/README.md`, `docs/ARCHITECTURE.md`, `docs/API.md`.
+This is a JavaScript/TypeScript, C# / .NET, Docker / Containers, Documentation / Markdown with fastapi project.
 
-## Toolchain (verify, don't assume)
-- .NET SDK **10.0.302** (`global.json`, `rollForward: latestFeature`). EF tools must target the backend project (see below).
-- Node **26** (` .nvmrc`) — run `nvm use` in `frontend`/`mobile` before npm commands.
-- PostgreSQL **16** (or `docker compose up db`).
+## Project Structure
 
-## Backend essentials
-- **Startup crashes** without `Jwt:Key` (≥32 chars, HMAC-SHA256). Set via user-secrets (local) or `Jwt__Key` env (Docker/prod). Other secrets (R2, Gemini, Resend, ConnectionStrings) are optional and degrade gracefully.
-- Local secrets go in **.NET User Secrets** (store id `cebu-upskilling-backend-local`), never committed. Env-var form uses `__` as section separator (`Jwt__Key` → `Jwt:Key`).
-- Run order: start Postgres → `dotnet ef database update --project CebuUpskilling.Backend` → `dotnet run --project CebuUpskilling.Backend --launch-profile http` (listens on `:5000`/`:5179`; OpenAPI + `/health` only in Development). Docker/compose serves `:8080`.
-- **All `dotnet ef` commands need `--project CebuUpskilling.Backend`** (design-time factory in `Data/DesignTimeDbContextFactory.cs`). 36 timestamp-prefixed migrations; `migrations remove` only the last, only if unapplied.
-- `Gemini` model default differs by source: `gemini-3-flash-preview` in `appsettings.json`, `gemini-2.5-flash` in `docker-compose.yml`. Don't "harmonize" blindly; it's intentional.
-- **Inherited `BaseEntityController<T>` CRUD on Courses/Assessments/Enrollments is deliberately overridden to `NotFound()`** — the base actions let any authenticated user rewrite `Verified`/`ScoredLevel` or dump every learner's records. Course writes go through `/api/company/courses`. Don't "restore" the generic endpoints.
-- Middleware order in `Program.cs` is load-bearing: ForwardedHeaders → SecurityHeaders → ExceptionHandler → CORS → StaticFiles → RateLimiter → Auth → RevokedToken → Authz. Rate limiting is per-IP on `RemoteIpAddress` (set by ForwardedHeaders from `ForwardedHeaders:KnownProxies`/`KnownNetworks` only — never from an untrusted `X-Forwarded-For`) (Global 120/60s, Auth 10/60s → `429`). Logged-out JTIs stay revoked 8 days.
+<!-- TODO: Describe your project structure here -->
+<!-- Example:
+- `src/` - Application source code
+- `tests/` - Test files
+- `docs/` - Documentation
+-->
 
-## Frontend essentials
-- **`src/api/client.js` uses `XMLHttpRequest` deliberately, not `fetch`** — a browser extension patches `fetch`. Do NOT "modernize" it to `fetch`; that breaks the build per the root README troubleshooting note.
-- Vite proxies `/api` → `http://localhost:5000` (`vite.config.js`). Override with `VITE_API_URL` (`frontend/.env.development`).
-- Lint is **oxlint** (`npm run lint`), not ESLint. Tests: `npm test` (vitest), `npm run test:watch`, `npm run test:e2e` (Playwright, expects SPA on `:5173`). Coverage thresholds are low (lines 50, branches 45) — don't raise without reason.
+## Code Standards
 
-## Tests
-- Backend: `dotnet test CebuUpskilling.Backend.Tests/...csproj`; filter with `--filter "AuthServiceTests"`; coverage via `--collect:"XPlat Code Coverage" --settings coverlet.runsettings`. Backend tests need **no Postgres** — integration tests boot the API via `ProductionApiFactory` on an isolated EF Core InMemory database with faked R2/Gemini. (Postgres is only needed to *run* the API, per Backend essentials above.)
-- Run both `dotnet test` and `npm test` before pushing (per contributing note in root README).
+### JavaScript/TypeScript
+
+- Use TypeScript with strict mode where possible
+- Prefer ESM imports over CommonJS require
+- Use async/await over raw Promises
+
+### C# / .NET
+
+- Follow .NET naming conventions
+- Use async/await for I/O operations
+- Use dependency injection via built-in DI container
+
+### Docker / Containers
+
+- Use multi-stage builds for smaller images
+- Pin base image versions
+- Do not run as root in containers
+
+### Documentation / Markdown
+
+- Use consistent heading levels
+- Keep line length under 120 characters where practical
+- Include code examples for technical documentation
+
+## Commands
+
+### JavaScript/TypeScript
+
+- **Build:** `npm run build`
+- **Test:** `npm test`
+- **Lint:** `npm run lint`
+
+### C# / .NET
+
+- **Build:** `dotnet build`
+- **Test:** `dotnet test`
+
+### Docker / Containers
+
+- **Build:** `docker build .`
+- **Lint:** `hadolint Dockerfile`
+
+### Documentation / Markdown
+
+- **Lint:** `markdownlint "**/*.md"`
+
+## Package Manager
+
+This project uses **uv**. Always use `uv` for installing dependencies.
+
+## Custom Agents
+
+The following custom subagents are available (invoke with `@agent-name`):
+
+- **@backend-developer**: Server-side logic, APIs, and data processing
+- **@frontend-developer**: UI implementation, components, and browser APIs
+- **@fullstack-developer**: End-to-end feature development across the stack
+- **@typescript-pro**: TypeScript type system, generics, and advanced patterns
+- **@javascript-pro**: Modern JavaScript, ES modules, and runtime optimization
+- **@csharp-developer**: C# and .NET ecosystem, LINQ, and async patterns
+- **@react-specialist**: React hooks, state management, and component design
+- **@deployment-engineer**: Deployment strategies, blue-green, canary, and rollbacks
+- **@devops-engineer**: CI/CD pipelines, infrastructure, and deployment
+- **@docker-expert**: Docker optimization, multi-stage builds, and security
+- **@platform-engineer**: Internal developer platforms and self-service tooling
+- **@sre-engineer**: Site reliability, monitoring, and incident response
+- **@code-reviewer**: Code review with security and performance focus
+- **@build-engineer**: Build system configuration, caching, and optimization
+- **@dependency-manager**: Dependency updates, audit, and compatibility checks
+- **@docs-writer**: Technical documentation and API reference writing
+- **@git-workflow-manager**: Git workflow, branching strategy, and commit hygiene
+- **@test-writer**: Test generation following project patterns
+- **@technical-writer**: User guides, tutorials, and knowledge base articles
+
+## Available Skills
+
+The following skills are installed and will be loaded on demand:
+
+- **git-release**: Release notes and version bumps
+- **pr-review**: Structured PR review checklist
+- **migration**: Database/framework migration planning
+- **test-patterns**: Test generation following project conventions
+- **deploy**: CI/CD pipeline and deployment setup
+- **dependency-audit**: Audit dependencies for vulnerabilities and license issues
+- **incident-postmortem**: Structured incident postmortem report generation
+- **docker-optimize**: Dockerfile and image size optimization
+- **adr-write**: Architecture Decision Record (ADR) authoring
+- **api-contract**: OpenAPI/Swagger contract generation and validation
+- **changelog-generate**: Changelog generation from commit history
+- **ci-pipeline**: CI pipeline configuration and optimization
+- **env-setup**: Development environment setup and onboarding
+- **error-triage**: Error log triage and prioritization
+- **performance-profile**: Performance profiling and bottleneck identification
 
 ## Conventions
-- Branching off `main` with `feat/` / `fix/` prefixes; PRs against `main`; no `CONTRIBUTING.md` yet.
-- `docs/` holds the real API/architecture spec; `CebuUpskillingDocumentation.pdf` is the product spec. When docs and code conflict, trust the code/README.
+
+- Use conventional commits: `feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:`
+- Write meaningful commit messages that explain the "why"
+- Keep PRs focused on a single concern
