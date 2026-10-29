@@ -1,6 +1,8 @@
 import { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import { Moon, Sun } from 'lucide-react';
 import { useAuth, isRecruiter } from '../context/AuthContext';
+import { useThemeStore } from '../stores/themeStore';
 import './LandingPage.css';
 
 const ROLES = [
@@ -55,6 +57,7 @@ function getBand(v) {
 
 export default function LandingPage() {
   const { user } = useAuth();
+  const { isDark, toggle } = useThemeStore();
   const [selectedRole, setSelectedRole] = useState(0);
   const [score, setScore] = useState(72);
   const [skillView, setSkillView] = useState(true);
@@ -285,7 +288,7 @@ export default function LandingPage() {
   const closeDrawer = () => setNavOpen(false);
 
   return (
-    <div className="landing-page">
+    <div className={`landing-page${isDark ? ' dark' : ''}`}>
       <a className="skip-link" href="#top">Skip to content</a>
       <header className={`nav${navStuck ? ' stuck' : ''}${navOpen ? ' open' : ''}`} id="nav">
         <div className="shell nav__in">
@@ -304,6 +307,15 @@ export default function LandingPage() {
           </nav>
 
           <div className="nav__cta">
+            <button
+              className="icon-btn"
+              onClick={toggle}
+              aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+              title={isDark ? 'Light mode' : 'Dark mode'}
+              style={{ width: 40, height: 40, borderRadius: 10, display: 'grid', placeItems: 'center', color: 'var(--ink)', background: 'transparent', border: 0, cursor: 'pointer' }}
+            >
+              {isDark ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
             {user ? (
               <Link className="btn btn--primary btn--sm" to={dashboardPath}>Go to Dashboard</Link>
             ) : (

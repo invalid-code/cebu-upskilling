@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Bell, CheckCircle2, AlertCircle, Info } from 'lucide-react';
+import { Bell, CheckCircle2, AlertCircle, Info, Moon, Sun } from 'lucide-react';
+import { useThemeStore } from '../../stores/themeStore';
 import { useAuth, isRecruiter, isCourseProvider } from '../../context/AuthContext';
 import { useNotificationStore, unreadCount } from '../../stores/notificationStore';
 
@@ -203,6 +204,7 @@ const styles = {
 export default function Topbar() {
   const location = useLocation();
   const { user } = useAuth();
+  const { isDark, toggle: toggleTheme } = useThemeStore();
   const [open, setOpen] = useState(false);
   const bellRef = useRef(null);
   const panelRef = useRef(null);
@@ -307,6 +309,16 @@ export default function Topbar() {
             </section>
           )}
         </div>
+
+        <button
+          className="icon-btn"
+          style={{ ...styles.iconBtn, marginRight: 8 }}
+          aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+          title={isDark ? 'Light mode' : 'Dark mode'}
+          onClick={toggleTheme}
+        >
+          {isDark ? <Sun size={18} /> : <Moon size={18} />}
+        </button>
 
         <Link to="/profile" style={styles.avatar} aria-label="Open profile">
           {initials}

@@ -5,6 +5,20 @@ import './index.css'
 import App from './App.jsx'
 import { initAnalytics, setAnalyticsConsented } from './lib/analytics'
 import { useCookieConsentStore } from './stores/cookieConsentStore'
+import { useThemeStore } from './stores/themeStore'
+
+// Initialize theme from storage / system preference and sync to <html>
+(function initTheme() {
+  const state = useThemeStore.getState();
+  const isDark = state.isDark;
+  if (isDark) document.documentElement.classList.add('dark');
+  else document.documentElement.classList.remove('dark');
+})();
+
+useThemeStore.subscribe((state) => {
+  if (state.isDark) document.documentElement.classList.add('dark');
+  else document.documentElement.classList.remove('dark');
+});
 
 initAnalytics();
 // Analytics stays opted-out until the user accepts cookie consent.
