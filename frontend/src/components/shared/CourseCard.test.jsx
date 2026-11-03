@@ -80,8 +80,14 @@ describe('CourseCard', () => {
     expect(screen.getByText('Start')).toBeInTheDocument();
   });
 
-  it('shows View certificate when completed', () => {
-    renderCourse({ isEnrolled: true, isCompleted: true, progressPercent: 100 });
+  it('shows View certificate when completed with an issued certificate', () => {
+    renderCourse({ isEnrolled: true, isCompleted: true, progressPercent: 100, certificateId: 'cert-1' });
     expect(screen.getByText('View certificate')).toBeInTheDocument();
+  });
+
+  it('does not offer a certificate when the course did not issue one', () => {
+    renderCourse({ isEnrolled: true, isCompleted: true, progressPercent: 100, certificateId: null });
+    expect(screen.queryByText('View certificate')).not.toBeInTheDocument();
+    expect(screen.getByText('Course completed')).toBeInTheDocument();
   });
 });

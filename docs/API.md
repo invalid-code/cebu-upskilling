@@ -36,7 +36,7 @@ Rate limiting: global 120 req/60s per IP; auth group 10 req/60s per IP.
 | Courses (catalogue) | `/api/courses` | `GET /` (Published only, internal fields stripped), `GET {id}` (Published only), `GET {id}/detail`. Generic create/update/delete return 404 — writes go through `/api/company/courses` | auth |
 | Courses page | `/api/coursespage` | `GET ?category` (enrolled + recommended) | auth |
 | Enrollments | `/api/enrollments` | `GET /`, `POST /` (repeat → `Already enrolled`). `GET {id}`/PUT/DELETE return 404 (composite key) | Learner |
-| CourseContent | `/api/coursecontent` | `GET courses/{id}/content`, `GET lessons/{id}`, `PUT lessons/{id}/progress` | auth (enrollment-checked) |
+| CourseContent | `/api/coursecontent` | `GET courses/{id}/content`, `GET lessons/{id}`, `PUT lessons/{id}/progress` (issues a certificate at 100% when the course opts in) | auth (enrollment-checked) |
 | Notes | `/api/notes` | `GET courses/{id}`, `GET/PUT/DELETE lessons/{id}` | Learner |
 | Discussions | `/api/discussions` | `GET lessons/{id}`, `POST lessons/{id}/posts` | Learner |
 | Media | `/api/media` | `POST lessons/{id}/video` (500MB, R2), `POST documents`, `POST lessons/{id}/documents` (10MB, magic-byte checked) | auth |
@@ -44,7 +44,8 @@ Rate limiting: global 120 req/60s per IP; auth group 10 req/60s per IP.
 | Companies | `/api/companies` | Generic CRUD (public reads for catalogue) | mixed |
 | Learners | `/api/learners` | `GET ?page&pageSize` (max 100; name/role projection only — no emails) | Learner |
 | Skills | `/api/skills` | `GET /` (mine), `GET /list`, `POST /parse` | auth |
-| CourseManagement | `/api/company/courses` | `GET /`, `GET {id}`, `POST /`, `PUT {id}`, `POST {id}/publish`, `DELETE {id}` (409 when learners enrolled) | Recruiter, CourseProvider |
+| CourseManagement | `/api/company/courses` | `GET /`, `GET {id}`, `POST /`, `PUT {id}` (includes `issuesCertificate`; enabling backfills completed learners), `POST {id}/publish`, `DELETE {id}` (409 when learners enrolled) | Recruiter, CourseProvider |
+| Certificates | `/api/certificates` | `GET /` (learner's issued credentials), `GET {id}` (owner only), `GET verify/{serialNumber}` **public** | Learner; verify public |
 | CourseGeneration | `/api/company/courses/generate` | AI-assisted draft generation | Recruiter, CourseProvider |
 | HiringAgent | `/api/hiring-agent` | Candidate ranking (AI with fallbacks) | Recruiter |
 | MarketTrends | `/api/market-trends` | Skill/role demand snapshots | auth |

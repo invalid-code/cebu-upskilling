@@ -21,6 +21,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<Learner> Learners => Set<Learner>();
     public DbSet<LearnerStudyCourse> LearnerStudyCourses => Set<LearnerStudyCourse>();
+    public DbSet<CourseCertificate> CourseCertificates => Set<CourseCertificate>();
     public DbSet<Company> Companies => Set<Company>();
     public DbSet<Post> Posts => Set<Post>();
     public DbSet<PostCourseRequired> PostCourseRequireds => Set<PostCourseRequired>();
@@ -114,6 +115,26 @@ public class ApplicationDbContext : DbContext
             .HasOne(lsc => lsc.Course)
             .WithMany(c => c.LearnerStudyCourses)
             .HasForeignKey(lsc => lsc.CourseId);
+
+        modelBuilder.Entity<CourseCertificate>()
+            .HasOne(cert => cert.Course)
+            .WithMany(c => c.Certificates)
+            .HasForeignKey(cert => cert.CourseId);
+
+        modelBuilder.Entity<CourseCertificate>()
+            .HasOne(cert => cert.Learner)
+            .WithMany(l => l.Certificates)
+            .HasForeignKey(cert => cert.LearnerId);
+
+        // One credential per learner per course, and serial numbers are the
+        // public verification handle so they must be globally unique.
+        modelBuilder.Entity<CourseCertificate>()
+            .HasIndex(cert => new { cert.LearnerId, cert.CourseId })
+            .IsUnique();
+
+        modelBuilder.Entity<CourseCertificate>()
+            .HasIndex(cert => cert.SerialNumber)
+            .IsUnique();
 
         modelBuilder.Entity<AppUser>()
             .HasOne(u => u.Company)

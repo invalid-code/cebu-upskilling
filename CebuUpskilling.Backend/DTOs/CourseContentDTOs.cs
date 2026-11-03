@@ -70,7 +70,8 @@ public record CourseContentResponse(
 public record LessonProgressDto(
     Guid LessonId,
     bool IsCompleted,
-    int ProgressPercent
+    int ProgressPercent,
+    Guid? CertificateId = null
 );
 
 public record UpdateLessonProgressRequest(

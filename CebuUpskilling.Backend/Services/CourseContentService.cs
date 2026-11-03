@@ -16,6 +16,7 @@ public class CourseContentService : ICourseContentService
     private readonly ICourseRepository _courses;
     private readonly ILessonRepository _lessons;
     private readonly ILearnerStudyCourseRepository _learnerStudyCourses;
+    private readonly ICertificateService _certificates;
     private readonly ILogger<CourseContentService> _logger;
 
     public CourseContentService(
@@ -23,12 +24,14 @@ public class CourseContentService : ICourseContentService
         ICourseRepository courses,
         ILessonRepository lessons,
         ILearnerStudyCourseRepository learnerStudyCourses,
+        ICertificateService certificates,
         ILogger<CourseContentService> logger)
     {
         _learners = learners;
         _courses = courses;
         _lessons = lessons;
         _learnerStudyCourses = learnerStudyCourses;
+        _certificates = certificates;
         _logger = logger;
     }
 
@@ -172,12 +175,21 @@ public class CourseContentService : ICourseContentService
 
         await _learnerStudyCourses.SaveChangesAsync();
 
+        // Course providers opt in per course. Issue (or return) the credential
+        // as soon as the learner reaches 100%; the service is idempotent.
+        Guid? certificateId = null;
+        if (newOverallProgress >= 100)
+        {
+            certificateId = (await _certificates.IssueIfEligibleAsync(learner.LearnerId, lesson.CourseId))?.CertificateId;
+        }
+
         _logger.LogInformation("Updated progress for user {UserId}, lesson {LessonId}: overall {ProgressPercent}%", userId, lessonId, newOverallProgress);
 
         return new LessonProgressDto(
             LessonId: lessonId,
             IsCompleted: lessonProgress >= 100,
-            ProgressPercent: lessonProgress
+            ProgressPercent: lessonProgress,
+            CertificateId: certificateId
         );
     }
 

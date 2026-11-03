@@ -31,11 +31,13 @@ Career pathway platform connecting learners and employers in Cebu — skill-gap 
 - Register with resume upload — `JobseekerSkillParserAgent` calls Gemini to extract skills, creates unverified `LearnerSkill` + `LearnerAssessment` stubs automatically.
 - Set `TargetRole` → `SkillGapService` computes gap groups per applied role (or fallback `TargetRole`), with match % and gap-sorted `RoleSkill` vs `LearnerSkill`.
 - Enroll in courses (`LearnerStudyCourse`), track lesson progress, take notes (`LearnerNote`) and participate in lesson discussions (`DiscussionPost`).
+- Earn provider-issued course certificates at 100% completion and view, print, or save them from the Credentials page.
 - Take AI-generated or company-sourced assessments (5 random questions, 45-min window, level 1–5 scoring at 30/50/70/90% thresholds).
 
 **Recruiter / Company**
 - Register a company and recruiter account transactionally.
 - Post jobs (`Post`) with required courses, manage applications, create company assessment questions per skill.
+- Opt each course in to certificates in Course Studio; completed learners are issued automatically and already-completed learners are backfilled when the setting is enabled.
 - View business stats: company summary, talent pool, skill demand/supply, job posting counts.
 
 **Platform**
@@ -272,7 +274,8 @@ Detailed table with auth requirements, DTOs, and status codes: **[docs/API.md](d
 | **Applications** | `/api/applications` | `GET /`, `POST /`, `PATCH {postId}`, `GET/ PATCH employer/{…}` (Recruiter) |
 | **Courses** | `/api/courses` | `GET /`, `GET {id}`, `GET {id}/detail` — writes go through `/api/company/courses`; generic `Create`/`Update`/`Delete` return `404` |
 | **Enrollments** | `/api/enrollments` | `GET /`, `POST /` (Learner) — `GET {id}`/`PUT`/`DELETE` return `404` |
-| **CourseContent** | `/api/coursecontent` | `GET courses/{id}/content`, `GET lessons/{id}`, `PUT lessons/{id}/progress` |
+| **CourseContent** | `/api/coursecontent` | `GET courses/{id}/content`, `GET lessons/{id}`, `PUT lessons/{id}/progress` (issuing a course certificate at 100% when the provider opted in) |
+| **Certificates** | `/api/certificates` | `GET /` (my credentials), `GET {id}`, public `GET verify/{serialNumber}` |
 | **Notes** | `/api/notes` | `GET courses/{id}`, `GET/PUT/DELETE lessons/{id}` |
 | **Discussions** | `/api/discussions` | `GET lessons/{id}`, `POST lessons/{id}/posts` |
 | **Media** | `/api/media` | `POST lessons/{id}/video` (R2), `POST documents` |

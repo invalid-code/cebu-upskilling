@@ -333,6 +333,14 @@ export default function CoursesPage() {
     }
   };
 
+  const handleViewCertificate = (certificateId) => {
+    if (certificateId) {
+      navigate(`/credentials/${certificateId}`);
+      return;
+    }
+    navigate('/credentials');
+  };
+
   const handleEnroll = () => {
     setLoading(true);
     api.get('/coursespage')
@@ -436,11 +444,14 @@ export default function CoursesPage() {
                       { label: 'Certificate', variant: 'default' },
                     ]}
                     isEnrolled={true}
+                    isCompleted={enrollment.progressPercent >= 100}
+                    certificateId={enrollment.certificateId}
                     progressPercent={enrollment.progressPercent}
                     currentModule={enrollment.currentModule}
                     totalModules={enrollment.totalModules}
                     onStart={() => handleOpenCourseDetail(enrollment.courseId)}
                     onResume={() => handleOpenCourseDetail(enrollment.courseId)}
+                    onViewCertificate={() => handleViewCertificate(enrollment.certificateId)}
                   />
                 ))}
               </div>
@@ -490,9 +501,10 @@ export default function CoursesPage() {
                     isEnrolled={course.isEnrolled}
                     progressPercent={course.progressPercent}
                     isCompleted={course.isCompleted}
+                    certificateId={course.certificateId}
                     onStart={handleEnroll}
                     onResume={() => handleOpenCourseDetail(course.courseId)}
-                    onViewCertificate={() => {}}
+                    onViewCertificate={() => handleViewCertificate(course.certificateId)}
                   />
                 ))
               )}

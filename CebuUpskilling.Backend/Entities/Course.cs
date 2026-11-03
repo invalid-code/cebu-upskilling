@@ -27,6 +27,12 @@ public class Course : AuditableEntity
     [Required, MaxLength(50)]
     public string Mode { get; set; } = "Online";
 
+    /// <summary>
+    /// When true, the provider has opted this course in to certificates.
+    /// A certificate is issued automatically once a learner reaches 100%.
+    /// </summary>
+    public bool IssuesCertificate { get; set; }
+
     public Genre Genre { get; set; } = null!;
     public Company? Company { get; set; }
     public ICollection<CourseModule> Modules { get; set; } = new List<CourseModule>();
@@ -34,4 +40,5 @@ public class Course : AuditableEntity
     public ICollection<LearnerStudyCourse> LearnerStudyCourses { get; set; } = new List<LearnerStudyCourse>();
     public ICollection<PostCourseRequired> PostCourseRequireds { get; set; } = new List<PostCourseRequired>();
     public ICollection<CourseSkill> CourseSkills { get; set; } = new List<CourseSkill>();
+    public ICollection<CourseCertificate> Certificates { get; set; } = new List<CourseCertificate>();
 }

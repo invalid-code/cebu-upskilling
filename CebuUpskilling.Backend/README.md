@@ -220,6 +220,7 @@ CebuUpskilling.Backend/
 │   ├── CoursesController.cs / CoursesPageController.cs
 │   ├── EnrollmentsController.cs
 │   ├── CourseContentController.cs
+│   ├── CertificatesController.cs (api/certificates)  # learner credentials + public serial verification
 │   ├── NotesController.cs
 │   ├── DiscussionsController.cs
 │   ├── MediaController.cs
@@ -233,6 +234,7 @@ CebuUpskilling.Backend/
 │   ├── SkillGapService.cs
 │   ├── ApplicationsService.cs / EnrollmentsService.cs
 │   ├── CoursesPageService.cs / CourseContentService.cs
+│   ├── CertificateService.cs # course certificate issuance, backfill, verification
 │   ├── NotesService.cs / DiscussionService.cs / StatsService.cs
 │   ├── MediaService.cs / R2StorageService.cs / IObjectStorageService.cs
 │   ├── EmailService.cs / ResendEmailService.cs

@@ -170,6 +170,7 @@ builder.Services.AddScoped<IApplicationsService, ApplicationsService>();
 builder.Services.AddScoped<IStatsService, StatsService>();
 builder.Services.AddScoped<ICoursesPageService, CoursesPageService>();
 builder.Services.AddScoped<ICourseContentService, CourseContentService>();
+builder.Services.AddScoped<ICertificateService, CertificateService>();
 builder.Services.AddScoped<INotesService, NotesService>();
 builder.Services.AddScoped<IDiscussionService, DiscussionService>();
 builder.Services.AddScoped<ICourseGenerationAgent, CourseGenerationAgent>();

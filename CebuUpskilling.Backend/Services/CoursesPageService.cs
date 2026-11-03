@@ -22,6 +22,7 @@ public class CoursesPageService : ICoursesPageService
     private readonly IRoleSkillRepository _roleSkills;
     private readonly ILearnerSkillRepository _learnerSkills;
     private readonly IApplicationRepository _applications;
+    private readonly ICertificateService _certificates;
     private readonly IMemoryCache _cache;
     private readonly ServiceCacheOptions _cacheOptions;
     private readonly ILogger<CoursesPageService> _logger;
@@ -34,6 +35,7 @@ public class CoursesPageService : ICoursesPageService
         IRoleSkillRepository roleSkills,
         ILearnerSkillRepository learnerSkills,
         IApplicationRepository applications,
+        ICertificateService certificates,
         IMemoryCache cache,
         IOptions<ServiceCacheOptions> cacheOptions,
         ILogger<CoursesPageService> logger)
@@ -45,6 +47,7 @@ public class CoursesPageService : ICoursesPageService
         _roleSkills = roleSkills;
         _learnerSkills = learnerSkills;
         _applications = applications;
+        _certificates = certificates;
         _cache = cache;
         _cacheOptions = cacheOptions.Value;
         _logger = logger;
@@ -84,6 +87,10 @@ public class CoursesPageService : ICoursesPageService
         var user = await _users.GetByIdAsync(userId);
 
         var enrollments = await _learnerStudyCourses.GetByLearnerIdWithCourseAsync(learner.LearnerId);
+        var certificates = await _certificates.GetForUserAsync(userId);
+        var certificateByCourse = certificates
+            .GroupBy(c => c.CourseId)
+            .ToDictionary(g => g.Key, g => g.First().CertificateId);
 
         var enrolledCourses = enrollments.Select(e => new EnrollmentDto(
             CourseId: e.CourseId,
@@ -92,11 +99,12 @@ public class CoursesPageService : ICoursesPageService
             ProgressPercent: e.LastTotalProgressPercent,
             CurrentModule: GetCurrentModule(e.Course.Modules.Count, e.LastTotalProgressPercent),
             TotalModules: e.Course.Modules.Count,
-            TechnicalLevel: e.Course.TechnicalLevel
+            TechnicalLevel: e.Course.TechnicalLevel,
+            CertificateId: certificateByCourse.GetValueOrDefault(e.CourseId)
         )).ToList();
 
         var coursesInProgress = enrolledCourses.Count(e => e.ProgressPercent < 100);
-        var certificatesEarned = enrolledCourses.Count(e => e.ProgressPercent >= 100);
+        var certificatesEarned = certificates.Count;
         var dayStreak = CalculateDayStreak(enrollments);
 
         var allCourses = await _courses.GetAllWithLessonsAsync();

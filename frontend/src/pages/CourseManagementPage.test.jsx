@@ -230,6 +230,23 @@ describe('CourseManagementPage', () => {
       await waitFor(() => expect(api.put).toHaveBeenCalledWith('/company/courses/42', expect.objectContaining({ name: 'Updated Course' })));
     });
 
+    it('saves the certificate opt-in with the course payload', async () => {
+      api.get.mockResolvedValue({ ...existingCourse, issuesCertificate: false, certificatesIssued: 0 });
+      api.put.mockResolvedValue({ courseId: 42 });
+      renderAt('/company-courses/42/edit');
+      await screen.findByDisplayValue('Existing Course');
+
+      fireEvent.click(screen.getByRole('checkbox', { name: /Issue a certificate on completion/ }));
+      fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+
+      await waitFor(() =>
+        expect(api.put).toHaveBeenCalledWith(
+          '/company/courses/42',
+          expect.objectContaining({ issuesCertificate: true }),
+        ),
+      );
+    });
+
     it('saves lesson markdown as a single markdown block', async () => {
       api.post.mockResolvedValueOnce({ courseId: 11, name: 'Content Course' });
       renderAt('/company-courses/new');

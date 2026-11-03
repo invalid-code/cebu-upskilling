@@ -20,6 +20,7 @@ public class CoursesPageServiceTests
         new RoleSkillRepository(context),
         new LearnerSkillRepository(context),
         new ApplicationRepository(context),
+        new CertificateService(context, NullLogger<CertificateService>.Instance),
         new MemoryCache(new MemoryCacheOptions()),
         Microsoft.Extensions.Options.Options.Create(new ServiceCacheOptions()),
         NullLogger<CoursesPageService>.Instance
@@ -149,7 +150,7 @@ public class CoursesPageServiceTests
     }
 
     [Fact]
-    public async Task GetCoursesPageAsync_CountsCompletedCoursesAsCertificatesEarned()
+    public async Task GetCoursesPageAsync_CountsIssuedCertificatesAndReturnsCertificateId()
     {
         var context = TestDbContextFactory.Create();
         var (user, learner) = await CreateLearnerAsync(context);
@@ -163,6 +164,17 @@ public class CoursesPageServiceTests
             Started = DateTime.UtcNow.AddDays(-2),
             LastTotalProgressPercent = 100,
         });
+        var certificate = new CourseCertificate
+        {
+            CourseId = course.CourseId,
+            LearnerId = learner.LearnerId,
+            SerialNumber = "CU-2026-ABC1234567",
+            RecipientName = "Jose Rizal",
+            CourseName = course.Name,
+            ProviderName = "Test Provider",
+            IssuedAt = DateTime.UtcNow,
+        };
+        context.CourseCertificates.Add(certificate);
         await context.SaveChangesAsync();
 
         var result = await CreateService(context).GetCoursesPageAsync(user.UserId);
@@ -170,6 +182,7 @@ public class CoursesPageServiceTests
         Assert.NotNull(result);
         Assert.Equal(0, result!.CoursesInProgress);
         Assert.Equal(1, result.CertificatesEarned);
+        Assert.Equal(certificate.CertificateId, result.EnrolledCourses.Single().CertificateId);
     }
 
     [Fact]

@@ -2,9 +2,9 @@ using System.ComponentModel.DataAnnotations;
 
 namespace CebuUpskilling.Backend.DTOs;
 
-public record CourseManagementListDto(Guid CourseId, string Name, string? Description, string Status, int TechnicalLevel, string Mode, int ModuleCount, int LessonCount, DateTime? UpdatedAt);
+public record CourseManagementListDto(Guid CourseId, string Name, string? Description, string Status, int TechnicalLevel, string Mode, int ModuleCount, int LessonCount, DateTime? UpdatedAt, bool IssuesCertificate, int CertificatesIssued);
 
-public record CourseManagementDto(Guid CourseId, string Name, string? Description, string Status, int TechnicalLevel, string Mode, int? Price, Guid? GenreId, List<CourseManagementModuleDto> Modules);
+public record CourseManagementDto(Guid CourseId, string Name, string? Description, string Status, int TechnicalLevel, string Mode, int? Price, Guid? GenreId, bool IssuesCertificate, int CertificatesIssued, List<CourseManagementModuleDto> Modules);
 
 public record CourseManagementModuleDto(Guid ModuleId, string Name, string? Description, int Order, List<CourseManagementLessonDto> Lessons);
 
@@ -20,6 +20,12 @@ public class SaveCourseRequest
     [Required, MaxLength(50)] public string Mode { get; set; } = "Online";
     public int? Price { get; set; }
     public Guid? GenreId { get; set; }
+    /// <summary>
+    /// When enabled, learners who reach 100% automatically receive a certificate.
+    /// Saving an update also backfills certificates for learners who have already
+    /// completed the course.
+    /// </summary>
+    public bool IssuesCertificate { get; set; }
     public List<SaveModuleRequest> Modules { get; set; } = new();
 }
 

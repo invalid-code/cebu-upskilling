@@ -13,6 +13,7 @@ public class CourseContentServiceTests
         new CourseRepository(context),
         new LessonRepository(context),
         new LearnerStudyCourseRepository(context),
+        new CertificateService(context, NullLogger<CertificateService>.Instance),
         NullLogger<CourseContentService>.Instance
     );
 
@@ -287,6 +288,46 @@ public class CourseContentServiceTests
         var result = await CreateService(context).UpdateLessonProgressAsync(user.UserId, lesson.LessonId, 100);
 
         Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task UpdateLessonProgressAsync_WhenCourseIssuesCertificate_IssuesOnCompletion()
+    {
+        var context = TestDbContextFactory.Create();
+        var (user, learner) = await CreateLearnerAsync(context);
+        var course = await CreateCourseWithLessonsAsync(context, lessonCount: 1);
+        course.IssuesCertificate = true;
+        await context.SaveChangesAsync();
+        await EnrollAsync(context, learner.LearnerId, course.CourseId, 0);
+
+        var lesson = context.Lessons.Single(l => l.CourseId == course.CourseId);
+
+        var result = await CreateService(context).UpdateLessonProgressAsync(user.UserId, lesson.LessonId, 100);
+
+        Assert.NotNull(result);
+        Assert.NotNull(result!.CertificateId);
+        var certificate = context.CourseCertificates.Single(c => c.CourseId == course.CourseId && c.LearnerId == learner.LearnerId);
+        Assert.Equal(result.CertificateId, certificate.CertificateId);
+        Assert.Equal("Jose Rizal", certificate.RecipientName);
+        Assert.Equal("React Basics", certificate.CourseName);
+        Assert.StartsWith("CU-", certificate.SerialNumber);
+    }
+
+    [Fact]
+    public async Task UpdateLessonProgressAsync_WhenCourseDoesNotIssueCertificate_ReturnsNullCertificateId()
+    {
+        var context = TestDbContextFactory.Create();
+        var (user, learner) = await CreateLearnerAsync(context);
+        var course = await CreateCourseWithLessonsAsync(context, lessonCount: 1);
+        await EnrollAsync(context, learner.LearnerId, course.CourseId, 0);
+
+        var lesson = context.Lessons.Single(l => l.CourseId == course.CourseId);
+
+        var result = await CreateService(context).UpdateLessonProgressAsync(user.UserId, lesson.LessonId, 100);
+
+        Assert.NotNull(result);
+        Assert.Null(result!.CertificateId);
+        Assert.Empty(context.CourseCertificates);
     }
 
     [Fact]

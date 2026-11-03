@@ -2,8 +2,10 @@ using System.Security.Claims;
 using CebuUpskilling.Backend.Controllers;
 using CebuUpskilling.Backend.DTOs;
 using CebuUpskilling.Backend.Entities;
+using CebuUpskilling.Backend.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace CebuUpskilling.Backend.Tests;
 
@@ -19,7 +21,7 @@ public class CourseManagementProviderTests
         // IsInRole checks role claim type; need both ClaimTypes.Role and the role value
         var identity = new ClaimsIdentity(claims, "test");
         var principal = new ClaimsPrincipal(identity);
-        var controller = new CourseManagementController(db)
+        var controller = new CourseManagementController(db, new CertificateService(db, NullLogger<CertificateService>.Instance))
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext { User = principal } }
         };
@@ -153,6 +155,68 @@ public class CourseManagementProviderTests
         Assert.Null(saved.CompanyId);
         Assert.Equal(provider.UserId.ToString(), saved.CreatedBy);
         Assert.Equal(provider.UserId.ToString(), saved.UpdatedBy);
+    }
+
+    [Fact]
+    public async Task Create_Provider_WithCertificateSetting_PersistsOptIn()
+    {
+        var (db, _, provider, _) = await SeedAsync();
+        var ctrl = CreateController(db, provider.UserId, "CourseProvider");
+        var request = ValidRequest();
+        request.IssuesCertificate = true;
+
+        var result = await ctrl.Create(request);
+
+        var created = Assert.IsType<CreatedAtActionResult>(result.Result);
+        var dto = Assert.IsType<CourseManagementDto>(created.Value);
+        Assert.True(dto.IssuesCertificate);
+        Assert.True(db.Courses.Single(c => c.CourseId == dto.CourseId).IssuesCertificate);
+    }
+
+    [Fact]
+    public async Task Update_Provider_EnablingCertificates_BackfillsCompletedLearners()
+    {
+        var (db, _, provider, _) = await SeedAsync();
+        var course = new Course
+        {
+            Name = "Provider Course",
+            GenreId = Guid.NewGuid(),
+            Status = "Published",
+            CreatedBy = provider.UserId.ToString(),
+            UpdatedBy = provider.UserId.ToString(),
+        };
+        db.Courses.Add(course);
+
+        var learnerUser = new AppUser
+        {
+            FirstName = "Completed",
+            LastName = "Learner",
+            EmailAddress = "completed@example.com",
+            Role = "Learner",
+        };
+        db.Users.Add(learnerUser);
+        await db.SaveChangesAsync();
+        var learner = new Learner { UserId = learnerUser.UserId };
+        db.Learners.Add(learner);
+        db.LearnerStudyCourses.Add(new LearnerStudyCourse
+        {
+            LearnerId = learner.LearnerId,
+            CourseId = course.CourseId,
+            LastTotalProgressPercent = 100,
+        });
+        await db.SaveChangesAsync();
+
+        var ctrl = CreateController(db, provider.UserId, "CourseProvider");
+        var request = ValidRequest();
+        request.IssuesCertificate = true;
+
+        var result = await ctrl.Update(course.CourseId, request);
+
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        var dto = Assert.IsType<CourseManagementDto>(ok.Value);
+        Assert.True(dto.IssuesCertificate);
+        Assert.Equal(1, dto.CertificatesIssued);
+        Assert.Single(db.CourseCertificates.Where(c => c.CourseId == course.CourseId));
     }
 
     [Fact]

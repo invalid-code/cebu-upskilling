@@ -20,7 +20,8 @@ public record EnrollmentDto(
     int ProgressPercent,
     string? CurrentModule,
     int TotalModules,
-    int TechnicalLevel
+    int TechnicalLevel,
+    Guid? CertificateId
 );
 
 public record RecommendedCourseDto(

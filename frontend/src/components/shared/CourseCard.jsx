@@ -125,6 +125,7 @@ export default function CourseCard({
   rating = 4.5,
   studentCount = 1000,
   isCompleted = false,
+  certificateId = null,
   onStart,
   onResume,
   onViewCertificate,
@@ -223,9 +224,15 @@ export default function CourseCard({
 
       <div style={styles.actionButton}>
         {isCompleted ? (
-          <Button variant="secondary" onClick={onViewCertificate} style={{ width: '100%' }}>
-            <Check size={16} /> View certificate
-          </Button>
+          certificateId ? (
+            <Button variant="secondary" onClick={onViewCertificate} style={{ width: '100%' }}>
+              <Check size={16} /> View certificate
+            </Button>
+          ) : (
+            <Button variant="secondary" disabled style={{ width: '100%' }}>
+              <Award size={16} /> Course completed
+            </Button>
+          )
         ) : isEnrolled && progressPercent > 0 ? (
           <Button variant="primary" onClick={onResume} style={{ width: '100%' }}>
             <Play size={16} /> Resume

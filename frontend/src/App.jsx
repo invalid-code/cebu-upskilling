@@ -28,6 +28,7 @@ import CourseContentPage from './pages/CourseContentPage';
 import ApplicationsPage from './pages/ApplicationsPage';
 import AssessmentsPage from './pages/AssessmentsPage';
 import CredentialsPage from './pages/CredentialsPage';
+import CertificateDetailPage from './pages/CertificateDetailPage';
 import HelpPage from './pages/HelpPage';
 import BusinessDashboardPage from './pages/BusinessDashboardPage';
 import PostJobPage from './pages/PostJobPage';
@@ -125,6 +126,7 @@ export default function App() {
                       <Route path="/applications" element={<ApplicationsPage />} />
                       <Route path="/assessments" element={<AssessmentsPage />} />
                       <Route path="/credentials" element={<CredentialsPage />} />
+                      <Route path="/credentials/:certificateId" element={<CertificateDetailPage />} />
                     </Route>
                     <Route element={<RecruiterRoute />}>
                       <Route path="/business-dashboard" element={<BusinessDashboardPage />} />

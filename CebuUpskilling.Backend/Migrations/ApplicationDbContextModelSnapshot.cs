@@ -305,6 +305,9 @@ namespace CebuUpskilling.Backend.Migrations
                     b.Property<Guid>("GenreId")
                         .HasColumnType("uuid");
 
+                    b.Property<bool>("IssuesCertificate")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Mode")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -339,6 +342,54 @@ namespace CebuUpskilling.Backend.Migrations
                     b.HasIndex("GenreId");
 
                     b.ToTable("Courses");
+                });
+
+            modelBuilder.Entity("CebuUpskilling.Backend.Entities.CourseCertificate", b =>
+                {
+                    b.Property<Guid>("CertificateId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CourseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CourseName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<DateTime>("IssuedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("LearnerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ProviderName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("RecipientName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("SerialNumber")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.HasKey("CertificateId");
+
+                    b.HasIndex("CourseId");
+
+                    b.HasIndex("SerialNumber")
+                        .IsUnique();
+
+                    b.HasIndex("LearnerId", "CourseId")
+                        .IsUnique();
+
+                    b.ToTable("CourseCertificates");
                 });
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.CourseModule", b =>
@@ -1133,6 +1184,25 @@ namespace CebuUpskilling.Backend.Migrations
                     b.Navigation("Genre");
                 });
 
+            modelBuilder.Entity("CebuUpskilling.Backend.Entities.CourseCertificate", b =>
+                {
+                    b.HasOne("CebuUpskilling.Backend.Entities.Course", "Course")
+                        .WithMany("Certificates")
+                        .HasForeignKey("CourseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CebuUpskilling.Backend.Entities.Learner", "Learner")
+                        .WithMany("Certificates")
+                        .HasForeignKey("LearnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Course");
+
+                    b.Navigation("Learner");
+                });
+
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.CourseModule", b =>
                 {
                     b.HasOne("CebuUpskilling.Backend.Entities.Course", "Course")
@@ -1452,6 +1522,8 @@ namespace CebuUpskilling.Backend.Migrations
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.Course", b =>
                 {
+                    b.Navigation("Certificates");
+
                     b.Navigation("CourseSkills");
 
                     b.Navigation("LearnerStudyCourses");
@@ -1485,6 +1557,8 @@ namespace CebuUpskilling.Backend.Migrations
 
             modelBuilder.Entity("CebuUpskilling.Backend.Entities.Learner", b =>
                 {
+                    b.Navigation("Certificates");
+
                     b.Navigation("DiscussionPosts");
 
                     b.Navigation("LearnerAssessments");

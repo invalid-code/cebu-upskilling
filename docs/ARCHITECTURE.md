@@ -51,7 +51,8 @@ ForwardedHeaders -> SecurityHeaders -> ExceptionHandler -> CORS -> StaticFiles
 | `GoogleAiService` | Gemini HTTP client; all failures → `null`, callers degrade (empty skills, fallback scores, 502/503) |
 | `SkillGapService` | Gap groups per applied role (fallback `TargetRole`) with match % |
 | `ApplicationsService` / `EnrollmentsService` | Idempotent apply/enroll (unique-violation → existing outcome) |
-| `CoursesPageService` / `CourseContentService` | Catalogue page, lesson content, monotonic progress |
+| `CoursesPageService` / `CourseContentService` | Catalogue page, lesson content, monotonic progress, certificate issuance at completion |
+| `CertificateService` | Per-course opt-in certificates, idempotent issuance/backfill, learner-scoped reads, public serial verification |
 | `LearningPathwayAgent` | Gap × market-demand ordered pathway with courses |
 | `NotesService` / `DiscussionService` / `StatsService` | Notes (multi-per-lesson), discussions, weekly/business stats |
 | `MediaService` / `R2StorageService` | Magic-byte-checked uploads; unconfigured R2 → sanitized error |

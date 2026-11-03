@@ -29,6 +29,7 @@ function getLabel(pathname) {
   if (routeLabels[pathname]) return routeLabels[pathname];
   if (pathname.startsWith('/jobs/')) return 'Job detail';
   if (pathname.startsWith('/courses/')) return 'Learn';
+  if (pathname.startsWith('/credentials/')) return 'Certificate';
   if (pathname.startsWith('/edit-job/')) return 'Edit job';
   return 'Page';
 }

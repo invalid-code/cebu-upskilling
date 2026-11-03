@@ -26,6 +26,7 @@ public class CourseRecommendationTests
         new RoleSkillRepository(context),
         new LearnerSkillRepository(context),
         new ApplicationRepository(context),
+        new CertificateService(context, NullLogger<CertificateService>.Instance),
         new MemoryCache(new MemoryCacheOptions()),
         Microsoft.Extensions.Options.Options.Create(new ServiceCacheOptions()),
         NullLogger<CoursesPageService>.Instance

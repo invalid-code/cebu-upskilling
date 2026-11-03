@@ -64,8 +64,8 @@
   --ink: #e8ecf1;
   --muted: #8b949e;
   --line: #2d3748;
-  --teal: #5a9fed;
-  --teal2: #6baaf5;
+  --teal: #3b7fc7;
+  --teal2: #4a8fd4;
   --teal-soft: #1a2f4a;
   --coral: #e06642;
   --coral-ink: #e0703a;
@@ -316,5 +316,28 @@ input::-ms-clear {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .certificate-sheet,
+  .certificate-sheet * {
+    visibility: visible;
+  }
+
+  .certificate-sheet {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    border-color: #0f766e !important;
+    box-shadow: none !important;
+  }
+
+  .certificate-actions {
+    display: none !important;
   }
 }
