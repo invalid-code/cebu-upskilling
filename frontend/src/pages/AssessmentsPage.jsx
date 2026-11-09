@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Panel from '../components/ui/Panel';
 import Tag from '../components/ui/Tag';
 import Button from '../components/ui/Button';
@@ -7,277 +8,22 @@ import AssessmentCard from '../components/shared/AssessmentCard';
 import Modal from '../components/ui/Modal';
 import AssessmentModal from '../components/ui/AssessmentModal';
 import Skeleton, { SkeletonCard, SkeletonStatus } from '../components/ui/Skeleton';
+import LiquidMeter from '../components/water/LiquidMeter';
 import { useAuth } from '../context/AuthContext';
 import { useApplications } from '../context/ApplicationsContext';
 import { api } from '../api/client';
-import { TrendingUp, Shield, Target, Camera, Mic, Maximize, Check, AlertCircle, Loader2 } from 'lucide-react';
+import {
+  TrendingUp, Shield, Target, Camera, Maximize, Check, AlertCircle, Loader2, ExternalLink,
+} from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import { ErrorCard } from '../components/ui/ErrorState';
-import { chipCoral, chipTeal, pageTitle } from '../styles/shared';
+import styles from './AssessmentsPage.module.css';
 
-const styles = {
-  heading: {
-    marginBottom: 28,
-  },
-  h1: { ...pageTitle },
-  subtitle: {
-    color: 'var(--muted)',
-    margin: '8px 0 0',
-    maxWidth: 500,
-    lineHeight: 1.5,
-  },
-  statsRow: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(3, 1fr)',
-    gap: 16,
-    marginBottom: 32,
-  },
-  statCard: {
-    background: 'var(--surface)',
-    borderRadius: 'var(--radius-lg)',
-    border: '1px solid var(--line)',
-    padding: '20px 24px',
-    display: 'flex',
-    alignItems: 'center',
-    gap: 16,
-  },
-  statIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    display: 'grid',
-    placeItems: 'center',
-    flexShrink: 0,
-  },
-  statIconTeal: { ...chipTeal },
-  statIconCoral: { ...chipCoral },
-  statIconGood: {
-    background: 'var(--good-soft)',
-    color: 'var(--good)',
-  },
-  statValue: {
-    fontFamily: "'Space Grotesk', sans-serif",
-    fontSize: 28,
-    fontWeight: 700,
-    color: 'var(--ink)',
-    lineHeight: 1,
-  },
-  statLabel: {
-    fontSize: 13,
-    color: 'var(--muted)',
-    marginTop: 2,
-  },
-  contentGrid: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 340px',
-    gap: 24,
-    alignItems: 'start',
-  },
-  sectionHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontFamily: "'Space Grotesk', sans-serif",
-    fontSize: 19,
-    fontWeight: 700,
-  },
-  assessmentGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(2, 1fr)',
-    gap: 16,
-  },
-  resultsPanel: {
-    position: 'sticky',
-    top: 24,
-  },
-  resultsTitle: {
-    fontFamily: "'Space Grotesk', sans-serif",
-    fontSize: 19,
-    fontWeight: 700,
-    marginBottom: 16,
-  },
-  resultItem: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '14px 0',
-  },
-  resultName: {
-    fontSize: 14,
-    fontWeight: 700,
-    color: 'var(--ink)',
-  },
-  resultDate: {
-    fontSize: 12,
-    color: 'var(--muted)',
-    marginTop: 2,
-  },
-  resultCheck: {
-    width: 28,
-    height: 28,
-    borderRadius: '50%',
-    background: 'var(--teal-soft)',
-    color: 'var(--teal)',
-    display: 'grid',
-    placeItems: 'center',
-    flexShrink: 0,
-    marginRight: 12,
-  },
-  resultLeft: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 0,
-  },
-  howItWorks: {
-    marginTop: 24,
-  },
-  howTitle: {
-    fontFamily: "'Space Grotesk', sans-serif",
-    fontSize: 15,
-    fontWeight: 700,
-    marginBottom: 12,
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-  },
-  step: {
-    display: 'flex',
-    gap: 12,
-    marginBottom: 12,
-  },
-  stepNumber: {
-    width: 24,
-    height: 24,
-    borderRadius: '50%',
-    background: 'var(--teal-soft)',
-    color: 'var(--teal)',
-    display: 'grid',
-    placeItems: 'center',
-    fontSize: 12,
-    fontWeight: 700,
-    flexShrink: 0,
-  },
-  stepText: {
-    fontSize: 13,
-    color: 'var(--ink)',
-    lineHeight: 1.5,
-  },
-  modalDesc: {
-    fontSize: 13,
-    color: 'var(--muted)',
-    lineHeight: 1.55,
-    marginBottom: 18,
-  },
-  permItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 12,
-    background: 'var(--coral-soft)',
-    borderRadius: 12,
-    padding: '14px 16px',
-    marginBottom: 10,
-  },
-  permIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    background: 'var(--surface)',
-    display: 'grid',
-    placeItems: 'center',
-    flexShrink: 0,
-    color: 'var(--ink)',
-  },
-  permTitle: {
-    fontSize: 13,
-    fontWeight: 700,
-    color: 'var(--ink)',
-  },
-  permDesc: {
-    fontSize: 12,
-    color: 'var(--muted)',
-    marginTop: 1,
-  },
-  checking: {
-    textAlign: 'center',
-    padding: '32px 0',
-  },
-  checkingSpinner: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 48,
-    height: 48,
-    borderRadius: '50%',
-    background: 'var(--coral-soft)',
-    color: 'var(--coral-ink)',
-    marginBottom: 14,
-    animation: 'spin 1s linear infinite',
-  },
-  checkingText: {
-    fontSize: 14,
-    fontWeight: 600,
-    color: 'var(--ink)',
-  },
-  checkingSubtext: {
-    fontSize: 12,
-    color: 'var(--muted)',
-    marginTop: 4,
-  },
-  success: {
-    textAlign: 'center',
-    padding: '24px 0',
-  },
-  successIcon: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 56,
-    height: 56,
-    borderRadius: '50%',
-    background: 'var(--teal-soft)',
-    color: 'var(--teal)',
-    marginBottom: 14,
-  },
-  successTitle: {
-    fontSize: 16,
-    fontWeight: 700,
-    color: 'var(--ink)',
-    marginBottom: 4,
-  },
-  successDesc: {
-    fontSize: 13,
-    color: 'var(--muted)',
-  },
-  error: {
-    textAlign: 'center',
-    padding: '24px 0',
-  },
-  errorIcon: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 56,
-    height: 56,
-    borderRadius: '50%',
-    background: 'var(--coral-soft)',
-    color: 'var(--coral-ink)',
-    marginBottom: 14,
-  },
-  errorTitle: {
-    fontSize: 16,
-    fontWeight: 700,
-    color: 'var(--ink)',
-    marginBottom: 4,
-  },
-  errorDesc: {
-    fontSize: 13,
-    color: 'var(--muted)',
-    lineHeight: 1.5,
-  },
-};
+/** Highest verified level a skill assessment can award (1 No Knowledge .. 5 Expert). */
+const MAX_LEVEL = 5;
+
+/** Browser help for re-enabling a blocked camera. */
+const CAMERA_HELP_URL = 'https://support.google.com/chrome/answer/2693767';
 
 function formatDate(iso) {
   if (!iso) return '';
@@ -285,36 +31,54 @@ function formatDate(iso) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+/** Score as a 0-100 fill: score / max. Prefers an explicit percent, else level / MAX_LEVEL. */
+function resultScorePercent(result) {
+  if (typeof result.scorePercent === 'number') return result.scorePercent;
+  if (typeof result.scoredLevel === 'number') return (result.scoredLevel / MAX_LEVEL) * 100;
+  return null;
+}
+
 export default function AssessmentsPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { applications } = useApplications();
   const [available, setAvailable] = useState(null);
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  // idle (pre-flight) | requesting | granted | denied (NotAllowedError) | unavailable (any other failure)
   const [deviceCheck, setDeviceCheck] = useState('idle');
   const [assessmentOpen, setAssessmentOpen] = useState(false);
   const { showToast } = useToast();
   const [currentAssessmentId, setCurrentAssessmentId] = useState(null);
+  const [currentSkillId, setCurrentSkillId] = useState(null);
   const [currentSkillName, setCurrentSkillName] = useState('');
   const [currentProctored, setCurrentProctored] = useState(true);
   const [retryKey, setRetryKey] = useState(0);
+  const mounted = useRef(true);
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
     let failed = false;
+    let failure = '';
     setLoading(true);
     Promise.all([
       api.get('/assessments/available', { signal: controller.signal }).catch((err) => {
         if (err?.name === 'AbortError') return null;
         failed = true;
+        failure = err?.message || err?.error || '';
         return null;
       }),
       api.get('/assessments/results', { signal: controller.signal }).catch(() => []),
     ])
       .then(([avail, res]) => {
-        setError(failed);
+        setError(failed ? (failure || true) : false);
         setAvailable(avail);
         setResults(res || []);
         if (failed) showToast('Could not load assessments — please retry', 'error');
@@ -326,19 +90,39 @@ export default function AssessmentsPage() {
   const targetRole = user?.targetRole?.trim()
     || applications.find((a) => a.targetRole?.trim())?.targetRole?.trim();
 
-  async function handleDeviceCheck() {
-    setDeviceCheck('checking');
+  function closeModal() {
+    setDeviceCheck('idle');
+    setModalOpen(false);
+  }
+
+  /**
+   * Invokes the browser camera prompt. Called only from the pre-flight "continue" and
+   * the denial "retry" actions, synchronously inside the click handler so the prompt
+   * appears immediately. No attempt exists yet, so a denial leaves nothing started.
+   */
+  async function requestCamera() {
+    setDeviceCheck('requesting');
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      stream.getTracks().forEach(t => t.stop());
-      setDeviceCheck('success');
-    } catch {
-      setDeviceCheck('error');
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      stream.getTracks().forEach((t) => t.stop());
+      if (!mounted.current) return;
+      setDeviceCheck('granted');
+      // Warm the proctoring model chunk; mediapipe is only ever loaded from this page's flow.
+      import('@mediapipe/tasks-vision').catch(() => {});
+    } catch (err) {
+      if (!mounted.current) return;
+      setDeviceCheck(err?.name === 'NotAllowedError' ? 'denied' : 'unavailable');
     }
+  }
+
+  function handleLeave() {
+    closeModal();
+    navigate('/dashboard');
   }
 
   async function handleStartAssessment(skillId, skillName) {
     setCurrentSkillName(skillName);
+    setCurrentSkillId(skillId);
     setDeviceCheck('idle');
     const assessment = available?.assessments?.find((a) => a.skillId === skillId);
     setCurrentProctored(assessment?.proctored !== false);
@@ -368,55 +152,81 @@ export default function AssessmentsPage() {
   }
 
   const recommendedSkillIds = new Set(
-    (available?.assessments || []).filter(a => a.gap > 0).map(a => a.skillId)
+    (available?.assessments || []).filter((a) => a.gap > 0).map((a) => a.skillId),
   );
+
+  let footer;
+  if (deviceCheck === 'idle') {
+    footer = (
+      <>
+        <Button variant="ghost" onClick={closeModal}>Not now</Button>
+        <Button variant="primary" onClick={requestCamera}>Continue to camera check</Button>
+      </>
+    );
+  } else if (deviceCheck === 'requesting') {
+    footer = <Button variant="ghost" disabled>Waiting for camera…</Button>;
+  } else if (deviceCheck === 'granted') {
+    footer = (
+      <>
+        <Button variant="ghost" onClick={closeModal}>Close</Button>
+        <Button variant="primary" onClick={() => confirmStartAssessment(currentSkillId)}>Start assessment</Button>
+      </>
+    );
+  } else {
+    footer = (
+      <>
+        <Button variant="ghost" onClick={handleLeave}>Leave</Button>
+        <Button variant="primary" onClick={requestCamera}>Try again</Button>
+      </>
+    );
+  }
 
   return (
     <div className="view-enter">
-      <div style={styles.heading}>
-        <h1 style={styles.h1}>Assessments</h1>
-        <p style={styles.subtitle}>
+      <div className={styles.heading}>
+        <h1 className={styles.title}>Assessments</h1>
+        <p className={styles.subtitle}>
           Verified results strengthen your skill profile and your job match. Take an
           assessment — proctored or company-authored — to verify your skills.
         </p>
       </div>
 
       {!loading && available && (
-        <div style={styles.statsRow}>
-          <div style={styles.statCard}>
-            <div style={{ ...styles.statIcon, ...styles.statIconTeal }}>
+        <div className={styles.statsRow}>
+          <div className={styles.statCard}>
+            <div className={`${styles.statIcon} ${styles.iconTeal}`} aria-hidden="true">
               <TrendingUp size={22} />
             </div>
             <div>
-              <div style={styles.statValue}>{available.matchPercent}%</div>
-              <div style={styles.statLabel}>{targetRole || 'Target role'} match</div>
+              <div className={styles.statValue}>{available.matchPercent}%</div>
+              <div className={styles.statLabel}>{targetRole || 'Target role'} match</div>
             </div>
           </div>
-          <div style={styles.statCard}>
-            <div style={{ ...styles.statIcon, ...styles.statIconGood }}>
+          <div className={styles.statCard}>
+            <div className={`${styles.statIcon} ${styles.iconGood}`} aria-hidden="true">
               <Shield size={22} />
             </div>
             <div>
-              <div style={styles.statValue}>{available.verifiedSkillsCount}</div>
-              <div style={styles.statLabel}>Verified skills</div>
+              <div className={styles.statValue}>{available.verifiedSkillsCount}</div>
+              <div className={styles.statLabel}>Verified skills</div>
             </div>
           </div>
-          <div style={styles.statCard}>
-            <div style={{ ...styles.statIcon, ...styles.statIconCoral }}>
+          <div className={styles.statCard}>
+            <div className={`${styles.statIcon} ${styles.iconCoral}`} aria-hidden="true">
               <Target size={22} />
             </div>
             <div>
-              <div style={styles.statValue}>{available.recommendedCount}</div>
-              <div style={styles.statLabel}>Recommended assessment</div>
+              <div className={styles.statValue}>{available.recommendedCount}</div>
+              <div className={styles.statLabel}>Recommended assessment</div>
             </div>
           </div>
         </div>
       )}
 
-      <div style={styles.contentGrid}>
+      <div className={styles.contentGrid}>
         <div>
-          <div style={styles.sectionHeader}>
-            <h2 style={styles.sectionTitle}>Available assessments</h2>
+          <div className={styles.sectionHeader}>
+            <h2 className={styles.sectionTitle}>Available assessments</h2>
             {available?.assessments && (
               <Tag>{available.assessments.length} skills</Tag>
             )}
@@ -424,7 +234,7 @@ export default function AssessmentsPage() {
 
           {loading ? (
             <SkeletonStatus label="Loading...">
-              <div style={styles.assessmentGrid}>
+              <div className={styles.assessmentGrid}>
                 {Array.from({ length: 4 }, (_, i) => (
                   <SkeletonCard key={i} minHeight={150} />
                 ))}
@@ -433,7 +243,10 @@ export default function AssessmentsPage() {
           ) : error ? (
             <ErrorCard
               title="Couldn’t load assessments"
-              description="We couldn’t reach the assessment service. Check your connection and try again."
+              description={typeof error === 'string' && error
+                ? error
+                : 'We couldn’t reach the assessment service. Check your connection and try again.'}
+              retryLabel="Retry"
               onRetry={() => setRetryKey((k) => k + 1)}
             />
           ) : !available?.assessments?.length ? (
@@ -446,7 +259,7 @@ export default function AssessmentsPage() {
               />
             </Panel>
           ) : (
-            <div style={styles.assessmentGrid}>
+            <div className={styles.assessmentGrid}>
               {available.assessments.map((assessment) => (
                 <AssessmentCard
                   key={assessment.skillId}
@@ -473,15 +286,15 @@ export default function AssessmentsPage() {
           )}
         </div>
 
-        <div style={styles.resultsPanel}>
+        <div className={styles.side}>
           <Panel>
-            <h3 style={styles.resultsTitle}>Recent results</h3>
+            <h3 className={styles.resultsTitle}>Recent results</h3>
             {loading ? (
               <SkeletonStatus label="Loading...">
                 {Array.from({ length: 3 }, (_, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 0', borderBottom: '1px solid var(--line)' }}>
+                  <div key={i} className={styles.skeletonRow}>
                     <Skeleton height={26} width={26} radius="50%" />
-                    <div style={{ flex: 1 }}>
+                    <div className={styles.skeletonGrow}>
                       <Skeleton height={13} width="55%" style={{ marginBottom: 6 }} />
                       <Skeleton height={11} width="35%" />
                     </div>
@@ -494,46 +307,49 @@ export default function AssessmentsPage() {
                 description="Verified assessment results will appear here."
               />
             ) : (
-              results.map((result, i) => (
-                <div key={result.assessmentId} style={{
-                  ...styles.resultItem,
-                  borderBottom: i === results.length - 1 ? 'none' : '1px solid var(--line)',
-                }}>
-                  <div style={styles.resultLeft}>
-                    <div style={styles.resultCheck}>
-                      <Check size={14} />
+              results.map((result) => {
+                const score = resultScorePercent(result);
+                return (
+                  <div key={result.assessmentId} className={styles.resultItem}>
+                    <div className={styles.resultRow}>
+                      <div className={styles.resultLeft}>
+                        <div className={styles.resultCheck} aria-hidden="true">
+                          <Check size={14} />
+                        </div>
+                        <div>
+                          <div className={styles.resultName}>{result.skillName}</div>
+                          <div className={styles.resultDate}>Verified {formatDate(result.completedAt)}</div>
+                        </div>
+                      </div>
+                      <Tag variant="good">{result.scoredLevel} {result.levelLabel}</Tag>
                     </div>
-                    <div>
-                      <div style={styles.resultName}>{result.skillName}</div>
-                      <div style={styles.resultDate}>Verified {formatDate(result.completedAt)}</div>
-                    </div>
+                    <LiquidMeter value={score} label={`${result.skillName} score`} tone="good" />
                   </div>
-                  <Tag variant="good">{result.scoredLevel} {result.levelLabel}</Tag>
-                </div>
-              ))
+                );
+              })
             )}
           </Panel>
 
-          <Panel style={styles.howItWorks}>
-            <h4 style={styles.howTitle}>
-              <Target size={16} style={{ color: 'var(--teal)' }} />
+          <Panel style={{ marginTop: 'var(--space-6)' }}>
+            <h4 className={styles.howTitle}>
+              <Target size={16} className={styles.howIcon} aria-hidden="true" />
               How verification works
             </h4>
-            <div style={styles.step}>
-              <div style={styles.stepNumber}>1</div>
-              <div style={styles.stepText}>
+            <div className={styles.step}>
+              <div className={styles.stepNumber}>1</div>
+              <div className={styles.stepText}>
                 Proctored assessments request camera, mic, and focus up front; company assessments run without them.
               </div>
             </div>
-            <div style={styles.step}>
-              <div style={styles.stepNumber}>2</div>
-              <div style={styles.stepText}>
+            <div className={styles.step}>
+              <div className={styles.stepNumber}>2</div>
+              <div className={styles.stepText}>
                 Pass a quick device check before a proctored timer starts.
               </div>
             </div>
-            <div style={styles.step}>
-              <div style={styles.stepNumber}>3</div>
-              <div style={styles.stepText}>
+            <div className={styles.step}>
+              <div className={styles.stepNumber}>3</div>
+              <div className={styles.stepText}>
                 Your verified level is added to credentials and job matching.
               </div>
             </div>
@@ -543,99 +359,79 @@ export default function AssessmentsPage() {
 
       <Modal
         open={modalOpen}
-        onClose={() => { setDeviceCheck('idle'); setModalOpen(false); }}
+        onClose={closeModal}
         eyebrow="Before the timer starts"
         title={currentSkillName || 'Assessment'}
-        footer={
-          deviceCheck === 'idle' ? (
-            <>
-              <Button variant="ghost" onClick={() => { setDeviceCheck('idle'); setModalOpen(false); }}>
-                Not now
-              </Button>
-              <Button variant="primary" onClick={handleDeviceCheck}>
-                Continue to device check
-              </Button>
-            </>
-          ) : deviceCheck === 'checking' ? (
-            <Button variant="ghost" disabled>
-              Checking...
-            </Button>
-          ) : deviceCheck === 'success' ? (
-            <>
-              <Button variant="ghost" onClick={() => { setDeviceCheck('idle'); setModalOpen(false); }}>
-                Close
-              </Button>
-              <Button variant="primary" onClick={() => {
-                const skill = available?.assessments?.find(a => a.skillName === currentSkillName);
-                if (skill) confirmStartAssessment(skill.skillId);
-              }}>
-                Start assessment
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button variant="ghost" onClick={() => { setDeviceCheck('idle'); setModalOpen(false); }}>
-                Cancel
-              </Button>
-              <Button variant="primary" onClick={handleDeviceCheck}>
-                Try again
-              </Button>
-            </>
-          )
-        }
+        footer={footer}
       >
         {deviceCheck === 'idle' && (
           <>
-            <p style={styles.modalDesc}>
-              This assessment uses a few permissions to verify the session. We only use them for this attempt.
+            <p className={styles.modalDesc}>
+              This assessment is proctored. We need your camera to confirm that you are the person taking it and to
+              flag looking away, extra people or a phone in view. Your browser will ask for permission only after you
+              continue, and we use the camera only for this attempt.
             </p>
-            <div style={styles.permItem}>
-              <div style={styles.permIcon}><Camera size={18} /></div>
+            <div className={styles.permItem}>
+              <div className={styles.permIcon} aria-hidden="true"><Camera size={18} /></div>
               <div>
-                <div style={styles.permTitle}>Camera</div>
-                <div style={styles.permDesc}>Confirms the person taking the assessment.</div>
+                <div className={styles.permTitle}>Camera</div>
+                <div className={styles.permDesc}>Confirms the person taking the assessment.</div>
               </div>
             </div>
-            <div style={styles.permItem}>
-              <div style={styles.permIcon}><Mic size={18} /></div>
+            <div className={styles.permItem}>
+              <div className={styles.permIcon} aria-hidden="true"><Maximize size={18} /></div>
               <div>
-                <div style={styles.permTitle}>Microphone</div>
-                <div style={styles.permDesc}>Checks that your test environment is active.</div>
-              </div>
-            </div>
-            <div style={styles.permItem}>
-              <div style={styles.permIcon}><Maximize size={18} /></div>
-              <div>
-                <div style={styles.permTitle}>Fullscreen and focus</div>
-                <div style={styles.permDesc}>Tracks fullscreen exits and tab switches for review.</div>
+                <div className={styles.permTitle}>Fullscreen and focus</div>
+                <div className={styles.permDesc}>Tracks fullscreen exits and tab switches for review.</div>
               </div>
             </div>
           </>
         )}
 
-        {deviceCheck === 'checking' && (
-          <div style={styles.checking}>
-            <div style={styles.checkingSpinner}><Loader2 size={24} /></div>
-            <div style={styles.checkingText}>Checking devices...</div>
-            <div style={styles.checkingSubtext}>Please allow camera and microphone access when prompted.</div>
-          </div>
-        )}
-
-        {deviceCheck === 'success' && (
-          <div style={styles.success}>
-            <div style={styles.successIcon}><Check size={28} /></div>
-            <div style={styles.successTitle}>Devices ready</div>
-            <div style={styles.successDesc}>Camera and microphone are working. You're ready to begin.</div>
-          </div>
-        )}
-
-        {deviceCheck === 'error' && (
-          <div style={styles.error}>
-            <div style={styles.errorIcon}><AlertCircle size={28} /></div>
-            <div style={styles.errorTitle}>Device access needed</div>
-            <div style={styles.errorDesc}>
-              Camera or microphone permission was denied. Please enable them in your browser settings and try again.
+        {deviceCheck === 'requesting' && (
+          <div className={styles.centered} role="status">
+            <div className={`${styles.stateIcon} ${styles.stateIconBusy}`} aria-hidden="true">
+              <Loader2 size={24} className={styles.spin} />
             </div>
+            <p className={styles.stateTitle}>Waiting for camera access…</p>
+            <p className={styles.stateDesc}>Please choose Allow when your browser asks to use the camera.</p>
+          </div>
+        )}
+
+        {deviceCheck === 'granted' && (
+          <div className={styles.centered} role="status">
+            <div className={`${styles.stateIcon} ${styles.stateIconOk}`} aria-hidden="true"><Check size={28} /></div>
+            <p className={styles.stateTitle}>Camera ready</p>
+            <p className={styles.stateDesc}>Your camera is working. You&apos;re ready to begin.</p>
+          </div>
+        )}
+
+        {deviceCheck === 'denied' && (
+          <div className={styles.centered} role="alert">
+            <div className={`${styles.stateIcon} ${styles.stateIconBad}`} aria-hidden="true"><AlertCircle size={28} /></div>
+            <p className={styles.stateTitle}>Camera access needed</p>
+            <p className={styles.stateDesc}>
+              This assessment is proctored, so the camera is required to confirm who is taking it. Camera permission
+              was blocked, so your attempt has not started and no answers were recorded. Allow the camera for this
+              site, then try again, or leave the attempt.
+            </p>
+            <a className={styles.helpLink} href={CAMERA_HELP_URL} target="_blank" rel="noopener noreferrer">
+              How to turn the camera back on <ExternalLink size={13} aria-hidden="true" />
+            </a>
+          </div>
+        )}
+
+        {deviceCheck === 'unavailable' && (
+          <div className={styles.centered} role="alert">
+            <div className={`${styles.stateIcon} ${styles.stateIconBad}`} aria-hidden="true"><AlertCircle size={28} /></div>
+            <p className={styles.stateTitle}>Camera not available</p>
+            <p className={styles.stateDesc}>
+              We couldn&apos;t find or start a camera. Check that it is connected and not used by another app. Your
+              attempt has not started.
+            </p>
+            <a className={styles.helpLink} href={CAMERA_HELP_URL} target="_blank" rel="noopener noreferrer">
+              Camera help <ExternalLink size={13} aria-hidden="true" />
+            </a>
           </div>
         )}
       </Modal>

@@ -1,0 +1,140 @@
+/* "Tide" design tokens.
+   Token names are kept from the previous palette so existing components keep
+   working; only values change. Light values live on :root, dark on :root.dark.
+
+   The 12 core colour tokens (design.md "Colour tokens"):
+     --bg --surface --surface2 --ink --muted --line
+     --teal --teal-soft --coral --good --danger --amber-ink
+   Everything else below is derived from those hues and re-checked for AA
+   (4.5:1 text, 3:1 UI boundaries). */
+
+:root {
+  /* ---- Colour: core 12 ---- */
+  --bg: #f5f7f6;
+  --surface: #ffffff;
+  --surface2: #eaefee;
+  --ink: #0a1d26;
+  --muted: #4f6169;
+  --line: #c5d0d2;
+  --teal: #0b6e7f;
+  --teal-soft: #dff1f3;
+  --coral: #c2410c;
+  --good: #0e7d4a;
+  --danger: #b7191c;
+  --amber-ink: #8a4f27;
+  /* Text/icon colour on solid --teal / --coral / --good / --danger fills (AA in both themes). */
+  --on-accent: #ffffff;
+
+  /* ---- Colour: derived ---- */
+  --teal2: #2b8a9a;
+  --coral-ink: #a8380a;
+  --coral-soft: #fdeee4;
+  --danger-soft: #f7dcd8;
+  --sand: #e3ebea;
+  --sand-ink: #1f3a44;
+  --good-soft: #dff5e6;
+  --violet: #6d3fd0;
+  --violet-soft: #e8dff0;
+  --warn-soft: #fcf4da;
+  --status-live: #2f9460;
+  --status-wait: #b07814;
+  --status-idle: #6f8088;
+
+  /* Sidebar / mobile nav rail (separate from --teal so the rail can stay deep in dark mode). */
+  --rail-bg: #dce9e8;
+  --rail-text: #1f3a44;
+  --rail-muted: #4f6169;
+  --rail-strong: #0a1d26;
+  --rail-active-bg: #0b6e7f;
+  --rail-active-text: #ffffff;
+  --rail-line: #c5d0d2;
+
+  /* ---- Typography ---- */
+  --font-display: 'Bricolage Grotesque', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-body: 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+
+  /* Type scale: 12 / 13 / 15 / 17 / 20 / 24 / 32 / 44 */
+  --text-12: 0.75rem;
+  --text-13: 0.8125rem;
+  --text-15: 0.9375rem;
+  --text-17: 1.0625rem;
+  --text-20: 1.25rem;
+  --text-24: 1.5rem;
+  --text-32: 2rem;
+  --text-44: 2.75rem;
+  --body-size: var(--text-15);
+  --body-leading: 1.55;
+
+  /* ---- Spacing: 4px grid ---- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* ---- Shape: 8 controls / 14 panels / 22 overlays ---- */
+  --radius: 8px;
+  --radius-lg: 14px;
+  --radius-xl: 22px;
+
+  /* ---- Elevation: hairline plus one soft shadow for overlays ---- */
+  --shadow: 0 16px 40px rgba(10, 29, 38, 0.1);
+
+  /* ---- Motion ---- */
+  --ease-tide: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease: var(--ease-tide);
+  --dur-micro: 120ms;
+  --dur-standard: 220ms;
+  --dur-large: 320ms;
+
+  /* ---- Focus and icons ---- */
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+  --icon-stroke: 1.75;
+}
+
+:root.dark {
+  --bg: #06151c;
+  --surface: #0c222c;
+  --surface2: #133040;
+  --ink: #e6f0f2;
+  --muted: #8fa9b3;
+  --line: #244250;
+  --teal: #3fb6c4;
+  --teal-soft: #103842;
+  --coral: #f08a4b;
+  --good: #3ecf8e;
+  --danger: #f25a5a;
+  --amber-ink: #d69a5e;
+  --on-accent: #06151c;
+
+  --teal2: #5cc7d3;
+  --coral-ink: #f29a63;
+  --coral-soft: #2e1a12;
+  --danger-soft: #2a1518;
+  --sand: #0f2a35;
+  --sand-ink: #a9cad2;
+  --good-soft: #142e24;
+  --violet: #a382f5;
+  --violet-soft: #2e234a;
+  --warn-soft: #2e2615;
+  --status-live: #3ecf8e;
+  --status-wait: #d4a845;
+  --status-idle: #6b8591;
+
+  --rail-bg: #06151c;
+  --rail-text: #b6ccd3;
+  --rail-muted: #8fa9b3;
+  --rail-strong: #e6f0f2;
+  --rail-active-bg: #103842;
+  --rail-active-text: #e6f0f2;
+  --rail-line: #1b3744;
+
+  --shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+}

@@ -1,162 +1,29 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FileText, Mail, Target, UserRound } from 'lucide-react';
-import Panel from '../components/ui/Panel';
+import { FileText, Mail, Target, X } from 'lucide-react';
 import Tag from '../components/ui/Tag';
-import Modal from '../components/ui/Modal';
 import EmptyState from '../components/shared/EmptyState';
+import ErrorState from '../components/ui/ErrorState';
 import Button from '../components/ui/Button';
+import DataTable from '../components/ui/DataTable';
+import Skeleton, { SkeletonStatus } from '../components/ui/Skeleton';
 import { api } from '../api/client';
 import { useToast } from '../context/ToastContext';
 import { resolveFileUrl } from '../utils/fileUrl';
-import Skeleton, { SkeletonStatus } from '../components/ui/Skeleton';
-import { eyebrow, metaTextFlush, pageTitleCompact } from '../styles/shared';
-
-const styles = {
-  heading: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'end',
-    gap: 18,
-    marginBottom: 24,
-    flexWrap: 'wrap',
-  },
-  eyebrow: { ...eyebrow },
-  h1: { ...pageTitleCompact },
-  list: {
-    display: 'flex',
-    flexDirection: 'column',
-  },
-  item: {
-    display: 'grid',
-    gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr) auto',
-    gap: 16,
-    alignItems: 'center',
-    padding: '18px 0',
-    borderBottom: '1px solid var(--line)',
-  },
-  itemLast: {
-    borderBottom: 'none',
-  },
-  info: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 4,
-    minWidth: 0,
-  },
-  title: {
-    fontSize: 15,
-    fontWeight: 700,
-    margin: 0,
-    color: 'var(--ink)',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  },
-  nameButton: {
-    background: 'none',
-    border: 'none',
-    padding: 0,
-    cursor: 'pointer',
-    textAlign: 'left',
-    fontSize: 15,
-    fontWeight: 700,
-    color: 'var(--teal)',
-    textDecoration: 'underline',
-    textUnderlineOffset: 3,
-  },
-  meta: { ...metaTextFlush },
-  links: {
-    display: 'flex',
-    gap: 12,
-    fontSize: 12,
-    flexWrap: 'wrap',
-  },
-  link: {
-    color: 'var(--teal)',
-    textDecoration: 'none',
-    fontWeight: 700,
-  },
-  statusSelect: {
-    background: 'var(--surface2)',
-    border: '1px solid var(--line)',
-    borderRadius: 8,
-    padding: '7px 10px',
-    fontSize: 12,
-    fontWeight: 700,
-    color: 'var(--ink)',
-    minWidth: 120,
-  },
-  postTitle: {
-    color: 'var(--teal)',
-    fontWeight: 700,
-  },
-  profileRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    fontSize: 13,
-    color: 'var(--ink)',
-    margin: '6px 0',
-  },
-  profileLabel: {
-    color: 'var(--muted)',
-    minWidth: 92,
-    fontWeight: 700,
-  },
-  sectionTitle: {
-    fontFamily: "'Space Grotesk', sans-serif",
-    fontSize: 15,
-    margin: '18px 0 8px',
-  },
-  skillList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 8,
-  },
-  skillRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 12,
-    fontSize: 13,
-    borderBottom: '1px solid var(--line)',
-    paddingBottom: 8,
-  },
-  skillName: {
-    fontWeight: 700,
-  },
-  skillLevel: {
-    color: 'var(--muted)',
-    fontSize: 12,
-  },
-  docButtons: {
-    display: 'flex',
-    gap: 10,
-    flexWrap: 'wrap',
-    marginTop: 6,
-  },
-  docButton: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 7,
-    fontSize: 13,
-    fontWeight: 700,
-    color: 'var(--teal)',
-    textDecoration: 'none',
-    padding: '9px 14px',
-    border: '1px solid var(--line)',
-    borderRadius: 10,
-    background: 'var(--surface)',
-  },
-  noDocs: { ...metaTextFlush },
-};
+import styles from './JobApplicationsPage.module.css';
 
 const statusOptions = ['applied', 'review', 'interview', 'hired', 'rejected'];
+const AI_UNAVAILABLE = 'Suggestions are unavailable right now';
 
 function formatDate(isoString) {
   if (!isoString) return '';
   return new Date(isoString).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+const stop = (e) => e.stopPropagation();
+
+function hasScore(info) {
+  return info && typeof info.score === 'number' && Number.isFinite(info.score);
 }
 
 export default function JobApplicationsPage() {
@@ -164,29 +31,36 @@ export default function JobApplicationsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [updatingId, setUpdatingId] = useState(null);
-  const [selected, setSelected] = useState(null);
+  const [selectedId, setSelectedId] = useState(null);
   const [detail, setDetail] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState('');
   const [rankings, setRankings] = useState({});
   const [aiRanked, setAiRanked] = useState(false);
+  const [aiUnavailable, setAiUnavailable] = useState(false);
   const [ranking, setRanking] = useState(false);
+  const [postFilter, setPostFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [search, setSearch] = useState('');
+  const detailRequest = useRef(0);
   const { showToast } = useToast();
 
-  const load = () => {
+  const load = useCallback(() => {
     setLoading(true);
+    setError('');
     api.get('/applications/employer')
       .then((data) => setApplications(data || []))
       .catch((err) => setError(err?.message || 'Could not load applications'))
       .finally(() => setLoading(false));
-  };
+  }, []);
 
-  useEffect(load, []);
+  useEffect(load, [load]);
 
   const rankWithAi = async () => {
     const postIds = [...new Set(applications.map((app) => app.postId).filter(Boolean))];
     if (postIds.length === 0) return;
     setRanking(true);
+    setAiUnavailable(false);
     try {
       const merged = {};
       for (const postId of postIds) {
@@ -200,26 +74,71 @@ export default function JobApplicationsPage() {
       setAiRanked(true);
       showToast('Candidates ranked by AI');
     } catch (err) {
-      showToast(err?.message || 'Could not rank candidates');
+      if (err?.status === 502 || err?.status === 503) {
+        // Keep applicants in their unranked order; status actions stay enabled.
+        setAiUnavailable(true);
+      } else {
+        showToast(err?.message || 'Could not rank candidates');
+      }
     } finally {
       setRanking(false);
     }
   };
 
-  const rankedApplications = aiRanked
-    ? [...applications].sort((a, b) =>
-        (a.postTitle || '').localeCompare(b.postTitle || '') || (rankings[b.applicationId]?.score ?? 0) - (rankings[a.applicationId]?.score ?? 0))
-    : applications;
+  const posts = useMemo(() => {
+    const byId = new Map();
+    applications.forEach((app) => {
+      if (app.postId == null) return;
+      const entry = byId.get(app.postId) || { id: app.postId, title: app.postTitle || `Post ${app.postId}`, count: 0 };
+      entry.count += 1;
+      byId.set(app.postId, entry);
+    });
+    return [...byId.values()];
+  }, [applications]);
 
-  const openProfile = (application) => {
-    setSelected(application);
+  const rows = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    const filtered = applications.filter((app) => {
+      if (postFilter && String(app.postId) !== postFilter) return false;
+      if (statusFilter && app.status !== statusFilter) return false;
+      if (query && !`${app.learnerName || ''} ${app.learnerEmail || ''}`.toLowerCase().includes(query)) return false;
+      return true;
+    });
+    if (!aiRanked) return filtered;
+    return [...filtered].sort(
+      (a, b) =>
+        (a.postTitle || '').localeCompare(b.postTitle || '') ||
+        (rankings[b.applicationId]?.score ?? 0) - (rankings[a.applicationId]?.score ?? 0),
+    );
+  }, [applications, postFilter, statusFilter, search, aiRanked, rankings]);
+
+  const selected = applications.find((app) => app.applicationId === selectedId) || null;
+
+  const openProfile = useCallback((id) => {
+    const requestId = detailRequest.current + 1;
+    detailRequest.current = requestId;
+    setSelectedId(id);
     setDetail(null);
     setDetailError('');
     setDetailLoading(true);
-    api.get(`/applications/employer/${application.applicationId}`)
-      .then(setDetail)
-      .catch((err) => setDetailError(err?.message || 'Could not load applicant profile'))
-      .finally(() => setDetailLoading(false));
+    api.get(`/applications/employer/${id}`)
+      .then((data) => {
+        if (detailRequest.current === requestId) setDetail(data);
+      })
+      .catch((err) => {
+        if (detailRequest.current === requestId) setDetailError(err?.message || 'Could not load applicant profile');
+      })
+      .finally(() => {
+        if (detailRequest.current === requestId) setDetailLoading(false);
+      });
+  }, []);
+
+  const closePane = () => {
+    detailRequest.current += 1;
+    setSelectedId(null);
+    setDetail(null);
+    setDetailLoading(false);
+    setDetailError('');
   };
 
   const updateStatus = async (application, status) => {
@@ -230,7 +149,6 @@ export default function JobApplicationsPage() {
       setApplications((prev) =>
         prev.map((app) => (app.applicationId === application.applicationId ? { ...app, status } : app)),
       );
-      if (detail?.applicationId === application.applicationId) setDetail((d) => (d ? { ...d, status } : d));
       showToast(`Application marked as ${status}`, 'success');
     } catch (err) {
       showToast(err?.message || 'Could not update status', 'error');
@@ -239,34 +157,106 @@ export default function JobApplicationsPage() {
     }
   };
 
+  const columns = useMemo(
+    () => [
+      {
+        key: 'learnerName',
+        label: 'Applicant',
+        sortable: true,
+        render: (app) => (
+          <div>
+            <button type="button" className={styles.name} aria-label={`View profile of ${app.learnerName}`}>
+              {app.learnerName}
+            </button>
+            <p className={styles.meta}>{app.learnerEmail} · Applied {formatDate(app.appliedAt)}</p>
+            {(app.resumeUrl || app.coverLetterUrl) && (
+              <div className={styles.links}>
+                {app.resumeUrl && (
+                  <a className={styles.link} href={resolveFileUrl(app.resumeUrl)} target="_blank" rel="noreferrer" onClick={stop}>Resume</a>
+                )}
+                {app.coverLetterUrl && (
+                  <a className={styles.link} href={resolveFileUrl(app.coverLetterUrl)} target="_blank" rel="noreferrer" onClick={stop}>Cover letter</a>
+                )}
+              </div>
+            )}
+          </div>
+        ),
+      },
+      { key: 'postTitle', label: 'Post', sortable: true },
+      {
+        key: 'appliedAt',
+        label: 'Applied',
+        sortable: true,
+        sortValue: (app) => (app.appliedAt ? new Date(app.appliedAt) : null),
+        render: (app) => formatDate(app.appliedAt),
+      },
+      {
+        key: 'rank',
+        label: 'AI rank',
+        sortable: true,
+        sortValue: (app) => (hasScore(rankings[app.applicationId]) ? rankings[app.applicationId].score : null),
+        render: (app) => {
+          const info = rankings[app.applicationId];
+          return hasScore(info)
+            ? <span className={styles.rank} title={info.rationale}>{Math.round(info.score)}%</span>
+            : <span className={styles.notRanked}>Not ranked</span>;
+        },
+      },
+      {
+        key: 'status',
+        label: 'Status',
+        sortable: true,
+        render: (app) => (
+          <span onClick={stop} onKeyDown={stop} role="presentation">
+            <select
+              className={styles.statusSelect}
+              value={app.status}
+              disabled={updatingId === app.applicationId}
+              onChange={(e) => updateStatus(app, e.target.value)}
+              aria-label={`Status for ${app.learnerName}`}
+            >
+              {statusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
+            </select>
+          </span>
+        ),
+      },
+    ],
+    // updateStatus closes over setters and showToast only
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rankings, updatingId],
+  );
+
   if (loading) {
     return (
       <div className="view-enter">
         <SkeletonStatus label="Loading applications...">
-          <Panel>
+          <div className={styles.panel}>
             {Array.from({ length: 5 }, (_, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, padding: '16px 0', borderBottom: '1px solid var(--line)' }}>
-                <div style={{ flex: 1 }}>
+              <div key={i} className={styles.skelRow}>
+                <div className={styles.skelGrow}>
                   <Skeleton height={14} width="28%" style={{ marginBottom: 8 }} />
                   <Skeleton height={12} width="45%" />
                 </div>
                 <Skeleton height={26} width={84} radius={13} />
               </div>
             ))}
-          </Panel>
+          </div>
         </SkeletonStatus>
       </div>
     );
   }
 
+  const rankInfo = selected ? rankings[selected.applicationId] : null;
+  const current = selected ? { ...(detail || {}), ...selected } : null;
+
   return (
     <div className="view-enter">
-      <div style={styles.heading}>
+      <div className={styles.heading}>
         <div>
-          <div style={styles.eyebrow}>Keep the pipeline moving</div>
-          <h1 style={styles.h1}>Job applications</h1>
+          <div className={styles.eyebrow}>Keep the pipeline moving</div>
+          <h1 className={styles.title}>Job applications</h1>
         </div>
-        <div style={{ display: 'flex', gap: 10 }}>
+        <div className={styles.actions}>
           <Button variant="ghost" disabled={ranking || applications.length === 0} onClick={rankWithAi}>
             {ranking ? 'Ranking...' : '✨ Rank with AI'}
           </Button>
@@ -276,125 +266,173 @@ export default function JobApplicationsPage() {
         </div>
       </div>
 
-      <Panel>
-        {error ? (
-          <EmptyState title="Applications unavailable" description={error} />
-        ) : applications.length === 0 ? (
-          <EmptyState
-            title="No applications yet"
-            description="Applications from learners will show up here with their resume and cover letter."
-          />
-        ) : (
-          <div style={styles.list}>
-            {rankedApplications.map((application, index) => {
-              const isLast = index === rankedApplications.length - 1;
-              const rankingInfo = rankings[application.applicationId];
-              return (
-                <div key={application.applicationId} style={isLast ? { ...styles.item, ...styles.itemLast } : styles.item}>
-                  <div style={styles.info}>
-                    <button
-                      style={styles.nameButton}
-                      onClick={() => openProfile(application)}
-                      aria-label={`View profile of ${application.learnerName}`}
-                      title="View applicant profile"
-                    >
-                      {application.learnerName}
-                    </button>
-                    <p style={styles.meta}>{application.learnerEmail} · Applied {formatDate(application.appliedAt)}</p>
-                    {rankingInfo && (
-                      <p style={{ ...styles.meta, fontWeight: 700 }} title={rankingInfo.rationale}>
-                        ✨ AI fit: {Math.round(rankingInfo.score)}% — {rankingInfo.rationale}
-                      </p>
-                    )}
-                    <div style={styles.links}>
-                      <span style={styles.postTitle}>{application.postTitle}</span>
-                      {application.resumeUrl && (
-                        <a style={styles.link} href={resolveFileUrl(application.resumeUrl)} target="_blank" rel="noreferrer">Resume</a>
-                      )}
-                      {application.coverLetterUrl && (
-                        <a style={styles.link} href={resolveFileUrl(application.coverLetterUrl)} target="_blank" rel="noreferrer">Cover letter</a>
-                      )}
-                    </div>
-                  </div>
-                  <Tag>{application.status}</Tag>
-                  <select
-                    style={styles.statusSelect}
-                    value={application.status}
-                    disabled={updatingId === application.applicationId}
-                    onChange={(e) => updateStatus(application, e.target.value)}
-                    aria-label={`Status for ${application.learnerName}`}
-                  >
-                    {statusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
-                  </select>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </Panel>
+      {aiUnavailable && (
+        <div className={styles.notice} role="status">{AI_UNAVAILABLE}</div>
+      )}
 
-      <Modal
-        open={!!selected}
-        onClose={() => setSelected(null)}
-        eyebrow="Applicant profile"
-        title={detail?.learnerName || selected?.learnerName || 'Applicant'}
-      >
-        {detailLoading ? (
-          <SkeletonStatus label="Loading profile...">
-            {Array.from({ length: 5 }, (_, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '9px 0' }}>
-                <Skeleton height={12} width={92} />
-                <Skeleton height={12} width="45%" />
-              </div>
-            ))}
-          </SkeletonStatus>
-        ) : detailError ? (
-          <p style={{ color: 'var(--coral)', margin: 0 }}>{detailError}</p>
-        ) : detail ? (
-          <>
-            <div style={styles.profileRow}><span style={styles.profileLabel}><Mail size={14} /> Email</span><span>{detail.learnerEmail || '—'}</span></div>
-            <div style={styles.profileRow}><span style={styles.profileLabel}><Target size={14} /> Target role</span><span>{detail.targetRole || '—'}</span></div>
-            <div style={styles.profileRow}><span style={styles.profileLabel}><UserRound size={14} /> Applied for</span><span>{detail.postTitle}</span></div>
-            <div style={styles.profileRow}><span style={styles.profileLabel}>Status</span><Tag>{detail.status}</Tag></div>
-            <div style={styles.profileRow}><span style={styles.profileLabel}>Applied</span><span>{formatDate(detail.appliedAt)}</span></div>
-
-            <h4 style={styles.sectionTitle}>Submitted documents</h4>
-            {!detail.resumeUrl && !detail.coverLetterUrl ? (
-              <p style={styles.noDocs}>No documents uploaded with this application.</p>
-            ) : (
-              <div style={styles.docButtons}>
-                {detail.resumeUrl && (
-                  <a style={styles.docButton} href={resolveFileUrl(detail.resumeUrl)} target="_blank" rel="noreferrer">
-                    <FileText size={15} /> Resume
-                  </a>
-                )}
-                {detail.coverLetterUrl && (
-                  <a style={styles.docButton} href={resolveFileUrl(detail.coverLetterUrl)} target="_blank" rel="noreferrer">
-                    <FileText size={15} /> Cover letter
-                  </a>
-                )}
-              </div>
-            )}
-
-            <h4 style={styles.sectionTitle}>Skills ({detail.skills?.length || 0})</h4>
-            {detail.skills?.length ? (
-              <div style={styles.skillList}>
-                {detail.skills.map((skill) => (
-                  <div key={skill.name} style={styles.skillRow}>
-                    <span style={styles.skillName}>
-                      {skill.name}
-                      {skill.verified && <Tag style={{ marginLeft: 8 }}>Verified</Tag>}
-                    </span>
-                    <span style={styles.skillLevel}>Level {skill.currentLevel}</span>
-                  </div>
+      {error ? (
+        <ErrorState title="Applications unavailable" error={error} onRetry={load} />
+      ) : applications.length === 0 ? (
+        <EmptyState
+          title="No applications yet"
+          description="Applications from learners will show up here with their resume and cover letter."
+          action={{ label: 'Post a job', href: '/post-job' }}
+        />
+      ) : (
+        <>
+          <div className={styles.filters} role="group" aria-label="Filter applicants">
+            <label className={styles.filter}>
+              Post
+              <select className={styles.control} value={postFilter} onChange={(e) => setPostFilter(e.target.value)}>
+                <option value="">All posts</option>
+                {posts.map((post) => (
+                  <option key={post.id} value={String(post.id)}>{`${post.title} (${post.count})`}</option>
                 ))}
-              </div>
-            ) : (
-              <p style={styles.noDocs}>No skills tracked yet.</p>
+              </select>
+            </label>
+            <label className={styles.filter}>
+              Status
+              <select className={styles.control} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                <option value="">All statuses</option>
+                {statusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
+              </select>
+            </label>
+            <label className={styles.filter}>
+              Search
+              <input
+                type="search"
+                className={styles.control}
+                value={search}
+                placeholder="Name or email"
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </label>
+          </div>
+
+          <div className={`${styles.layout} ${current ? styles.layoutWithPane : ''}`}>
+            <div className={styles.panel}>
+              <DataTable
+                caption="Applicants for your job posts"
+                columns={columns}
+                rows={rows}
+                getRowId={(app) => app.applicationId}
+                onRowSelect={openProfile}
+              />
+            </div>
+
+            {current && (
+              <aside className={styles.pane} role="dialog" aria-modal="false" aria-label={`Applicant: ${current.learnerName}`}>
+                <div className={styles.paneHead}>
+                  <div>
+                    <div className={styles.eyebrow}>Applicant profile</div>
+                    <h2 className={styles.paneTitle}>{current.learnerName || 'Applicant'}</h2>
+                  </div>
+                  <button type="button" className={styles.close} onClick={closePane} aria-label="Close applicant detail">
+                    <X size={16} aria-hidden="true" />
+                  </button>
+                </div>
+
+                <div className={styles.field}>
+                  <span className={styles.fieldLabel}>AI rank</span>
+                  {hasScore(rankInfo) ? (
+                    <span className={styles.rank}>
+                      {Math.round(rankInfo.score)}%{rankInfo.rationale ? ` — ${rankInfo.rationale}` : ''}
+                    </span>
+                  ) : (
+                    <span className={styles.notRanked}>Not ranked</span>
+                  )}
+                </div>
+                <div className={styles.field}>
+                  <span className={styles.fieldLabel}><Mail size={14} aria-hidden="true" /> Email</span>
+                  <span>{current.learnerEmail || '—'}</span>
+                </div>
+                <div className={styles.field}>
+                  <span className={styles.fieldLabel}><Target size={14} aria-hidden="true" /> Target role</span>
+                  <span>{detail?.targetRole || '—'}</span>
+                </div>
+                <div className={styles.field}>
+                  <span className={styles.fieldLabel}>Applied for</span>
+                  <span>{current.postTitle}</span>
+                </div>
+                <div className={styles.field}>
+                  <span className={styles.fieldLabel}>Status</span>
+                  <Tag>{current.status}</Tag>
+                </div>
+
+                <h3 className={styles.section}>Status actions</h3>
+                <div className={styles.statusActions} role="group" aria-label="Change application status">
+                  {statusOptions.map((status) => (
+                    <button
+                      key={status}
+                      type="button"
+                      className={styles.statusButton}
+                      aria-pressed={current.status === status}
+                      disabled={updatingId === current.applicationId}
+                      onClick={() => updateStatus(selected, status)}
+                    >
+                      Mark {status}
+                    </button>
+                  ))}
+                </div>
+
+                {detailLoading ? (
+                  <SkeletonStatus label="Loading profile...">
+                    {Array.from({ length: 4 }, (_, i) => (
+                      <div key={i} className={styles.skelRow}>
+                        <Skeleton height={12} width={92} />
+                        <Skeleton height={12} width="45%" />
+                      </div>
+                    ))}
+                  </SkeletonStatus>
+                ) : detailError ? (
+                  <>
+                    <h3 className={styles.section}>Skills</h3>
+                    <p className={styles.error} role="alert">{detailError}</p>
+                    <Button variant="ghost" onClick={() => openProfile(selected.applicationId)}>Retry</Button>
+                  </>
+                ) : detail ? (
+                  <>
+                    <h3 className={styles.section}>Submitted documents</h3>
+                    {!detail.resumeUrl && !detail.coverLetterUrl ? (
+                      <p className={styles.muted}>No documents uploaded with this application.</p>
+                    ) : (
+                      <div className={styles.links}>
+                        {detail.resumeUrl && (
+                          <a className={styles.link} href={resolveFileUrl(detail.resumeUrl)} target="_blank" rel="noreferrer">
+                            <FileText size={14} aria-hidden="true" /> Resume
+                          </a>
+                        )}
+                        {detail.coverLetterUrl && (
+                          <a className={styles.link} href={resolveFileUrl(detail.coverLetterUrl)} target="_blank" rel="noreferrer">
+                            <FileText size={14} aria-hidden="true" /> Cover letter
+                          </a>
+                        )}
+                      </div>
+                    )}
+
+                    <h3 className={styles.section}>Skills ({detail.skills?.length || 0})</h3>
+                    {detail.skills?.length ? (
+                      <div className={styles.skills}>
+                        {detail.skills.map((skill) => (
+                          <div key={skill.name} className={styles.skill}>
+                            <span className={styles.skillName}>
+                              {skill.name}
+                              {skill.verified && <Tag style={{ marginLeft: 8 }}>Verified</Tag>}
+                            </span>
+                            <span className={styles.level}>Level {skill.currentLevel}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className={styles.muted}>No skills tracked yet.</p>
+                    )}
+                  </>
+                ) : null}
+              </aside>
             )}
-          </>
-        ) : null}
-      </Modal>
+          </div>
+        </>
+      )}
     </div>
   );
 }

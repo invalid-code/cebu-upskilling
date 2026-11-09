@@ -167,6 +167,25 @@ describe('ProfilePage', () => {
   });
 });
 
+describe('ProfilePage theme', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.restoreAllMocks();
+    api.get.mockResolvedValue([]);
+  });
+
+  it('offers exactly light and dark, applies and persists the choice', async () => {
+    renderProfilePage({ role: 'Recruiter' });
+    const radios = await screen.findAllByRole('radio');
+    expect(radios).toHaveLength(2);
+    fireEvent.click(screen.getByRole('radio', { name: 'Dark' }));
+    expect(localStorage.getItem('theme')).toBe('dark');
+    expect(screen.getByRole('radio', { name: 'Dark' })).toBeChecked();
+    fireEvent.click(screen.getByRole('radio', { name: 'Light' }));
+    expect(localStorage.getItem('theme')).toBe('light');
+  });
+});
+
 describe('ProfilePage resume', () => {
   beforeEach(() => {
     localStorage.clear();

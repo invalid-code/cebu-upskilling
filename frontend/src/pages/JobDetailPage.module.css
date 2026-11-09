@@ -1,0 +1,277 @@
+.page {
+  display: block;
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-bottom: var(--space-2);
+  font-size: var(--text-13);
+  color: var(--teal);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.section {
+  margin-bottom: var(--space-5);
+}
+
+.heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-5);
+  flex-wrap: wrap;
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+  margin: var(--space-2) 0;
+}
+
+.company {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  color: var(--muted);
+  font-size: var(--text-13);
+  margin: 0;
+}
+
+.tags {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin: var(--space-3) 0 var(--space-1);
+}
+
+.expired {
+  color: var(--danger);
+  font-size: var(--text-12);
+  font-weight: 700;
+}
+
+.facts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.fact {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  font-size: var(--text-13);
+  color: var(--ink);
+}
+
+.factLabel {
+  color: var(--muted);
+  min-width: 92px;
+  font-size: var(--text-12);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: var(--space-5);
+  margin-top: var(--space-5);
+}
+
+@media (max-width: 1023px) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.side {
+  min-width: 0;
+}
+
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-display);
+  font-size: var(--text-17);
+  margin: 0 0 var(--space-3);
+}
+
+.body {
+  font-size: var(--text-15);
+  line-height: 1.7;
+  color: var(--ink);
+  white-space: pre-line;
+  margin: 0;
+}
+
+.list {
+  margin: 0;
+  padding-left: var(--space-5);
+  font-size: var(--text-15);
+  line-height: 1.9;
+}
+
+/* ---- Skill gap beside apply panel ---- */
+.actionRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+@media (min-width: 1024px) {
+  .actionRow {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+.gapPanel,
+.applyBox {
+  min-width: 0;
+}
+
+.applyBox {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.applyBox .sectionTitle {
+  margin-bottom: 0;
+}
+
+.gapList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.gapItem {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--line);
+}
+
+.gapItem:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.gapHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.gapName {
+  font-weight: 700;
+  font-size: var(--text-15);
+}
+
+.gapLevels {
+  font-size: var(--text-12);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Apply form ---- */
+.fileRow {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.fileLabel {
+  flex: 1;
+  font-size: var(--text-12);
+  font-weight: 700;
+}
+
+.fileInput {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 44px;
+  font-size: var(--text-12);
+  cursor: pointer;
+}
+
+.fileInput:focus-within {
+  outline: var(--focus-ring-width) solid var(--teal);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.hiddenInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+}
+
+.fileName {
+  font-size: var(--text-12);
+  color: var(--muted);
+  margin: 0;
+}
+
+/* ---- Employer ---- */
+.employerRow {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.employerName {
+  font-weight: 700;
+  color: var(--teal);
+  text-decoration: none;
+  font-size: var(--text-15);
+}
+
+.employerMeta {
+  font-size: var(--text-12);
+  color: var(--muted);
+  margin: 2px 0 0;
+}
+
+.employerBody {
+  font-size: var(--text-13);
+  line-height: 1.7;
+  color: var(--ink);
+  margin: var(--space-3) 0;
+}
+
+.employerLink {
+  font-size: var(--text-12);
+  font-weight: 700;
+}
+
+/* ---- Skeleton ---- */
+.skeletonHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-5);
+}
+
+.skeletonGrow {
+  flex: 1;
+}
+
+.skeletonTags {
+  display: flex;
+  gap: var(--space-2);
+}

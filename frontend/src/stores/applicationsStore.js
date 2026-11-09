@@ -19,6 +19,8 @@ function normalize(summary) {
 export const useApplicationsStore = create((set, get) => ({
   applications: [],
   loading: false,
+  // Last list-request failure (null when the last request succeeded); previous data is retained.
+  error: null,
   // Stale-while-settled: mounts within `staleTimeMs` reuse the list instead
   // of refetching (the api client additionally dedupes in-flight GETs).
   // `_reset` (called between tests and on logout) clears both.
@@ -45,10 +47,10 @@ export const useApplicationsStore = create((set, get) => ({
     set({ loading: true });
     try {
       const data = await api.get('/applications', { signal });
-      set({ applications: (data || []).map(normalize), lastFetchedAt: Date.now(), lastUserId: userId });
+      set({ applications: (data || []).map(normalize), error: null, lastFetchedAt: Date.now(), lastUserId: userId });
     } catch (err) {
       if (err?.name === 'AbortError') return;
-      set({ applications: [] });
+      set({ error: err || new Error('Could not load applications') });
     } finally {
       if (!signal?.aborted) set({ loading: false });
     }
@@ -114,5 +116,5 @@ export const useApplicationsStore = create((set, get) => ({
 
   isApplied: (jobId) => get().applications.some((a) => a.id === jobId),
 
-  _reset: () => set({ applications: [], loading: false, lastFetchedAt: null, lastUserId: null }),
+  _reset: () => set({ applications: [], loading: false, error: null, lastFetchedAt: null, lastUserId: null }),
 }));

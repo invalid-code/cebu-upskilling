@@ -1,0 +1,115 @@
+/* LiquidMeter: only transform and opacity are ever animated. */
+.root {
+  --meter-color: var(--teal);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.tonePrimary { --meter-color: var(--teal); }
+.toneGood { --meter-color: var(--teal2, var(--teal)); }
+.toneWarn { --meter-color: var(--coral); }
+
+.text {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* bar */
+.track {
+  position: relative;
+  flex: 1;
+  height: 7px;
+  background: var(--teal-soft);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.fill {
+  display: block;
+  position: relative;
+  height: 100%;
+  border-radius: 99px;
+  background: var(--fill-color, var(--meter-color));
+  overflow: hidden;
+}
+
+/* A sheen drifting through the fill; amplitude 0 hides it. */
+.fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.35), transparent);
+  opacity: calc(var(--wave-amp, 0) / 4);
+  transform: translateX(-100%);
+  animation: drift 2.4s linear infinite;
+}
+
+/* vessel + ring */
+.vessel,
+.ring {
+  position: relative;
+  width: 72px;
+  height: 96px;
+  background: var(--teal-soft);
+  border: 1.5px solid var(--meter-color);
+  border-radius: 14px;
+  overflow: hidden;
+  flex: none;
+}
+
+.ring {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+}
+
+.level {
+  position: absolute;
+  inset: 0;
+  background: var(--fill-color, var(--meter-color));
+  opacity: 0.85;
+  transform: translateY(calc(100% - var(--level, 0) * 1%));
+  transition: transform var(--dur-3, 320ms) var(--ease-tide, ease);
+}
+
+.level::before {
+  content: '';
+  position: absolute;
+  left: -100%;
+  right: -100%;
+  bottom: 100%;
+  height: calc(var(--wave-amp, 0) * 1px);
+  background: inherit;
+  border-radius: 50% 50% 0 0;
+  animation: drift 3s linear infinite;
+}
+
+.overlayText {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink, inherit);
+  text-shadow: 0 0 4px var(--paper, transparent);
+}
+
+@keyframes drift {
+  to { transform: translateX(50%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fill::after,
+  .level::before {
+    animation: none;
+  }
+
+  .level {
+    transition: none;
+  }
+}

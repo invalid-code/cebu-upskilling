@@ -162,6 +162,63 @@ describe('OverviewPage', () => {
     expect(screen.queryByText('JavaScript')).not.toBeInTheDocument();
   });
 
+  it('renders exactly the Next move, This week and Pathway regions in order', async () => {
+    renderOverview();
+    await screen.findByText(/of the way to your target role/);
+    const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
+    expect(headings).toEqual(['Next move', 'This week', 'Pathway']);
+    expect(screen.getAllByRole('region')).toHaveLength(3);
+    expect(screen.getByText('No target role is set yet. Choose one to see your skill gaps.')).toBeInTheDocument();
+    expect(screen.getByText('You have no open applications.')).toBeInTheDocument();
+  });
+
+  it('shows the gap count with the role, and one labelled meter per pathway skill', async () => {
+    localStorage.setItem('user', JSON.stringify({ firstName: 'Test', role: 'Learner', targetRole: 'Frontend Developer' }));
+    api.get.mockImplementation((path) => {
+      if (path === '/skillgaps') return Promise.resolve(mockSkillGaps);
+      if (path === '/courses') return Promise.resolve([]);
+      return Promise.resolve([]);
+    });
+    renderOverview();
+    expect(await screen.findByText('3 gaps left for Frontend Developer')).toBeInTheDocument();
+    expect(screen.getAllByRole('meter').map((m) => m.getAttribute('aria-label')))
+      .toEqual(['JavaScript', 'TypeScript', 'React']);
+  });
+
+  it('lists at most 3 open applications, newest first', async () => {
+    localStorage.setItem('user', JSON.stringify({ UserId: 1, firstName: 'Test', role: 'Learner' }));
+    const app = (postId, title, appliedAt, status = 'applied') => ({ postId, title, company: 'Acme', status, appliedAt });
+    api.get.mockImplementation((path) => {
+      if (path === '/applications') return Promise.resolve([
+        app(1, 'Oldest Role', '2026-01-01T00:00:00Z'),
+        app(2, 'Newest Role', '2026-03-01T00:00:00Z'),
+        app(3, 'Middle Role', '2026-02-01T00:00:00Z'),
+        app(4, 'Second Role', '2026-02-15T00:00:00Z'),
+        app(5, 'Closed Role', '2026-04-01T00:00:00Z', 'rejected'),
+      ]);
+      return Promise.resolve([]);
+    });
+    renderOverview();
+    const list = await screen.findByRole('list', { name: /open applications/i });
+    const titles = Array.from(list.querySelectorAll('li p:first-child')).map((p) => p.textContent);
+    expect(titles).toEqual(['Newest Role', 'Second Role', 'Middle Role']);
+  });
+
+  it('shows an error with a retry that requests the data again', async () => {
+    let fail = true;
+    api.get.mockImplementation((path) => {
+      if (path === '/courses' && fail) return Promise.reject(new Error('Courses unavailable'));
+      return Promise.resolve([]);
+    });
+    renderOverview();
+    expect(await screen.findByText('Courses unavailable')).toBeInTheDocument();
+    fail = false;
+    const calls = api.get.mock.calls.filter(([p]) => p === '/courses').length;
+    fireEvent.click(screen.getByRole('button', { name: /retry/i }));
+    expect(await screen.findByText(/of the way to your target role/)).toBeInTheDocument();
+    expect(api.get.mock.calls.filter(([p]) => p === '/courses').length).toBeGreaterThan(calls);
+  });
+
   it('renders recommended courses fetched from the backend', async () => {
     renderOverview();
     expect(await screen.findByText('Modern JavaScript for Frontend Work')).toBeInTheDocument();

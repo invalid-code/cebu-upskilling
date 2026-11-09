@@ -58,7 +58,7 @@ describe('Topbar', () => {
   it('renders the avatar initials', () => {
     renderTopbar('/', { firstName: 'Juan', lastName: 'Cruz', role: 'Learner' });
 
-    expect(screen.getByRole('link', { name: 'Open profile' })).toHaveTextContent('JC');
+    expect(screen.getByRole('link', { name: /open profile/i })).toHaveTextContent('JC');
   });
 
   it('opens the notifications panel with an empty state', () => {

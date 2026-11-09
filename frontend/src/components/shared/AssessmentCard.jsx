@@ -25,7 +25,7 @@ const styles = {
     flexWrap: 'wrap',
   },
   title: {
-    fontFamily: "'Space Grotesk', sans-serif",
+    fontFamily: 'var(--font-display)',
     fontSize: 18,
     fontWeight: 700,
     color: 'var(--ink)',

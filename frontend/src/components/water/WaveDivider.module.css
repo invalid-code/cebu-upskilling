@@ -1,0 +1,34 @@
+.divider {
+  position: relative;
+  width: 100%;
+  height: 64px;
+  overflow: hidden;
+  line-height: 0;
+  pointer-events: none;
+}
+
+.soft { color: var(--teal-soft); }
+.surface { color: var(--surface); }
+.primary { color: var(--teal); }
+
+/* Each layer is twice the divider width so a -50% shift loops seamlessly. */
+.layer {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 200%;
+  height: 100%;
+  transform: translate3d(0, 0, 0);
+}
+
+.back { opacity: 0.45; }
+.front { opacity: 0.9; }
+
+.drift.back { animation: drift 26s linear infinite; }
+.drift.front { animation: drift 18s linear infinite reverse; }
+
+/* Only transform is animated. */
+@keyframes drift {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-50%, 0, 0); }
+}

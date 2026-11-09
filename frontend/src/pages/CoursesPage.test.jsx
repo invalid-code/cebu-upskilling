@@ -93,12 +93,12 @@ const mockCoursesPageData = {
   availableCategories: ['Language', 'Tool'],
 };
 
-function renderCourses() {
+function renderCourses(initialUrl = '/courses') {
   localStorage.setItem('user', JSON.stringify({ firstName: 'Test', role: 'Learner', targetRole: 'Frontend Developer' }));
   localStorage.setItem('token', 'abc');
 
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[initialUrl]}>
       <AuthProvider>
         <EnrollmentsProvider>
           <ToastProvider>
@@ -209,7 +209,50 @@ describe('CoursesPage', () => {
     renderCourses();
 
     expect(await screen.findByText(/Couldn.t load courses/)).toBeInTheDocument();
-    expect(await screen.findByRole('button', { name: 'Try again' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /Retry/ })).toBeInTheDocument();
+  });
+
+  it('omits the continue-learning strip when nothing is in progress', async () => {
+    api.get.mockResolvedValue({ ...mockCoursesPageData, enrolledCourses: [] });
+    renderCourses();
+    await screen.findByText('Recommended for your pathway');
+    expect(screen.queryByText('Continue learning')).not.toBeInTheDocument();
+  });
+
+  it('lists at most 10 in-progress courses, most recently accessed first', async () => {
+    const enrolledCourses = Array.from({ length: 12 }, (_, i) => ({
+      courseId: 100 + i,
+      courseName: `Course ${i}`,
+      progressPercent: 10,
+      totalModules: 2,
+      technicalLevel: 2,
+      started: new Date(2026, 0, 1 + i).toISOString(),
+    }));
+    api.get.mockResolvedValue({ ...mockCoursesPageData, enrolledCourses });
+    renderCourses();
+    await screen.findByText('Continue learning');
+    const strip = screen.getByText('Continue learning').closest('section');
+    const names = [...strip.querySelectorAll('article')].map((a) => a.textContent);
+    expect(names).toHaveLength(10);
+    expect(names[0]).toContain('Course 11');
+    expect(names[9]).toContain('Course 2');
+  });
+
+  it('applies the category filter from the URL', async () => {
+    renderCourses('/courses?category=Tool');
+    await screen.findByText('Git & Team Workflows');
+    expect(screen.queryByText('TypeScript from Zero')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Tool' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('shows the already-enrolled state without an error toast or progress change', async () => {
+    api.post.mockResolvedValue({ message: 'Already enrolled' });
+    renderCourses();
+    await screen.findByText('TypeScript from Zero');
+    fireEvent.click(screen.getAllByRole('button', { name: /enroll free/i })[0]);
+    expect(await screen.findByRole('button', { name: /Already enrolled/ })).toBeDisabled();
+    expect(document.querySelector('[data-variant="error"]')).toBeNull();
+    expect(api.get.mock.calls.filter(([p]) => p === '/coursespage')).toHaveLength(1);
   });
 
   it('shows empty state when no courses available', async () => {

@@ -78,7 +78,7 @@ const styles = {
     height: 36,
     borderRadius: 10,
     background: 'var(--teal)',
-    color: '#fff',
+    color: 'var(--on-accent)',
     display: 'grid',
     placeItems: 'center',
     flexShrink: 0,
@@ -110,7 +110,7 @@ const styles = {
   },
   lessonItemCurrent: {
     background: 'var(--teal)',
-    color: '#fff',
+    color: 'var(--on-accent)',
   },
   lessonItemCompleted: {
     background: 'var(--teal-soft)',
@@ -125,11 +125,11 @@ const styles = {
   },
   lessonIconCompleted: {
     background: 'var(--teal)',
-    color: '#fff',
+    color: 'var(--on-accent)',
   },
   lessonIconCurrent: {
     background: 'var(--coral)',
-    color: '#fff',
+    color: 'var(--on-accent)',
   },
   lessonIconPending: {
     background: 'var(--surface2)',
@@ -146,6 +146,17 @@ const styles = {
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
+  },
+  srOnly: {
+    position: 'absolute',
+    width: 1,
+    height: 1,
+    margin: -1,
+    padding: 0,
+    overflow: 'hidden',
+    clip: 'rect(0, 0, 0, 0)',
+    whiteSpace: 'nowrap',
+    border: 0,
   },
   lessonDuration: {
     fontSize: 11,
@@ -348,6 +359,9 @@ export default function ModuleOutline({ modules, currentLessonId, onLessonClick 
                   }}
                 >
                   {lesson.name}
+                  <span style={styles.srOnly}>
+                    {isCompleted ? ' (completed)' : isCurrent ? ' (current lesson)' : ' (not started)'}
+                  </span>
                 </div>
                 <div
                   style={{

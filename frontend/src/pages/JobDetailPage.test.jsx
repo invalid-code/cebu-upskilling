@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AuthProvider } from '../context/AuthContext';
 import { ToastProvider } from '../context/ToastContext';
 import { ApplicationsProvider } from '../context/ApplicationsContext';
@@ -34,6 +34,11 @@ const post = {
   isActive: true,
 };
 
+function CoursesProbe() {
+  const { search } = useLocation();
+  return <p>Courses page {search}</p>;
+}
+
 function renderDetail(userOverrides = {}) {
   localStorage.setItem('user', JSON.stringify({ UserId: 1, firstName: 'Test', role: 'Learner', ...userOverrides }));
   localStorage.setItem('token', 'abc');
@@ -44,6 +49,7 @@ function renderDetail(userOverrides = {}) {
           <ToastProvider>
             <Routes>
               <Route path="/jobs/:postId" element={<JobDetailPage />} />
+              <Route path="/courses" element={<CoursesProbe />} />
             </Routes>
           </ToastProvider>
         </ApplicationsProvider>
@@ -296,5 +302,67 @@ describe('JobDetailPage', () => {
       expect((screen.getAllByText(/Upload did not complete/).length)).toBeGreaterThan(0);
     });
     expect(api.post).not.toHaveBeenCalled();
+  });
+});
+
+describe('JobDetailPage apply and skill gap', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  const gapPost = {
+    ...post,
+    requiredSkills: [
+      { skillId: 's1', skillName: 'Kubernetes', category: 'Tooling', requiredLevel: 4 },
+      { skillId: 's2', skillName: 'Docker', category: 'Tooling', requiredLevel: 2 },
+    ],
+  };
+
+  const routeGet = (extra = {}) => (url) => {
+    if (url === '/applications') return Promise.resolve(extra.applications || []);
+    if (url === '/skillgaps/groups') {
+      return Promise.resolve([
+        { role: 'DevOps Engineer', postId: null, gaps: [
+          { skillId: 's1', skillName: 'Kubernetes', category: 'Tooling', requiredLevel: 4, currentLevel: 1, gap: 3 },
+          { skillId: 's2', skillName: 'Docker', category: 'Tooling', requiredLevel: 2, currentLevel: 3, gap: 0 },
+        ] },
+      ]);
+    }
+    if (url.startsWith('/posts/')) return Promise.resolve(gapPost);
+    return Promise.reject(new Error('unexpected ' + url));
+  };
+
+  it('lists only lacking skills and "Close gap" opens CoursesPage filtered by category', async () => {
+    api.get.mockImplementation(routeGet());
+    renderDetail();
+    expect(await screen.findByRole('heading', { name: 'Your skill gap' })).toBeInTheDocument();
+    const closeButtons = await screen.findAllByRole('button', { name: /Close gap/ });
+    expect(closeButtons).toHaveLength(1);
+    expect(screen.getAllByText('Required 4 · Current 1')).toHaveLength(1);
+
+    fireEvent.click(closeButtons[0]);
+    expect(await screen.findByText(/Courses page \?category=Tooling/)).toBeInTheDocument();
+  });
+
+  it('shows the applied state with a disabled control and no error toast', async () => {
+    api.get.mockImplementation(routeGet({ applications: [
+      { postId: 7, title: 'DevOps Engineer', company: 'CloudNine', status: 'applied', appliedAt: '2026-01-15T00:00:00Z' },
+    ] }));
+    renderDetail();
+    const btn = await screen.findByRole('button', { name: 'Already applied' });
+    expect(btn).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Submit application' })).not.toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('reports a failed submit as not submitted and keeps apply enabled for retry', async () => {
+    api.get.mockImplementation(routeGet());
+    api.post.mockRejectedValueOnce(new Error('Server error'));
+    renderDetail({ resumeUrl: 'https://storage.example/profile.pdf' });
+    const submit = await screen.findByRole('button', { name: 'Submit application' });
+    fireEvent.click(submit);
+
+    expect(await screen.findByText('Your application was not submitted. Please try again.')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Submit application' })).toBeEnabled());
   });
 });

@@ -15,7 +15,7 @@ const styles = {
   },
   modal: {
     background: 'var(--surface)',
-    borderRadius: 18,
+    borderRadius: 'var(--radius-xl)',
     maxWidth: 520,
     width: '100%',
     padding: 24,
@@ -30,8 +30,7 @@ const styles = {
   closeBtn: {
     width: 40,
     height: 40,
-    borderRadius: 10,
-    background: 'transparent',
+    borderRadius: 'var(--radius)',
     color: 'var(--muted)',
     display: 'grid',
     placeItems: 'center',

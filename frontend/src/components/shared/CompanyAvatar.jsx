@@ -7,7 +7,7 @@ const baseStyle = {
   overflow: 'hidden',
   flexShrink: 0,
   fontWeight: 700,
-  fontFamily: "'Space Grotesk', sans-serif",
+  fontFamily: 'var(--font-display)',
 };
 
 function initialsFor(name) {

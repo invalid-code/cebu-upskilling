@@ -11,12 +11,12 @@ export const centeredPage = {
 };
 
 export const pageTitle = {
-  fontFamily: "'Space Grotesk', sans-serif",
+  fontFamily: 'var(--font-display)',
   fontSize: 'clamp(2rem, 4vw, 3.3rem)',
 };
 
 export const pageTitleCompact = {
-  fontFamily: "'Space Grotesk', sans-serif",
+  fontFamily: 'var(--font-display)',
   fontSize: 'clamp(1.8rem, 3.5vw, 2.8rem)',
   margin: 0,
 };
@@ -103,13 +103,13 @@ export const authStyles = {
     display: 'grid',
     placeItems: 'center',
     color: 'var(--surface)',
-    fontFamily: "'Space Grotesk', sans-serif",
+    fontFamily: 'var(--font-display)',
     fontWeight: 700,
     fontSize: 18,
   },
   title: {
     fontSize: 22,
-    fontFamily: "'Space Grotesk', sans-serif",
+    fontFamily: 'var(--font-display)',
     textAlign: 'center',
     marginBottom: 4,
   },

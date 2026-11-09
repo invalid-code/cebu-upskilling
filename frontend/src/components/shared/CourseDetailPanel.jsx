@@ -56,7 +56,7 @@ const styles = {
     flexShrink: 0,
   },
   title: {
-    fontFamily: "'Space Grotesk', sans-serif",
+    fontFamily: 'var(--font-display)',
     fontSize: 22,
     fontWeight: 700,
     color: 'var(--ink)',
@@ -84,7 +84,7 @@ const styles = {
     borderRadius: 12,
   },
   statValue: {
-    fontFamily: "'Space Grotesk', sans-serif",
+    fontFamily: 'var(--font-display)',
     fontSize: 20,
     fontWeight: 700,
     color: 'var(--ink)',
@@ -122,7 +122,7 @@ const styles = {
     height: 32,
     borderRadius: 8,
     background: 'var(--teal)',
-    color: '#fff',
+    color: 'var(--on-accent)',
     display: 'grid',
     placeItems: 'center',
     flexShrink: 0,
@@ -133,7 +133,7 @@ const styles = {
     color: 'var(--teal)',
   },
   syllabusTitle: {
-    fontFamily: "'Space Grotesk', sans-serif",
+    fontFamily: 'var(--font-display)',
     fontSize: 16,
     fontWeight: 700,
     color: 'var(--ink)',
@@ -167,11 +167,11 @@ const styles = {
   },
   moduleIconCompleted: {
     background: 'var(--teal)',
-    color: '#fff',
+    color: 'var(--on-accent)',
   },
   moduleIconCurrent: {
     background: 'var(--coral)',
-    color: '#fff',
+    color: 'var(--on-accent)',
   },
   moduleIconPending: {
     background: 'var(--surface2)',
@@ -196,7 +196,7 @@ const styles = {
   resumeButton: {
     width: '100%',
     background: 'var(--teal)',
-    color: '#fff',
+    color: 'var(--on-accent)',
   },
 };
 

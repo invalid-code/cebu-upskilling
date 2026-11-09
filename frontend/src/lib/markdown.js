@@ -5,10 +5,35 @@ import DOMPurify from 'dompurify';
 // so markdown HTML must be sanitized (stored-XSS vector otherwise).
 marked.setOptions({ breaks: true, gfm: true });
 
+function escapeHtml(text) {
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// DOMPurify's default profile already removes <script>, on* handlers and
+// javascript: URLs; the explicit lists make that guarantee visible.
+const SANITIZE_CONFIG = {
+  FORBID_TAGS: ['script', 'style', 'iframe', 'object', 'embed'],
+  FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus'],
+  ALLOW_UNKNOWN_PROTOCOLS: false,
+};
+
+// Shared markdown → safe HTML util: marked, then DOMPurify. If either step
+// throws, fall back to escaped plain text; unsanitised HTML is never returned.
 export function renderMarkdown(markdown) {
   if (!markdown) return '';
-  const html = marked.parse(markdown, { async: false });
-  return DOMPurify.sanitize(html);
+  try {
+    const html = marked.parse(String(markdown), { async: false });
+    const clean = DOMPurify.sanitize(html, SANITIZE_CONFIG);
+    if (typeof clean !== 'string') throw new Error('Sanitiser returned non-string');
+    return clean;
+  } catch {
+    return escapeHtml(markdown);
+  }
 }
 
 // Lossless-enough conversion of the legacy typed blocks (text/heading/code)

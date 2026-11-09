@@ -1,77 +1,96 @@
-import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Orbit, BriefcaseBusiness, BookOpenCheck, ClipboardList, ChartBar, CircleHelp, Inbox, PlusCircle, Building2, Library, LayoutGrid } from 'lucide-react';
-import { useAuth, isRecruiter, isCourseProvider } from '../../context/AuthContext';
+import { useEffect, useRef, useState } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
+import { Ellipsis } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { navItemsFor } from '../../lib/navItems';
+import styles from './MobileNav.module.css';
 
-const learnerLinks = [
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Home' },
-  { to: '/skills', icon: Orbit, label: 'Skills' },
-  { to: '/jobs', icon: BriefcaseBusiness, label: 'Jobs' },
-  { to: '/courses', icon: BookOpenCheck, label: 'Learn' },
-  { to: '/applications', icon: ClipboardList, label: 'Apps' },
-];
+const MAX_ENTRIES = 5;
 
-const recruiterLinks = [
-  { to: '/business-dashboard', icon: ChartBar, label: 'Dashboard' },
-  { to: '/post-job', icon: PlusCircle, label: 'Post' },
-  { to: '/job-applications', icon: Inbox, label: 'Apps' },
-  { to: '/company-profile', icon: Building2, label: 'Company' },
-  { to: '/help', icon: CircleHelp, label: 'Help' },
-];
+/**
+ * Splits destinations into the bar entries and the overflow. With 5 or fewer
+ * destinations all are shown; otherwise the first 4 plus a "More" entry.
+ */
+export function splitMobileItems(items) {
+  if (items.length <= MAX_ENTRIES) return { visible: items, overflow: [] };
+  return { visible: items.slice(0, MAX_ENTRIES - 1), overflow: items.slice(MAX_ENTRIES - 1) };
+}
 
-const providerLinks = [
-  { to: '/provider-dashboard', icon: LayoutGrid, label: 'Dashboard' },
-  { to: '/company-courses', icon: Library, label: 'Courses' },
-  { to: '/help', icon: CircleHelp, label: 'Help' },
-];
-
-const styles = {
-  nav: {
-    display: 'flex',
-    position: 'fixed',
-    bottom: 12,
-    left: 12,
-    right: 12,
-    background: 'var(--rail-bg)',
-    zIndex: 5,
-    borderRadius: 14,
-    padding: 7,
-    justifyContent: 'space-around',
-    boxShadow: 'var(--shadow)',
-  },
-  link: {
-    background: 'transparent',
-    color: 'var(--rail-strong)',
-    fontSize: 10,
-    padding: 7,
-    display: 'grid',
-    gap: 3,
-    placeItems: 'center',
-    textDecoration: 'none',
-    borderRadius: 10,
-  },
-};
+function linkClass({ isActive }) {
+  return `${styles.link}${isActive ? ` ${styles.linkActive}` : ''}`;
+}
 
 export default function MobileNav() {
   const { user } = useAuth();
-  const links = isCourseProvider(user) ? providerLinks : isRecruiter(user) ? recruiterLinks : learnerLinks;
+  const location = useLocation();
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef(null);
+  const sheetRef = useRef(null);
+
+  const items = navItemsFor(user).flatMap((g) => g.items);
+  const { visible, overflow } = splitMobileItems(items);
+
+  // Close the sheet whenever the route changes.
+  useEffect(() => {
+    setMoreOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!moreOpen) return undefined;
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setMoreOpen(false);
+        moreRef.current?.focus();
+      }
+    };
+    const onPointerDown = (e) => {
+      if (sheetRef.current?.contains(e.target) || moreRef.current?.contains(e.target)) return;
+      setMoreOpen(false);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('pointerdown', onPointerDown);
+    };
+  }, [moreOpen]);
+
+  if (items.length === 0) return null;
 
   return (
-    <nav className="mobile-nav" style={styles.nav}>
-      {links.map(({ to, icon: Icon, label }) => (
-        <NavLink
-          key={to}
-          to={to}
-          // Exact only for /dashboard; other routes remain active on nested paths
-          end={to === '/dashboard'}
-          style={({ isActive }) => ({
-            ...styles.link,
-            background: isActive ? 'rgba(255,255,255,0.15)' : 'transparent',
-          })}
-        >
-          <Icon size={17} />
-          {label}
+    <nav className={styles.nav} aria-label="Primary">
+      {visible.map(({ to, icon: Icon, label, short }) => (
+        <NavLink key={to} to={to} end={to === '/dashboard'} className={linkClass} aria-label={label}>
+          <Icon size={18} aria-hidden="true" />
+          <span className={styles.text}>{short || label}</span>
         </NavLink>
       ))}
+
+      {overflow.length > 0 && (
+        <>
+          <button
+            ref={moreRef}
+            type="button"
+            className={styles.link}
+            aria-expanded={moreOpen}
+            aria-controls="mobile-nav-more"
+            onClick={() => setMoreOpen((open) => !open)}
+          >
+            <Ellipsis size={18} aria-hidden="true" />
+            <span className={styles.text}>More</span>
+          </button>
+          {moreOpen && (
+            <div id="mobile-nav-more" ref={sheetRef} className={styles.sheet} role="group" aria-label="More destinations">
+              {overflow.map(({ to, icon: Icon, label }) => (
+                <NavLink key={to} to={to} className={linkClass}>
+                  <Icon size={18} aria-hidden="true" />
+                  <span className={styles.text}>{label}</span>
+                </NavLink>
+              ))}
+            </div>
+          )}
+        </>
+      )}
     </nav>
   );
 }

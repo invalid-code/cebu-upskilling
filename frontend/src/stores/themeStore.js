@@ -16,16 +16,27 @@ function getInitial() {
   }
 }
 
+function persist(isDark) {
+  try {
+    if (typeof localStorage !== 'undefined') localStorage.setItem(STORAGE_KEY, isDark ? 'dark' : 'light');
+  } catch {
+    // ignore storage errors
+  }
+}
+
 export const useThemeStore = create((set) => ({
   isDark: getInitial(),
   toggle: () => set((state) => {
     const next = !state.isDark;
-    try {
-      if (typeof localStorage !== 'undefined') localStorage.setItem(STORAGE_KEY, next ? 'dark' : 'light');
-    } catch {
-      // ignore storage errors
-    }
+    persist(next);
     return { isDark: next };
   }),
+  /** Explicitly choose 'light' or 'dark'; persisted so it survives reloads and sessions. */
+  setTheme: (mode) => {
+    if (mode !== 'light' && mode !== 'dark') return;
+    const next = mode === 'dark';
+    persist(next);
+    set({ isDark: next });
+  },
   setDark: (value) => set({ isDark: !!value }),
 }));

@@ -1,105 +1,90 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Panel from '../components/ui/Panel';
 import Button from '../components/ui/Button';
+import Tag from '../components/ui/Tag';
+import Field from '../components/ui/Field';
+import Modal from '../components/ui/Modal';
+import ErrorState from '../components/ui/ErrorState';
 import CompanyAvatar from '../components/shared/CompanyAvatar';
 import Skeleton, { SkeletonStatus } from '../components/ui/Skeleton';
+import LiquidMeter from '../components/water/LiquidMeter';
+import useDataState from '../hooks/useDataState';
+import useUnsavedChangesPrompt from '../hooks/useUnsavedChangesPrompt';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { eyebrow } from '../styles/shared';
+import styles from './CompanyProfileEditPage.module.css';
 
 const COMPANY_SIZES = ['1-10', '11-50', '51-200', '201+'];
-
-const styles = {
-  heading: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'end',
-    gap: 22,
-    flexWrap: 'wrap',
-    marginBottom: 24,
-  },
-  eyebrow: { ...eyebrow },
-  h1: {
-    fontFamily: "'Space Grotesk', sans-serif",
-    fontSize: 'clamp(1.8rem, 3.5vw, 2.6rem)',
-    margin: 0,
-  },
-  subtitle: {
-    color: 'var(--muted)',
-    margin: '8px 0 0',
-  },
-  heroRow: {
-    display: 'flex',
-    gap: 18,
-    alignItems: 'center',
-    marginBottom: 20,
-    flexWrap: 'wrap',
-  },
-  grid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-    gap: 14,
-  },
-  fullWidth: {
-    gridColumn: '1 / -1',
-  },
-  label: {
-    display: 'block',
-    fontSize: 12,
-    fontWeight: 700,
-    color: 'var(--muted)',
-    margin: '0 0 6px',
-  },
-  field: {
-    width: '100%',
-    background: 'var(--surface)',
-    border: '1px solid var(--line)',
-    borderRadius: 10,
-    minHeight: 42,
-    padding: '9px 12px',
-    color: 'var(--ink)',
-    fontSize: 14,
-    boxSizing: 'border-box',
-  },
-  textarea: {
-    width: '100%',
-    background: 'var(--surface)',
-    border: '1px solid var(--line)',
-    borderRadius: 10,
-    padding: '9px 12px',
-    color: 'var(--ink)',
-    fontSize: 14,
-    boxSizing: 'border-box',
-    fontFamily: 'inherit',
-    resize: 'vertical',
-  },
-  hint: {
-    fontSize: 12,
-    color: 'var(--muted)',
-    marginTop: 4,
-  },
-  actions: {
-    display: 'flex',
-    gap: 12,
-    alignItems: 'center',
-    marginTop: 20,
-    flexWrap: 'wrap',
-  },
-  logoButtonLabel: {
-    border: '1px dashed var(--line)',
-    borderRadius: 10,
-    padding: '8px 14px',
-    fontSize: 13,
-    fontWeight: 700,
-    cursor: 'pointer',
-    color: 'var(--teal)',
-  },
-};
-
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 const ALLOWED_IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp'];
+
+// Display order of fields; also the order of the error summary.
+const FIELD_LABELS = {
+  name: 'Company name',
+  tagline: 'Tagline',
+  industry: 'Industry',
+  companySize: 'Company size',
+  location: 'Location',
+  website: 'Website',
+  linkedInUrl: 'LinkedIn URL',
+  facebookUrl: 'Facebook URL',
+  description: 'About the company',
+};
+
+const FIELD_IDS = {
+  name: 'company-name',
+  tagline: 'company-tagline',
+  industry: 'company-industry',
+  companySize: 'company-size',
+  location: 'company-location',
+  website: 'company-website',
+  linkedInUrl: 'company-linkedin',
+  facebookUrl: 'company-facebook',
+  description: 'company-description',
+};
+
+function toForm(data) {
+  return {
+    name: data?.name || '',
+    tagline: data?.tagline || '',
+    description: data?.description || '',
+    industry: data?.industry || '',
+    website: data?.website || '',
+    linkedInUrl: data?.linkedInUrl || '',
+    facebookUrl: data?.facebookUrl || '',
+    location: data?.location || '',
+    companySize: data?.companySize || '',
+  };
+}
+
+function isHttpUrl(value) {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+function validateField(field, value) {
+  const trimmed = value.trim();
+  if (field === 'name' && !trimmed) return 'Enter your company name';
+  if ((field === 'website' || field === 'linkedInUrl' || field === 'facebookUrl') && trimmed && !isHttpUrl(trimmed)) {
+    return 'Enter a full web address starting with http:// or https://';
+  }
+  return '';
+}
+
+function validateForm(form) {
+  const errors = {};
+  Object.keys(FIELD_LABELS).forEach((field) => {
+    const message = validateField(field, form[field]);
+    if (message) errors[field] = message;
+  });
+  return errors;
+}
 
 // Mirrors CompanyService.UploadImageAsync so bad files are rejected before upload.
 function validateImageFile(file) {
@@ -110,76 +95,188 @@ function validateImageFile(file) {
   return null;
 }
 
+function isDirty(form, baseline) {
+  if (!form || !baseline) return false;
+  return Object.keys(FIELD_LABELS).some((field) => form[field] !== baseline[field]);
+}
+
+function PageSkeleton() {
+  return (
+    <SkeletonStatus label="Loading company profile..." minHeight={560}>
+      <div className={styles.skeletonLayout}>
+        <Panel>
+          <Skeleton height={24} width="35%" radius={8} style={{ marginBottom: 22 }} />
+          <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 18 }}>
+            <Skeleton height={64} width={64} radius="50%" />
+            <div>
+              <Skeleton height={44} width={130} radius={8} style={{ marginBottom: 8 }} />
+              <Skeleton height={12} width={160} />
+            </div>
+          </div>
+          {Array.from({ length: 4 }, (_, i) => (
+            <div key={i} className={styles.skeletonBlock}>
+              <Skeleton height={12} width={110} style={{ marginBottom: 8 }} />
+              <Skeleton height={44} width="100%" radius={8} />
+            </div>
+          ))}
+          <Skeleton height={44} width={160} radius={8} />
+        </Panel>
+        <Panel>
+          <Skeleton height={120} width="100%" radius={8} style={{ marginBottom: 16 }} />
+          <Skeleton height={64} width={64} radius="50%" style={{ marginBottom: 12 }} />
+          <Skeleton height={20} width="50%" style={{ marginBottom: 10 }} />
+          <Skeleton height={13} width="70%" />
+        </Panel>
+      </div>
+    </SkeletonStatus>
+  );
+}
+
+function ProfilePreview({ form, logoUrl, coverUrl }) {
+  const metaParts = [
+    form.industry,
+    form.companySize ? `${form.companySize} employees` : '',
+    form.location,
+  ].filter(Boolean);
+  const website = form.website.trim();
+  const linkedIn = form.linkedInUrl.trim();
+  const facebook = form.facebookUrl.trim();
+  const safe = (url) => (isHttpUrl(url) ? url : undefined);
+
+  return (
+    <section aria-label="Public profile preview" data-testid="profile-preview">
+      <Panel>
+        <h2 className={styles.previewTitle}>Public profile preview</h2>
+        <p className={styles.previewNote}>This is how candidates see your company. It updates as you type.</p>
+        {coverUrl ? <img src={coverUrl} alt="" className={styles.previewCover} /> : null}
+        <div className={styles.previewHero}>
+          <CompanyAvatar name={form.name} src={logoUrl} size={64} />
+          <div>
+            <h3 className={styles.previewName}>
+              {form.name.trim() || <span className={styles.previewPlaceholder}>Your company name</span>}
+            </h3>
+            {form.tagline.trim() ? <p className={styles.previewTagline}>{form.tagline}</p> : null}
+            {metaParts.length > 0 ? <p className={styles.previewMeta}>{metaParts.join(' · ')}</p> : null}
+          </div>
+        </div>
+        {(form.industry || form.companySize || form.location) && (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
+            {form.industry && <Tag>{form.industry}</Tag>}
+            {form.companySize && <Tag variant="sand">{form.companySize} employees</Tag>}
+            {form.location && <Tag variant="sand">{form.location}</Tag>}
+          </div>
+        )}
+        {(safe(website) || safe(linkedIn) || safe(facebook)) && (
+          <p className={styles.previewLinks}>
+            {safe(website) && (
+              <a href={website} target="_blank" rel="noreferrer noopener">
+                {website.replace(/^https?:\/\//, '')}
+              </a>
+            )}
+            {safe(linkedIn) && (
+              <a href={linkedIn} target="_blank" rel="noreferrer noopener">LinkedIn</a>
+            )}
+            {safe(facebook) && (
+              <a href={facebook} target="_blank" rel="noreferrer noopener">Facebook</a>
+            )}
+          </p>
+        )}
+        {form.description.trim() ? (
+          <p className={styles.previewBody}>{form.description}</p>
+        ) : (
+          <p className={`${styles.previewBody} ${styles.previewPlaceholder}`}>
+            Your company description will appear here.
+          </p>
+        )}
+      </Panel>
+    </section>
+  );
+}
+
 export default function CompanyProfileEditPage() {
   const { user } = useAuth();
   const { showToast } = useToast();
+  const companyId = user?.companyId;
+
+  const { data, error: loadError, loading, reload } = useDataState(
+    () => (companyId ? api.get(`/companies/${companyId}`) : Promise.resolve(null)),
+    [companyId],
+  );
+
   const [form, setForm] = useState(null);
+  const [baseline, setBaseline] = useState(null);
   const [logoUrl, setLogoUrl] = useState('');
   const [coverUrl, setCoverUrl] = useState('');
   const [profileCompleteness, setProfileCompleteness] = useState(0);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
-  const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [serverError, setServerError] = useState('');
+  const summaryRef = useRef(null);
+  const [summaryFocusTick, setSummaryFocusTick] = useState(0);
+
+  // Initialise the editable form once from the first successful load; later reloads never clobber edits.
+  useEffect(() => {
+    if (!data || form) return;
+    const initial = toForm(data);
+    setForm(initial);
+    setBaseline(initial);
+    setLogoUrl(data.logoUrl || '');
+    setCoverUrl(data.coverImageUrl || '');
+    setProfileCompleteness(data.profileCompleteness ?? 0);
+  }, [data, form]);
+
+  const dirty = isDirty(form, baseline);
+  const { blocked, stay, proceed } = useUnsavedChangesPrompt(dirty);
 
   useEffect(() => {
-    if (!user?.companyId) {
-      setError('Your account is not linked to a company yet.');
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    api.get(`/companies/${user.companyId}`)
-      .then((data) => {
-        setForm({
-          name: data?.name || '',
-          tagline: data?.tagline || '',
-          description: data?.description || '',
-          industry: data?.industry || '',
-          website: data?.website || '',
-          linkedInUrl: data?.linkedInUrl || '',
-          facebookUrl: data?.facebookUrl || '',
-          location: data?.location || '',
-          companySize: data?.companySize || '',
-        });
-        setLogoUrl(data?.logoUrl || '');
-        setCoverUrl(data?.coverImageUrl || '');
-        setProfileCompleteness(data?.profileCompleteness ?? 0);
-      })
-      .catch((err) => setError(err.message || 'Could not load your company profile'))
-      .finally(() => setLoading(false));
-  }, [user?.companyId]);
+    if (summaryFocusTick > 0 && summaryRef.current) summaryRef.current.focus();
+  }, [summaryFocusTick]);
 
-  const update = (field) => (e) => {
-    setForm({ ...form, [field]: e.target.value });
+  const handleChange = (field) => (e) => {
+    const { value } = e.target;
+    setForm((prev) => ({ ...prev, [field]: value }));
+    // Clear an inline error as soon as the value becomes valid.
+    setFieldErrors((prev) => {
+      if (!prev[field]) return prev;
+      const message = validateField(field, value);
+      if (message) return { ...prev, [field]: message };
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
   };
 
-  const handleSave = async () => {
+  const handleSave = async (event) => {
+    event?.preventDefault();
+    setServerError('');
+    const errors = validateForm(form);
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      setSummaryFocusTick((n) => n + 1);
+      return;
+    }
     setSaving(true);
     try {
       // Send values as-is: the backend treats '' (or whitespace) as "clear this field"
-      // and only a missing/null key as "leave unchanged". Mapping '' to
-      // null here used to make clearing fields a silent no-op.
-      const payload = { ...form };
-      const updated = await api.put('/companies/me', payload);
-      setForm({
-        name: updated.name || '',
-        tagline: updated.tagline || '',
-        description: updated.description || '',
-        industry: updated.industry || '',
-        website: updated.website || '',
-        linkedInUrl: updated.linkedInUrl || '',
-        facebookUrl: updated.facebookUrl || '',
-        location: updated.location || '',
-        companySize: updated.companySize || '',
-      });
+      // and only a missing/null key as "leave unchanged".
+      const updated = await api.put('/companies/me', { ...form });
+      const saved = toForm(updated);
+      setForm(saved);
+      setBaseline(saved);
       setLogoUrl(updated.logoUrl || logoUrl);
       setCoverUrl(updated.coverImageUrl || coverUrl);
       if (updated.profileCompleteness != null) setProfileCompleteness(updated.profileCompleteness);
       showToast('Company profile saved');
     } catch (err) {
-      showToast(err?.message || 'Could not save company profile');
+      if (err?.status === 400) {
+        // Keep every entered value; show the server's { error } message in the form summary.
+        setServerError(err.message || 'The server rejected these changes');
+        setSummaryFocusTick((n) => n + 1);
+      } else {
+        showToast(err?.message || 'Could not save company profile');
+      }
     } finally {
       setSaving(false);
     }
@@ -188,12 +285,12 @@ export default function CompanyProfileEditPage() {
   // Uploads finish in the background (202): show an instant local preview,
   // then poll the profile until the server URL lands.
   const pollForImageUrl = async (kind, previousUrl, setUrl, doneMessage, previewUrl) => {
-    if (!user?.companyId) return false;
+    if (!companyId) return false;
     for (let attempt = 0; attempt < 10; attempt += 1) {
       await new Promise((resolve) => { setTimeout(resolve, 3000); });
       try {
-        const data = await api.get(`/companies/${user.companyId}`);
-        const next = kind === 'logo' ? data?.logoUrl : data?.coverImageUrl;
+        const latest = await api.get(`/companies/${companyId}`);
+        const next = kind === 'logo' ? latest?.logoUrl : latest?.coverImageUrl;
         if (next && next !== previousUrl) {
           if (previewUrl && typeof URL.revokeObjectURL === 'function') URL.revokeObjectURL(previewUrl);
           setUrl(next);
@@ -214,7 +311,8 @@ export default function CompanyProfileEditPage() {
     return preview;
   };
 
-  const handleLogoFile = async (e) => {
+  const handleImageFile = (kind) => async (e) => {
+    const isLogo = kind === 'logo';
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
@@ -223,215 +321,225 @@ export default function CompanyProfileEditPage() {
       showToast(validationError, 'error');
       return;
     }
-    const previousUrl = logoUrl;
-    const preview = previewLocalFile(file, setLogoUrl);
-    setUploadingLogo(true);
+    const currentUrl = isLogo ? logoUrl : coverUrl;
+    const setUrl = isLogo ? setLogoUrl : setCoverUrl;
+    const setUploading = isLogo ? setUploadingLogo : setUploadingCover;
+    const noun = isLogo ? 'Logo' : 'Cover';
+    const preview = previewLocalFile(file, setUrl);
+    setUploading(true);
     try {
-      // NOTE: use postForm, not api.upload — the logo endpoint accepts the
-      // upload (202) and api.upload rejects any response without a `url` field.
-      const form = new FormData();
-      form.append('file', file);
-      await api.postForm('/companies/me/logo', form);
-      showToast('Logo uploading in the background…');
-      const landed = await pollForImageUrl('logo', previousUrl || preview, setLogoUrl, 'Logo uploaded', preview);
+      // NOTE: use postForm, not api.upload — the endpoint accepts the upload (202)
+      // and api.upload rejects any response without a `url` field.
+      const body = new FormData();
+      body.append('file', file);
+      await api.postForm(isLogo ? '/companies/me/logo' : '/companies/me/cover', body);
+      showToast(`${noun} uploading in the background…`);
+      const landed = await pollForImageUrl(
+        kind,
+        currentUrl || preview,
+        setUrl,
+        isLogo ? 'Logo uploaded' : 'Cover image uploaded',
+        preview,
+      );
       if (!landed) {
         if (preview && typeof URL.revokeObjectURL === 'function') URL.revokeObjectURL(preview);
-        setLogoUrl(previousUrl);
-        showToast('Logo upload did not complete — please try again', 'error');
+        setUrl(currentUrl);
+        showToast(`${noun} upload did not complete — please try again`, 'error');
       }
     } catch (err) {
-      showToast(err?.message || 'Could not upload logo');
+      if (preview && typeof URL.revokeObjectURL === 'function') URL.revokeObjectURL(preview);
+      setUrl(currentUrl);
+      showToast(err?.message || `Could not upload ${noun.toLowerCase()}`);
     } finally {
-      setUploadingLogo(false);
+      setUploading(false);
     }
   };
 
-  const handleCoverFile = async (e) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
-    const validationError = validateImageFile(file);
-    if (validationError) {
-      showToast(validationError, 'error');
-      return;
-    }
-    const previousUrl = coverUrl;
-    const preview = previewLocalFile(file, setCoverUrl);
-    setUploadingCover(true);
-    try {
-      const form = new FormData();
-      form.append('file', file);
-      await api.postForm('/companies/me/cover', form);
-      showToast('Cover uploading in the background…');
-      const landed = await pollForImageUrl('cover', previousUrl || preview, setCoverUrl, 'Cover image uploaded', preview);
-      if (!landed) {
-        if (preview && typeof URL.revokeObjectURL === 'function') URL.revokeObjectURL(preview);
-        setCoverUrl(previousUrl);
-        showToast('Cover upload did not complete — please try again', 'error');
-      }
-    } catch (err) {
-      showToast(err?.message || 'Could not upload cover image');
-    } finally {
-      setUploadingCover(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <SkeletonStatus label="Loading company profile...">
-        <Panel>
-          <Skeleton height={24} width="35%" radius={8} style={{ marginBottom: 22 }} />
-          <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 18 }}>
-            <Skeleton height={64} width={64} radius="50%" />
-            <div>
-              <Skeleton height={36} width={130} radius={10} style={{ marginBottom: 8 }} />
-              <Skeleton height={11} width={160} />
-            </div>
-          </div>
-          {Array.from({ length: 4 }, (_, i) => (
-            <div key={i} style={{ marginBottom: 18 }}>
-              <Skeleton height={12} width={110} style={{ marginBottom: 7 }} />
-              <Skeleton height={42} width="100%" radius={10} />
-            </div>
-          ))}
-          <Skeleton height={44} width={160} radius={10} />
-        </Panel>
-      </SkeletonStatus>
+  let body;
+  if (!companyId) {
+    body = <ErrorState title="Company profile unavailable" error="Your account is not linked to a company yet." />;
+  } else if (!form && loading) {
+    body = <PageSkeleton />;
+  } else if (!form) {
+    body = (
+      <ErrorState
+        title="We couldn’t load your company profile"
+        error={loadError || 'Company profile unavailable.'}
+        onRetry={reload}
+        pending={loading}
+      />
     );
-  }
-  if (error || !form) {
-    return (
-      <Panel>
-        <p>{error || 'Company profile unavailable.'}</p>
-      </Panel>
+  } else {
+    const errorEntries = Object.keys(FIELD_LABELS).filter((field) => fieldErrors[field]);
+    const showSummary = errorEntries.length > 0 || Boolean(serverError);
+    body = (
+      <div className={styles.layout}>
+        <form onSubmit={handleSave} noValidate aria-label="Company profile form">
+          <Panel>
+            {showSummary && (
+              <div ref={summaryRef} tabIndex={-1} role="alert" className={styles.summary}>
+                <p className={styles.summaryTitle}>
+                  {serverError ? 'We couldn’t save your changes' : 'Fix the following before saving'}
+                </p>
+                {serverError ? <p style={{ margin: 0 }}>{serverError}</p> : null}
+                {errorEntries.length > 0 && (
+                  <ul className={styles.summaryList}>
+                    {errorEntries.map((field) => (
+                      <li key={field}>
+                        <a
+                          href={`#${FIELD_IDS[field]}`}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            document.getElementById(FIELD_IDS[field])?.focus();
+                          }}
+                        >
+                          {FIELD_LABELS[field]}: {fieldErrors[field]}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+
+            {profileCompleteness > 0 && (
+              <div className={styles.completeness}>
+                <LiquidMeter value={profileCompleteness} label="Profile completeness" variant="bar" tone={profileCompleteness === 100 ? 'good' : 'primary'} />
+                <p className={styles.hint}>
+                  {profileCompleteness === 100 ? 'Your profile is complete!' : 'Complete your profile to attract more candidates.'}
+                </p>
+              </div>
+            )}
+
+            <div className={styles.media}>
+              <CompanyAvatar name={form.name} src={logoUrl} size={64} />
+              <div>
+                <label className={styles.uploadLabel}>
+                  {uploadingLogo ? 'Uploading...' : 'Upload logo'}
+                  <input
+                    type="file"
+                    accept=".png,.jpg,.jpeg,.webp"
+                    className={styles.visuallyHidden}
+                    onChange={handleImageFile('logo')}
+                    aria-label="Upload logo"
+                  />
+                </label>
+                <p className={styles.hint}>PNG, JPG or WEBP up to 2 MB.</p>
+              </div>
+              {coverUrl ? <img src={coverUrl} alt="Company cover" className={styles.coverThumb} /> : null}
+              <div>
+                <label className={styles.uploadLabel}>
+                  {uploadingCover ? 'Uploading...' : 'Upload cover'}
+                  <input
+                    type="file"
+                    accept=".png,.jpg,.jpeg,.webp"
+                    className={styles.visuallyHidden}
+                    onChange={handleImageFile('cover')}
+                    aria-label="Upload cover"
+                  />
+                </label>
+                <p className={styles.hint}>Cover PNG/JPG/WEBP up to 2 MB.</p>
+              </div>
+            </div>
+
+            <div className={styles.grid}>
+              <div className={styles.full}>
+                <Field id={FIELD_IDS.name} label="Company name" error={fieldErrors.name}>
+                  <input className={styles.control} value={form.name} onChange={handleChange('name')} />
+                </Field>
+              </div>
+              <div className={styles.full}>
+                <Field id={FIELD_IDS.tagline} label="Tagline" hint={`${form.tagline.length}/160 characters`} error={fieldErrors.tagline}>
+                  <input className={styles.control} placeholder="e.g. Print your dreams" value={form.tagline} onChange={handleChange('tagline')} maxLength={160} />
+                </Field>
+              </div>
+              <Field id={FIELD_IDS.industry} label="Industry" error={fieldErrors.industry}>
+                <input className={styles.control} placeholder="e.g. Food & Beverage" value={form.industry} onChange={handleChange('industry')} />
+              </Field>
+              <Field id={FIELD_IDS.companySize} label="Company size" error={fieldErrors.companySize}>
+                <select className={styles.control} value={form.companySize} onChange={handleChange('companySize')}>
+                  <option value="">Select size…</option>
+                  {COMPANY_SIZES.map((size) => (
+                    <option key={size} value={size}>{size} employees</option>
+                  ))}
+                </select>
+              </Field>
+              <Field id={FIELD_IDS.location} label="Location" error={fieldErrors.location}>
+                <input className={styles.control} placeholder="e.g. Cebu City" value={form.location} onChange={handleChange('location')} />
+              </Field>
+              <Field id={FIELD_IDS.website} label="Website" error={fieldErrors.website}>
+                <input className={styles.control} type="url" placeholder="https://…" value={form.website} onChange={handleChange('website')} />
+              </Field>
+              <Field id={FIELD_IDS.linkedInUrl} label="LinkedIn URL" error={fieldErrors.linkedInUrl}>
+                <input className={styles.control} type="url" placeholder="https://linkedin.com/company/…" value={form.linkedInUrl} onChange={handleChange('linkedInUrl')} />
+              </Field>
+              <Field id={FIELD_IDS.facebookUrl} label="Facebook URL" error={fieldErrors.facebookUrl}>
+                <input className={styles.control} type="url" placeholder="https://facebook.com/…" value={form.facebookUrl} onChange={handleChange('facebookUrl')} />
+              </Field>
+              <div className={styles.full}>
+                <Field id={FIELD_IDS.description} label="About the company" hint={`${form.description.length}/2000 characters`} error={fieldErrors.description}>
+                  <textarea
+                    className={`${styles.control} ${styles.textarea}`}
+                    maxLength={2000}
+                    placeholder="Tell candidates what your business does and what it's like to work with you."
+                    value={form.description}
+                    onChange={handleChange('description')}
+                  />
+                </Field>
+              </div>
+            </div>
+
+            <div className={styles.actions}>
+              <Button variant="primary" type="submit" disabled={saving}>
+                {saving ? 'Saving...' : 'Save changes'}
+              </Button>
+              {dirty && <span className={styles.hint} role="status">You have unsaved changes</span>}
+            </div>
+          </Panel>
+        </form>
+
+        <div className={styles.previewCol}>
+          <ProfilePreview form={form} logoUrl={logoUrl} coverUrl={coverUrl} />
+        </div>
+      </div>
     );
   }
 
   return (
-    <div className="view-enter">
-      <div style={styles.heading}>
+    <div className={`view-enter ${styles.page}`}>
+      <div className={styles.heading}>
         <div>
-          <div style={styles.eyebrow}>Employer</div>
-          <h1 style={styles.h1}>Company profile</h1>
-          <p style={styles.subtitle}>
+          <p className={styles.eyebrow}>Employer</p>
+          <h1 className={styles.title}>Company profile</h1>
+          <p className={styles.subtitle}>
             A complete profile builds trust with candidates and makes your postings stand out.
           </p>
         </div>
-        {user?.companyId && (
-          <Link to={`/companies/${user.companyId}`}>
+        {companyId && (
+          <Link to={`/companies/${companyId}`}>
             <Button variant="secondary">View public profile</Button>
           </Link>
         )}
       </div>
 
-      <Panel>
-        {profileCompleteness > 0 && (
-          <div style={{ marginBottom: 18 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)' }}>Profile completeness</span>
-              <span style={{ fontSize: 12, fontWeight: 700, color: profileCompleteness === 100 ? 'var(--teal)' : 'var(--muted)' }}>{profileCompleteness}%</span>
-            </div>
-            <div style={{ height: 8, background: 'var(--line)', borderRadius: 999, overflow: 'hidden' }}>
-              <div style={{ width: `${profileCompleteness}%`, height: '100%', background: profileCompleteness === 100 ? 'var(--teal)' : 'var(--coral)', transition: 'width 0.3s' }} />
-            </div>
-            <p style={{ ...styles.hint, marginTop: 6 }}>
-              {profileCompleteness === 100 ? 'Your profile is complete!' : 'Complete your profile to attract more candidates.'}
-            </p>
-          </div>
+      {body}
+
+      <Modal
+        open={blocked}
+        onClose={stay}
+        eyebrow="Unsaved changes"
+        title="Leave without saving?"
+        footer={(
+          <>
+            <Button variant="ghost" onClick={stay}>Stay on this page</Button>
+            <Button variant="primary" onClick={proceed}>Leave and discard</Button>
+          </>
         )}
-
-        <div style={styles.heroRow}>
-          <CompanyAvatar name={form.name} src={logoUrl} size={64} />
-          <div>
-            <label style={styles.logoButtonLabel}>
-              {uploadingLogo ? 'Uploading...' : 'Upload logo'}
-              <input
-                type="file"
-                accept=".png,.jpg,.jpeg,.webp"
-                style={{ display: 'none' }}
-                onChange={handleLogoFile}
-                aria-label="Upload logo"
-              />
-            </label>
-            <p style={styles.hint}>PNG, JPG or WEBP up to 2 MB.</p>
-          </div>
-          {coverUrl ? (
-            <img src={coverUrl} alt="Company cover" style={{ width: 120, height: 68, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--line)' }} />
-          ) : null}
-          <div>
-            <label style={styles.logoButtonLabel}>
-              {uploadingCover ? 'Uploading...' : 'Upload cover'}
-              <input
-                type="file"
-                accept=".png,.jpg,.jpeg,.webp"
-                style={{ display: 'none' }}
-                onChange={handleCoverFile}
-                aria-label="Upload cover"
-              />
-            </label>
-            <p style={styles.hint}>Cover PNG/JPG/WEBP up to 2 MB.</p>
-          </div>
-        </div>
-
-        <div style={styles.grid}>
-          <div style={styles.fullWidth}>
-            <label style={styles.label} htmlFor="company-name">Company name</label>
-            <input id="company-name" style={styles.field} value={form.name} onChange={update('name')} />
-          </div>
-          <div style={styles.fullWidth}>
-            <label style={styles.label} htmlFor="company-tagline">Tagline</label>
-            <input id="company-tagline" style={styles.field} placeholder="e.g. Print your dreams" value={form.tagline} onChange={update('tagline')} maxLength={160} />
-            <p style={styles.hint}>{form.tagline.length}/160 characters</p>
-          </div>
-          <div>
-            <label style={styles.label} htmlFor="company-industry">Industry</label>
-            <input id="company-industry" style={styles.field} placeholder="e.g. Food & Beverage" value={form.industry} onChange={update('industry')} />
-          </div>
-          <div>
-            <label style={styles.label} htmlFor="company-size">Company size</label>
-            <select id="company-size" style={styles.field} value={form.companySize} onChange={update('companySize')}>
-              <option value="">Select size…</option>
-              {COMPANY_SIZES.map((size) => (
-                <option key={size} value={size}>{size} employees</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label style={styles.label} htmlFor="company-location">Location</label>
-            <input id="company-location" style={styles.field} placeholder="e.g. Cebu City" value={form.location} onChange={update('location')} />
-          </div>
-          <div>
-            <label style={styles.label} htmlFor="company-website">Website</label>
-            <input id="company-website" style={styles.field} type="url" placeholder="https://…" value={form.website} onChange={update('website')} />
-          </div>
-          <div>
-            <label style={styles.label} htmlFor="company-linkedin">LinkedIn URL</label>
-            <input id="company-linkedin" style={styles.field} type="url" placeholder="https://linkedin.com/company/…" value={form.linkedInUrl} onChange={update('linkedInUrl')} />
-          </div>
-          <div>
-            <label style={styles.label} htmlFor="company-facebook">Facebook URL</label>
-            <input id="company-facebook" style={styles.field} type="url" placeholder="https://facebook.com/…" value={form.facebookUrl} onChange={update('facebookUrl')} />
-          </div>
-          <div style={styles.fullWidth}>
-            <label style={styles.label} htmlFor="company-description">About the company</label>
-            <textarea
-              id="company-description"
-              style={{ ...styles.textarea, minHeight: 120 }}
-              maxLength={2000}
-              placeholder="Tell candidates what your business does and what it's like to work with you."
-              value={form.description}
-              onChange={update('description')}
-            />
-            <p style={styles.hint}>{form.description.length}/2000 characters</p>
-          </div>
-        </div>
-
-        <div style={styles.actions}>
-          <Button variant="primary" onClick={handleSave} disabled={saving}>
-            {saving ? 'Saving...' : 'Save changes'}
-          </Button>
-        </div>
-      </Panel>
+      >
+        <p className={styles.leaveText}>
+          Your edits to the company profile haven’t been saved. If you leave now they will be lost.
+        </p>
+      </Modal>
     </div>
   );
 }

@@ -1,0 +1,48 @@
+/* Rail 248px (>=1024px), 72px icon rail (640-1023px), no rail below 640px. */
+.shell {
+  display: grid;
+  grid-template-columns: 248px minmax(0, 1fr);
+  min-height: 100vh;
+  min-height: 100dvh;
+  max-width: 100%;
+}
+
+.main {
+  min-width: 0;
+  overflow-x: clip;
+}
+
+.content {
+  /* Keeps the footer below the fold while a route loads so it cannot shift (CLS). */
+  min-height: 100vh;
+  padding: 42px clamp(20px, 4vw, 56px) 90px;
+  max-width: 1450px;
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+@media (max-width: 1023px) {
+  .shell {
+    grid-template-columns: 72px minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 639px) {
+  .shell {
+    display: block;
+  }
+
+  /* Leave room for the fixed bottom nav. */
+  .content {
+    padding: 24px 16px 96px;
+    max-width: none;
+  }
+}
+
+/*
+ * While a lazy route chunk loads, the page area is only a small "Loading..." line. Hide the footer (it keeps
+ * its space) until the page's own skeleton or content mounts, so its position never changes while visible.
+ */
+.main:has([data-route-loading]) :global(.app-footer) {
+  visibility: hidden;
+}

@@ -1,5 +1,5 @@
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth, isRecruiter } from '../context/AuthContext';
+import { useAuth, getDashboardPath } from '../context/AuthContext';
 import Button from '../components/ui/Button';
 import { Compass } from 'lucide-react';
 import { centeredPage } from '../styles/shared';
@@ -28,13 +28,13 @@ const styles = {
   },
   code: {
     fontSize: 56,
-    fontFamily: "'Space Grotesk', sans-serif",
+    fontFamily: 'var(--font-display)',
     letterSpacing: '-0.04em',
     lineHeight: 1,
   },
   title: {
     fontSize: 22,
-    fontFamily: "'Space Grotesk', sans-serif",
+    fontFamily: 'var(--font-display)',
     marginBottom: 8,
   },
   subtitle: {
@@ -64,7 +64,7 @@ export default function NotFoundPage() {
         </Button>
         <p style={{ marginTop: 16, fontSize: 13, color: 'var(--muted)' }}>
           Or return to your{' '}
-          <Link to={user ? (isRecruiter(user) ? '/business-dashboard' : '/') : '/login'}>dashboard</Link>.
+          <Link to={user ? getDashboardPath(user) : '/'}>{user ? 'dashboard' : 'home page'}</Link>.
         </p>
       </div>
     </div>

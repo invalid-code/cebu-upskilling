@@ -63,6 +63,25 @@ describe('Modal focus management', () => {
     opener.remove();
   });
 
+  it('falls back to the document body when the opener is gone', () => {
+    const opener = document.createElement('button');
+    document.body.appendChild(opener);
+    opener.focus();
+
+    const { unmount } = render(<Modal open onClose={vi.fn()} title="Confirm">Body</Modal>);
+    opener.remove();
+    unmount();
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it('moves focus inside within 100ms and Shift+Tab from the dialog wraps to the last control', () => {
+    render(<Modal open onClose={vi.fn()} title="Confirm" footer={<button>Cancel</button>}>Body</Modal>);
+    const dialog = screen.getByRole('dialog');
+    expect(dialog.contains(document.activeElement)).toBe(true);
+    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Cancel' }));
+  });
+
   it('closes on Escape', () => {
     const onClose = vi.fn();
     render(<Modal open onClose={onClose} title="Confirm">Body</Modal>);
@@ -89,5 +108,26 @@ describe('Modal focus management', () => {
     first.focus();
     fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
     expect(document.activeElement).toBe(last);
+  });
+});
+
+describe('Modal ARIA gaps', () => {
+  it('labels the dialog with its title heading', () => {
+    render(<Modal open onClose={vi.fn()} title="Delete item">Body</Modal>);
+    const dialog = screen.getByRole('dialog', { name: 'Delete item' });
+    expect(dialog.getAttribute('aria-labelledby')).toBe(screen.getByText('Delete item').id);
+  });
+
+  it('does not close when clicking inside the dialog', () => {
+    const onClose = vi.fn();
+    render(<Modal open onClose={onClose} title="T"><p>inside</p></Modal>);
+    fireEvent.click(screen.getByText('inside'));
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('omits eyebrow and footer when not provided', () => {
+    const { container } = render(<Modal open onClose={vi.fn()} title="T">Body</Modal>);
+    expect(container.querySelector('.eyebrow')).toBeNull();
+    expect(screen.getAllByRole('button')).toHaveLength(1);
   });
 });

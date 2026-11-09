@@ -1,10 +1,12 @@
-// NOTE: This client intentionally uses XMLHttpRequest instead of fetch().
+﻿// NOTE: This client intentionally uses XMLHttpRequest instead of fetch().
 // A browser extension (injectScriptAdjust.js) patches window.fetch and rewrites
 // outgoing URLs to http://localhost:5179, breaking API calls. XHR is not
 // patched by that extension, so requests reach the server untouched.
 const API_BASE = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '');
 
 import { isTokenExpired } from '../lib/jwt';
+import { registerNetworkFailure, noteOnline } from './offlineRetry';
+import { useRateLimitStore } from '../stores/rateLimitStore';
 
 function clearSession() {
   localStorage.removeItem('token');
@@ -44,6 +46,7 @@ function refreshSession() {
       xhr.open('POST', `${API_BASE}/auth/refresh`);
       xhr.setRequestHeader('Content-Type', 'application/json');
       xhr.onload = () => {
+        noteOnline();
         if (xhr.status >= 200 && xhr.status < 300) {
           try {
             const data = JSON.parse(xhr.responseText);
@@ -67,9 +70,8 @@ function refreshSession() {
         }
       };
       xhr.onerror = () => {
-        clearSession();
-        redirectToLogin();
-        done(null);
+        // Offline is not a sign-out: keep the session and let the caller retry.
+        done(REFRESH_OFFLINE);
       };
       xhr.onabort = () => done(null);
       xhr.send(JSON.stringify({ refreshToken: rt }));
@@ -82,18 +84,91 @@ function refreshSession() {
   return refreshPromise;
 }
 
-// Redirect to /login after the session is cleared, unless already there
-// (avoids a redirect loop when the login page itself gets a 401).
-function redirectToLogin() {
+// Optional SPA navigation hook (set by the router, task 5.6). Falls back to a
+// full page navigation, which still happens well within the 1s/2s limits.
+let navigateHook = null;
+export function setApiNavigator(fn) {
+  navigateHook = typeof fn === 'function' ? fn : null;
+}
+
+function navigateTo(url) {
   try {
-    if (typeof window !== 'undefined' && window.location?.pathname !== '/login') {
-      window.location.href = '/login';
+    if (navigateHook) {
+      navigateHook(url);
+    } else if (typeof window !== 'undefined' && window.location) {
+      window.location.href = url;
     }
   } catch {
     // non-browser environment (tests): ignore
   }
 }
 
+// Current path as a return path. The fragment is dropped and any query
+// parameter that looks like a token is removed so credentials never end up in a URL.
+function currentReturnPath() {
+  try {
+    const { pathname, search } = window.location;
+    if (!pathname || pathname === '/' || pathname === '/login') return '';
+    const params = new URLSearchParams(search || '');
+    for (const key of [...params.keys()]) {
+      if (/token|auth|secret|password/i.test(key)) params.delete(key);
+    }
+    const qs = params.toString();
+    return `${pathname}${qs ? `?${qs}` : ''}`;
+  } catch {
+    return '';
+  }
+}
+
+// Redirect to /login after the session is cleared, unless already there
+// (avoids a redirect loop when the login page itself gets a 401).
+function redirectToLogin() {
+  try {
+    if (typeof window === 'undefined' || window.location?.pathname === '/login') return;
+    const back = currentReturnPath();
+    navigateTo(back ? `/login?returnTo=${encodeURIComponent(back)}` : '/login');
+  } catch {
+    // non-browser environment (tests): ignore
+  }
+}
+
+function dashboardPathForStoredUser() {
+  try {
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    const role = String(user?.role || '').toLowerCase();
+    if (role === 'recruiter') return '/business-dashboard';
+    if (role === 'courseprovider') return '/provider-dashboard';
+    if (role === 'learner') return '/dashboard';
+  } catch {
+    // fall through
+  }
+  return null;
+}
+
+// Side effects shared by every non-2xx response: 403 sends a signed-in user to
+// their own dashboard; 429 starts the 10s submit cooldown.
+function applyStatusEffects(status) {
+  if (status === 429) {
+    useRateLimitStore.getState().start();
+  } else if (status === 403) {
+    const dash = dashboardPathForStoredUser();
+    if (dash && typeof window !== 'undefined' && window.location?.pathname !== dash) {
+      navigateTo(dash);
+    }
+  }
+}
+
+// Network failure: show the offline banner, queue automatic retries and
+// return the error the caller is rejected with.
+function failOffline(replay, signal, message = 'Network error — check your connection and try again') {
+  registerNetworkFailure(replay, signal);
+  const err = new Error(message);
+  err.status = 0;
+  return err;
+}
+
+// Sentinel: the refresh call itself hit a network error (session is kept).
+const REFRESH_OFFLINE = Symbol('refresh-offline');
 // console.debug is chatty in production; keep warn/error which carry signal.
 const debug = import.meta.env?.DEV ? console.debug.bind(console) : () => {};
 
@@ -219,7 +294,12 @@ function request(path, options = {}) {
   const token = localStorage.getItem('token');
   if (token && isTokenExpired(token)) {
     if (getRefreshToken()) {
-      return refreshSession().then(() => request(path, { ...rest, _retried }));
+      return refreshSession().then((data) => {
+        if (data === REFRESH_OFFLINE) {
+          throw failOffline(() => request(path, { ...rest, _retried, _replay: true }), rest.signal);
+        }
+        return request(path, { ...rest, _retried });
+      });
     }
     clearSession();
     return sendWithToken(null, path, rest, _retried);
@@ -257,12 +337,23 @@ function sendWithToken(token, path, rest, _retried) {
     const pending = inflightGets.get(key);
     if (pending) {
       debug(`[API] GET ${path} (coalesced)`);
-      return pending;
+      // If the originating caller aborts, a coalesced caller whose own signal is still live
+      // (e.g. a StrictMode remount) re-issues the request instead of surfacing "Aborted".
+      return pending.catch((err) => {
+        if (err?.name === 'AbortError' && !rest.signal?.aborted) {
+          return sendWithToken(token, path, rest, _retried);
+        }
+        throw err;
+      });
     }
     const promise = sendRequest(path, { ...rest, _retried }, headers, method, {
       key,
       persist: isSessionCacheable(path),
     });
+    // An aborted request must not be handed to later callers.
+    rest.signal?.addEventListener('abort', () => {
+      if (inflightGets.get(key) === promise) inflightGets.delete(key);
+    }, { once: true });
     inflightGets.set(key, promise);
     promise.then(
       () => inflightGets.delete(key),
@@ -293,6 +384,7 @@ function sendRequest(path, options, headers, method, cacheInfo) {
     }
 
     xhr.onload = () => {
+      noteOnline();
       if (xhr.status === 401) {
         // If a token exists, the session expired/invalidated → try one silent
         // refresh before giving up. If no token exists, this is a failed login
@@ -301,7 +393,9 @@ function sendRequest(path, options, headers, method, cacheInfo) {
         if (localStorage.getItem('token') || getRefreshToken()) {
           if (!options._retried && getRefreshToken() && !isRefreshExempt(path)) {
             refreshSession().then((data) => {
-              if (data && localStorage.getItem('token')) {
+              if (data === REFRESH_OFFLINE) {
+                reject(failOffline(() => request(path, { ...options, _replay: true }), options.signal));
+              } else if (data && localStorage.getItem('token')) {
                 request(path, { ...options, _retried: true }).then(resolve, reject);
               } else {
                 // Refresh failed: session already cleared + redirect issued.
@@ -319,6 +413,7 @@ function sendRequest(path, options, headers, method, cacheInfo) {
       }
 
       if (xhr.status < 200 || xhr.status >= 300) {
+        applyStatusEffects(xhr.status);
         let message = `HTTP ${xhr.status}`;
         try {
           const data = JSON.parse(xhr.responseText);
@@ -328,7 +423,7 @@ function sendRequest(path, options, headers, method, cacheInfo) {
         }
         // Map common failing states to friendly, actionable messages
         if (xhr.status === 429) {
-          message = message.includes('429') || message.startsWith('HTTP') ? 'Too many requests — please wait a moment and try again' : message;
+          message = message.includes('429') || message.startsWith('HTTP') ? 'Too many requests — please wait 10 seconds before trying again' : message;
         } else if (xhr.status === 403) {
           message = message.startsWith('HTTP') ? 'You don’t have permission to do that' : message;
         } else if (xhr.status === 404) {
@@ -370,9 +465,14 @@ function sendRequest(path, options, headers, method, cacheInfo) {
 
     xhr.onerror = () => {
       console.error(`[API] ${method} ${path} → network error`);
-      const err = new Error('Network error — check your connection and try again');
-      err.status = 0;
-      reject(err);
+      if (options._replay) {
+        const err = new Error('Network error — check your connection and try again');
+        err.status = 0;
+        reject(err);
+        return;
+      }
+      const { _retried, ...replayOptions } = options;
+      reject(failOffline(() => request(path, { ...replayOptions, _replay: true }), options.signal));
     };
 
     xhr.onabort = () => {
@@ -388,7 +488,12 @@ function postForm(path, formData, internal = {}) {
   const token = localStorage.getItem('token');
   if (token && isTokenExpired(token)) {
     if (getRefreshToken()) {
-      return refreshSession().then(() => postForm(path, formData, internal));
+      return refreshSession().then((data) => {
+        if (data === REFRESH_OFFLINE) {
+          throw failOffline(() => postForm(path, formData, { ...internal, _replay: true }));
+        }
+        return postForm(path, formData, internal);
+      });
     }
     clearSession();
     return sendForm(null, path, formData, internal);
@@ -406,10 +511,13 @@ function sendForm(token, path, formData, internal) {
       if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
 
       xhr.onload = () => {
+        noteOnline();
         if (xhr.status === 401 && (localStorage.getItem('token') || getRefreshToken())) {
           if (!internal._retried && getRefreshToken() && !isRefreshExempt(path)) {
             refreshSession().then((data) => {
-              if (data && localStorage.getItem('token')) {
+              if (data === REFRESH_OFFLINE) {
+                reject(failOffline(() => postForm(path, formData, { _replay: true })));
+              } else if (data && localStorage.getItem('token')) {
                 postForm(path, formData, { _retried: true }).then(resolve, reject);
               } else {
                 resolve(null);
@@ -423,6 +531,7 @@ function sendForm(token, path, formData, internal) {
           return;
         }
       if (xhr.status < 200 || xhr.status >= 300) {
+        applyStatusEffects(xhr.status);
         let message = `HTTP ${xhr.status}`;
         try {
           const data = JSON.parse(xhr.responseText);
@@ -431,7 +540,7 @@ function sendForm(token, path, formData, internal) {
           // ignore non-JSON error bodies
         }
         if (xhr.status === 429) {
-          message = message.includes('429') || message.startsWith('HTTP') ? 'Too many requests — please wait a moment and try again' : message;
+          message = message.includes('429') || message.startsWith('HTTP') ? 'Too many requests — please wait 10 seconds before trying again' : message;
         } else if (xhr.status === 413) {
           message = 'File too large — must be ≤ 10 MB';
         } else if (xhr.status >= 500) {
@@ -456,9 +565,13 @@ function sendForm(token, path, formData, internal) {
 
     xhr.onerror = () => {
       console.error(`[API] ${method} ${path} → network error`);
-      const err = new Error('Network error — check your connection and try again');
-      err.status = 0;
-      reject(err);
+      if (internal._replay) {
+        const err = new Error('Network error — check your connection and try again');
+        err.status = 0;
+        reject(err);
+        return;
+      }
+      reject(failOffline(() => postForm(path, formData, { _replay: true })));
     };
 
     xhr.onabort = () => {
@@ -474,7 +587,12 @@ function upload(path, file, internal = {}) {
   const token = localStorage.getItem('token');
   if (token && isTokenExpired(token)) {
     if (getRefreshToken()) {
-      return refreshSession().then(() => upload(path, file, internal));
+      return refreshSession().then((data) => {
+        if (data === REFRESH_OFFLINE) {
+          throw failOffline(() => upload(path, file, { ...internal, _replay: true }));
+        }
+        return upload(path, file, internal);
+      });
     }
     clearSession();
     return sendUpload(null, path, file, internal);
@@ -492,10 +610,13 @@ function sendUpload(token, path, file, internal) {
       if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
 
       xhr.onload = () => {
+        noteOnline();
         if (xhr.status === 401 && (localStorage.getItem('token') || getRefreshToken())) {
           if (!internal._retried && getRefreshToken() && !isRefreshExempt(path)) {
             refreshSession().then((data) => {
-              if (data && localStorage.getItem('token')) {
+              if (data === REFRESH_OFFLINE) {
+                reject(failOffline(() => upload(path, file, { _replay: true })));
+              } else if (data && localStorage.getItem('token')) {
                 upload(path, file, { _retried: true }).then(resolve, reject);
               } else {
                 resolve(null);
@@ -509,6 +630,7 @@ function sendUpload(token, path, file, internal) {
           return;
         }
       if (xhr.status < 200 || xhr.status >= 300) {
+        applyStatusEffects(xhr.status);
         let message = `HTTP ${xhr.status}`;
         try {
           const data = JSON.parse(xhr.responseText);
@@ -517,7 +639,7 @@ function sendUpload(token, path, file, internal) {
           // ignore non-JSON error bodies
         }
         if (xhr.status === 429) {
-          message = message.includes('429') || message.startsWith('HTTP') ? 'Too many requests — please wait a moment and try again' : message;
+          message = message.includes('429') || message.startsWith('HTTP') ? 'Too many requests — please wait 10 seconds before trying again' : message;
         } else if (xhr.status === 413) {
           message = 'File too large — must be ≤ 10 MB';
         } else if (xhr.status >= 500) {
@@ -544,9 +666,14 @@ function sendUpload(token, path, file, internal) {
       resolve(data);
     };
     xhr.onerror = () => {
-      const err = new Error('Network error — check your connection, file was not uploaded');
-      err.status = 0;
-      reject(err);
+      const message = 'Network error — check your connection, file was not uploaded';
+      if (internal._replay) {
+        const err = new Error(message);
+        err.status = 0;
+        reject(err);
+        return;
+      }
+      reject(failOffline(() => upload(path, file, { _replay: true }), undefined, message));
     };
 
     const form = new FormData();

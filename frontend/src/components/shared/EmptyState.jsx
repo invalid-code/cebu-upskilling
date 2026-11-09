@@ -1,27 +1,22 @@
-const styles = {
-  empty: {
-    textAlign: 'center',
-    padding: '28px 16px',
-    color: 'var(--muted)',
-  },
-  title: {
-    fontFamily: "'Space Grotesk', sans-serif",
-    fontSize: 15,
-    color: 'var(--ink)',
-    margin: '0 0 5px',
-  },
-  desc: {
-    fontSize: 12,
-    margin: 0,
-    lineHeight: 1.45,
-  },
-};
+import styles from '../ui/PageStates.module.css';
 
-export default function EmptyState({ title, description, children }) {
+/**
+ * Empty state: explanatory text plus at most one primary action.
+ * Pass the action as `action={{ label, onClick }}` (or `{ label, href }`).
+ * `children` remains supported for existing callers.
+ */
+export default function EmptyState({ title, description, action, children }) {
   return (
-    <div className="empty-state" style={styles.empty}>
-      {title && <h4 style={styles.title}>{title}</h4>}
-      {description && <p style={styles.desc}>{description}</p>}
+    <div className={`empty-state ${styles.empty}`}>
+      {title && <h4 className={styles.title}>{title}</h4>}
+      {description && <p className={styles.desc}>{description}</p>}
+      {action && (action.href ? (
+        <a className={styles.action} href={action.href} onClick={action.onClick}>{action.label}</a>
+      ) : (
+        <button type="button" className={`${styles.retry} ${styles.action}`} onClick={action.onClick}>
+          {action.label}
+        </button>
+      ))}
       {children}
     </div>
   );

@@ -12,7 +12,7 @@ const styles = {
     marginBottom: 4,
   },
   lessonTitle: {
-    fontFamily: "'Space Grotesk', sans-serif",
+    fontFamily: 'var(--font-display)',
     fontSize: 24,
     fontWeight: 700,
     color: 'var(--ink)',
@@ -35,7 +35,7 @@ const styles = {
     overflowWrap: 'break-word',
   },
   heading: {
-    fontFamily: "'Space Grotesk', sans-serif",
+    fontFamily: 'var(--font-display)',
     fontSize: 18,
     fontWeight: 700,
     color: 'var(--ink)',

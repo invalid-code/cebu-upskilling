@@ -111,6 +111,35 @@ describe('SkillsPage', () => {
     expect(screen.getByText('123 Main St · On-site')).toBeInTheDocument();
   });
 
+  it('labels verified skills "Verified" and declared skills "Declared", and retries on error', async () => {
+    localStorage.setItem('user', JSON.stringify({
+      UserId: 1, firstName: 'Test', role: 'Learner', targetRole: 'Frontend Developer',
+    }));
+    localStorage.setItem('token', 'abc');
+    let fail = true;
+    api.get.mockImplementation((path) => {
+      if (path === '/applications') return Promise.resolve([]);
+      if (path === '/skillgaps/groups') {
+        if (fail) return Promise.reject(new Error('Skills unavailable'));
+        return Promise.resolve([{
+          role: 'Frontend Developer', postId: null, matchPercent: 60,
+          gaps: [
+            { skillId: 1, skillName: 'React', requiredLevel: 3, currentLevel: 3, gap: 0, verified: true },
+            { skillId: 2, skillName: 'CSS', requiredLevel: 3, currentLevel: 1, gap: 2, verified: false },
+          ],
+        }]);
+      }
+      return Promise.resolve([]);
+    });
+    renderSkills();
+    expect(await screen.findByText('Skills unavailable')).toBeInTheDocument();
+    fail = false;
+    fireEvent.click(screen.getByRole('button', { name: /retry/i }));
+    expect(await screen.findByText('Verified')).toBeInTheDocument();
+    expect(screen.getByText('Declared')).toBeInTheDocument();
+    expect(screen.getByRole('meter', { name: 'React proficiency' })).toBeInTheDocument();
+  });
+
   it('renders grouped skill gaps by applied role and expands on click', async () => {
     localStorage.setItem('user', JSON.stringify({
       UserId: 1,

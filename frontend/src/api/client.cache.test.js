@@ -31,6 +31,9 @@ describe('api client GET cache', () => {
         this.listeners[type] = fn;
       };
       this.removeEventListener = () => {};
+      this.abort = () => {
+        if (typeof this.onabort === 'function') this.onabort();
+      };
       this.send = () => {
         instances.push(this);
       };
@@ -54,6 +57,29 @@ describe('api client GET cache', () => {
     respond(instances[0], { body: '{"items":[]}' });
     await expect(p1).resolves.toEqual({ items: [] });
     await expect(p2).resolves.toEqual({ items: [] });
+  });
+
+  it('re-issues a coalesced GET when the originating caller aborts (StrictMode remount)', async () => {
+    const first = new AbortController();
+    const p1 = api.get('/courses', { signal: first.signal });
+    const second = new AbortController();
+    const p2 = api.get('/courses', { signal: second.signal });
+    first.abort();
+    await expect(p1).rejects.toMatchObject({ name: 'AbortError' });
+    await vi.waitFor(() => expect(instances.length).toBe(2));
+    respond(instances[1], { body: '[1]' });
+    await expect(p2).resolves.toEqual([1]);
+  });
+
+  it('does not hand an aborted request to a caller that arrives after the abort', async () => {
+    const first = new AbortController();
+    const p1 = api.get('/courses', { signal: first.signal });
+    first.abort();
+    const p2 = api.get('/courses');
+    expect(instances.length).toBe(2);
+    respond(instances[1], { body: '[2]' });
+    await expect(p1).rejects.toMatchObject({ name: 'AbortError' });
+    await expect(p2).resolves.toEqual([2]);
   });
 
   it('serves a repeated GET from memory without a new request', async () => {

@@ -1,170 +1,148 @@
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { useAuth, getDashboardPath } from '../context/AuthContext';
+import { useRef, useState } from 'react';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { resolvePostLoginPath } from '../lib/returnPath';
+import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { validateEmail, validatePassword } from '../utils/validation';
-import { ErrorBanner, FieldError } from '../components/ui/ErrorState';
+import { summarizeError, RATE_LIMIT_TEXT } from '../lib/formErrors';
+import { useSubmitCooldown } from '../hooks/useSubmitCooldown';
+import { useRateLimitStore } from '../stores/rateLimitStore';
 import Button from '../components/ui/Button';
+import Field from '../components/ui/Field';
 import GoogleSignInButton from '../components/GoogleSignInButton';
 import PasswordField from '../components/ui/PasswordField';
-import { authStyles, authSubtitle, centeredPage } from '../styles/shared';
+import AuthCard, { FormSummary } from '../components/auth/AuthCard';
+import styles from '../components/auth/Auth.module.css';
 
-const styles = {
-  container: { ...centeredPage },
-  card: { ...authStyles.card },
-  brand: {
-    display: 'flex',
-    gap: 10,
-    alignItems: 'center',
-    marginBottom: 28,
-    justifyContent: 'center',
-  },
-  mark: { ...authStyles.mark },
-  title: { ...authStyles.title },
-  subtitle: { ...authSubtitle },
-  field: { ...authStyles.field },
-  fieldError: { ...authStyles.fieldError },
-  error: { ...authStyles.error },
-  link: { ...authStyles.link },
-};
+const FIELD_ORDER = ['email', 'password'];
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fieldErrors, setFieldErrors] = useState({ email: '', password: '' });
-  const [error, setError] = useState('');
+  const [summary, setSummary] = useState('');
   const [loading, setLoading] = useState(false);
+  const fieldRefs = useRef({});
   const { login, loginWithGoogle } = useAuth();
   const { showToast } = useToast();
+  const { cooling } = useSubmitCooldown();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const validateForm = () => {
+  const focusFirst = (errors) => {
+    const first = FIELD_ORDER.find((name) => errors[name]);
+    if (first) fieldRefs.current[first]?.focus();
+  };
+
+  const showFailure = (err, fallback) => {
+    if (err?.status === 429) {
+      const rl = useRateLimitStore.getState();
+      if (!rl.active) rl.start();
+    }
+    // Field-level errors from the API are shown beneath their fields; other values are kept.
+    const serverFields = err?.fieldErrors;
+    if (serverFields && typeof serverFields === 'object') {
+      const errors = {
+        email: typeof serverFields.email === 'string' ? serverFields.email : '',
+        password: typeof serverFields.password === 'string' ? serverFields.password : '',
+      };
+      if (errors.email || errors.password) {
+        setFieldErrors(errors);
+        setSummary('');
+        focusFirst(errors);
+        return;
+      }
+    }
+    setSummary(summarizeError(err, fallback));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (cooling || loading) return;
+    setSummary('');
     const errors = {
       email: validateEmail(email) || '',
       password: validatePassword(password) || '',
     };
     setFieldErrors(errors);
-    return !errors.email && !errors.password;
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    if (!validateForm()) {
-      showToast('Please fix the highlighted fields', 'error');
+    if (errors.email || errors.password) {
+      focusFirst(errors);
       return;
     }
     setLoading(true);
     try {
       const user = await login(email, password);
       showToast(`Welcome back, ${user?.firstName || 'there'}!`, 'success');
-      navigate(getDashboardPath(user));
+      navigate(resolvePostLoginPath(user, location.search), { replace: true });
     } catch (err) {
-      const msg = err.message || 'Login failed';
-      setError(msg);
-      showToast(msg, 'error');
+      showFailure(err, 'Login failed');
     } finally {
       setLoading(false);
     }
   };
 
   const handleGoogleSuccess = async (idToken) => {
-    setError('');
+    setSummary('');
     setLoading(true);
     try {
       const user = await loginWithGoogle(idToken);
       showToast(`Signed in with Google — welcome, ${user?.firstName || 'there'}!`, 'success');
-      navigate(getDashboardPath(user));
+      navigate(resolvePostLoginPath(user, location.search), { replace: true });
     } catch (err) {
-      const msg = err.message || 'Google sign-in failed';
-      setError(msg);
-      showToast(msg, 'error');
+      showFailure(err, 'Google sign-in failed');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleEmailChange = (e) => {
-    setEmail(e.target.value);
-    if (fieldErrors.email) {
-      setFieldErrors((prev) => ({ ...prev, email: '' }));
-    }
-  };
-
-  const handlePasswordChange = (e) => {
-    setPassword(e.target.value);
-    if (fieldErrors.password) {
-      setFieldErrors((prev) => ({ ...prev, password: '' }));
-    }
-  };
+  const clearError = (name) => setFieldErrors((prev) => (prev[name] ? { ...prev, [name]: '' } : prev));
+  const summaryText = summary || (cooling ? RATE_LIMIT_TEXT : '');
 
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        <div style={styles.brand}>
-          <div style={styles.mark}>CU</div>
-          <div>
-            <strong style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 14 }}>Cebu Upskilling</strong>
-          </div>
-        </div>
-        <h2 style={styles.title}>Welcome back</h2>
-        <p style={styles.subtitle}>Sign in to your career pathway</p>
+    <AuthCard title="Welcome back" subtitle="Sign in to your career pathway">
+      <FormSummary>{summaryText}</FormSummary>
 
-        {error && (
-          <div style={{ marginBottom: 12 }}>
-            <ErrorBanner
-              title={error.includes('429') || error.toLowerCase().includes('too many') ? 'Too many attempts' : 'Sign in failed'}
-              description={error}
-              onDismiss={() => setError('')}
-            />
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} noValidate>
-          <label htmlFor="login-email" style={authStyles.label}>Email address</label>
+      <form onSubmit={handleSubmit} noValidate className={styles.form}>
+        <Field id="login-email" label="Email address" error={fieldErrors.email}>
           <input
-            id="login-email"
-            style={{ ...styles.field, borderColor: fieldErrors.email ? 'var(--danger)' : 'var(--line)', background: fieldErrors.email ? 'var(--danger-soft)' : 'var(--surface)' }}
+            ref={(node) => { fieldRefs.current.email = node; }}
+            className={styles.input}
             type="email"
             placeholder="Email address"
+            autoComplete="email"
             value={email}
-            onChange={handleEmailChange}
-            aria-invalid={!!fieldErrors.email}
-            aria-describedby={fieldErrors.email ? 'login-email-error' : undefined}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              clearError('email');
+            }}
           />
-          {fieldErrors.email && <FieldError id="login-email-error">{fieldErrors.email}</FieldError>}
-          <div style={{ marginTop: 12 }}>
-            <label htmlFor="login-password" style={authStyles.label}>Password</label>
-            <PasswordField
-              id="login-password"
-              style={{ ...styles.field, borderColor: fieldErrors.password ? 'var(--danger)' : 'var(--line)', background: fieldErrors.password ? 'var(--danger-soft)' : 'var(--surface)' }}
-              placeholder="Password"
-              value={password}
-              onChange={handlePasswordChange}
-              autoComplete="current-password"
-              aria-invalid={!!fieldErrors.password}
-              aria-describedby={fieldErrors.password ? 'login-password-error' : undefined}
-            />
-          </div>
-          {fieldErrors.password && <FieldError id="login-password-error">{fieldErrors.password}</FieldError>}
-          <Button
-            variant="primary"
-            style={{ width: '100%', marginTop: 8 }}
-            loading={loading}
-          >
-            Sign in
-          </Button>
-        </form>
+        </Field>
+        <Field id="login-password" label="Password" error={fieldErrors.password}>
+          <PasswordField
+            ref={(node) => { fieldRefs.current.password = node; }}
+            className={styles.input}
+            placeholder="Password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              clearError('password');
+            }}
+          />
+        </Field>
+        <Button variant="primary" className={styles.submit} loading={loading} disabled={cooling}>
+          Sign in
+        </Button>
+      </form>
 
-        <GoogleSignInButton onSuccess={handleGoogleSuccess} onError={(err) => setError(err.message)} />
+      <GoogleSignInButton onSuccess={handleGoogleSuccess} onError={(err) => setSummary(summarizeError(err, 'Google sign-in failed'))} />
 
-        <p style={styles.link}>
-          <Link to="/forgot-password">Forgot your password?</Link>
-        </p>
-        <p style={styles.link}>
-          Don't have an account? <Link to="/register">Register</Link>
-        </p>
-      </div>
-    </div>
+      <p className={styles.links}>
+        <Link to="/forgot-password">Forgot your password?</Link>
+      </p>
+      <p className={styles.links}>
+        Don't have an account? <Link to="/register">Register</Link>
+      </p>
+    </AuthCard>
   );
 }

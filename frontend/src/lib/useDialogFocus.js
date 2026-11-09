@@ -47,10 +47,12 @@ export default function useDialogFocus(active, onClose, containerRef) {
       const last = nodes[nodes.length - 1];
       const activeEl = document.activeElement;
 
-      if (event.shiftKey && (activeEl === first || !container.contains(activeEl))) {
+      const outside = !container.contains(activeEl) || activeEl === container;
+
+      if (event.shiftKey && (activeEl === first || outside)) {
         event.preventDefault();
         last.focus();
-      } else if (!event.shiftKey && (activeEl === last || !container.contains(activeEl))) {
+      } else if (!event.shiftKey && (activeEl === last || outside)) {
         event.preventDefault();
         first.focus();
       }
@@ -62,6 +64,9 @@ export default function useDialogFocus(active, onClose, containerRef) {
       const opener = openerRef.current;
       if (opener && typeof opener.focus === 'function' && document.contains(opener)) {
         opener.focus();
+      } else {
+        // Opener was removed (or never existed): fall back to the document body.
+        document.body?.focus?.();
       }
     };
   }, [active, containerRef]);

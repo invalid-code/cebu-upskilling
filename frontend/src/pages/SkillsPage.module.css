@@ -1,0 +1,294 @@
+.page {
+  display: block;
+}
+
+.heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: var(--space-5);
+  margin-bottom: var(--space-6);
+  flex-wrap: wrap;
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--text-12);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  color: var(--coral-ink);
+  margin: 0 0 var(--space-2);
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 3.5vw, 2.75rem);
+  margin: 0;
+}
+
+.subtitle {
+  color: var(--muted);
+  margin: var(--space-2) 0 0;
+  max-width: 460px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  min-width: 0;
+}
+
+.col5 { grid-column: span 5; }
+.col7 { grid-column: span 7; }
+.col12 { grid-column: 1 / -1; }
+
+@media (max-width: 1023px) {
+  .col5,
+  .col7 {
+    grid-column: 1 / -1;
+  }
+}
+
+.sectionHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.sectionTitle {
+  font-family: var(--font-display);
+  font-size: var(--text-20);
+  margin: 0;
+}
+
+.hint {
+  color: var(--muted);
+  font-size: var(--text-12);
+}
+
+.prompt {
+  font-size: var(--text-13);
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 0 0 var(--space-3);
+}
+
+.scaleRow {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+/* ---- Skill groups ---- */
+.group {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  margin-bottom: var(--space-3);
+}
+
+.groupHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  width: 100%;
+  min-height: 44px;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-lg);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.groupIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius);
+  display: grid;
+  place-items: center;
+  background: var(--teal-soft);
+  color: var(--teal);
+  flex-shrink: 0;
+}
+
+.groupMeta {
+  flex: 1;
+  min-width: 0;
+}
+
+.groupRole {
+  font-family: var(--font-display);
+  font-size: var(--text-15);
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.groupCompany {
+  font-size: var(--text-12);
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.groupScore {
+  display: grid;
+  place-items: center;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.groupScoreValue {
+  font-family: var(--font-display);
+  font-size: var(--text-17);
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.scoreGood { color: var(--good); }
+.scoreMid { color: var(--teal); }
+.scoreLow { color: var(--coral-ink); }
+
+.groupScoreLabel {
+  font-size: var(--text-12);
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+.chevron {
+  color: var(--muted);
+  flex-shrink: 0;
+  transition: transform var(--dur-micro) var(--ease-tide);
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
+}
+
+.groupBody {
+  padding: var(--space-1) var(--space-5) var(--space-4);
+}
+
+.note {
+  font-size: var(--text-12);
+  color: var(--muted);
+  margin: 0 0 var(--space-3);
+}
+
+.skillList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.skillRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(96px, 160px) auto;
+  gap: var(--space-4);
+  align-items: center;
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 639px) {
+  .skillRow {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .skillMeter {
+    grid-column: 1 / -1;
+    order: 3;
+  }
+}
+
+.skillName {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  font-size: var(--text-15);
+  margin: 0 0 var(--space-1);
+}
+
+.skillMeta {
+  font-size: var(--text-12);
+  color: var(--muted);
+}
+
+/* Verified = solid fill; Declared = outline. The text label always carries the meaning. */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-12);
+  font-weight: 700;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius);
+  border: 1.5px solid var(--teal);
+  white-space: nowrap;
+}
+
+.badgeVerified {
+  background: var(--teal);
+  color: var(--on-accent);
+}
+
+.badgeDeclared {
+  background: transparent;
+  color: var(--teal);
+}
+
+.skillSolid {
+  border-left: 4px solid var(--teal);
+  padding-left: var(--space-3);
+}
+
+.skillOutlined {
+  border-left: 4px dashed var(--line);
+  padding-left: var(--space-3);
+}
+
+.gapTag {
+  display: inline-block;
+  font-size: var(--text-12);
+  font-weight: 700;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius);
+  background: var(--coral-soft);
+  color: var(--coral-ink);
+  white-space: nowrap;
+}
+
+.gapTagReady {
+  background: var(--good-soft);
+  color: var(--good);
+}
+
+.skeletonGroup {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  margin-bottom: var(--space-3);
+}
+
+.skeletonRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-3);
+}

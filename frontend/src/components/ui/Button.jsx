@@ -1,13 +1,15 @@
+import { useRef } from 'react';
 import { Loader2 } from 'lucide-react';
+import { useRipple } from '../../hooks/useRipple';
 
 const variants = {
   primary: {
     background: 'var(--coral)',
-    color: '#fff',
+    color: 'var(--on-accent)',
   },
   secondary: {
     background: 'var(--teal)',
-    color: '#fff',
+    color: 'var(--on-accent)',
   },
   ghost: {
     background: 'var(--surface2)',
@@ -18,7 +20,7 @@ const variants = {
 const base = {
   minHeight: 42,
   padding: '10px 15px',
-  borderRadius: 10,
+  borderRadius: 'var(--radius)',
   fontWeight: 700,
   fontSize: 13,
   display: 'inline-flex',
@@ -36,14 +38,23 @@ const disabledStyle = {
   transform: 'none',
 };
 
-export default function Button({ variant = 'primary', children, style, loading = false, ...props }) {
+export default function Button({ variant = 'primary', children, style, loading = false, ref, ...props }) {
   const isDisabled = loading || props.disabled;
+  const innerRef = useRef(null);
+  // Ripple press feedback is for the primary button only.
+  useRipple(variant === 'primary' ? innerRef : null);
+  const setRef = (node) => {
+    innerRef.current = node;
+    if (typeof ref === 'function') ref(node);
+    else if (ref) ref.current = node;
+  };
   return (
     <button
       {...props}
+      ref={setRef}
       disabled={isDisabled}
       aria-busy={loading || undefined}
-      style={{ ...base, ...variants[variant], ...(isDisabled ? disabledStyle : {}), ...style }}
+      style={{ ...base, ...variants[variant], ...(variant === 'primary' ? { position: 'relative', overflow: 'hidden' } : {}), ...(isDisabled ? disabledStyle : {}), ...style }}
       onMouseEnter={(e) => { if (!isDisabled) e.currentTarget.style.transform = 'translateY(-1px)'; }}
       onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; }}
     >

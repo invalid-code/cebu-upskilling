@@ -50,7 +50,7 @@ const styles = {
     marginBottom: 8,
   },
   title: {
-    fontFamily: "'Space Grotesk', sans-serif",
+    fontFamily: 'var(--font-display)',
     fontSize: 16,
     fontWeight: 700,
     color: 'var(--ink)',
@@ -113,6 +113,10 @@ const iconVariants = {
   purple: styles.iconPurple,
 };
 
+const ALREADY_ENROLLED = /already enrolled/i;
+const isAlreadyEnrolledResponse = (result) => ALREADY_ENROLLED.test(result?.message ?? '');
+const isAlreadyEnrolledError = (err) => err?.status === 409 || ALREADY_ENROLLED.test(err?.message ?? '');
+
 export default function CourseCard({
   course,
   _variant = 'recommended',
@@ -133,6 +137,7 @@ export default function CourseCard({
   const { showToast } = useToast();
   const { refreshEnrollments } = useEnrollments();
   const [enrolling, setEnrolling] = useState(false);
+  const [alreadyEnrolled, setAlreadyEnrolled] = useState(false);
 
   const handleEnroll = async () => {
     if (!course.courseId) {
@@ -141,11 +146,20 @@ export default function CourseCard({
     }
     setEnrolling(true);
     try {
-      await api.post('/enrollments', { courseId: course.courseId });
+      const result = await api.post('/enrollments', { courseId: course.courseId });
+      if (isAlreadyEnrolledResponse(result)) {
+        // Idempotent: keep the existing enrollment and progress untouched, no error toast.
+        setAlreadyEnrolled(true);
+        return;
+      }
       refreshEnrollments();
       showToast(`Course added to your pathway — "${course.name}"`, 'success');
       if (onStart) onStart();
     } catch (err) {
+      if (isAlreadyEnrolledError(err)) {
+        setAlreadyEnrolled(true);
+        return;
+      }
       showToast(err.message || 'Enrollment failed', 'error');
     } finally {
       setEnrolling(false);
@@ -240,6 +254,10 @@ export default function CourseCard({
         ) : isEnrolled ? (
           <Button variant="primary" onClick={onStart} style={{ width: '100%' }}>
             <Play size={16} /> Start
+          </Button>
+        ) : alreadyEnrolled ? (
+          <Button variant="secondary" disabled style={{ width: '100%' }}>
+            <Check size={16} /> Already enrolled
           </Button>
         ) : (
           <Button variant="primary" onClick={handleEnroll} disabled={enrolling} style={{ width: '100%' }}>

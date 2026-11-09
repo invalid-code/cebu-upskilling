@@ -1,3 +1,5 @@
+import pageStyles from './PageStates.module.css';
+
 const styles = {
   srOnly: {
     position: 'absolute',
@@ -94,9 +96,10 @@ export function SkeletonStat({ style }) {
  * Accessible wrapper around one or more skeletons. Announces the loading label to
  * screen readers via role="status"/aria-busy while keeping it visually hidden.
  */
-export function SkeletonStatus({ label, children, style }) {
+export function SkeletonStatus({ label, children, style, minHeight }) {
+  // minHeight reserves the final layout's height so swapping to real content causes no layout shift.
   return (
-    <div role="status" aria-busy="true" style={style}>
+    <div role="status" aria-busy="true" className={pageStyles.skeletonRegion} style={{ minHeight, ...style }}>
       <span style={styles.srOnly}>{label}</span>
       {children}
     </div>

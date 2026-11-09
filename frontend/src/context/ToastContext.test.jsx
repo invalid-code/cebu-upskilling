@@ -83,7 +83,9 @@ describe('ToastContext', () => {
     fireEvent.click(screen.getByText('Show'));
     expect(screen.getByTestId('toast')).toHaveTextContent('Hello toast');
 
-    act(() => vi.advanceTimersByTime(2400));
+    act(() => vi.advanceTimersByTime(4900));
+    expect(screen.getByTestId('toast')).toHaveTextContent('Hello toast');
+    act(() => vi.advanceTimersByTime(200));
     expect(screen.getByTestId('toast')).toHaveTextContent('');
   });
 });

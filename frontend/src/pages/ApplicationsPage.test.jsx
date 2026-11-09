@@ -92,6 +92,34 @@ describe('ApplicationsPage', () => {
     expect(await screen.findByText('Saved')).toBeInTheDocument();
   });
 
+  it('shows a status timeline marking the current stage', async () => {
+    renderApplications();
+    await screen.findByText('Frontend Developer (React)');
+    const timelines = screen.getAllByRole('list', { name: 'Application progress' });
+    expect(timelines).toHaveLength(3);
+    // interview: Submitted/Reviewing completed, Interviewing current (stated in text, not colour only)
+    expect(timelines[0]).toHaveTextContent('Interviewing (current)');
+    expect(timelines[0]).toHaveTextContent('Submitted (completed)');
+  });
+
+  it('shows an error state with retry when applications fail to load', async () => {
+    localStorage.setItem('user', JSON.stringify({ UserId: 1, firstName: 'Test', role: 'Learner' }));
+    api.get.mockRejectedValue(new Error('Boom'));
+    render(
+      <MemoryRouter>
+        <AuthProvider>
+          <ApplicationsProvider>
+            <ToastProvider>
+              <ApplicationsPage />
+            </ToastProvider>
+          </ApplicationsProvider>
+        </AuthProvider>
+      </MemoryRouter>,
+    );
+    expect(await screen.findByText('Boom')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Retry/ })).toBeInTheDocument();
+  });
+
   it('displays Open button for each application', async () => {
     renderApplications();
     const openButtons = await screen.findAllByText('Open');

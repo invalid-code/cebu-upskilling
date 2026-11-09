@@ -70,6 +70,19 @@ describe('CredentialsPage', () => {
     expect(screen.getByRole('link', { name: /View certificate/ })).toHaveAttribute('href', '/credentials/cert-1');
   });
 
+  it('renders a grid of certificates, each with a verify link to /verify/:serialNumber', async () => {
+    api.get.mockResolvedValue([
+      { certificateId: 'c1', serialNumber: 'CU-1', courseName: 'Course One', providerName: 'P', issuedAt: '2026-11-03T12:00:00Z' },
+      { certificateId: 'c2', serialNumber: 'CU-2', courseName: 'Course Two', providerName: 'P', issuedAt: '2026-11-04T12:00:00Z' },
+    ]);
+    renderCredentials();
+
+    expect(await screen.findByText('Course One')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Verify Course One certificate' })).toHaveAttribute('href', '/verify/CU-1');
+    expect(screen.getByRole('link', { name: 'Verify Course Two certificate' })).toHaveAttribute('href', '/verify/CU-2');
+    expect(screen.queryByText('No credentials yet')).not.toBeInTheDocument();
+  });
+
   it('shows an error when credentials cannot be loaded', async () => {
     api.get.mockRejectedValue(new Error('Server unavailable'));
     renderCredentials();

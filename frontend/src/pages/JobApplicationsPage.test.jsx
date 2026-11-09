@@ -103,6 +103,71 @@ describe('JobApplicationsPage', () => {
     expect(screen.getByText('Level 4')).toBeInTheDocument();
   });
 
+  it('shows "Not ranked" in the table and pane before ranking', async () => {
+    api.get.mockResolvedValueOnce(applications).mockResolvedValueOnce({ ...applications[0], skills: [] });
+    renderPage();
+    await screen.findByText('Jose Rizal');
+    expect(screen.getByText('Not ranked')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'View profile of Jose Rizal' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Not ranked')).toBeInTheDocument();
+    expect(await within(dialog).findByText('No skills tracked yet.')).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Close applicant detail' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('shows an error with retry in the pane when the profile fails to load', async () => {
+    api.get
+      .mockResolvedValueOnce(applications)
+      .mockRejectedValueOnce(new Error('Profile down'))
+      .mockResolvedValueOnce({ ...applications[0], skills: [{ name: 'Docker', currentLevel: 2 }] });
+    renderPage();
+    await screen.findByText('Jose Rizal');
+    fireEvent.click(screen.getByRole('button', { name: 'View profile of Jose Rizal' }));
+    expect(await screen.findByText('Profile down')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByText('Docker')).toBeInTheDocument();
+  });
+
+  it('ranks candidates with AI and shows the score', async () => {
+    api.get.mockImplementation((path) => Promise.resolve(
+      path === '/applications/employer'
+        ? applications
+        : { candidates: [{ applicationId: 11, score: 87.4, rationale: 'Strong match' }] },
+    ));
+    renderPage();
+    await screen.findByText('Jose Rizal');
+    fireEvent.click(screen.getByRole('button', { name: /Rank with AI/ }));
+    expect(await screen.findByText('87%')).toBeInTheDocument();
+    expect(api.get).toHaveBeenCalledWith('/hiring-agent/posts/7/rank-applicants');
+    expect(screen.queryByText('Not ranked')).not.toBeInTheDocument();
+  });
+
+  it.each([502, 503])('keeps applicants unranked and status actions enabled on AI %i', async (status) => {
+    api.get.mockImplementation((path) => (path === '/applications/employer'
+      ? Promise.resolve(applications)
+      : Promise.reject(Object.assign(new Error('bad gateway'), { status }))));
+    renderPage();
+    await screen.findByText('Jose Rizal');
+    fireEvent.click(screen.getByRole('button', { name: /Rank with AI/ }));
+    expect(await screen.findByText('Suggestions are unavailable right now')).toBeInTheDocument();
+    expect(screen.getByText('Not ranked')).toBeInTheDocument();
+    expect(screen.getByText('Jose Rizal')).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Status for Jose Rizal' })).toBeEnabled();
+    expect(screen.queryByText('bad gateway')).not.toBeInTheDocument();
+  });
+
+  it('shows a toast for other AI failures without the unavailable notice', async () => {
+    api.get.mockImplementation((path) => (path === '/applications/employer'
+      ? Promise.resolve(applications)
+      : Promise.reject(Object.assign(new Error('Ranking exploded'), { status: 500 }))));
+    renderPage();
+    await screen.findByText('Jose Rizal');
+    fireEvent.click(screen.getByRole('button', { name: /Rank with AI/ }));
+    expect(await screen.findByText('Ranking exploded')).toBeInTheDocument();
+    expect(screen.queryByText('Suggestions are unavailable right now')).not.toBeInTheDocument();
+  });
+
   it('shows empty state when there are no applications', async () => {
     api.get.mockResolvedValue([]);
     renderPage();

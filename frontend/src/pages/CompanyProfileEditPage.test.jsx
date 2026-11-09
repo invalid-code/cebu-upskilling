@@ -1,6 +1,6 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Routes, Route, Link } from 'react-router-dom';
 import { AuthProvider } from '../context/AuthContext';
 import { ToastProvider } from '../context/ToastContext';
 import CompanyProfileEditPage from './CompanyProfileEditPage';
@@ -55,7 +55,83 @@ describe('CompanyProfileEditPage', () => {
     expect(await screen.findByDisplayValue('Cebu Prints')).toBeInTheDocument();
     expect(screen.getByDisplayValue('Apparel')).toBeInTheDocument();
     expect(screen.getByDisplayValue('https://cebuprints.example.com')).toBeInTheDocument();
-    expect(screen.getByText('Shirt printing shop.')).toBeInTheDocument();
+    // Shown both in the editor textarea and in the live public-profile preview.
+    expect(screen.getByDisplayValue('Shirt printing shop.')).toBeInTheDocument();
+    expect(within(screen.getByTestId('profile-preview')).getByText('Shirt printing shop.')).toBeInTheDocument();
+  });
+
+  it('updates the public-profile preview as fields change, without saving', async () => {
+    api.get.mockResolvedValue(company);
+    renderPage();
+    await screen.findByDisplayValue('Cebu Prints');
+
+    fireEvent.change(screen.getByLabelText(/Company name/), { target: { value: 'Cebu Prints & Co' } });
+    fireEvent.change(screen.getByLabelText(/Tagline/), { target: { value: 'Wear Cebu' } });
+
+    const preview = within(screen.getByTestId('profile-preview'));
+    expect(preview.getByRole('heading', { name: 'Cebu Prints & Co' })).toBeInTheDocument();
+    expect(preview.getByText('Wear Cebu')).toBeInTheDocument();
+    expect(api.put).not.toHaveBeenCalled();
+  });
+
+  it('shows inline errors and blocks save when the name is empty', async () => {
+    api.get.mockResolvedValue(company);
+    renderPage();
+    await screen.findByDisplayValue('Cebu Prints');
+
+    fireEvent.change(screen.getByLabelText(/Company name/), { target: { value: '' } });
+    fireEvent.click(screen.getByRole('button', { name: /Save changes/i }));
+
+    expect(await screen.findAllByText(/Enter your company name/)).not.toHaveLength(0);
+    expect(screen.getByLabelText(/Company name/)).toHaveAttribute('aria-invalid', 'true');
+    expect(api.put).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByLabelText(/Company name/), { target: { value: 'Cebu Prints' } });
+    expect(screen.getByLabelText(/Company name/)).not.toHaveAttribute('aria-invalid');
+  });
+
+  it('shows a server 400 error in the form summary and keeps entered values', async () => {
+    api.get.mockResolvedValue(company);
+    api.put.mockRejectedValue(Object.assign(new Error('Website is not reachable'), { status: 400 }));
+    renderPage();
+    await screen.findByDisplayValue('Cebu Prints');
+
+    fireEvent.change(screen.getByLabelText(/Industry/), { target: { value: 'Printing' } });
+    fireEvent.click(screen.getByRole('button', { name: /Save changes/i }));
+
+    expect(await screen.findByText('Website is not reachable')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Printing')).toBeInTheDocument();
+  });
+
+  it('prompts before leaving with unsaved changes and keeps values when staying', async () => {
+    api.get.mockResolvedValue(company);
+    localStorage.setItem('user', JSON.stringify({ userId: 1, firstName: 'Maria', role: 'Recruiter', companyId: 5 }));
+    render(
+      <MemoryRouter initialEntries={['/recruiter/company']}>
+        <ToastProvider>
+          <AuthProvider>
+            <Routes>
+              <Route path="/recruiter/company" element={<><CompanyProfileEditPage /><Link to="/elsewhere">Go away</Link></>} />
+              <Route path="/elsewhere" element={<p>Elsewhere page</p>} />
+            </Routes>
+          </AuthProvider>
+        </ToastProvider>
+      </MemoryRouter>,
+    );
+    await screen.findByDisplayValue('Cebu Prints');
+
+    // Edit a field, then try to navigate away.
+    fireEvent.change(screen.getByLabelText(/Industry/), { target: { value: 'Printing' } });
+    fireEvent.click(screen.getByText('Go away'));
+
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Stay on this page/i }));
+    expect(screen.queryByText('Elsewhere page')).not.toBeInTheDocument();
+    expect(screen.getByDisplayValue('Printing')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Go away'));
+    fireEvent.click(await screen.findByRole('button', { name: /Leave and discard/i }));
+    expect(await screen.findByText('Elsewhere page')).toBeInTheDocument();
   });
 
   it('submits edited fields to PUT /companies/me', async () => {

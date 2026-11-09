@@ -1,72 +1,71 @@
-import Panel from '../components/ui/Panel';
+import { useMemo, useState } from 'react';
+import { Search } from 'lucide-react';
 import Button from '../components/ui/Button';
-import { WifiOff, ShieldCheck, MessageCircleQuestion } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
-import { eyebrow, headingRow, pageSubtitle, pageTitle } from '../styles/shared';
-
-const styles = {
-  heading: { ...headingRow },
-  eyebrow: { ...eyebrow },
-  h1: { ...pageTitle },
-  subtitle: { ...pageSubtitle },
-  grid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(3, 1fr)',
-    gap: 16,
-  },
-};
-
-const faqs = [
-  {
-    icon: WifiOff,
-    iconColor: 'var(--coral)',
-    title: 'Connection dropped?',
-    desc: 'Your low-risk progress saves locally and syncs when you reconnect.',
-  },
-  {
-    icon: ShieldCheck,
-    iconColor: 'var(--teal2)',
-    title: 'Assessment privacy',
-    desc: 'Proctoring permissions are requested before the timer starts, never silently.',
-  },
-  {
-    icon: MessageCircleQuestion,
-    iconColor: 'var(--coral)',
-    title: 'Still need help?',
-    desc: 'Tell us what blocked you and we will point to the next action.',
-    hasButton: true,
-  },
-];
+import { FAQS, filterFaqs } from './helpFaqs';
+import styles from './HelpPage.module.css';
 
 export default function HelpPage() {
   const { showToast } = useToast();
+  const [query, setQuery] = useState('');
+
+  // Filtering is synchronous with each keystroke, so results are always current
+  // well within 300ms of the last keystroke.
+  const visible = useMemo(() => filterFaqs(FAQS, query), [query]);
 
   return (
-    <div className="view-enter">
-      <div style={styles.heading}>
-        <div>
-          <div style={styles.eyebrow}>You are not stuck</div>
-          <h1 style={styles.h1}>Help center</h1>
-          <p style={styles.subtitle}>
-            Clear answers for the moments that interrupt your path.
-          </p>
-        </div>
+    <div className={`view-enter ${styles.page}`}>
+      <div className={styles.heading}>
+        <p className={styles.eyebrow}>You are not stuck</p>
+        <h1 className={styles.title}>Help center</h1>
+        <p className={styles.subtitle}>Clear answers for the moments that interrupt your path.</p>
       </div>
 
-      <div style={styles.grid}>
-        {faqs.map((faq) => (
-          <Panel key={faq.title}>
-            <faq.icon size={24} style={{ color: faq.iconColor }} />
-            <h3 style={{ fontFamily: "'Space Grotesk', sans-serif", marginTop: 12 }}>{faq.title}</h3>
-            <p style={{ color: 'var(--muted)', fontSize: 12 }}>{faq.desc}</p>
-            {faq.hasButton && (
-              <Button variant="secondary" style={{ marginTop: 12 }} onClick={() => showToast('Support request started — our team will reply within 24 hours', 'success')}>
-                Contact support
-              </Button>
-            )}
-          </Panel>
-        ))}
+      <div className={styles.search} role="search">
+        <div className={styles.searchField}>
+          <Search size={16} className={styles.searchIcon} aria-hidden="true" />
+          <input
+            type="search"
+            className={styles.input}
+            aria-label="Search help articles"
+            placeholder="Search help"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+        </div>
+        {query !== '' && (
+          <button type="button" className={styles.clear} onClick={() => setQuery('')}>
+            Clear search
+          </button>
+        )}
       </div>
+
+      {visible.length === 0 ? (
+        <p className={styles.noResults} role="status">
+          No help entries match “{query}”. Try a different word or clear the search.
+        </p>
+      ) : (
+        <ul className={styles.grid}>
+          {visible.map((faq) => (
+            <li key={faq.id}>
+              <article className={styles.card}>
+                <faq.icon size={24} aria-hidden="true" />
+                <h3 className={styles.cardTitle}>{faq.question}</h3>
+                <p className={styles.cardText}>{faq.answer}</p>
+                {faq.hasButton && (
+                  <Button
+                    variant="secondary"
+                    style={{ marginTop: 12 }}
+                    onClick={() => showToast('Support request started — our team will reply within 24 hours', 'success')}
+                  >
+                    Contact support
+                  </Button>
+                )}
+              </article>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

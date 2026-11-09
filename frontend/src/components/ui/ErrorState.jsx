@@ -1,4 +1,36 @@
 import { AlertTriangle, RefreshCw, WifiOff } from 'lucide-react';
+import pageStyles from './PageStates.module.css';
+
+/** Extracts a displayable message from a string or an `{ error }` / Error-like value. */
+export function getErrorMessage(error, fallback = 'Something went wrong. Please try again.') {
+  if (!error) return fallback;
+  if (typeof error === 'string') return error;
+  if (typeof error.error === 'string' && error.error) return error.error;
+  if (typeof error.message === 'string' && error.message) return error.message;
+  return fallback;
+}
+
+/**
+ * Page-level error state: shows the error message and a Retry button.
+ * Retry is disabled while a retry is pending. Pass `children` to keep previously loaded data visible.
+ */
+export default function ErrorState({ error, onRetry, pending = false, title = 'We couldn\u2019t load this', children }) {
+  return (
+    <div>
+      <div className={pageStyles.error} role="alert">
+        <span className={pageStyles.errorIcon} aria-hidden="true"><AlertTriangle size={24} /></span>
+        <h3 className={pageStyles.title}>{title}</h3>
+        <p className={pageStyles.errorMessage}>{getErrorMessage(error)}</p>
+        {onRetry && (
+          <button type="button" className={pageStyles.retry} onClick={onRetry} disabled={pending} aria-busy={pending || undefined}>
+            <RefreshCw size={14} aria-hidden="true" /> Retry
+          </button>
+        )}
+      </div>
+      {children && <div className={pageStyles.retained}>{children}</div>}
+    </div>
+  );
+}
 
 const styles = {
   iconWrap: {
@@ -16,7 +48,7 @@ const styles = {
     height: 64,
   },
   title: {
-    fontFamily: "'Space Grotesk', sans-serif",
+    fontFamily: 'var(--font-display)',
     fontSize: 17,
     fontWeight: 800,
     color: 'var(--ink)',
@@ -55,7 +87,7 @@ const styles = {
     height: 30,
     borderRadius: '50%',
     background: 'var(--danger)',
-    color: '#fff',
+    color: 'var(--on-accent)',
     display: 'grid',
     placeItems: 'center',
     flexShrink: 0,
@@ -91,7 +123,7 @@ const styles = {
     alignItems: 'center',
     gap: 6,
     background: 'var(--danger)',
-    color: '#fff',
+    color: 'var(--on-accent)',
     padding: '10px 16px',
     borderRadius: 10,
     fontWeight: 700,

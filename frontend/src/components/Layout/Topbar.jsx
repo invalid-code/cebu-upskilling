@@ -78,8 +78,8 @@ const styles = {
     display: 'flex',
   },
   iconBtn: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderRadius: 10,
     background: 'transparent',
     color: 'var(--muted)',
@@ -101,7 +101,7 @@ const styles = {
     padding: '0 4px',
     borderRadius: 999,
     background: 'var(--coral)',
-    color: '#fff',
+    color: 'var(--on-accent)',
     fontSize: 10,
     fontWeight: 800,
     display: 'grid',
@@ -130,7 +130,7 @@ const styles = {
     borderBottom: '1px solid var(--line)',
   },
   panelTitle: {
-    fontFamily: "'Space Grotesk', sans-serif",
+    fontFamily: 'var(--font-display)',
     fontSize: 14,
     fontWeight: 700,
   },
@@ -188,8 +188,8 @@ const styles = {
     textAlign: 'center',
   },
   avatar: {
-    width: 33,
-    height: 33,
+    width: 44,
+    height: 44,
     borderRadius: '50%',
     background: 'var(--surface2)',
     color: 'var(--teal)',
@@ -321,7 +321,7 @@ export default function Topbar() {
           {isDark ? <Sun size={18} /> : <Moon size={18} />}
         </button>
 
-        <Link to="/profile" style={styles.avatar} aria-label="Open profile">
+        <Link to="/profile" style={styles.avatar} aria-label={`${initials}, open profile`}>
           {initials}
         </Link>
       </div>

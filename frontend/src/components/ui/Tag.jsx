@@ -20,7 +20,7 @@ const base = {
   alignItems: 'center',
   gap: 6,
   padding: '5px 9px',
-  borderRadius: 999,
+  borderRadius: 'var(--radius)',
   fontSize: 11,
   fontWeight: 700,
   whiteSpace: 'nowrap',

@@ -41,7 +41,7 @@ const styles = {
   },
   title: {
     margin: 0,
-    fontFamily: "'Space Grotesk', sans-serif",
+    fontFamily: 'var(--font-display)',
     fontSize: 15,
     fontWeight: 800,
     letterSpacing: '-0.02em',

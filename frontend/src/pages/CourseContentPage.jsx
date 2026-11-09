@@ -1,270 +1,344 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Check, Loader2, MessageSquare, ListTree, X } from 'lucide-react';
 import ModuleOutline from '../components/shared/ModuleOutline';
 import LessonContent from '../components/shared/LessonContent';
 import LessonResources from '../components/shared/LessonResources';
 import VideoPlayer from '../components/shared/VideoPlayer';
-import ProgressBar from '../components/ui/ProgressBar';
-import Panel from '../components/ui/Panel';
-import Skeleton, { SkeletonStatus, SkeletonText } from '../components/ui/Skeleton';
+import LiquidMeter from '../components/water/LiquidMeter';
+import DataBoundView from '../components/ui/DataBoundView';
+import Skeleton, { SkeletonText } from '../components/ui/Skeleton';
+import useDataState from '../hooks/useDataState';
+import useViewportMode from '../hooks/useViewportMode';
+import useDialogFocus from '../lib/useDialogFocus';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { ErrorCard } from '../components/ui/ErrorState';
 import { api } from '../api/client';
+import styles from './CourseContentPage.module.css';
 
-const styles = {
-  container: {
-    animation: 'enter 0.35s var(--ease)',
-  },
-  breadcrumb: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    fontSize: 13,
-    color: 'var(--muted)',
-    marginBottom: 20,
-  },
-  breadcrumbLink: {
-    color: 'var(--teal)',
-    fontWeight: 600,
-    textDecoration: 'none',
-    cursor: 'pointer',
-  },
-  breadcrumbSeparator: {
-    color: 'var(--line)',
-  },
-  header: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 16,
-    marginBottom: 24,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    background: 'var(--surface)',
-    border: '1px solid var(--line)',
-    color: 'var(--ink)',
-    display: 'grid',
-    placeItems: 'center',
-    cursor: 'pointer',
-  },
-  headerInfo: {
-    flex: 1,
-  },
-  courseName: {
-    fontSize: 14,
-    color: 'var(--muted)',
-    marginBottom: 2,
-  },
-  lessonName: {
-    fontFamily: "'Space Grotesk', sans-serif",
-    fontSize: 22,
-    fontWeight: 700,
-    color: 'var(--ink)',
-  },
-  progressSection: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 12,
-  },
-  progressText: {
-    fontSize: 13,
-    fontWeight: 700,
-    color: 'var(--ink)',
-  },
-  progressBarContainer: {
-    width: 120,
-  },
-  content: {
-    display: 'flex',
-    gap: 24,
-  },
-  leftSidebar: {
-    width: 280,
-    flexShrink: 0,
-  },
-  mainContent: {
-    flex: 1,
-    minWidth: 0,
-  },
-  rightSidebar: {
-    width: 280,
-    flexShrink: 0,
-  },
-};
+/** How long the "Progress saved" indication stays visible (spec: at least 2s). */
+const SAVED_INDICATION_MS = 3000;
+
+const lessonsOf = (m) => (Array.isArray(m?.lessons) ? m.lessons : []);
+
+/**
+ * Overall course progress after a lesson reaches `lessonPercent`, using the same weighting as the API
+ * (every lesson contributes an equal share). Never decreases the previous value.
+ */
+function computeOverallProgress(previous, lessonIndex, totalLessons, lessonPercent) {
+  if (!(totalLessons > 0) || lessonIndex < 0) return previous;
+  const share = 100 / totalLessons;
+  const next = Math.floor((lessonIndex + Math.min(100, Math.max(0, lessonPercent)) / 100) * share);
+  return Math.min(100, Math.max(previous ?? 0, next));
+}
+
+function PlayerSkeleton() {
+  return (
+    <div className={styles.skeletonLayout}>
+      <div className={styles.skeletonOutline}>
+        <div className={styles.skeletonStack}>
+          <Skeleton height={18} width="55%" />
+          {Array.from({ length: 6 }, (_, i) => (
+            <Skeleton key={i} height={34} width="100%" radius={8} />
+          ))}
+        </div>
+      </div>
+      <div>
+        <Skeleton height={240} width="100%" radius={14} style={{ marginBottom: 18 }} />
+        <SkeletonText lines={5} lineHeight={13} gap={10} lastWidth="45%" />
+      </div>
+      <div className={styles.skeletonNotes}>
+        <div className={styles.skeletonStack}>
+          <Skeleton height={18} width="40%" />
+          <Skeleton height={80} width="100%" radius={8} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Drawer (outline) or bottom sheet (notes/discussion). Closed by default: only mounted while open. */
+function Overlay({ kind, label, onClose, children }) {
+  const ref = useRef(null);
+  useDialogFocus(true, onClose, ref);
+  const isDrawer = kind === 'drawer';
+  return (
+    <div
+      className={`${styles.backdrop} ${isDrawer ? styles.backdropDrawer : styles.backdropSheet}`}
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div
+        ref={ref}
+        className={`${styles.overlay} ${isDrawer ? styles.drawer : styles.sheet}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label={label}
+        tabIndex={-1}
+      >
+        <div className={styles.overlayHead}>
+          <h2 className={styles.overlayTitle}>{label}</h2>
+          <button type="button" className={styles.sheetClose} onClick={onClose} aria-label={`Close ${label.toLowerCase()}`}>
+            <X size={18} aria-hidden="true" />
+          </button>
+        </div>
+        <div className={styles.overlayBody}>{children}</div>
+      </div>
+    </div>
+  );
+}
 
 export default function CourseContentPage() {
   useAuth();
   const { courseId, lessonId } = useParams();
   const navigate = useNavigate();
-  const { showToast } = useToast();
-  const [courseData, setCourseData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
 
+  const state = useDataState(
+    ({ signal }) => {
+      const url = lessonId
+        ? `/coursecontent/courses/${courseId}/content?lessonId=${lessonId}`
+        : `/coursecontent/courses/${courseId}/content`;
+      return api.get(url, { signal });
+    },
+    [courseId, lessonId],
+  );
+
+  // When starting/resuming without a lessonId the API returns the first unfinished lesson;
+  // reflect it in the URL so deep-linking and refresh keep working.
+  const resolvedLessonId = state.data?.currentLesson?.lessonId;
   useEffect(() => {
-    const controller = new AbortController();
-    const fetchCourseContent = async () => {
-      try {
-        const url = lessonId
-          ? `/coursecontent/courses/${courseId}/content?lessonId=${lessonId}`
-          : `/coursecontent/courses/${courseId}/content`;
-        const data = await api.get(url, { signal: controller.signal });
-        setCourseData(data);
-        // When starting/resuming without a lessonId, the backend now returns the first unfinished lesson.
-        // Update the URL to reflect that lesson so deep-linking and refresh work correctly.
-        if (!lessonId && data?.currentLesson?.lessonId) {
-          navigate(`/courses/${courseId}/learn/${data.currentLesson.lessonId}`, { replace: true });
-        }
-      } catch (err) {
-        if (err.name === 'AbortError') return;
-        const msg = err.message || 'Could not load course content';
-        setError(msg);
-        showToast(msg, 'error');
-      } finally {
-        setLoading(false);
-      }
-    };
+    if (!lessonId && state.status === 'success' && resolvedLessonId) {
+      navigate(`/courses/${courseId}/learn/${resolvedLessonId}`, { replace: true });
+    }
+  }, [lessonId, state.status, resolvedLessonId, courseId, navigate]);
 
-    fetchCourseContent();
-    return () => controller.abort();
-  }, [courseId, lessonId, navigate, showToast]);
+  return (
+    <div className={`view-enter ${styles.page}`}>
+      <DataBoundView
+        state={{ ...state, data: state.status === 'error' ? undefined : state.data }}
+        skeleton={<PlayerSkeleton />}
+        loadingLabel="Loading course content..."
+        errorTitle="Couldn’t load course content"
+        isEmpty={(d) => !d?.currentLesson}
+        empty={{
+          title: 'Lesson unavailable',
+          description: 'This lesson has no content yet — it may have been removed or the course is still being prepared.',
+          action: { label: 'Back to courses', onClick: () => navigate('/courses') },
+        }}
+      >
+        {(courseData) => (
+          <Player
+            key={courseId}
+            courseData={courseData}
+            courseId={courseId}
+            lessonId={lessonId}
+            navigate={navigate}
+          />
+        )}
+      </DataBoundView>
+    </div>
+  );
+}
+
+function Player({ courseData, courseId, lessonId, navigate }) {
+  const { showToast } = useToast();
+  const mode = useViewportMode();
+  const [outlineOpen, setOutlineOpen] = useState(false);
+  const [notesOpen, setNotesOpen] = useState(false);
+  const [save, setSave] = useState({ status: 'idle', lessonId: null });
+  // Locally confirmed progress; replaced by server data on the next fetch.
+  const [live, setLive] = useState(null);
+  const savedTimer = useRef(null);
+  const saveSeq = useRef(0);
+
+  useEffect(() => () => clearTimeout(savedTimer.current), []);
+
+  const modules = Array.isArray(courseData.modules) ? courseData.modules : [];
+  const allLessons = modules.flatMap(lessonsOf);
+  const activeLessonId = lessonId || courseData.currentLesson.lessonId;
+  const lessonKey = courseData.currentLesson.lessonId ?? activeLessonId;
+
+  const liveFor = live && live.base === courseData ? live : null;
+  const overall = liveFor ? liveFor.overall : (courseData.progressPercent ?? 0);
+  const completedIds = liveFor ? liveFor.completed : [];
+
+  const displayModules = completedIds.length === 0 ? modules : modules.map((m) => {
+    const lessons = lessonsOf(m).map((l) => (completedIds.includes(l.lessonId) ? { ...l, isCompleted: true } : l));
+    return { ...m, lessons, completedLessonCount: lessons.filter((l) => l.isCompleted).length };
+  });
+
+  const currentModule = modules.find((m) => lessonsOf(m).some((l) => l.lessonId === activeLessonId)) || modules[0];
+  const lessonIndexInModule = currentModule ? lessonsOf(currentModule).findIndex((l) => l.lessonId === activeLessonId) : -1;
+  const currentLessonNumber = lessonIndexInModule >= 0 ? lessonIndexInModule + 1 : 1;
+  const flatIndex = allLessons.findIndex((l) => l.lessonId === activeLessonId);
+  const lessonCompleted = completedIds.includes(activeLessonId)
+    || Boolean(allLessons.find((l) => l.lessonId === activeLessonId)?.isCompleted);
+
+  const saveProgress = useCallback(async (id, percent = 100) => {
+    const seq = ++saveSeq.current;
+    clearTimeout(savedTimer.current);
+    setSave({ status: 'saving', lessonId: id });
+    try {
+      const result = await api.put(`/coursecontent/lessons/${id}/progress`, { lessonId: id, progressPercent: percent });
+      if (seq !== saveSeq.current) return true;
+      const total = allLessons.length || courseData.totalLessons || 0;
+      const index = allLessons.findIndex((l) => l.lessonId === activeLessonId);
+      setLive((prev) => {
+        const base = prev && prev.base === courseData ? prev : { base: courseData, overall: courseData.progressPercent ?? 0, completed: [] };
+        const nextOverall = Number.isFinite(result?.overallProgressPercent)
+          ? Math.min(100, Math.max(base.overall, result.overallProgressPercent))
+          : computeOverallProgress(base.overall, index, total, percent);
+        const completed = percent >= 100 && !base.completed.includes(activeLessonId)
+          ? [...base.completed, activeLessonId]
+          : base.completed;
+        return { base: courseData, overall: nextOverall, completed };
+      });
+      setSave({ status: 'saved', lessonId: id });
+      savedTimer.current = setTimeout(() => setSave({ status: 'idle', lessonId: null }), SAVED_INDICATION_MS);
+      if (result?.certificateId) {
+        showToast('Course complete — your certificate is ready.', 'certificate');
+      }
+      return true;
+    } catch (err) {
+      if (err?.name === 'AbortError' || seq !== saveSeq.current) return false;
+      // The meter and the current lesson are intentionally left as they were.
+      setSave({ status: 'error', lessonId: id, message: err?.message });
+      return false;
+    }
+  }, [activeLessonId, allLessons, courseData, showToast]);
 
   const handleLessonClick = (id) => {
+    setOutlineOpen(false);
     navigate(`/courses/${courseId}/learn/${id}`);
   };
 
-  const handleBack = () => {
-    navigate('/courses');
-  };
-
-  if (loading) {
-    return (
-      <SkeletonStatus label="Loading course content..." style={{ padding: '20px 0' }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20 }}>
-          <div style={{ flex: '0 1 260px', minWidth: 220 }}>
-            <Panel>
-              <Skeleton height={18} width="55%" style={{ marginBottom: 16 }} />
-              {Array.from({ length: 6 }, (_, i) => (
-                <Skeleton key={i} height={34} width="100%" radius={8} style={{ marginBottom: 8 }} />
-              ))}
-            </Panel>
-          </div>
-          <div style={{ flex: '1 1 320px' }}>
-            <Skeleton height={240} width="100%" radius={12} style={{ marginBottom: 18 }} />
-            <SkeletonText lines={5} lineHeight={13} gap={10} lastWidth="45%" />
-          </div>
-        </div>
-      </SkeletonStatus>
-    );
-  }
-
-  if (error || !courseData) {
-    return (
-      <div style={{ padding: 20 }}>
-        <ErrorCard
-          title={error?.toLowerCase().includes('not found') ? 'Course not found' : 'Couldn’t load course content'}
-          description={error || 'This course could not be found — it may have been removed or you may need to enroll first.'}
-          onRetry={() => { setError(''); setLoading(true); window.location.reload(); }}
-          retryLabel="Retry"
-        />
-      </div>
-    );
-  }
-
-  const modules = Array.isArray(courseData.modules) ? courseData.modules : [];
-  const lessonsOf = (m) => (Array.isArray(m?.lessons) ? m.lessons : []);
-  const currentModule = modules.find(m =>
-    lessonsOf(m).some(l => l.lessonId === lessonId)
-  ) || modules[0];
-  const currentLessonIndex = modules.findIndex(m =>
-    lessonsOf(m).some(l => l.lessonId === lessonId)
+  const outline = (
+    <ModuleOutline modules={displayModules} currentLessonId={activeLessonId} onLessonClick={handleLessonClick} />
   );
-  const currentModuleNumber = currentModule?.moduleNumber ?? 1;
-  const lessonIndexInModule = currentModule ? lessonsOf(currentModule).findIndex(l => l.lessonId === lessonId) : -1;
-  const currentLessonNumber = lessonIndexInModule >= 0 ? lessonIndexInModule + 1 : 1;
+  const notes = (
+    <LessonResources
+      media={courseData.currentLesson.media}
+      lessonId={courseData.currentLesson.lessonId}
+      courseId={courseData.courseId}
+    />
+  );
 
-  if (!courseData.currentLesson) {
-    return (
-      <div style={{ padding: 20 }}>
-        <ErrorCard
-          title="Lesson unavailable"
-          description="This lesson has no content yet — it may have been removed or the course is still being prepared."
-          onRetry={() => { setError(''); setLoading(true); window.location.reload(); }}
-          retryLabel="Retry"
-        />
-      </div>
-    );
-  }
+  const drawerOpen = outlineOpen && mode === 'narrow';
+  const sheetOpen = notesOpen && mode === 'medium';
 
   return (
-    <div style={styles.container}>
-      <div style={styles.breadcrumb}>
-        <span style={styles.breadcrumbLink} onClick={() => navigate('/dashboard')}>
-          My pathway
-        </span>
-        <span style={styles.breadcrumbSeparator}>/</span>
-        <span style={styles.breadcrumbLink} onClick={() => navigate('/courses')}>
-          Courses
-        </span>
-        <span style={styles.breadcrumbSeparator}>/</span>
-        <span>{courseData.courseName}</span>
-      </div>
+    <>
+      <nav className={styles.breadcrumb} aria-label="Breadcrumb">
+        <button type="button" className={styles.crumb} onClick={() => navigate('/dashboard')}>My pathway</button>
+        <span className={styles.crumbSep} aria-hidden="true">/</span>
+        <button type="button" className={styles.crumb} onClick={() => navigate('/courses')}>Courses</button>
+        <span className={styles.crumbSep} aria-hidden="true">/</span>
+        <span aria-current="page">{courseData.courseName}</span>
+      </nav>
 
-      <div style={styles.header}>
-        <button style={styles.backButton} onClick={handleBack}>
-          <ArrowLeft size={18} />
+      <div className={styles.header}>
+        <button type="button" className={styles.iconButton} onClick={() => navigate('/courses')} aria-label="Back to courses">
+          <ArrowLeft size={18} aria-hidden="true" />
         </button>
-        <div style={styles.headerInfo}>
-          <div style={styles.courseName}>{courseData.courseName}</div>
-          <div style={styles.lessonName}>{courseData.currentLesson.name}</div>
+        <div className={styles.headerInfo}>
+          <p className={styles.courseName}>{courseData.courseName}</p>
+          <h1 className={styles.lessonName}>{courseData.currentLesson.name}</h1>
         </div>
-        <div style={styles.progressSection}>
-          <span style={styles.progressText}>
-            {courseData.progressPercent}% complete
-          </span>
-          <div style={styles.progressBarContainer}>
-            <ProgressBar percent={courseData.progressPercent} color="var(--coral)" />
-          </div>
+        <div className={styles.progress}>
+          <span className={styles.progressText}>{overall}% complete</span>
+          <LiquidMeter className={styles.meter} label="Course progress" value={overall} tone="primary" />
         </div>
       </div>
 
-      <div style={styles.content}>
-        <div style={styles.leftSidebar}>
-          <ModuleOutline
-            modules={courseData.modules}
-            currentLessonId={lessonId}
-            onLessonClick={handleLessonClick}
-          />
-        </div>
+      <div className={styles.statusRow}>
+        {save.status === 'saving' && (
+          <span className={styles.saving} role="status">
+            <Loader2 size={14} aria-hidden="true" /> Saving progress…
+          </span>
+        )}
+        {save.status === 'saved' && (
+          <span className={styles.saved} role="status">
+            <Check size={14} aria-hidden="true" /> Progress saved
+          </span>
+        )}
+        {save.status === 'error' && (
+          <span className={styles.failed} role="alert">
+            <AlertTriangle size={14} aria-hidden="true" /> Progress not saved
+            <button type="button" className={styles.retryNote} onClick={() => saveProgress(save.lessonId ?? lessonKey, 100)}>
+              Retry
+            </button>
+          </span>
+        )}
+        <button
+          type="button"
+          className={`${styles.control} ${styles.complete}`}
+          disabled={save.status === 'saving' || lessonCompleted}
+          onClick={() => saveProgress(lessonKey, 100)}
+        >
+          <Check size={16} aria-hidden="true" /> {lessonCompleted ? 'Lesson completed' : 'Mark lesson complete'}
+        </button>
+      </div>
 
-        <div style={styles.mainContent}>
+      {(mode === 'narrow' || mode === 'medium') && (
+        <div className={styles.controls}>
+          {mode === 'narrow' && (
+            <button
+              type="button"
+              className={styles.control}
+              aria-haspopup="dialog"
+              aria-expanded={drawerOpen}
+              onClick={() => setOutlineOpen(true)}
+            >
+              <ListTree size={16} aria-hidden="true" /> Course outline
+            </button>
+          )}
+          {mode === 'medium' && (
+            <button
+              type="button"
+              className={styles.control}
+              aria-haspopup="dialog"
+              aria-expanded={sheetOpen}
+              onClick={() => setNotesOpen(true)}
+            >
+              <MessageSquare size={16} aria-hidden="true" /> Notes &amp; discussion
+            </button>
+          )}
+        </div>
+      )}
+
+      <div className={styles.layout} data-mode={mode}>
+        {mode !== 'narrow' && <aside className={styles.outlinePane} aria-label="Course outline">{outline}</aside>}
+
+        <section className={styles.lessonPane} aria-label="Lesson">
           <VideoPlayer
             media={courseData.currentLesson.media}
             lessonName={courseData.currentLesson.name}
             totalLessons={courseData.totalLessons}
-            currentIndex={currentLessonIndex >= 0 ? currentLessonIndex : 0}
+            currentIndex={flatIndex >= 0 ? flatIndex : 0}
             lessonId={courseData.currentLesson.lessonId}
-            onProgress={(p) => setCourseData((d) => d ? { ...d, progressPercent: Math.max(d.progressPercent, p) } : d)}
+            onLessonEnded={() => saveProgress(lessonKey, 100)}
           />
           <LessonContent
             lesson={courseData.currentLesson}
-            moduleNumber={currentModuleNumber}
+            moduleNumber={currentModule?.moduleNumber ?? 1}
             lessonNumber={currentLessonNumber}
           />
-        </div>
+        </section>
 
-        <div style={styles.rightSidebar}>
-          <LessonResources
-            media={courseData.currentLesson.media}
-            lessonId={courseData.currentLesson.lessonId}
-            courseId={courseData.courseId}
-          />
-        </div>
+        {(mode === 'wide' || mode === 'narrow') && (
+          <aside className={styles.notesPane} aria-label="Notes and discussion">{notes}</aside>
+        )}
       </div>
-    </div>
+
+      {drawerOpen && (
+        <Overlay kind="drawer" label="Course outline" onClose={() => setOutlineOpen(false)}>
+          {outline}
+        </Overlay>
+      )}
+      {sheetOpen && (
+        <Overlay kind="sheet" label="Notes & discussion" onClose={() => setNotesOpen(false)}>
+          {notes}
+        </Overlay>
+      )}
+    </>
   );
 }

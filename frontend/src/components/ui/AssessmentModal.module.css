@@ -1,0 +1,26 @@
+/* Integrity warning: text + icon + highlighted border, never sound-only. */
+.integrityWarning {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: var(--space-3) var(--space-5) 0;
+  padding: var(--space-3);
+  border: 2px solid var(--danger);
+  border-radius: var(--radius);
+  background: var(--danger-soft);
+  color: var(--ink);
+  font-size: var(--text-13);
+  line-height: 1.45;
+}
+
+.integrityIcon {
+  color: var(--danger);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.scoreMeter {
+  max-width: 320px;
+  margin: 0 auto var(--space-5);
+  text-align: left;
+}

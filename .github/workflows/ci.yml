@@ -109,8 +109,8 @@ jobs:
           path: frontend/coverage/
           if-no-files-found: ignore
 
-  frontend-e2e:
-    name: Frontend E2E
+  frontend-ship-gate:
+    name: Frontend ship gate
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -129,8 +129,10 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      - name: Run E2E tests
-        run: npm run test:e2e
+      # Runs unit tests, lint, build, bundle-size/chunk checks and the Playwright
+      # suite; fails the job and names each failing check (Reqs 25.6, 25.7).
+      - name: Ship gate
+        run: npm run ship-gate
 
       - name: Upload Playwright report
         if: always()
@@ -150,7 +152,7 @@ jobs:
 
   mobile-build:
     name: Mobile production build (EAS)
-    needs: [backend, frontend, frontend-e2e]
+    needs: [backend, frontend, frontend-ship-gate]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     defaults:
@@ -200,7 +202,7 @@ jobs:
 
   deploy:
     name: Deploy (migrate + backend)
-    needs: [backend, frontend, frontend-e2e]
+    needs: [backend, frontend, frontend-ship-gate]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:

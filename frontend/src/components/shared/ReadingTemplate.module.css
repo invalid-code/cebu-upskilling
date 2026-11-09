@@ -1,0 +1,99 @@
+/* Shared reading template for /privacy and /terms. Typography lives only here so both pages are identical. */
+
+.page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+.inner {
+  width: 100%;
+  max-width: 860px;
+  margin: 0 auto;
+  padding: var(--space-12, 48px) clamp(20px, 4vw, 40px) 0;
+  flex: 1;
+  box-sizing: border-box;
+  font-family: var(--font-body);
+  font-size: var(--text-15);
+  line-height: 1.65;
+  color: var(--ink);
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 26px;
+}
+
+.eyebrow {
+  font-size: var(--text-12);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  color: var(--coral-ink);
+  margin-bottom: 10px;
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4vw, 2.75rem);
+  margin: 0;
+}
+
+.updatedRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.draftBadge {
+  font-size: var(--text-12);
+  font-weight: 700;
+  color: var(--coral-ink);
+  background: var(--coral-soft);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+
+.updated {
+  margin: 0;
+  font-size: var(--text-13);
+  color: var(--muted);
+}
+
+.intro {
+  margin: 18px 0 26px;
+  color: var(--muted);
+}
+
+.section {
+  margin-bottom: 16px;
+}
+
+.sectionTitle {
+  font-family: var(--font-display);
+  font-size: var(--text-17);
+  margin: 0 0 8px;
+}
+
+.body {
+  margin: 0;
+  font-size: inherit;
+  line-height: inherit;
+  color: var(--ink);
+}
+
+.note {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.noteIcon {
+  color: var(--teal);
+  flex-shrink: 0;
+}

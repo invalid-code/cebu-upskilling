@@ -5,6 +5,15 @@ import { api } from '../../api/client';
 import { useToast } from '../../context/ToastContext';
 import { createProctor } from '../../lib/proctoring';
 import useDialogFocus from '../../lib/useDialogFocus';
+import LiquidMeter from '../water/LiquidMeter';
+import moduleStyles from './AssessmentModal.module.css';
+
+const INTEGRITY_MESSAGES = {
+  LookingAway: 'Integrity warning: you looked away from the screen. Keep your eyes on the assessment.',
+  MultipleFaces: 'Integrity warning: more than one person is in view. Only the learner may be on camera.',
+  NoFace: 'Integrity warning: your face is not visible. Stay in front of the camera.',
+  PhoneDetected: 'Integrity warning: a phone or book is in view. Put it out of sight.',
+};
 
 const styles = {
   backdrop: {
@@ -43,7 +52,7 @@ const styles = {
     marginBottom: 4,
   },
   skillTitle: {
-    fontFamily: "'Space Grotesk', sans-serif",
+    fontFamily: 'var(--font-display)',
     fontSize: 18,
     fontWeight: 700,
     color: 'var(--ink)',
@@ -74,7 +83,7 @@ const styles = {
     padding: '22px',
   },
   questionText: {
-    fontFamily: "'Space Grotesk', sans-serif",
+    fontFamily: 'var(--font-display)',
     fontSize: 20,
     fontWeight: 600,
     color: 'var(--ink)',
@@ -113,7 +122,7 @@ const styles = {
   },
   optionLetterSelected: {
     background: 'var(--teal)',
-    color: '#fff',
+    color: 'var(--on-accent)',
   },
   optionText: {
     fontSize: 14,
@@ -182,7 +191,7 @@ const styles = {
     marginBottom: 16,
   },
   scoreText: {
-    fontFamily: "'Space Grotesk', sans-serif",
+    fontFamily: 'var(--font-display)',
     fontSize: 28,
     fontWeight: 700,
     color: 'var(--ink)',
@@ -250,7 +259,7 @@ const styles = {
     marginBottom: 14,
   },
   warnTitle: {
-    fontFamily: "'Space Grotesk', sans-serif",
+    fontFamily: 'var(--font-display)',
     fontSize: 18,
     fontWeight: 700,
     color: 'var(--ink)',
@@ -359,6 +368,7 @@ export default function AssessmentModal({ open, onClose, assessmentId, skillName
   const proctorLastEmitRef = useRef({});
   const [proctorStatus, setProctorStatus] = useState('idle');
   const [proctorFlagCount, setProctorFlagCount] = useState(0);
+  const [integrityWarning, setIntegrityWarning] = useState('');
   const question = questions[current];
 
   useEffect(() => {
@@ -416,6 +426,7 @@ export default function AssessmentModal({ open, onClose, assessmentId, skillName
   useEffect(() => {
     if (!open || !assessmentId) return;
     setProctorFlagCount(0);
+    setIntegrityWarning('');
     proctorLastEmitRef.current = {};
     setProctorStatus('idle');
   }, [open, assessmentId]);
@@ -452,6 +463,7 @@ export default function AssessmentModal({ open, onClose, assessmentId, skillName
             if (now - last < 12000) return;
             proctorLastEmitRef.current[eventType] = now;
             setProctorFlagCount((c) => c + 1);
+            setIntegrityWarning(INTEGRITY_MESSAGES[eventType] || `Integrity warning: ${detail}`);
             Promise.resolve(
               api.post(`/assessments/${assessmentId}/integrity-event`, { eventType, detail }),
             ).catch(() => {});
@@ -639,6 +651,13 @@ export default function AssessmentModal({ open, onClose, assessmentId, skillName
               </div>
             )}
 
+            {integrityWarning && (
+              <div className={moduleStyles.integrityWarning} role="alert" data-testid="integrity-warning">
+                <AlertTriangle size={18} className={moduleStyles.integrityIcon} aria-hidden="true" />
+                <span>{integrityWarning}</span>
+              </div>
+            )}
+
             <div style={styles.body}>
               {question && (
                 <>
@@ -715,6 +734,12 @@ export default function AssessmentModal({ open, onClose, assessmentId, skillName
                 <Award size={32} />
               </div>
               <div style={styles.scoreText}>{result?.scorePercent || 0}% score</div>
+              <LiquidMeter
+                className={moduleStyles.scoreMeter}
+                value={result?.scorePercent ?? 0}
+                label="Assessment score"
+                tone="good"
+              />
               <div style={styles.scoreSubtext}>
                 You answered {result?.correctAnswers || 0} of {result?.totalQuestions || questions.length} correctly.
               </div>

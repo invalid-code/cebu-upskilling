@@ -1,618 +1,351 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ArrowUpRight, BookOpen, Check, Clock, Send } from 'lucide-react';
 import Button from '../components/ui/Button';
-import Panel from '../components/ui/Panel';
+import DataBoundView from '../components/ui/DataBoundView';
+import Skeleton, { SkeletonCard, SkeletonStat } from '../components/ui/Skeleton';
 import EmptyState from '../components/shared/EmptyState';
 import StatCard from '../components/shared/StatCard';
 import CourseCard from '../components/shared/CourseCard';
-import SkillGapItem from '../components/shared/SkillGapItem';
-import Skeleton, { SkeletonCard, SkeletonStat, SkeletonStatus } from '../components/ui/Skeleton';
+import LiquidMeter from '../components/water/LiquidMeter';
+import WaterCanvas from '../components/water/WaterCanvas';
+import WaveDivider from '../components/water/WaveDivider';
+import useDataState from '../hooks/useDataState';
 import { useAuth } from '../context/AuthContext';
 import { useApplications } from '../context/ApplicationsContext';
 import { api } from '../api/client';
-import { ArrowUpRight, Check, Clock, BookOpen, Send } from 'lucide-react';
-import { eyebrow, headingRow, pageTitle } from '../styles/shared';
+import styles from './OverviewPage.module.css';
 
-const styles = {
-  heading: { ...headingRow },
-  eyebrow: { ...eyebrow },
-  h1: { ...pageTitle },
-  subtitle: {
-    color: 'var(--muted)',
-    margin: '8px 0 0',
-  },
-  grid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(12, 1fr)',
-    gap: 16,
-  },
-  col8: { gridColumn: 'span 8' },
-  col7: { gridColumn: 'span 7' },
-  col5: { gridColumn: 'span 5' },
-  col4: { gridColumn: 'span 4' },
-  col12: { gridColumn: '1 / -1' },
-  hero: {
-    background: 'var(--teal)',
-    color: '#fff',
-    borderRadius: 22,
-    padding: 30,
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  heroH2: {
-    fontFamily: "'Space Grotesk', sans-serif",
-    fontSize: 'clamp(1.8rem, 3vw, 2.6rem)',
-    maxWidth: 560,
-    position: 'relative',
-    zIndex: 1,
-  },
-  heroP: {
-    color: 'rgba(233, 241, 253, 0.90)',
-    maxWidth: 590,
-    position: 'relative',
-    zIndex: 1,
-    margin: '11px 0 22px',
-  },
-  sectionTitle: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    margin: '30px 0 15px',
-  },
-  sectionH3: {
-    fontFamily: "'Space Grotesk', sans-serif",
-    fontSize: 19,
-  },
-  courseGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(3, 1fr)',
-    gap: 14,
-  },
-  matchBody: {
-    display: 'flex',
-    gap: 20,
-    alignItems: 'center',
-  },
-  matchRing: {
-    width: 120,
-    height: 120,
-    borderRadius: '50%',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  matchRingInner: {
-    width: 96,
-    height: 96,
-    borderRadius: '50%',
-    background: 'var(--surface)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  matchPercent: {
-    fontFamily: "'Space Grotesk', sans-serif",
-    fontSize: 32,
-    fontWeight: 700,
-    lineHeight: 1,
-  },
-  matchText: {
-    flex: 1,
-  },
-  matchStatus: {
-    fontFamily: "'Space Grotesk', sans-serif",
-    fontSize: 20,
-    fontWeight: 700,
-    marginBottom: 4,
-  },
-  matchDesc: {
-    fontSize: 13,
-    color: 'var(--muted)',
-    margin: 0,
-    lineHeight: 1.4,
-  },
-  matchFooter: {
-    marginTop: 16,
-    background: 'var(--coral-soft)',
-    borderRadius: 10,
-    padding: '10px 14px',
-    fontSize: 12,
-    color: 'var(--ink)',
-    display: 'flex',
-    alignItems: 'center',
-    gap: 4,
-  },
-  matchRefresh: {
-    background: 'var(--surface)',
-    border: '1px solid var(--line)',
-    borderRadius: 6,
-    padding: '2px 8px',
-    fontSize: 11,
-    fontWeight: 700,
-    color: 'var(--ink)',
-    cursor: 'pointer',
-  },
-  pathwayHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  stepsBadge: {
-    background: 'var(--teal-soft)',
-    color: 'var(--teal)',
-    fontSize: 11,
-    fontWeight: 700,
-    padding: '4px 10px',
-    borderRadius: 999,
-  },
-  stepper: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 0,
-  },
-  step: {
-    display: 'flex',
-    gap: 14,
-    position: 'relative',
-  },
-  stepIndicator: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    flexShrink: 0,
-  },
-  stepCircle: {
-    width: 30,
-    height: 30,
-    borderRadius: '50%',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: 13,
-    fontWeight: 700,
-    flexShrink: 0,
-  },
-  stepLine: {
-    width: 2,
-    flexGrow: 1,
-    minHeight: 16,
-    margin: '4px 0',
-  },
-  stepContent: {
-    paddingBottom: 20,
-  },
-  stepTitle: {
-    fontSize: 14,
-    fontWeight: 700,
-    lineHeight: '30px',
-  },
-  stepDesc: {
-    fontSize: 12,
-    color: 'var(--muted)',
-    margin: '2px 0 0',
-  },
+const OPEN_STATUS_LABELS = { applied: 'Applied', review: 'In review', interview: 'Interview' };
+const MAX_TIMELINE_ENTRIES = 3;
+
+const percentOf = (current, required) => (required > 0 ? Math.round((current / required) * 100) : undefined);
+
+const formatDate = (iso) => {
+  const date = iso ? new Date(iso) : null;
+  return date && !Number.isNaN(date.getTime())
+    ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    : null;
 };
 
-function formatLastCalculated(date) {
-  if (!date) return 'Last calculated —';
-  const diffMs = Date.now() - date.getTime();
-  const diffSec = Math.floor(diffMs / 1000);
-  if (diffSec < 60) return 'Last calculated just now';
-  const diffMin = Math.floor(diffSec / 60);
-  if (diffMin < 60) return `Last calculated ${diffMin} minute${diffMin === 1 ? '' : 's'} ago`;
-  const diffHr = Math.floor(diffMin / 60);
-  if (diffHr < 24) return `Last calculated ${diffHr} hour${diffHr === 1 ? '' : 's'} ago`;
-  const diffDay = Math.floor(diffHr / 24);
-  return `Last calculated ${diffDay} day${diffDay === 1 ? '' : 's'} ago`;
+const hours = (value) => (Number.isFinite(value) ? `${value}h` : '—');
+const count = (value) => (Number.isFinite(value) ? value : '—');
+
+/** Open applications, newest first, capped for the "This week" timeline. */
+export function selectOpenApplications(applications) {
+  const time = (a) => {
+    const t = a?.appliedAt ? new Date(a.appliedAt).getTime() : NaN;
+    return Number.isNaN(t) ? -Infinity : t;
+  };
+  return (applications || [])
+    .filter((a) => OPEN_STATUS_LABELS[a?.status || 'applied'])
+    .sort((a, b) => time(b) - time(a))
+    .slice(0, MAX_TIMELINE_ENTRIES);
+}
+
+function OverviewSkeleton() {
+  return (
+    <div className={styles.layout}>
+      <div className={`${styles.next} ${styles.skelNext}`}><SkeletonCard minHeight="inherit" /></div>
+      <div className={`${styles.region} ${styles.week} ${styles.skelWeek}`}>
+        <div className={styles.regionBody}>
+          <SkeletonStat />
+          <SkeletonStat style={{ marginTop: 16 }} />
+          <SkeletonStat style={{ marginTop: 16 }} />
+        </div>
+      </div>
+      <div className={`${styles.region} ${styles.pathway} ${styles.skelPathway}`}>
+        <div className={`${styles.regionBody} ${styles.skeletonStack}`}>
+          <Skeleton height={20} width="40%" />
+          <Skeleton height={14} width="100%" />
+          <Skeleton height={14} width="100%" />
+          <Skeleton height={14} width="100%" />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function OverviewPage() {
-  return <LearnerOverview />;
-}
-
-function LearnerOverview() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { applications } = useApplications();
-  const [courses, setCourses] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [skillGaps, setSkillGaps] = useState([]);
-  const [skillGapsLoading, setSkillGapsLoading] = useState(true);
-  const [lastCalculatedAt, setLastCalculatedAt] = useState(null);
-  const [, setTick] = useState(0);
-  const [recommendedAssessment, setRecommendedAssessment] = useState(null);
-  const [weeklyStats, setWeeklyStats] = useState({ learningTimeHours: 0, coursesActive: 0, jobsWorthApplying: 0 });
-  const [weeklyStatsLoading, setWeeklyStatsLoading] = useState(true);
+  const { applications, fetchApplications } = useApplications();
 
   const targetRole = user?.targetRole?.trim()
-    || applications.find((a) => a.targetRole?.trim())?.targetRole?.trim();
+    || applications.find((a) => a.targetRole?.trim())?.targetRole?.trim()
+    || '';
 
-  // GET /api/skillgaps returns per-role groups ({ role, matchPercent, gaps }),
-  // not a flat gap list. The overview shows the group for the resolved target
-  // role, falling back to the first group when nothing matches.
-  const activeGaps = useMemo(() => {
-    if (!Array.isArray(skillGaps) || skillGaps.length === 0) return [];
-    const match = targetRole
-      ? skillGaps.find((group) => group?.role && group.role.toLowerCase() === targetRole.toLowerCase())
-      : null;
-    const group = match || skillGaps[0];
-    return Array.isArray(group?.gaps) ? group.gaps : [];
-  }, [skillGaps, targetRole]);
+  const state = useDataState(
+    async ({ signal }) => {
+      const [courses, skillGroups, stats, recommendedAssessment] = await Promise.all([
+        api.get('/courses', { signal }),
+        targetRole ? api.get('/skillgaps', { signal }) : [],
+        api.get('/stats/week', { signal }),
+        targetRole
+          ? Promise.resolve(api.get('/assessments/recommended', { signal })).catch(() => null)
+          : null,
+      ]);
+      return { courses, skillGroups, stats, recommendedAssessment };
+    },
+    [targetRole],
+  );
 
-  useEffect(() => {
-    const controller = new AbortController();
-    api.get('/courses', { signal: controller.signal })
-      .then((data) => {
-        setCourses((data || []).map((c) => ({
-          courseId: c.courseId,
-          name: c.name,
-          provider: c.genre?.name || 'Provider',
-          mode: c.mode || 'Online',
-          duration: c.technicalLevel ? `${c.technicalLevel} hours` : undefined,
-          description: c.description,
-        })));
-      })
-      .catch((err) => {
-        if (err?.name === 'AbortError') return;
-        setCourses([]);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
-      });
-    return () => controller.abort();
-  }, []);
+  // Retry re-requests the page data and the applications list.
+  const boundState = {
+    ...state,
+    reload: () => {
+      state.reload();
+      fetchApplications?.(undefined, user, { force: true });
+    },
+  };
 
-  useEffect(() => {
-    if (!targetRole) {
-      setSkillGapsLoading(false);
-      return;
-    }
-    const controller = new AbortController();
-    api.get('/skillgaps', { signal: controller.signal })
-      .then((data) => {
-        setSkillGaps(data || []);
-        setLastCalculatedAt(new Date());
-      })
-      .catch((err) => {
-        if (err?.name === 'AbortError') return;
-        setSkillGaps([]);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setSkillGapsLoading(false);
-      });
-    return () => controller.abort();
-  }, [targetRole]);
-
-  // Re-render every minute so the relative "last calculated" label stays accurate
-  useEffect(() => {
-    if (!lastCalculatedAt) return;
-    const id = setInterval(() => setTick((t) => t + 1), 60000);
-    return () => clearInterval(id);
-  }, [lastCalculatedAt]);
-
-  useEffect(() => {
-    if (!targetRole) return;
-    const controller = new AbortController();
-    api.get('/assessments/recommended', { signal: controller.signal })
-      .then((data) => setRecommendedAssessment(data))
-      .catch((err) => {
-        if (err?.name === 'AbortError') return;
-        setRecommendedAssessment(null);
-      });
-    return () => controller.abort();
-  }, [targetRole]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    api.get('/stats/week', { signal: controller.signal })
-      .then((data) => setWeeklyStats(data))
-      .catch((err) => {
-        if (err?.name === 'AbortError') return;
-        setWeeklyStats({ learningTimeHours: 0, coursesActive: 0, jobsWorthApplying: 0 });
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setWeeklyStatsLoading(false);
-      });
-    return () => controller.abort();
-  }, []);
-
-  const recommended = courses.slice(0, 3);
-  const today = new Date().toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-  });
+  const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
   return (
-    <div className="view-enter">
-      <div style={styles.heading}>
+    <div className={`view-enter ${styles.page}`}>
+      <div className={styles.heading}>
         <div>
-          <div style={styles.eyebrow}>{today} · Cebu City</div>
-          <h1 style={styles.h1}>Your next move is clear.</h1>
-          <p style={styles.subtitle}>
-            You're building toward <strong>{targetRole || 'your target role'}</strong>. Keep closing the two gaps that matter most.
-          </p>
+          <p className={styles.eyebrow}>{today} · Cebu City</p>
+          <h1 className={styles.title}>Your dashboard</h1>
+          {targetRole && (
+            <p className={styles.subtitle}>You&apos;re building toward <strong>{targetRole}</strong>.</p>
+          )}
         </div>
-        <Button variant="primary" onClick={() => navigate('/skills')}>
-          Update skills
-        </Button>
+        <Button variant="primary" onClick={() => navigate('/skills')}>Update skills</Button>
       </div>
 
-      <div style={styles.grid}>
-        <div style={styles.col8}>
-          <div style={styles.hero}>
-            <h2 style={styles.heroH2}>
-              You're {activeGaps.length > 0 ? (() => {
-                const totalRequired = activeGaps.reduce((s, g) => s + g.requiredLevel, 0);
-                const totalCurrent = activeGaps.reduce((s, g) => s + g.currentLevel, 0);
-                return totalRequired > 0 ? Math.round((totalCurrent / totalRequired) * 100) : 0;
-              })() : 0}% of the way to your target role.
-            </h2>
-            <p style={styles.heroP}>
-              {recommendedAssessment
-                ? `Complete the ${recommendedAssessment.skillName} assessment next. It is the fastest route to a stronger match.`
-                : 'Take a skill assessment to see how close you are to your target role.'}
-            </p>
-            <Button variant="primary" onClick={() => navigate('/assessments')}>
-              Continue pathway <ArrowUpRight size={14} />
-            </Button>
-          </div>
-
-          <div style={{ ...styles.grid, marginTop: 16 }}>
-            <Panel style={styles.col5}>
-              <div style={styles.eyebrow}>Current match</div>
-              {skillGapsLoading ? (
-                <SkeletonStatus label="Calculating...">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 18, padding: '18px 0' }}>
-                    <Skeleton height={96} width={96} radius="50%" />
-                    <div style={{ flex: 1 }}>
-                      <Skeleton height={26} width="55%" radius={8} style={{ marginBottom: 10 }} />
-                      <Skeleton height={13} width="85%" />
-                    </div>
-                  </div>
-                </SkeletonStatus>
-              ) : activeGaps.length === 0 ? (
-                <EmptyState
-                  title="No score yet"
-                  description="Set a target role and add skills to generate your match score."
-                />
-              ) : (() => {
-                const totalRequired = activeGaps.reduce((s, g) => s + g.requiredLevel, 0);
-                const totalCurrent = activeGaps.reduce((s, g) => s + g.currentLevel, 0);
-                const score = totalRequired > 0 ? Math.round((totalCurrent / totalRequired) * 100) : 0;
-                const ringColor = score >= 80 ? 'var(--good)' : score >= 50 ? 'var(--teal)' : 'var(--coral)';
-                const status = score >= 80 ? 'Qualified' : score >= 50 ? 'Almost there' : 'Getting started';
-                const desc = score >= 80
-                  ? 'Minor skill gaps. Ready to apply with targeted prep.'
-                  : score >= 50
-                    ? 'You\'re halfway there. Focus on your remaining gaps.'
-                    : 'Build your core skills to improve your match.';
-                return (
-                  <>
-                    <div style={styles.matchBody}>
-                      <div style={{
-                        ...styles.matchRing,
-                        background: `conic-gradient(${ringColor} ${score * 3.6}deg, var(--line) ${score * 3.6}deg)`,
-                      }}>
-                        <div style={styles.matchRingInner}>
-                          <span style={{ ...styles.matchPercent, color: ringColor }}>{score}%</span>
-                        </div>
-                      </div>
-                      <div style={styles.matchText}>
-                        <div style={{ ...styles.matchStatus, color: ringColor }}>{status}</div>
-                        <p style={styles.matchDesc}>{desc}</p>
-                      </div>
-                    </div>
-                    <div style={styles.matchFooter} title={lastCalculatedAt ? lastCalculatedAt.toLocaleString() : undefined}>
-                      {formatLastCalculated(lastCalculatedAt)} ·{' '}
-                      <button style={styles.matchRefresh} onClick={() => {
-                        setSkillGapsLoading(true);
-                        api.get('/skillgaps')
-                          .then((data) => {
-                            setSkillGaps(data || []);
-                            setLastCalculatedAt(new Date());
-                          })
-                          .catch(() => setSkillGaps([]))
-                          .finally(() => setSkillGapsLoading(false));
-                      }}>Refresh</button>
-                    </div>
-                  </>
-                );
-              })()}
-            </Panel>
-
-            <Panel style={styles.col7}>
-              {(() => {
-                const step1Done = !!targetRole;
-                const step2Done = false;
-                const completedCount = [step1Done, step2Done].filter(Boolean).length;
-                const currentStep = Math.min(completedCount + 1, 5);
-                const totalSteps = 5;
-
-                const steps = [
-                  {
-                    title: 'Set your target role',
-                    desc: targetRole ? `${targetRole} · Cebu / Remote` : 'Choose a role to get started',
-                  },
-                  {
-                    title: 'Map your current skills',
-                    desc: step2Done ? '8 skills assessed, 3 verified' : 'Add your skills to your profile',
-                  },
-                  {
-                    title: 'Close the highest gaps',
-                    desc: 'JavaScript and TypeScript are next',
-                  },
-                  {
-                    title: 'Verify your progress',
-                    desc: 'Take a proctored assessment',
-                  },
-                  {
-                    title: 'Get matched',
-                    desc: 'Discover opportunities that fit you',
-                  },
-                ];
-
-                return (
-                  <>
-                    <div style={styles.pathwayHeader}>
-                      <h3 style={styles.sectionH3}>Pathway rail</h3>
-                      <span style={styles.stepsBadge}>{currentStep} of {totalSteps} steps</span>
-                    </div>
-                    <div style={styles.stepper}>
-                      {steps.map((step, i) => {
-                        const num = i + 1;
-                        const isCompleted = num < currentStep;
-                        const isCurrent = num === currentStep;
-                        const isLast = i === steps.length - 1;
-
-                        const circleBg = isCompleted
-                          ? 'var(--teal)'
-                          : isCurrent
-                            ? 'var(--coral)'
-                            : 'var(--surface2)';
-                        const circleColor = isCompleted || isCurrent ? '#fff' : 'var(--muted)';
-
-                        return (
-                          <div key={i} style={styles.step}>
-                            <div style={styles.stepIndicator}>
-                              <div style={{ ...styles.stepCircle, background: circleBg, color: circleColor }}>
-                                {isCompleted ? <Check size={16} strokeWidth={3} /> : num}
-                              </div>
-                              {!isLast && (
-                                <div style={{
-                                  ...styles.stepLine,
-                                  background: isCompleted ? 'var(--teal)' : 'var(--line)',
-                                }} />
-                              )}
-                            </div>
-                            <div style={{ ...styles.stepContent, paddingBottom: isLast ? 0 : undefined }}>
-                              <div style={{
-                                ...styles.stepTitle,
-                                color: isCompleted || isCurrent ? 'var(--ink)' : 'var(--muted)',
-                              }}>
-                                {step.title}
-                              </div>
-                              <p style={styles.stepDesc}>{step.desc}</p>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </>
-                );
-              })()}
-            </Panel>
-          </div>
-        </div>
-
-        <div style={styles.col4}>
-          <Panel>
-            <div style={{ ...styles.sectionTitle, margin: '0 0 12px' }}>
-              <h3 style={styles.sectionH3}>This week</h3>
-            </div>
-            {weeklyStatsLoading ? (
-              <SkeletonStatus label="Loading stats...">
-                {Array.from({ length: 3 }, (_, i) => (
-                  <SkeletonStat key={i} />
-                ))}
-              </SkeletonStatus>
-            ) : (
-              <>
-                <StatCard
-                  value={`${weeklyStats.learningTimeHours}h`}
-                  label="learning time"
-                  icon={Clock}
-                />
-                <StatCard
-                  value={weeklyStats.coursesActive}
-                  label="courses active"
-                  icon={BookOpen}
-                />
-                <StatCard
-                  value={weeklyStats.jobsWorthApplying}
-                  label="jobs worth applying"
-                  icon={Send}
-                />
-              </>
-            )}
-          </Panel>
-
-          <Panel style={{ marginTop: 16 }}>
-            <div style={styles.eyebrow}>Quick action</div>
-            <h3 style={{ fontSize: 18, marginBottom: 7 }}>Need a smaller first step?</h3>
-            <p style={{ color: 'var(--muted)', fontSize: 12 }}>
-              Browse short courses that target only one gap at a time.
-            </p>
-            <Button variant="secondary" style={{ width: '100%', marginTop: 8 }} onClick={() => navigate('/courses')}>
-              Browse courses
-            </Button>
-          </Panel>
-        </div>
-      </div>
-
-      <div style={styles.sectionTitle}>
-        <h3 style={styles.sectionH3}>Your skill gaps</h3>
-        <a href="#" onClick={(e) => { e.preventDefault(); navigate('/skills'); }}>View full profile →</a>
-      </div>
-      <Panel>
-        {skillGapsLoading ? (
-          <SkeletonStatus label="Loading skill gaps...">
-            {Array.from({ length: 4 }, (_, i) => (
-              <div key={i} style={{ marginBottom: 18 }}>
-                <Skeleton height={14} width="40%" style={{ marginBottom: 8 }} />
-                <Skeleton height={10} width="100%" radius={5} />
-              </div>
-            ))}
-          </SkeletonStatus>
-        ) : activeGaps.length === 0 ? (
-          <EmptyState
-            title={targetRole ? 'No skill gaps yet' : 'Set a target role to see your gaps'}
-            description={targetRole
-              ? 'Your profile is complete for this role.'
-              : 'Choose a target role to compare your skills against.'}
+      <DataBoundView
+        state={boundState}
+        skeleton={<OverviewSkeleton />}
+        loadingLabel="Loading your dashboard..."
+        isEmpty={() => false}
+      >
+        {(data) => (
+          <OverviewRegions
+            data={data}
+            targetRole={targetRole}
+            applications={applications}
+            navigate={navigate}
           />
-        ) : (
-          activeGaps.map((gap) => (
-            <SkillGapItem
-              key={gap.skillId}
-              name={gap.skillName}
-              subtitle={`Required ${gap.requiredLevel} · Current ${gap.currentLevel}`}
-              percent={gap.requiredLevel > 0 ? Math.round((gap.currentLevel / gap.requiredLevel) * 100) : 0}
-              gapLabel={gap.gap === 0 ? 'Ready' : `Gap ${gap.gap}`}
-              verified={gap.verified}
-            />
-          ))
         )}
-      </Panel>
+      </DataBoundView>
+    </div>
+  );
+}
 
-      <div style={styles.sectionTitle}>
-        <h3 style={styles.sectionH3}>Recommended for your path</h3>
-        <a href="#" onClick={(e) => { e.preventDefault(); navigate('/courses'); }}>See all courses →</a>
-      </div>
-      {loading ? (
-        <SkeletonStatus label="Loading courses...">
-          <div style={styles.courseGrid}>
-            {Array.from({ length: 3 }, (_, i) => (
-              <SkeletonCard key={i} minHeight={210} style={{ padding: 20 }} />
-            ))}
-          </div>
-        </SkeletonStatus>
-      ) : recommended.length === 0 ? (
-        <Panel>
-          <EmptyState
-            title="No courses available yet"
-            description="Recommended courses will appear here once you add your skills and target role."
-          />
-        </Panel>
-      ) : (
-        <div style={styles.courseGrid}>
-          {recommended.map((course) => (
-            <CourseCard key={course.name + '|' + course.provider} course={course} tagLabel="Skill builder" />
-          ))}
+function OverviewRegions({ data, targetRole, applications, navigate }) {
+  const { courses, skillGroups, stats, recommendedAssessment } = data;
+
+  // GET /api/skillgaps returns per-role groups; show the group for the target role, else the first.
+  const gaps = useMemo(() => {
+    if (!Array.isArray(skillGroups) || skillGroups.length === 0) return [];
+    const match = targetRole
+      ? skillGroups.find((g) => g?.role && g.role.toLowerCase() === targetRole.toLowerCase())
+      : null;
+    const group = match || skillGroups[0];
+    return Array.isArray(group?.gaps) ? group.gaps : [];
+  }, [skillGroups, targetRole]);
+
+  const openGaps = gaps.filter((g) => g.gap > 0);
+  const totalRequired = gaps.reduce((s, g) => s + g.requiredLevel, 0);
+  const totalCurrent = gaps.reduce((s, g) => s + g.currentLevel, 0);
+  const score = totalRequired > 0 ? Math.round((totalCurrent / totalRequired) * 100) : 0;
+
+  const timeline = selectOpenApplications(applications);
+  const recommended = (Array.isArray(courses) ? courses : []).slice(0, 3).map((c) => ({
+    courseId: c.courseId,
+    name: c.name,
+    provider: c.genre?.name || 'Provider',
+    mode: c.mode || 'Online',
+    duration: c.technicalLevel ? `${c.technicalLevel} hours` : undefined,
+    description: c.description,
+  }));
+
+  let nextMove;
+  if (!targetRole) nextMove = 'No target role is set yet. Choose one to see your skill gaps.';
+  else if (openGaps.length === 0) nextMove = `No skill gaps are open for ${targetRole}.`;
+  else nextMove = `${openGaps.length} ${openGaps.length === 1 ? 'gap' : 'gaps'} left for ${targetRole}`;
+
+  const assessed = gaps.filter((g) => g.currentLevel > 0).length;
+  const dones = [
+    Boolean(targetRole),
+    gaps.length > 0 && assessed > 0,
+    gaps.length > 0 && openGaps.length === 0,
+    gaps.some((g) => g.verified),
+    false,
+  ];
+  const currentStep = Math.min(dones.indexOf(false) + 1, dones.length);
+  const topGapNames = [...openGaps].sort((a, b) => b.gap - a.gap).slice(0, 2).map((g) => g.skillName);
+  const steps = [
+    { title: 'Set your target role', desc: targetRole ? `${targetRole} · Cebu / Remote` : 'Choose a role to get started' },
+    {
+      title: 'Map your current skills',
+      desc: gaps.length > 0
+        ? `${assessed} of ${gaps.length} path skills have a current level`
+        : 'Add your skills to your profile',
+    },
+    {
+      title: 'Close the highest gaps',
+      desc: topGapNames.length > 0 ? `Next: ${topGapNames.join(', ')}` : 'Your largest gaps appear here',
+    },
+    {
+      title: 'Verify your progress',
+      desc: recommendedAssessment?.skillName
+        ? `Recommended assessment: ${recommendedAssessment.skillName}`
+        : 'Take a proctored assessment',
+    },
+    { title: 'Get matched', desc: 'Discover opportunities that fit you' },
+  ];
+
+  const status = score >= 80 ? 'Qualified' : score >= 50 ? 'Almost there' : 'Getting started';
+
+  return (
+    <div className={styles.layout}>
+      {/* ---- Next move ---- */}
+      <section className={`${styles.region} ${styles.next}`} aria-labelledby="overview-next-move">
+        <div className={styles.hero}>
+          <WaterCanvas className={styles.heroWater} intensity={0.5} interactive />
+          <h2 id="overview-next-move" className={styles.heroEyebrow}>Next move</h2>
+          <p className={styles.heroHeadline}>{nextMove}</p>
+          <p className={styles.heroProgress}>{`You're ${score}% of the way to your target role.`}</p>
+          <p className={styles.heroHint}>
+            {recommendedAssessment?.skillName
+              ? `Complete the ${recommendedAssessment.skillName} assessment next. It is the fastest route to a stronger match.`
+              : 'Take a skill assessment to see how close you are to your target role.'}
+          </p>
+          <Button variant="primary" onClick={() => navigate('/assessments')}>
+            Continue pathway <ArrowUpRight size={14} aria-hidden="true" />
+          </Button>
+          <div className={styles.heroBase}><WaveDivider tone="surface" /></div>
         </div>
-      )}
+      </section>
+
+      {/* ---- This week ---- */}
+      <section className={`${styles.region} ${styles.week}`} aria-labelledby="overview-this-week">
+        <div className={styles.regionBody}>
+          <h2 id="overview-this-week" className={styles.regionTitle}>This week</h2>
+          <div className={styles.statList}>
+            <StatCard value={hours(stats?.learningTimeHours)} label="learning time" icon={Clock} />
+            <StatCard value={count(stats?.coursesActive)} label="courses active" icon={BookOpen} />
+            <StatCard value={count(stats?.jobsWorthApplying)} label="jobs worth applying" icon={Send} />
+          </div>
+          <h3 className={styles.subTitle}>Open applications</h3>
+          {timeline.length === 0 ? (
+            <p className={styles.muted}>You have no open applications.</p>
+          ) : (
+            <ol className={styles.timeline} aria-label="Open applications, newest first">
+              {timeline.map((app) => {
+                const date = formatDate(app.appliedAt);
+                return (
+                  <li key={app.id} className={styles.timelineItem}>
+                    <p className={styles.timelineTitle}>{app.title}</p>
+                    <p className={styles.timelineMeta}>
+                      {app.company ? `${app.company} · ` : ''}
+                      <span className={styles.timelineStatus}>{OPEN_STATUS_LABELS[app.status || 'applied']}</span>
+                      {date ? ` · ${date}` : ''}
+                    </p>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+        </div>
+      </section>
+
+      {/* ---- Pathway ---- */}
+      <section className={`${styles.region} ${styles.pathway}`} aria-labelledby="overview-pathway">
+        <div className={styles.regionBody}>
+          <h2 id="overview-pathway" className={styles.regionTitle}>Pathway</h2>
+
+          <div className={styles.pathwayHeader}>
+            <h3 className={styles.subTitle}>Pathway rail</h3>
+            <span className={styles.badge}>{currentStep} of {steps.length} steps</span>
+          </div>
+          <ol className={styles.steps}>
+            {steps.map((step, i) => {
+              const num = i + 1;
+              const done = num < currentStep;
+              const current = num === currentStep;
+              const stateClass = done ? styles.stepDone : current ? styles.stepCurrent : '';
+              return (
+                <li key={step.title} className={`${styles.step} ${stateClass}`} aria-current={current ? 'step' : undefined}>
+                  <span className={styles.stepMark} aria-hidden="true">
+                    {done ? <Check size={16} strokeWidth={3} /> : num}
+                  </span>
+                  <div>
+                    <h4 className={styles.stepTitle}>
+                      {step.title}
+                      <span className={styles.srOnly}>{done ? ' (completed)' : current ? ' (current)' : ' (not started)'}</span>
+                    </h4>
+                    <p className={styles.stepDesc}>{step.desc}</p>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+
+          <h3 className={styles.subTitle}>Current match</h3>
+          {gaps.length === 0 ? (
+            <EmptyState title="No score yet" description="Set a target role and add skills to generate your match score." />
+          ) : (
+            <div className={styles.matchBlock}>
+              <div className={styles.matchText}>
+                <p className={styles.matchStatus}>{status}</p>
+                <p className={styles.matchDesc}>{`${score}% of required skill levels reached.`}</p>
+              </div>
+            </div>
+          )}
+
+          <h3 className={`${styles.subTitle} ${styles.sectionGap}`}>Your skill gaps</h3>
+          {gaps.length === 0 ? (
+            <EmptyState
+              title={targetRole ? 'No skill gaps yet' : 'Set a target role to see your gaps'}
+              description={targetRole
+                ? 'Your profile is complete for this role.'
+                : 'Choose a target role to compare your skills against.'}
+            />
+          ) : (
+            <ul className={styles.skillList}>
+              {gaps.map((gap) => (
+                <li key={gap.skillId} className={styles.skillRow}>
+                  <div>
+                    <h4 className={styles.skillName}>{gap.skillName}</h4>
+                    <small className={styles.skillMeta}>{`Required ${gap.requiredLevel} · Current ${gap.currentLevel}`}</small>
+                  </div>
+                  <LiquidMeter
+                    className={styles.skillMeter}
+                    label={gap.skillName}
+                    value={percentOf(gap.currentLevel, gap.requiredLevel)}
+                    tone={gap.gap === 0 ? 'good' : 'primary'}
+                  />
+                  <span className={gap.gap === 0 ? `${styles.gapTag} ${styles.gapTagReady}` : styles.gapTag}>
+                    {gap.gap === 0 ? 'Ready' : `Gap ${gap.gap}`}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <div className={`${styles.linkRow} ${styles.sectionGap}`}>
+            <h3 className={styles.subTitle}>Recommended for your path</h3>
+            <button type="button" className={styles.linkButton} onClick={() => navigate('/courses')}>
+              See all courses →
+            </button>
+          </div>
+          {recommended.length === 0 ? (
+            <EmptyState
+              title="No courses available yet"
+              description="Recommended courses will appear here once you add your skills and target role."
+            />
+          ) : (
+            <div className={styles.courseGrid}>
+              {recommended.map((course) => (
+                <CourseCard key={`${course.name}|${course.provider}`} course={course} tagLabel="Skill builder" />
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
     </div>
   );
 }

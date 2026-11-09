@@ -8,8 +8,8 @@ import { chipCoral, chipTeal } from '../../styles/shared';
 
 const styles = {
   container: {
-    width: 280,
-    flexShrink: 0,
+    width: '100%',
+    minWidth: 0,
     display: 'flex',
     flexDirection: 'column',
     gap: 16,
@@ -119,7 +119,7 @@ const styles = {
     width: '100%',
     padding: '10px 16px',
     background: 'var(--teal)',
-    color: '#fff',
+    color: 'var(--on-accent)',
     border: 0,
     borderRadius: 8,
     fontSize: 13,
