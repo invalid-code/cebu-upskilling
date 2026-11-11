@@ -6,53 +6,124 @@ import Tag from '../components/ui/Tag';
 import EmptyState from '../components/shared/EmptyState';
 import StatCard from '../components/shared/StatCard';
 import BarList from '../components/shared/BarList';
-import { ErrorCard } from '../components/ui/ErrorState';
+import ErrorState from '../components/ui/ErrorState';
 import Skeleton, { SkeletonStat, SkeletonStatus, SkeletonText } from '../components/ui/Skeleton';
 import { api } from '../api/client';
 import { useToast } from '../context/ToastContext';
+import styles from './BusinessDashboardPage.module.css';
 
-const styles = {
-  heading: { display: 'flex', justifyContent: 'space-between', alignItems: 'end', gap: 18, marginBottom: 28 },
-  eyebrow: { fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.12em', fontWeight: 700, color: 'var(--coral)', marginBottom: 12 },
-  h1: { fontFamily: "'Space Grotesk', sans-serif", fontSize: 'clamp(2rem, 4vw, 3.3rem)' },
-  date: { fontSize: 13, color: 'var(--muted)', margin: 0 },
-  statGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 18 },
-  section: { marginTop: 28 },
-  sectionTitle: { fontFamily: "'Space Grotesk', sans-serif", fontSize: 20, margin: '0 0 16px' },
-  tableWrap: { overflowX: 'auto' },
-  table: { width: '100%', borderCollapse: 'collapse', minWidth: 650 },
-  th: { textAlign: 'left', color: 'var(--muted)', fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '0 12px 10px 0' },
-  td: { borderTop: '1px solid var(--line)', padding: '14px 12px 14px 0', fontSize: 13, verticalAlign: 'top' },
-  title: { fontWeight: 700 },
-  muted: { color: 'var(--muted)' },
-  charts: { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 18 },
-  loading: { textAlign: 'center', padding: 45, color: 'var(--muted)', fontSize: 13 },
-  error: { color: 'var(--coral)', margin: 0 },
-  quickLinks: { display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 22 },
-  quickLink: { display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, color: 'var(--teal)', textDecoration: 'none', padding: '9px 14px', border: '1px solid var(--line)', borderRadius: 10, background: 'var(--surface)' },
-  postingLink: { color: 'var(--teal)', textDecoration: 'none', fontWeight: 700, fontSize: 12, marginRight: 12 },
-};
+/** The demand request must answer within this window, otherwise the chart slot shows an error. */
+export const DEMAND_TIMEOUT_MS = 10000;
+
+/** Keeps only series entries that can actually be plotted; never invents points. */
+function toDemandPoints(series) {
+  if (!Array.isArray(series)) return [];
+  return series.filter((point) => point
+    && typeof point.skillName === 'string'
+    && typeof point.requiredForRoles === 'number'
+    && Number.isFinite(point.requiredForRoles));
+}
+
+function DemandChart({ points }) {
+  const max = Math.max(...points.map((p) => p.requiredForRoles), 1);
+  const ticks = [...new Set([0, Math.ceil(max / 2), max])];
+  return (
+    <section aria-label="Skills in demand" data-testid="demand-chart">
+      <h3 className={styles.chartTitle}>Skills in demand</h3>
+      <div className={styles.chart}>
+        {points.map((p) => (
+          <div key={p.skillName} className={styles.chartRow}>
+            <span className={styles.chartLabel} title={p.skillName}>{p.skillName}</span>
+            <div className={styles.chartTrack} role="img" aria-label={`${p.skillName}: ${p.requiredForRoles} roles`}>
+              <div className={styles.chartBar} style={{ width: `${(p.requiredForRoles / max) * 100}%` }} />
+              <span className={styles.chartValue}>{p.requiredForRoles}</span>
+            </div>
+          </div>
+        ))}
+        <div className={styles.axis} aria-hidden="true">
+          {ticks.map((t) => <span key={t}>{t}</span>)}
+        </div>
+        <p className={styles.chartNote}>Number of roles requiring each skill.</p>
+      </div>
+    </section>
+  );
+}
+
+function LoadingSkeleton() {
+  return (
+    <div className="view-enter">
+      <SkeletonStatus label="Loading business dashboard...">
+        <div className={styles.quickLinks}>
+          <Skeleton height={44} width={130} radius={10} />
+          <Skeleton height={44} width={148} radius={10} />
+        </div>
+        <Panel>
+          <div className={styles.statGrid}>
+            {Array.from({ length: 4 }, (_, i) => <SkeletonStat key={i} />)}
+          </div>
+        </Panel>
+        <section className={styles.section}>
+          <Skeleton height={22} width={190} radius={8} style={{ marginBottom: 16 }} />
+          <Panel>
+            <div className={styles.skeletonStack}>
+              {Array.from({ length: 4 }, (_, i) => <Skeleton key={i} height={44} width="100%" radius={10} />)}
+            </div>
+          </Panel>
+        </section>
+        <section className={`${styles.section} ${styles.charts}`}>
+          <Panel><SkeletonText lines={5} lineHeight={12} gap={14} /></Panel>
+          <Panel><SkeletonText lines={5} lineHeight={12} gap={14} lastWidth="45%" /></Panel>
+        </section>
+      </SkeletonStatus>
+    </div>
+  );
+}
 
 export default function BusinessDashboardPage() {
   const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState('loading'); // loading | ready | error
   const [error, setError] = useState(null);
+  const [retrying, setRetrying] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [retryKey, setRetryKey] = useState(0);
   const { showToast } = useToast();
 
-  const [retryKey, setRetryKey] = useState(0);
   useEffect(() => {
-    setLoading(true);
-    setError(null);
+    let active = true;
+    const fail = (message) => {
+      if (!active) return;
+      active = false; // ignore any late response after failure/timeout
+      setError(message || 'Unable to load business dashboard.');
+      setStatus('error');
+      setRetrying(false);
+    };
+    const timer = setTimeout(() => fail('The request timed out after 10 seconds.'), DEMAND_TIMEOUT_MS);
+
     api.get('/stats/business')
-      .then(setStats)
-      .catch((err) => {
-        const msg = err.message || 'Unable to load business dashboard.';
-        setError(msg);
-        showToast(msg, 'error');
+      .then((data) => {
+        if (!active) return;
+        active = false;
+        clearTimeout(timer);
+        setStats(data);
+        setError(null);
+        setStatus('ready');
+        setRetrying(false);
       })
-      .finally(() => setLoading(false));
-  }, [retryKey, showToast]);
+      .catch((err) => {
+        clearTimeout(timer);
+        fail(err?.message);
+      });
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [retryKey]);
+
+  const handleRetry = () => {
+    setRetrying(true);
+    setRetryKey((k) => k + 1);
+  };
 
   const handleDelete = (post) => {
     if (deletingId) return;
@@ -68,121 +139,127 @@ export default function BusinessDashboardPage() {
       .finally(() => setDeletingId(null));
   };
 
-  if (loading) {
-    return (
-      <div className="view-enter">
-        <SkeletonStatus label="Loading business dashboard...">
-          <div style={styles.quickLinks}>
-            <Skeleton height={38} width={130} radius={10} />
-            <Skeleton height={38} width={148} radius={10} />
-          </div>
-          <Panel>
-            <div style={styles.statGrid}>
-              {Array.from({ length: 4 }, (_, i) => (
-                <SkeletonStat key={i} />
-              ))}
-            </div>
-          </Panel>
-          <section style={styles.section}>
-            <Skeleton height={22} width={190} radius={8} style={{ marginBottom: 16 }} />
-            <Panel>
-              {Array.from({ length: 4 }, (_, i) => (
-                <Skeleton key={i} height={44} width="100%" radius={10} style={{ marginBottom: 12 }} />
-              ))}
-            </Panel>
-          </section>
-          <section style={{ ...styles.section, ...styles.charts }}>
-            <Panel>
-              <SkeletonText lines={5} lineHeight={12} gap={14} />
-            </Panel>
-            <Panel>
-              <SkeletonText lines={5} lineHeight={12} gap={14} lastWidth="45%" />
-            </Panel>
-          </section>
-        </SkeletonStatus>
-      </div>
-    );
-  }
-  if (error) return <div style={{ padding: 20 }}><ErrorCard title="Business dashboard unavailable" description={error} onRetry={() => setRetryKey((k) => k + 1)} /></div>;
+  if (status === 'loading') return <LoadingSkeleton />;
 
   const postings = stats?.jobPostings || [];
-  const skills = stats?.skillDemand || [];
+  const demandPoints = toDemandPoints(stats?.skillDemand);
+  const avgSkill = stats?.talentPool?.avgSkillLevel;
   const today = new Intl.DateTimeFormat(undefined, { month: 'long', day: 'numeric', year: 'numeric' }).format(new Date());
 
-  return (
-    <div className="view-enter">
-      <div style={styles.heading}>
-        <div>
-          <div style={styles.eyebrow}>Employer insights</div>
-          <h1 style={styles.h1}>Business Dashboard</h1>
-        </div>
-        <p style={styles.date}>{today}</p>
+  let chartArea;
+  if (status === 'error') {
+    chartArea = (
+      <div className={styles.chartSlot}>
+        <ErrorState title="Business dashboard unavailable" error={error} onRetry={handleRetry} pending={retrying} />
       </div>
-
-      <div style={styles.quickLinks}>
-        <Link to="/post-job" style={styles.quickLink}><PlusCircle size={15} /> Post a job</Link>
-        <Link to="/job-applications" style={styles.quickLink}><Inbox size={15} /> Applications</Link>
-      </div>
-
-      <Panel>
-        <div style={styles.statGrid}>
-          <StatCard value={stats.company.jobPostings} label="job postings" icon={BriefcaseBusiness} />
-          <StatCard value={stats.company.recruiters} label="recruiters at company" icon={Users} />
-          <StatCard value={stats.talentPool.totalLearners} label="learners in talent pool" icon={UserCheck} />
-          <StatCard value={stats.talentPool.avgSkillLevel.toFixed(1)} label="avg. skill level" icon={BarChart3} />
-        </div>
-      </Panel>
-
-      <section style={styles.section}>
-        <h2 style={styles.sectionTitle}>Your job postings</h2>
+    );
+  } else if (demandPoints.length === 0) {
+    chartArea = (
+      <div className={styles.chartSlot}>
         <Panel>
-          {postings.length === 0 ? <EmptyState title="No job postings yet" description="Post a role to start tracking your hiring demand." /> : (
-            <div style={styles.tableWrap}>
-              <table style={styles.table}>
-                <thead><tr>
-                  <th style={styles.th}>Title</th>
-                  <th style={styles.th}>Job type</th>
-                  <th style={styles.th}>Location</th>
-                  <th style={styles.th}>Salary</th>
-                  <th style={styles.th}>Experience</th>
-                  <th style={styles.th}>Status</th>
-                </tr></thead>
-                <tbody>{postings.map((post) => (
-                  <tr key={post.postId}>
-                    <td style={styles.td}>
-                      <div style={styles.title}>{post.title}</div>
-                      {post.description && <div style={{ ...styles.muted, marginTop: 4 }}>{post.description.slice(0, 80)}{post.description.length > 80 ? '...' : ''}</div>}
-                      <div style={{ marginTop: 8 }}><Link to={`/edit-job/${post.postId}`} style={styles.postingLink}>Edit posting</Link></div>
-                      <button
-                        style={{ marginLeft: 8, background: 'var(--danger)', color: 'white', border: 'none', padding: '6px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}
-                        disabled={deletingId === post.postId}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(post);
-                        }}
-                      >
-                        {deletingId === post.postId ? 'Deleting…' : 'Delete'}
-                      </button>
-                    </td>
-                    <td style={styles.td}>{post.jobType || '—'}</td>
-                    <td style={styles.td}>
-                      {post.location || '—'}
-                      {post.isRemote && <Tag>Remote</Tag>}
-                    </td>
-                    <td style={styles.td}>{post.salaryRange || '—'}</td>
-                    <td style={styles.td}>{post.experienceLevel || '—'}</td>
-                    <td style={styles.td}>{post.isActive ? <Tag>Active</Tag> : <span style={styles.muted}>Inactive</span>}</td>
-                  </tr>
-                ))}</tbody>
-              </table>
-            </div>
-          )}
+          <EmptyState title="No skill demand yet" description="Demand appears once your job postings list required skills." />
         </Panel>
-      </section>
+      </div>
+    );
+  } else {
+    chartArea = (
+      <>
+        <Panel><DemandChart points={demandPoints} /></Panel>
+        <Panel>
+          <BarList
+            title="Learner coverage per skill"
+            items={demandPoints.map((skill) => ({
+              label: skill.skillName,
+              value: skill.learnerCount ?? 0,
+              sublabel: skill.avgLearnerLevel == null ? 'No learners tracked yet' : `${skill.learnerCount} learners · Avg. level ${skill.avgLearnerLevel}`,
+            }))}
+          />
+        </Panel>
+      </>
+    );
+  }
 
-      <section style={{ ...styles.section, ...styles.charts }}>
-        <Panel><BarList title="Skills in demand" items={skills.map((skill) => ({ label: skill.skillName, value: skill.requiredForRoles, sublabel: `Demand: ${skill.requiredForRoles} roles · Avg. required level ${skill.avgRequiredLevel}`, color: 'var(--coral)' }))} /></Panel>
-        <Panel><BarList title="Learner coverage per skill" items={skills.map((skill) => ({ label: skill.skillName, value: skill.learnerCount, sublabel: skill.avgLearnerLevel == null ? 'No learners tracked yet' : `${skill.learnerCount} learners · Avg. level ${skill.avgLearnerLevel}` }))} /></Panel>
+  return (
+    <div className={`view-enter ${styles.page}`}>
+      <div className={styles.heading}>
+        <div>
+          <div className={styles.eyebrow}>Employer insights</div>
+          <h1 className={styles.title}>Business Dashboard</h1>
+        </div>
+        <p className={styles.date}>{today}</p>
+      </div>
+
+      <div className={styles.quickLinks}>
+        <Link to="/post-job" className={styles.quickLink}><PlusCircle size={15} aria-hidden="true" /> Post a job</Link>
+        <Link to="/job-applications" className={styles.quickLink}><Inbox size={15} aria-hidden="true" /> Applications</Link>
+      </div>
+
+      {stats && (
+        <>
+          <Panel>
+            <div className={styles.statGrid}>
+              <StatCard value={stats.company?.jobPostings ?? '—'} label="job postings" icon={BriefcaseBusiness} />
+              <StatCard value={stats.company?.recruiters ?? '—'} label="recruiters at company" icon={Users} />
+              <StatCard value={stats.talentPool?.totalLearners ?? '—'} label="learners in talent pool" icon={UserCheck} />
+              <StatCard value={typeof avgSkill === 'number' ? avgSkill.toFixed(1) : '—'} label="avg. skill level" icon={BarChart3} />
+            </div>
+          </Panel>
+
+          <section className={styles.section}>
+            <h2 className={styles.sectionTitle}>Your job postings</h2>
+            <Panel>
+              {postings.length === 0 ? <EmptyState title="No job postings yet" description="Post a role to start tracking your hiring demand." /> : (
+                <div className={styles.tableWrap}>
+                  <table className={styles.table}>
+                    <caption className={styles.srOnly}>Your job postings</caption>
+                    <thead><tr>
+                      <th scope="col" className={styles.th}>Title</th>
+                      <th scope="col" className={styles.th}>Job type</th>
+                      <th scope="col" className={styles.th}>Location</th>
+                      <th scope="col" className={styles.th}>Salary</th>
+                      <th scope="col" className={styles.th}>Experience</th>
+                      <th scope="col" className={styles.th}>Status</th>
+                    </tr></thead>
+                    <tbody>{postings.map((post) => (
+                      <tr key={post.postId}>
+                        <td className={styles.td}>
+                          <div className={styles.postTitle}>{post.title}</div>
+                          {post.description && <div className={styles.postDesc}>{post.description.slice(0, 80)}{post.description.length > 80 ? '...' : ''}</div>}
+                          <div className={styles.postActions}>
+                            <Link to={`/edit-job/${post.postId}`} className={styles.postingLink}>Edit posting</Link>
+                            <button
+                              type="button"
+                              className={styles.deleteButton}
+                              disabled={deletingId === post.postId}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDelete(post);
+                              }}
+                            >
+                              {deletingId === post.postId ? 'Deleting…' : 'Delete'}
+                            </button>
+                          </div>
+                        </td>
+                        <td className={styles.td}>{post.jobType || '—'}</td>
+                        <td className={styles.td}>
+                          {post.location || '—'}
+                          {post.isRemote && <Tag>Remote</Tag>}
+                        </td>
+                        <td className={styles.td}>{post.salaryRange || '—'}</td>
+                        <td className={styles.td}>{post.experienceLevel || '—'}</td>
+                        <td className={styles.td}>{post.isActive ? <Tag>Active</Tag> : <span className={styles.muted}>Inactive</span>}</td>
+                      </tr>
+                    ))}</tbody>
+                  </table>
+                </div>
+              )}
+            </Panel>
+          </section>
+        </>
+      )}
+
+      <section className={`${styles.section} ${styles.charts}`} aria-label="Skill demand">
+        {chartArea}
       </section>
     </div>
   );

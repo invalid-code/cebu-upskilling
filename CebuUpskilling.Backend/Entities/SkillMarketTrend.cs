@@ -10,7 +10,7 @@ namespace CebuUpskilling.Backend.Entities;
 public class SkillMarketTrend
 {
     [Key]
-    public int SkillId { get; set; }
+    public Guid SkillId { get; set; }
 
     /// <summary>Number of active posts requiring this skill.</summary>
     public int ActivePostings { get; set; }

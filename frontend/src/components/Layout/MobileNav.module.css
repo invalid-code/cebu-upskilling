@@ -1,0 +1,81 @@
+/* Bottom navigation, below 640px only. */
+.nav {
+  display: none;
+}
+
+@media (max-width: 639px) {
+  .nav {
+    display: flex;
+    position: fixed;
+    bottom: max(12px, env(safe-area-inset-bottom));
+    left: 12px;
+    right: 12px;
+    z-index: 5;
+    background: var(--rail-bg);
+    border: 1px solid var(--rail-line);
+    border-radius: var(--radius-lg);
+    padding: 6px;
+    justify-content: space-around;
+    gap: 2px;
+    box-shadow: var(--shadow);
+  }
+}
+
+.link {
+  flex: 1 1 0;
+  min-width: 44px;
+  min-height: 48px;
+  background: transparent;
+  color: var(--rail-text);
+  font-size: 12px;
+  font-weight: 400;
+  padding: 6px 2px;
+  display: grid;
+  gap: 2px;
+  place-items: center;
+  align-content: center;
+  text-decoration: none;
+  border: 0;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.link:hover {
+  text-decoration: none;
+}
+
+.linkActive {
+  background: var(--rail-active-bg);
+  color: var(--rail-active-text);
+}
+
+.text {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sheet {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  min-width: 200px;
+  max-width: 100%;
+  display: grid;
+  gap: 2px;
+  padding: 6px;
+  background: var(--rail-bg);
+  border: 1px solid var(--rail-line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+}
+
+.sheet .link {
+  grid-auto-flow: column;
+  justify-content: start;
+  place-items: center start;
+  gap: 10px;
+  padding: 6px 12px;
+  font-size: 13px;
+}

@@ -1,9 +1,10 @@
 using CebuUpskilling.Backend.Entities;
 using CebuUpskilling.Backend.Repositories;
+using Microsoft.EntityFrameworkCore;
 
 namespace CebuUpskilling.Backend.Services;
 
-public record EnrollmentSummary(int CourseId, string CourseName, DateTime? Started, int LastTotalProgressPercent);
+public record EnrollmentSummary(Guid CourseId, string CourseName, DateTime? Started, int LastTotalProgressPercent);
 
 public enum EnrollFailure
 {
@@ -12,12 +13,12 @@ public enum EnrollFailure
     AlreadyEnrolled,
 }
 
-public record EnrollOutcome(bool Success, EnrollFailure? Failure = null, int? CourseId = null, DateTime? Started = null);
+public record EnrollOutcome(bool Success, EnrollFailure? Failure = null, Guid? CourseId = null, DateTime? Started = null);
 
 public interface IEnrollmentsService
 {
-    Task<List<EnrollmentSummary>?> GetMyEnrollmentsAsync(int userId);
-    Task<EnrollOutcome> EnrollAsync(int userId, int courseId);
+    Task<List<EnrollmentSummary>?> GetMyEnrollmentsAsync(Guid userId);
+    Task<EnrollOutcome> EnrollAsync(Guid userId, Guid courseId);
 }
 
 public class EnrollmentsService : IEnrollmentsService
@@ -25,21 +26,24 @@ public class EnrollmentsService : IEnrollmentsService
     private readonly ILearnerRepository _learners;
     private readonly ICourseRepository _courses;
     private readonly ILearnerStudyCourseRepository _learnerStudyCourses;
+    private readonly IAnalyticsService _analytics;
     private readonly ILogger<EnrollmentsService> _logger;
 
     public EnrollmentsService(
         ILearnerRepository learners,
         ICourseRepository courses,
         ILearnerStudyCourseRepository learnerStudyCourses,
-        ILogger<EnrollmentsService> logger)
+        ILogger<EnrollmentsService> logger,
+        IAnalyticsService? analyticsService = null)
     {
         _learners = learners;
         _courses = courses;
         _learnerStudyCourses = learnerStudyCourses;
+        _analytics = analyticsService ?? new NoOpAnalyticsService();
         _logger = logger;
     }
 
-    public async Task<List<EnrollmentSummary>?> GetMyEnrollmentsAsync(int userId)
+    public async Task<List<EnrollmentSummary>?> GetMyEnrollmentsAsync(Guid userId)
     {
         var learner = await _learners.GetByUserIdAsync(userId);
         if (learner == null)
@@ -55,7 +59,7 @@ public class EnrollmentsService : IEnrollmentsService
             .ToList();
     }
 
-    public async Task<EnrollOutcome> EnrollAsync(int userId, int courseId)
+    public async Task<EnrollOutcome> EnrollAsync(Guid userId, Guid courseId)
     {
         _logger.LogInformation("User {UserId} attempting to enroll in course {CourseId}", userId, courseId);
 
@@ -89,9 +93,23 @@ public class EnrollmentsService : IEnrollmentsService
         };
 
         await _learnerStudyCourses.AddAsync(enrollment);
-        await _learnerStudyCourses.SaveChangesAsync();
+        try
+        {
+            await _learnerStudyCourses.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex)
+        {
+            // Lost a concurrent double-enroll race: the composite PK rejected
+            // the second insert. The learner is already enrolled.
+            _logger.LogInformation(ex, "User {UserId} concurrent enroll in course {CourseId}; already enrolled", userId, courseId);
+            return new EnrollOutcome(false, EnrollFailure.AlreadyEnrolled);
+        }
 
         _logger.LogInformation("User {UserId} enrolled in course {CourseId}", userId, courseId);
+        await _analytics.TrackAsync("enrollment_completed", userId, new Dictionary<string, object?>
+        {
+            ["courseId"] = courseId,
+        });
         return new EnrollOutcome(true, CourseId: courseId, Started: enrollment.Started);
     }
 }

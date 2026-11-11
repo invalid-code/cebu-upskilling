@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
@@ -149,6 +149,42 @@ describe('ProviderDashboardPage', () => {
     await user.click(screen.getByLabelText('Delete JS Basics'));
     expect(await screen.findByText('Delete failed')).toBeInTheDocument();
     expect(screen.getByText('JS Basics')).toBeInTheDocument();
+  });
+
+  it('groups courses under Draft and Published headings with counts', async () => {
+    api.get.mockResolvedValue(courses);
+    renderPage();
+    await screen.findByText('JS Basics');
+    const draft = screen.getByRole('region', { name: 'Draft courses' });
+    const published = screen.getByRole('region', { name: 'Published courses' });
+    expect(within(draft).getByLabelText('1 draft courses')).toHaveTextContent('1');
+    expect(within(published).getByLabelText('2 published courses')).toHaveTextContent('2');
+    expect(within(draft).getByText('React Advanced')).toBeInTheDocument();
+    expect(within(draft).queryByText('JS Basics')).not.toBeInTheDocument();
+    expect(within(published).getByText('JS Basics')).toBeInTheDocument();
+    expect(within(published).getByText('Node OnSite')).toBeInTheDocument();
+  });
+
+  it('shows per-group empty text and zero count when a group has no courses', async () => {
+    api.get.mockResolvedValue([courses[0]]);
+    renderPage();
+    await screen.findByText('JS Basics');
+    const draft = screen.getByRole('region', { name: 'Draft courses' });
+    expect(within(draft).getByLabelText('0 draft courses')).toBeInTheDocument();
+    expect(within(draft).getByText('No draft courses.')).toBeInTheDocument();
+  });
+
+  it('excludes courses owned by another user from groups and counts', async () => {
+    localStorage.setItem('user', JSON.stringify({ userId: 7, firstName: 'Ana', lastName: 'Santos', role: 'CourseProvider' }));
+    api.get.mockResolvedValue([
+      { ...courses[0], createdBy: 7 },
+      { ...courses[1], createdBy: 99 },
+    ]);
+    renderPage();
+    await screen.findByText('JS Basics');
+    expect(screen.queryByText('React Advanced')).not.toBeInTheDocument();
+    const draft = screen.getByRole('region', { name: 'Draft courses' });
+    expect(within(draft).getByLabelText('0 draft courses')).toBeInTheDocument();
   });
 
   it('displays published vs draft pills', async () => {

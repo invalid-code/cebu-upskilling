@@ -11,21 +11,21 @@ public class ApplyRequestValidatorTests
     [Fact]
     public void Valid_ApplyRequest_Passes()
     {
-        var result = _validator.Validate(new ApplyRequest(PostId: 1));
+        var result = _validator.Validate(new ApplyRequest(PostId: Guid.NewGuid()));
         Assert.True(result.IsValid);
     }
 
     [Fact]
     public void ZeroPostId_Fails()
     {
-        var result = _validator.Validate(new ApplyRequest(PostId: 0));
+        var result = _validator.Validate(new ApplyRequest(PostId: Guid.Empty));
         Assert.False(result.IsValid);
     }
 
     [Fact]
     public void NegativePostId_Fails()
     {
-        var result = _validator.Validate(new ApplyRequest(PostId: -5));
+        var result = _validator.Validate(new ApplyRequest(PostId: Guid.Empty));
         Assert.False(result.IsValid);
     }
 }
@@ -80,28 +80,28 @@ public class UpdateLessonProgressRequestValidatorTests
     [InlineData(100)]
     public void ValidProgress_Passes(int progress)
     {
-        var result = _validator.Validate(new UpdateLessonProgressRequest(LessonId: 1, progress));
+        var result = _validator.Validate(new UpdateLessonProgressRequest(LessonId: Guid.NewGuid(), progress));
         Assert.True(result.IsValid);
     }
 
     [Fact]
     public void NegativeProgress_Fails()
     {
-        var result = _validator.Validate(new UpdateLessonProgressRequest(LessonId: 1, -1));
+        var result = _validator.Validate(new UpdateLessonProgressRequest(LessonId: Guid.NewGuid(), -1));
         Assert.False(result.IsValid);
     }
 
     [Fact]
     public void OverHundredProgress_Fails()
     {
-        var result = _validator.Validate(new UpdateLessonProgressRequest(LessonId: 1, 101));
+        var result = _validator.Validate(new UpdateLessonProgressRequest(LessonId: Guid.NewGuid(), 101));
         Assert.False(result.IsValid);
     }
 
     [Fact]
     public void ZeroLessonId_Fails()
     {
-        var result = _validator.Validate(new UpdateLessonProgressRequest(LessonId: 0, 50));
+        var result = _validator.Validate(new UpdateLessonProgressRequest(LessonId: Guid.Empty, 50));
         Assert.False(result.IsValid);
     }
 }
@@ -142,8 +142,8 @@ public class SubmitAssessmentRequestValidatorTests
         var request = new SubmitAssessmentRequest(
             new List<SubmitAnswerRequest>
             {
-                new(QuestionId: 1, SelectedOption: 0),
-                new(QuestionId: 2, SelectedOption: 3)
+                new(QuestionId: Guid.NewGuid(), SelectedOption: 0),
+                new(QuestionId: Guid.NewGuid(), SelectedOption: 3)
             });
         var result = _validator.Validate(request);
         Assert.True(result.IsValid);
@@ -171,7 +171,7 @@ public class SubmitAssessmentRequestValidatorTests
         var request = new SubmitAssessmentRequest(
             new List<SubmitAnswerRequest>
             {
-                new(QuestionId: 1, SelectedOption: 10)
+                new(QuestionId: Guid.NewGuid(), SelectedOption: 10)
             });
         var result = _validator.Validate(request);
         Assert.False(result.IsValid);
@@ -185,14 +185,14 @@ public class StartAssessmentRequestValidatorTests
     [Fact]
     public void ValidSkillId_Passes()
     {
-        var result = _validator.Validate(new StartAssessmentRequest(SkillId: 5));
+        var result = _validator.Validate(new StartAssessmentRequest(SkillId: Guid.NewGuid()));
         Assert.True(result.IsValid);
     }
 
     [Fact]
     public void ZeroSkillId_Fails()
     {
-        var result = _validator.Validate(new StartAssessmentRequest(SkillId: 0));
+        var result = _validator.Validate(new StartAssessmentRequest(SkillId: Guid.Empty));
         Assert.False(result.IsValid);
     }
 }
@@ -205,7 +205,7 @@ public class CreateCompanyQuestionRequestValidatorTests
     public void ValidQuestion_Passes()
     {
         var request = new CreateCompanyQuestionRequest(
-            SkillId: 1,
+            SkillId: Guid.NewGuid(),
             Text: "What is C#?",
             OptionA: "Language",
             OptionB: "Framework",
@@ -220,7 +220,7 @@ public class CreateCompanyQuestionRequestValidatorTests
     public void EmptyText_Fails()
     {
         var request = new CreateCompanyQuestionRequest(
-            SkillId: 1,
+            SkillId: Guid.NewGuid(),
             Text: "",
             OptionA: "A",
             OptionB: "B",
@@ -235,7 +235,7 @@ public class CreateCompanyQuestionRequestValidatorTests
     public void InvalidCorrectOption_Fails()
     {
         var request = new CreateCompanyQuestionRequest(
-            SkillId: 1,
+            SkillId: Guid.NewGuid(),
             Text: "Question",
             OptionA: "A",
             OptionB: "B",
@@ -254,14 +254,14 @@ public class EnrollRequestValidatorTests
     [Fact]
     public void ValidCourseId_Passes()
     {
-        var result = _validator.Validate(new LearnerStudyCourse { CourseId = 1 });
+        var result = _validator.Validate(new LearnerStudyCourse { CourseId = Guid.NewGuid() });
         Assert.True(result.IsValid);
     }
 
     [Fact]
     public void ZeroCourseId_Fails()
     {
-        var result = _validator.Validate(new LearnerStudyCourse { CourseId = 0 });
+        var result = _validator.Validate(new LearnerStudyCourse { CourseId = Guid.Empty });
         Assert.False(result.IsValid);
     }
 }

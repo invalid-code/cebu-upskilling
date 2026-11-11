@@ -68,7 +68,7 @@ public class GoogleAuthTests
 
         var result = await service.GoogleAuthAsync(new GoogleAuthRequest("valid-id-token"));
 
-        Assert.True(result.UserId > 0);
+        Assert.NotEqual(Guid.Empty, result.UserId);
         Assert.Equal("ana.google@example.com", result.EmailAddress);
         Assert.Equal("Ana", result.FirstName);
         Assert.Equal("Santos", result.LastName);

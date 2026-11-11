@@ -1,0 +1,122 @@
+.page {
+  display: block;
+}
+
+.heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: var(--space-5);
+  margin-bottom: var(--space-5);
+  flex-wrap: wrap;
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--text-12);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  color: var(--coral-ink);
+  margin: 0 0 var(--space-2);
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 3.5vw, 2.75rem);
+  margin: 0;
+}
+
+.subtitle {
+  color: var(--muted);
+  margin: var(--space-2) 0 0;
+  max-width: 560px;
+}
+
+/* Stays fixed below the 70px topbar while the job list scrolls. */
+.filterBar {
+  position: sticky;
+  top: 70px;
+  z-index: 3;
+  background: var(--bg);
+  padding: var(--space-3) 0 var(--space-2);
+  margin-bottom: var(--space-4);
+  border-bottom: 1px solid var(--line);
+}
+
+.toolbar {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.field {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm, 8px);
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  color: var(--ink);
+  font-size: var(--text-15);
+}
+
+.search {
+  min-width: 230px;
+  flex: 1 1 230px;
+}
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+}
+
+.clear {
+  background: transparent;
+  border: 0;
+  color: var(--teal);
+  font-weight: 700;
+  font-size: var(--text-13);
+  min-height: 44px;
+  padding: 0 var(--space-2);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+@media (max-width: 1023px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 639px) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .filterBar {
+    top: 0;
+  }
+}
+
+.pager {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--space-4);
+  margin-top: var(--space-6);
+}
+
+.pagerInfo {
+  color: var(--muted);
+  font-size: var(--text-13);
+  font-variant-numeric: tabular-nums;
+}

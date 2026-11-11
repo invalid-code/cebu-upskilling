@@ -33,15 +33,15 @@ function seedRecruiter() {
 }
 
 describe('App routing', () => {
-  it('renders the public landing page at the root path', () => {
+  it('renders the public landing page at the root path', async () => {
     render(<App />);
-    expect(screen.getByRole('heading', { name: /your next opportunity starts with knowing/i })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /know which skills stand between you and the job you want/i }, { timeout: 8000 })).toBeInTheDocument();
   });
 
-  it('redirects unauthenticated users to the login page from protected routes', () => {
+  it('redirects unauthenticated users to the login page from protected routes', async () => {
     window.history.pushState({}, '', '/dashboard');
     render(<App />);
-    expect(screen.getByRole('heading', { name: 'Welcome back' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Welcome back' })).toBeInTheDocument();
   });
 
   it('renders the protected dashboard for authenticated users', async () => {
@@ -52,7 +52,7 @@ describe('App routing', () => {
     localStorage.setItem('token', 'abc');
     window.history.pushState({}, '', '/dashboard');
     render(<App />);
-    expect(await screen.findByText('Your next move is clear.')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Next move' }, { timeout: 8000 })).toBeInTheDocument();
   });
 
   it('renders the employer overview for recruiter users', async () => {
@@ -60,7 +60,7 @@ describe('App routing', () => {
     window.history.pushState({}, '', '/business-dashboard');
     render(<App />);
     expect(await screen.findByRole('heading', { name: 'Business Dashboard' })).toBeInTheDocument();
-    expect(screen.queryByText('Your next move is clear.')).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Next move' })).not.toBeInTheDocument();
   });
 
   it('redirects recruiter away from direct learner route access', async () => {
@@ -84,7 +84,7 @@ describe('App routing', () => {
     localStorage.setItem('token', 'abc');
     window.history.pushState({}, '', '/provider-dashboard');
     render(<App />);
-    expect(await screen.findByText('Your next move is clear.')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Next move' })).toBeInTheDocument();
   });
 
   it('allows CourseProvider to access course studio', async () => {
@@ -102,6 +102,30 @@ describe('App routing', () => {
     window.history.pushState({}, '', '/login');
     render(<App />);
     expect(await screen.findByText('Course provider')).toBeInTheDocument();
+  });
+
+  it.each(['/profile', '/help'])('redirects a visitor from %s to login preserving the path', async (path) => {
+    window.history.pushState({}, '', `${path}?x=1`);
+    render(<App />);
+    expect(await screen.findByRole('heading', { name: 'Welcome back' })).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/login');
+    expect(new URLSearchParams(window.location.search).get('returnTo')).toBe(`${path}?x=1`);
+  });
+
+  it('renders /profile and /help for a signed-in recruiter instead of redirecting', async () => {
+    seedRecruiter();
+    window.history.pushState({}, '', '/help');
+    render(<App />);
+    expect(await screen.findByRole('heading', { level: 1, name: 'Help center' })).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/help');
+  });
+
+  it('ignores a returnTo the signed-in role may not open', async () => {
+    seedRecruiter();
+    window.history.pushState({}, '', `/login?returnTo=${encodeURIComponent('/skills')}`);
+    render(<App />);
+    expect(await screen.findByRole('heading', { name: 'Business Dashboard' })).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/business-dashboard');
   });
 
   it('does not expose AI course builder route and shows 404', async () => {

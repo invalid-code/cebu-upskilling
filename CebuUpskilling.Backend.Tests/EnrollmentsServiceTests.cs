@@ -59,7 +59,7 @@ public class EnrollmentsServiceTests
     {
         var context = TestDbContextFactory.Create();
 
-        var result = await CreateService(context).GetMyEnrollmentsAsync(999);
+        var result = await CreateService(context).GetMyEnrollmentsAsync(Guid.NewGuid());
 
         Assert.Null(result);
     }
@@ -97,7 +97,7 @@ public class EnrollmentsServiceTests
         var context = TestDbContextFactory.Create();
         var course = await CreateCourseAsync(context);
 
-        var outcome = await CreateService(context).EnrollAsync(999, course.CourseId);
+        var outcome = await CreateService(context).EnrollAsync(Guid.NewGuid(), course.CourseId);
 
         Assert.False(outcome.Success);
         Assert.Equal(EnrollFailure.NoLearnerProfile, outcome.Failure);
@@ -110,7 +110,7 @@ public class EnrollmentsServiceTests
         var context = TestDbContextFactory.Create();
         var (user, _) = await CreateLearnerAsync(context);
 
-        var outcome = await CreateService(context).EnrollAsync(user.UserId, 999);
+        var outcome = await CreateService(context).EnrollAsync(user.UserId, Guid.NewGuid());
 
         Assert.False(outcome.Success);
         Assert.Equal(EnrollFailure.CourseNotFound, outcome.Failure);

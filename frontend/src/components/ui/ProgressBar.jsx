@@ -1,27 +1,9 @@
-const styles = {
-  bar: {
-    height: 7,
-    background: 'var(--teal-soft)',
-    borderRadius: 99,
-    overflow: 'hidden',
-  },
-  fill: {
-    height: '100%',
-    display: 'block',
-    borderRadius: 99,
-  },
-};
+import LiquidMeter from '../water/LiquidMeter';
 
-export default function ProgressBar({ percent = 0, color = 'var(--coral)', style }) {
-  return (
-    <div className="bar" style={{ ...styles.bar, ...style }}>
-      <i
-        style={{
-          ...styles.fill,
-          width: `${Math.min(100, Math.max(0, percent))}%`,
-          background: color,
-        }}
-      />
-    </div>
-  );
+/**
+ * Thin wrapper over LiquidMeter variant="bar".
+ * undefined/null/NaN `percent` displays "—", never "0%".
+ */
+export default function ProgressBar({ percent, color, style, label = 'Progress', tone }) {
+  return <LiquidMeter variant="bar" value={percent} label={label} color={color} tone={tone} style={style} />;
 }

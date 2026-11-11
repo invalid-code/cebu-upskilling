@@ -2,6 +2,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import Tag from '../ui/Tag';
 import Button from '../ui/Button';
 import CompanyAvatar from './CompanyAvatar';
+import LiquidMeter from '../water/LiquidMeter';
 
 const styles = {
   card: {
@@ -50,7 +51,7 @@ const styles = {
     fontSize: 12,
   },
   salary: {
-    fontFamily: "'Space Grotesk', sans-serif",
+    fontFamily: 'var(--font-display)',
     fontWeight: 700,
   },
   meta: {
@@ -72,7 +73,7 @@ function formatSalary(salaryRange) {
   return salaryRange || 'Salary on application';
 }
 
-export default function JobCard({ job }) {
+export default function JobCard({ job, showMatch = false }) {
   const navigate = useNavigate();
   const remoteTag = job.isRemote ? (
     <Tag variant="good">Remote</Tag>
@@ -113,6 +114,9 @@ export default function JobCard({ job }) {
         )}
         {job.location ? ` · ${job.location}` : ''}
       </p>
+      {showMatch && (
+        <LiquidMeter value={job.matchPercent} label={`Match for ${job.title}`} tone="good" />
+      )}
       <div>
         <strong style={styles.salary}>{formatSalary(job.salaryRange)}</strong>
         {job.experienceLevel && (

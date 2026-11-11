@@ -31,15 +31,17 @@ Career pathway platform connecting learners and employers in Cebu — skill-gap 
 - Register with resume upload — `JobseekerSkillParserAgent` calls Gemini to extract skills, creates unverified `LearnerSkill` + `LearnerAssessment` stubs automatically.
 - Set `TargetRole` → `SkillGapService` computes gap groups per applied role (or fallback `TargetRole`), with match % and gap-sorted `RoleSkill` vs `LearnerSkill`.
 - Enroll in courses (`LearnerStudyCourse`), track lesson progress, take notes (`LearnerNote`) and participate in lesson discussions (`DiscussionPost`).
+- Earn provider-issued course certificates at 100% completion and view, print, or save them from the Credentials page.
 - Take AI-generated or company-sourced assessments (5 random questions, 45-min window, level 1–5 scoring at 30/50/70/90% thresholds).
 
 **Recruiter / Company**
 - Register a company and recruiter account transactionally.
 - Post jobs (`Post`) with required courses, manage applications, create company assessment questions per skill.
+- Opt each course in to certificates in Course Studio; completed learners are issued automatically and already-completed learners are backfilled when the setting is enabled.
 - View business stats: company summary, talent pool, skill demand/supply, job posting counts.
 
 **Platform**
-- JWT auth (HMAC-SHA256, 7-day expiry, JTI revocation), role-based authorization (`Learner` / `Recruiter`), rate-limiting (global 120/60s, auth 10/60s), health check, Serilog logging.
+- JWT auth (HMAC-SHA256, 15-min access + 30-day rotating refresh tokens, JTI revocation), role-based authorization (`Learner` / `Recruiter`), rate-limiting (global 120/60s, auth 10/60s), health check, Serilog logging.
 
 ---
 
@@ -50,7 +52,7 @@ Career pathway platform connecting learners and employers in Cebu — skill-gap 
 │  React SPA :5173   │──XHR──▶│  ASP.NET Core API        │
 │  Vite + React Router 7     │  :5000 / :5179 (dev)     │
 │  contexts, lucide  │◀──────│  :8080 (docker/prod)     │
-└─────────┬──────────┘   JWT  │  Controllers (17)        │
+└─────────┬──────────┘   JWT  │  Controllers (22)        │
           │                   │  Services (Agent, Gap,   │
           │                   │   Auth, Enroll, Stats…)  │
           │                   │  EF Core → PostgreSQL    │
@@ -64,7 +66,7 @@ Career pathway platform connecting learners and employers in Cebu — skill-gap 
                                 5432 pgdata Bucket generative-language
 ```
 
-**Request flow:** `Browser/Mobile → CORS → SecurityHeaders → ExceptionHandler → RateLimiter (IP via X-Forwarded-For) → Authentication (JWT) → RevokedTokenMiddleware → Authorization (role) → Controller → Service → Repository → ApplicationDbContext → PostgreSQL`. File uploads go through `MediaController → R2StorageService → Media` record (+ `wwwroot/uploads/documents` for documents).
+**Request flow:** `Browser/Mobile → CORS → SecurityHeaders → ExceptionHandler → RateLimiter (client IP via ForwardedHeaders) → Authentication (JWT) → RevokedTokenMiddleware → Authorization (role) → DuplicateRequestCache (identical GET, per-user, 15s, X-Cache HIT/MISS) → Controller → Service → Repository → ApplicationDbContext → PostgreSQL`. File uploads go through `MediaController → R2StorageService → Media` record (+ `wwwroot/uploads/documents` for documents).
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for entity-relationship details, middleware pipeline, and service responsibilities.
 
@@ -75,7 +77,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for entity-relationship details
 ```
 .
 ├── CebuUpskilling.Backend/       # ASP.NET Core 10 Web API
-│   ├── Controllers/              # 17 controllers (Auth, Posts, Assessments, …)
+│   ├── Controllers/              # 22 controllers (Auth, Posts, Assessments, …)
 │   ├── Services/                 # Business logic (AuthService, JobseekerSkillParserAgent, …)
 │   ├── Repositories/             # Generic + specialized repositories
 │   ├── Entities/                 # 26 entities (AppUser, Learner, Course, Skill, …)
@@ -85,7 +87,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for entity-relationship details
 │   ├── Middleware/               # SecurityHeaders, RevokedToken
 │   ├── Handlers/GlobalExceptionHandler.cs
 │   ├── Options/                  # R2, GoogleAi, Email, RateLimiting
-│   ├── Migrations/               # 28 EF Core migrations
+│   ├── Migrations/               # 36 EF Core migrations
 │   ├── Properties/launchSettings.json
 │   ├── appsettings.json / appsettings.Development.json
 │   ├── Dockerfile
@@ -106,12 +108,12 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for entity-relationship details
 │   ├── .env.example / .env.development
 │   └── README.md
 ├── mobile/                       # Expo 54 / React Native 0.81
-│   ├── App.js                    # Single-file app: AuthContext + 5 tabs
+│   ├── App.js                    # AuthContext + tab navigation (Home/Skills/Jobs/Learn/Applications/Account)
 │   ├── app.json
 │   ├── logger.js
 │   └── README.md
-├── scripts/                      # Reserved for automation (currently empty)
 ├── docker-compose.yml            # db (postgres:16) + api
+├── docs/                         # API.md + ARCHITECTURE.md
 ├── CebuUpskilling.sln
 ├── CebuUpskillingDocumentation.pdf # 13-page product spec (PDF 1.7)
 ├── global.json                   # .NET SDK 10.0.302
@@ -229,7 +231,9 @@ All backend options bind from `appsettings.json` → `appsettings.Development.js
 | **Connection string** | `ConnectionStrings__DefaultConnection` | `""` (set via secrets) | yes for DB |
 | **JWT key** | `Jwt__Key` | `""` | **yes** (≥32 chars) |
 | **JWT issuer/audience** | `Jwt__Issuer` / `Jwt__Audience` | `cebu-upskilling` / `cebu-upskilling-frontend` | — |
+| **JWT lifetimes** | `Jwt__AccessMinutes` / `Jwt__RefreshDays` | `15` / `30` | — |
 | **CORS origins** | `Cors__AllowedOrigins` / `CORS_ALLOWED_ORIGINS` | `http://localhost:5173` | — |
+| **Frontend base URL** | `Frontend__BaseUrl` | `http://localhost:5173` (compose: `FRONTEND_BASE_URL`) | for email links |
 | **R2 Account** | `R2__AccountId` | `""` | for media upload |
 | **R2 Access key** | `R2__AccessKeyId` | `""` | — |
 | **R2 Secret** | `R2__SecretAccessKey` | `""` | — |
@@ -244,6 +248,9 @@ All backend options bind from `appsettings.json` → `appsettings.Development.js
 | **Rate limiting** | `RateLimiting__Enabled` | `true` | — |
 | **Global limit** | `RateLimiting__Global__PermitLimit` / `WindowSeconds` | `120` / `60` | — |
 | **Auth limit** | `RateLimiting__Auth__PermitLimit` / `WindowSeconds` | `10` / `60` | — |
+| **Duplicate cache** | `DuplicateRequestCache__Enabled` / `TtlSeconds` / `MaxCachedBodyBytes` | `true` / `15` / `262144` | identical GET only |
+| **Service cache** | `ServiceCache__Enabled` / `ReferenceDataMinutes` / `UserComputedMinutes` / `StatsMinutes` / `GeminiHours` | `true` / `240` / `2` / `5` / `24` | nulls/failures never cached |
+| **Trusted proxies** | `ForwardedHeaders__KnownProxies` / `ForwardedHeaders__KnownNetworks` | `127.0.0.1`, `::1` (comma/CIDR lists) | behind LB set these |
 | **Postgres (compose)** | `POSTGRES_USER/PASSWORD/DB` | `postgres/postgres/cebuupskilling` | compose only |
 | **Frontend API** | `VITE_API_URL` | `/api` (proxy) / `http://localhost:5179/api` (dev) | — |
 | **Mobile API** | `EXPO_PUBLIC_API_URL` | `http://localhost:5000/api` | — |
@@ -263,11 +270,12 @@ Detailed table with auth requirements, DTOs, and status codes: **[docs/API.md](d
 | **Auth** | `/api/auth` | `POST register`, `POST register-company`, `POST login`, `PATCH profile`, `POST logout`, `POST confirm-email`, `POST forgot-password`, `POST reset-password` |
 | **Posts (Jobs)** | `/api/posts` | `GET ?search&targetRole&jobType&…`, `GET {id}`, `POST` (Recruiter), `PUT {id}`, `DELETE {id}` |
 | **SkillGaps** | `/api/skillgaps` | `GET /` + `GET /groups` (Learner) — computed by `SkillGapService` |
-| **Assessments** | `/api/assessments` | `GET results/available/recommended`, `POST start`, `GET {id}/questions`, `POST {id}/submit`, `POST company/questions` (Recruiter) |
+| **Assessments** | `/api/assessments` | `GET results/available/recommended`, `POST start`, `GET {id}/questions`, `POST {id}/submit`, `POST company/questions` (Recruiter) — inherited CRUD returns `404` |
 | **Applications** | `/api/applications` | `GET /`, `POST /`, `PATCH {postId}`, `GET/ PATCH employer/{…}` (Recruiter) |
-| **Courses** | `/api/courses` | Generic `BaseEntityController<Course>` + `GET {id}/detail` |
-| **Enrollments** | `/api/enrollments` | `GET /`, `POST /` (Learner) |
-| **CourseContent** | `/api/coursecontent` | `GET courses/{id}/content`, `GET lessons/{id}`, `PUT lessons/{id}/progress` |
+| **Courses** | `/api/courses` | `GET /`, `GET {id}`, `GET {id}/detail` — writes go through `/api/company/courses`; generic `Create`/`Update`/`Delete` return `404` |
+| **Enrollments** | `/api/enrollments` | `GET /`, `POST /` (Learner) — `GET {id}`/`PUT`/`DELETE` return `404` |
+| **CourseContent** | `/api/coursecontent` | `GET courses/{id}/content`, `GET lessons/{id}`, `PUT lessons/{id}/progress` (issuing a course certificate at 100% when the provider opted in) |
+| **Certificates** | `/api/certificates` | `GET /` (my credentials), `GET {id}`, public `GET verify/{serialNumber}` |
 | **Notes** | `/api/notes` | `GET courses/{id}`, `GET/PUT/DELETE lessons/{id}` |
 | **Discussions** | `/api/discussions` | `GET lessons/{id}`, `POST lessons/{id}/posts` |
 | **Media** | `/api/media` | `POST lessons/{id}/video` (R2), `POST documents` |
@@ -281,7 +289,7 @@ Auth: `Authorization: Bearer <JWT>` except `AllowAnonymous` endpoints (login/reg
 ## Database & Migrations
 
 - Provider: **PostgreSQL 16** (`Npgsql.EntityFrameworkCore.PostgreSQL`).
-- 28 migrations from `20260804104054_InitialCreate` through `20260820170749_AddDiscussionPosts` — see `CebuUpskilling.Backend/Migrations/` and `ApplicationDbContextModelSnapshot.cs`.
+- 36 migrations from `20260804104054_InitialCreate` through `20260926130924_AddLearnerAssessmentQuestionSnapshot` — see `CebuUpskilling.Backend/Migrations/` and `ApplicationDbContextModelSnapshot.cs`.
 - Key constraints: `AppUser.EmailAddress` unique, `LearnerSkill (LearnerId, SkillId)` unique, `LearnerStudyCourse (LearnerId, CourseId)` composite PK, `PostCourseRequired (PostId, CourseId)` composite PK, timestamps `timestamp with time zone`.
 
 ```bash
@@ -361,7 +369,7 @@ Logs: backend writes `logs/app-*.log` (rolling daily, 30-day retention) plus con
 |---------|-------------|
 | `Jwt:Key is not configured` / `must be at least 32 characters` on startup | Set `Jwt:Key` via `dotnet user-secrets` or `Jwt__Key` env. Check `Program.cs:129-134`. |
 | `401 {error: Token has been revoked}` | `RevokedTokenMiddleware` rejected a logged-out JTI (8-day TTL in `InMemoryTokenRevocationStore`). Sign in again. |
-| `429 Too Many Requests` | Rate limiter — global 120/60s or auth 10/60s per IP (`X-Forwarded-For` → `RemoteIpAddress`). See `Program.cs:170-217` and `Options/RateLimitingOptions.cs`. |
+| `429 Too Many Requests` | Rate limiter — global 120/60s or auth 10/60s per IP (`RemoteIpAddress`, set by `ForwardedHeaders` from a trusted proxy only). See `Program.cs:239-319` and `Options/RateLimitingOptions.cs`. |
 | Frontend 401 redirects to `/login` immediately | `api/client.js:48-58` clears session on 401 if a token existed; `lib/jwt.js` pre-checks expiry. Re-authenticate. |
 | `/api` requests hitting `localhost:5179` unexpectedly | Browser extension `injectScriptAdjust.js` patches `fetch`; the SPA uses `XMLHttpRequest` deliberately (`api/client.js:1-4`). Do not switch to `fetch`. |
 | DB connection errors | Check `ConnectionStrings__DefaultConnection`, `docker compose ps`, `pg_isready`, then `dotnet ef database update`. |

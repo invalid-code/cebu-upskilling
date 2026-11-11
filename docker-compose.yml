@@ -29,6 +29,8 @@ services:
       Jwt__Key: ${JWT_KEY:-}
       Jwt__Issuer: ${JWT_ISSUER:-cebu-upskilling}
       Jwt__Audience: ${JWT_AUDIENCE:-cebu-upskilling-frontend}
+      Jwt__AccessMinutes: ${JWT_ACCESS_MINUTES:-15}
+      Jwt__RefreshDays: ${JWT_REFRESH_DAYS:-30}
       R2__AccountId: ${R2_ACCOUNT_ID:-}
       R2__AccessKeyId: ${R2_ACCESS_KEY_ID:-}
       R2__SecretAccessKey: ${R2_SECRET_ACCESS_KEY:-}
@@ -38,7 +40,11 @@ services:
       GoogleAi__Model: ${GOOGLE_AI_MODEL:-gemini-2.5-flash}
       GoogleAi__BaseUrl: ${GOOGLE_AI_BASE_URL:-https://generativelanguage.googleapis.com/v1beta}
       GoogleOAuth__ClientId: ${GOOGLE_OAUTH_CLIENT_ID:-}
+      Sentry__Dsn: ${SENTRY_DSN:-}
+      PostHog__ApiKey: ${POSTHOG_API_KEY:-}
+      PostHog__Host: ${POSTHOG_HOST:-https://us.i.posthog.com}
       Cors__AllowedOrigins: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173,https://cebu-upskilling.vercel.app}
+      Frontend__BaseUrl: ${FRONTEND_BASE_URL:-https://cebu-upskilling.vercel.app}
     ports:
       - "8080:8080"
     volumes:

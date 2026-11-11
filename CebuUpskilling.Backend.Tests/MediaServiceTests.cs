@@ -86,7 +86,7 @@ public class MediaServiceTests
         return bytes;
     }
 
-    private static async Task<int> SeedLessonAsync(ApplicationDbContext context)
+    private static async Task<Guid> SeedLessonAsync(ApplicationDbContext context)
     {
         var course = new Course { Name = "Web Development" };
         context.Courses.Add(course);
@@ -158,9 +158,10 @@ public class MediaServiceTests
         var service = CreateService(context, storage);
 
         var ex = await Assert.ThrowsAsync<KeyNotFoundException>(
-            () => service.UploadLessonVideoAsync(999, new FakeFormFile("lesson.mp4", "video/mp4", new byte[10])));
+            () => service.UploadLessonVideoAsync(Guid.NewGuid(), new FakeFormFile("lesson.mp4", "video/mp4", new byte[10])));
 
-        Assert.Contains("Lesson 999 not found", ex.Message);
+        Assert.Contains("Lesson", ex.Message);
+        Assert.Contains("not found", ex.Message);
         Assert.Equal(0, storage.UploadCount);
         Assert.Empty(context.Media);
     }
@@ -208,7 +209,7 @@ public class MediaServiceTests
         var service = CreateService(context, storage);
 
         await Assert.ThrowsAsync<KeyNotFoundException>(
-            () => service.UploadLessonDocumentAsync(999, new FakeFormFile("handout.pdf", "application/pdf", new byte[10])));
+            () => service.UploadLessonDocumentAsync(Guid.NewGuid(), new FakeFormFile("handout.pdf", "application/pdf", new byte[10])));
     }
 
     [Fact]

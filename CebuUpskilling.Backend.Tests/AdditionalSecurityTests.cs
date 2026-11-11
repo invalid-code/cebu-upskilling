@@ -257,7 +257,7 @@ public class MassAssignmentRegressionTests
 // ------------------------------------------------------------------
 public class CourseContentIdorTests
 {
-    private static async Task<(ApplicationDbContext ctx, int learnerUserId, int courseId, int lessonId)> SeedAsync()
+    private static async Task<(ApplicationDbContext ctx, Guid learnerUserId, Guid courseId, Guid lessonId)> SeedAsync()
     {
         var ctx = TestDbContextFactory.Create();
         var user = new AppUser { FirstName = "Learner", LastName = "One", EmailAddress = $"idor.lesson.{Guid.NewGuid():N}@example.com", PasswordHash = "hash", Role = "Learner" };
@@ -290,7 +290,7 @@ public class CourseContentIdorTests
     public async Task GetLessonDetail_WithoutEnrollment_ReturnsNull()
     {
         var (ctx, userId, _, lessonId) = await SeedAsync();
-        var svc = new CourseContentService(new LearnerRepository(ctx), new CourseRepository(ctx), new LessonRepository(ctx), new LearnerStudyCourseRepository(ctx), NullLogger<CourseContentService>.Instance);
+        var svc = new CourseContentService(new LearnerRepository(ctx), new CourseRepository(ctx), new LessonRepository(ctx), new LearnerStudyCourseRepository(ctx), new CertificateService(ctx, NullLogger<CertificateService>.Instance), NullLogger<CourseContentService>.Instance);
         var result = await svc.GetLessonDetailAsync(userId, lessonId);
         Assert.Null(result);
     }
@@ -302,7 +302,7 @@ public class CourseContentIdorTests
         var learner = await ctx.Learners.SingleAsync(l => l.UserId == userId);
         ctx.LearnerStudyCourses.Add(new LearnerStudyCourse { LearnerId = learner.LearnerId, CourseId = courseId, Started = DateTime.UtcNow, LastTotalProgressPercent = 0 });
         await ctx.SaveChangesAsync();
-        var svc = new CourseContentService(new LearnerRepository(ctx), new CourseRepository(ctx), new LessonRepository(ctx), new LearnerStudyCourseRepository(ctx), NullLogger<CourseContentService>.Instance);
+        var svc = new CourseContentService(new LearnerRepository(ctx), new CourseRepository(ctx), new LessonRepository(ctx), new LearnerStudyCourseRepository(ctx), new CertificateService(ctx, NullLogger<CertificateService>.Instance), NullLogger<CourseContentService>.Instance);
         var result = await svc.GetLessonDetailAsync(userId, lessonId);
         Assert.NotNull(result);
         Assert.Equal(lessonId, result!.LessonId);

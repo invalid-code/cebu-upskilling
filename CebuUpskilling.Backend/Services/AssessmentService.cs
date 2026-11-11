@@ -4,13 +4,13 @@ namespace CebuUpskilling.Backend.Services;
 
 public interface IAssessmentService
 {
-    Task<List<AssessmentResultResponse>> GetRecentResultsAsync(int userId);
-    Task<RecommendedAssessmentResponse?> GetRecommendedAsync(int userId);
-    Task<AvailableAssessmentsResponse?> GetAvailableAssessmentsAsync(int userId);
-    Task<StartAssessmentResponse?> StartAssessmentAsync(int userId, StartAssessmentRequest request);
-    Task<AssessmentQuestionsResponse?> GetQuestionsAsync(int userId, int assessmentId);
-    Task<SubmitAssessmentResponse?> SubmitAssessmentAsync(int userId, int assessmentId, SubmitAssessmentRequest request);
-    Task<CreatedCompanyQuestionResponse?> CreateCompanyQuestionAsync(int userId, CreateCompanyQuestionRequest request);
-    Task<CreatedProviderQuestionResponse?> CreateProviderQuestionAsync(int userId, CreateProviderQuestionRequest request);
-    Task<int> EnsureQuestionsForSkillAsync(int skillId, CancellationToken ct = default);
+    Task<List<AssessmentResultResponse>> GetRecentResultsAsync(Guid userId);
+    Task<RecommendedAssessmentResponse?> GetRecommendedAsync(Guid userId);
+    Task<AvailableAssessmentsResponse?> GetAvailableAssessmentsAsync(Guid userId);
+    Task<StartAssessmentResponse?> StartAssessmentAsync(Guid userId, StartAssessmentRequest request);
+    Task<AssessmentQuestionsResponse?> GetQuestionsAsync(Guid userId, Guid assessmentId);
+    Task<SubmitAssessmentResponse?> SubmitAssessmentAsync(Guid userId, Guid assessmentId, SubmitAssessmentRequest request);
+    Task<CreatedCompanyQuestionResponse?> CreateCompanyQuestionAsync(Guid userId, CreateCompanyQuestionRequest request);
+    Task<CreatedProviderQuestionResponse?> CreateProviderQuestionAsync(Guid userId, CreateProviderQuestionRequest request);
+    Task<int> EnsureQuestionsForSkillAsync(Guid skillId, CancellationToken ct = default);
 }

@@ -21,13 +21,21 @@ public class LearnersController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll()
+    public async Task<IActionResult> GetAll([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
-        _logger.LogInformation("HTTP GET /api/learners requested");
+        // Bounded pages: the table is user-enumerable by design (peer
+        // discovery), but an unbounded Include(User) + ToListAsync dump is a
+        // DoS vector. Projection already excludes emails, birthdays, addresses
+        // and token hashes.
+        page = Math.Max(1, page);
+        pageSize = Math.Clamp(pageSize, 1, 100);
+        _logger.LogInformation("HTTP GET /api/learners requested (page {Page}, size {PageSize})", page, pageSize);
         var learners = await _context.Learners
             .Include(l => l.User)
             .OrderBy(l => l.User.LastName)
             .ThenBy(l => l.User.FirstName)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync();
 
         // Only expose a non-sensitive projection: emails, birthdays, addresses and

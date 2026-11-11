@@ -34,7 +34,7 @@ describe('NotFoundPage', () => {
   it('links learners to their dashboard', () => {
     renderPage('Learner');
 
-    expect(screen.getByRole('link', { name: 'dashboard' })).toHaveAttribute('href', '/');
+    expect(screen.getByRole('link', { name: 'dashboard' })).toHaveAttribute('href', '/dashboard');
   });
 
   it('links recruiters to the business dashboard', () => {
@@ -43,9 +43,9 @@ describe('NotFoundPage', () => {
     expect(screen.getByRole('link', { name: 'dashboard' })).toHaveAttribute('href', '/business-dashboard');
   });
 
-  it('links guests to the login page', () => {
+  it('links visitors to the landing page', () => {
     renderPage();
 
-    expect(screen.getByRole('link', { name: 'dashboard' })).toHaveAttribute('href', '/login');
+    expect(screen.getByRole('link', { name: 'home page' })).toHaveAttribute('href', '/');
   });
 });

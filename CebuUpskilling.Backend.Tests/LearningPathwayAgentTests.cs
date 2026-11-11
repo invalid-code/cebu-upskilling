@@ -1,8 +1,11 @@
 using CebuUpskilling.Backend.Data;
 using CebuUpskilling.Backend.Entities;
+using CebuUpskilling.Backend.Options;
 using CebuUpskilling.Backend.Repositories;
 using CebuUpskilling.Backend.Services;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 
 namespace CebuUpskilling.Backend.Tests;
 
@@ -19,6 +22,8 @@ public class LearningPathwayAgentTests
         new ApplicationRepository(context),
         new CourseRepository(context),
         new LearnerStudyCourseRepository(context),
+        new MemoryCache(new MemoryCacheOptions()),
+        Microsoft.Extensions.Options.Options.Create(new ServiceCacheOptions()),
         NullLogger<LearningPathwayAgent>.Instance
     );
 
@@ -66,7 +71,7 @@ public class LearningPathwayAgentTests
     }
 
     private static async Task<Course> CreateCourseAsync(
-        ApplicationDbContext context, string name, Genre genre, params int[] skillIds)
+        ApplicationDbContext context, string name, Genre genre, params Guid[] skillIds)
     {
         var course = new Course { GenreId = genre.GenreId, Name = name, Price = 0, TechnicalLevel = 3 };
         context.Courses.Add(course);
@@ -173,7 +178,7 @@ public class LearningPathwayAgentTests
     {
         var context = TestDbContextFactory.Create();
 
-        Assert.Null(await CreateAgent(context).GenerateAsync(999));
+        Assert.Null(await CreateAgent(context).GenerateAsync(Guid.NewGuid()));
     }
 
     [Fact]

@@ -28,7 +28,7 @@ public class StatsController : ControllerBase
     [Authorize(Roles = "Learner")]
     public async Task<IActionResult> GetWeeklyStats()
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        if (!User.TryGetUserId(out var userId)) return Unauthorized(new { error = "Unauthorized" });
         _logger.LogInformation("HTTP GET /api/stats/week called by user {UserId}", userId);
 
         var stats = await _statsService.GetWeeklyStatsAsync(userId);
@@ -45,7 +45,7 @@ public class StatsController : ControllerBase
     [Authorize(Roles = "Recruiter")]
     public async Task<IActionResult> GetBusinessStats()
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        if (!User.TryGetUserId(out var userId)) return Unauthorized(new { error = "Unauthorized" });
         _logger.LogInformation("GET /api/stats/business called by user {UserId}", userId);
 
         var user = await _context.Users

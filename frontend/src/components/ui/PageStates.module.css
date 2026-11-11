@@ -1,0 +1,113 @@
+/* Page-state set: Skeleton container, EmptyState, ErrorState, DataBoundView. */
+
+.skeletonRegion {
+  position: relative;
+  width: 100%;
+  /* min-height is supplied inline so the region matches the final layout and nothing shifts. */
+  box-sizing: border-box;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-8) var(--space-4);
+  text-align: center;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-17);
+  color: var(--ink);
+}
+
+.desc {
+  margin: 0;
+  max-width: 420px;
+  font-size: var(--text-13);
+  line-height: 1.5;
+}
+
+.action {
+  margin-top: var(--space-2);
+}
+
+.error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-8) var(--space-4);
+  text-align: center;
+  background: var(--surface);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-lg);
+}
+
+.errorIcon {
+  display: inline-grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.errorMessage {
+  margin: 0;
+  max-width: 420px;
+  font-size: var(--text-13);
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.retry {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: 10px 16px;
+  margin-top: var(--space-2);
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--teal);
+  color: var(--on-accent);
+  font: inherit;
+  font-weight: 700;
+  font-size: var(--text-13);
+  cursor: pointer;
+}
+
+.retry:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+.retry:disabled {
+  opacity: 0.62;
+  cursor: not-allowed;
+}
+
+.retained {
+  margin-top: var(--space-4);
+}

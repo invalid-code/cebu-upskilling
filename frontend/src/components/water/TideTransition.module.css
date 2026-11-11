@@ -1,0 +1,13 @@
+.root {
+  width: 100%;
+}
+
+/* 220ms standard duration, --ease-tide, transform + opacity only, no filter. */
+.enter {
+  animation: tide-in 220ms var(--ease-tide, cubic-bezier(0.22, 1, 0.36, 1)) both;
+}
+
+@keyframes tide-in {
+  from { opacity: 0; transform: translate3d(0, 6px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}

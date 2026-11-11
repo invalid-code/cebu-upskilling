@@ -22,10 +22,10 @@ public class AuthAssessmentsSecurityRegressionTests
     private sealed class FakeEntityService<T> : IEntityService<T> where T : class
     {
         public Task<List<T>> GetAllAsync() => Task.FromResult(new List<T>());
-        public Task<T?> GetByIdAsync(int id) => Task.FromResult<T?>(null);
+        public Task<T?> GetByIdAsync(Guid id) => Task.FromResult<T?>(null);
         public Task<T> CreateAsync(T entity) => Task.FromResult(entity);
-        public Task<T?> UpdateAsync(int id, T entity) => Task.FromResult<T?>(null);
-        public Task<bool> DeleteAsync(int id) => Task.FromResult(false);
+        public Task<T?> UpdateAsync(Guid id, T entity) => Task.FromResult<T?>(null);
+        public Task<bool> DeleteAsync(Guid id) => Task.FromResult(false);
     }
 
     private sealed class FakeAuthService : IAuthService
@@ -34,9 +34,12 @@ public class AuthAssessmentsSecurityRegressionTests
         public Task<CompanyRegisterResponse> CompanyRegisterAsync(CompanyRegisterRequest r) => throw new NotImplementedException();
         public Task<AuthResponse> LoginAsync(LoginRequest r) => throw new NotImplementedException();
         public Task<AuthResponse> GoogleAuthAsync(GoogleAuthRequest r) => throw new NotImplementedException();
-        public Task<AuthResponse> UpdateProfileAsync(int userId, UpdateProfileRequest r) => throw new NotImplementedException();
-        public Task<AuthResponse?> GetProfileAsync(int userId) => Task.FromResult<AuthResponse?>(null);
-        public Task LogoutAsync(string? jti) => Task.CompletedTask;
+        public Task<AuthResponse> UpdateProfileAsync(Guid userId, UpdateProfileRequest r) => throw new NotImplementedException();
+        public Task<AuthResponse?> GetProfileAsync(Guid userId) => Task.FromResult<AuthResponse?>(null);
+        public Task<AuthResponse> RefreshAsync(string refreshToken) => throw new NotImplementedException();
+        public Task RevokeRefreshTokenAsync(string? refreshToken) => Task.CompletedTask;
+        public Task RevokeAllUserRefreshTokensAsync(Guid userId) => Task.CompletedTask;
+        public Task LogoutAsync(string? jti, string? refreshToken = null) => Task.CompletedTask;
         public Task<bool> ConfirmEmailAsync(string email, string token) => Task.FromResult(false);
         public Task SendEmailConfirmationAsync(string email) => Task.CompletedTask;
         public Task SendPasswordResetAsync(string email) => Task.CompletedTask;
@@ -45,16 +48,16 @@ public class AuthAssessmentsSecurityRegressionTests
 
     private sealed class FakeJobseekerAgent : IJobseekerSkillParserAgent
     {
-        public Task<List<AssessmentResultResponse>> GetRecentResultsAsync(int userId) => Task.FromResult(new List<AssessmentResultResponse>());
-        public Task<AvailableAssessmentsResponse?> GetAvailableAssessmentsAsync(int userId) => Task.FromResult<AvailableAssessmentsResponse?>(null);
-        public Task<RecommendedAssessmentResponse?> GetRecommendedAsync(int userId) => Task.FromResult<RecommendedAssessmentResponse?>(null);
-        public Task<StartAssessmentResponse?> StartAssessmentAsync(int userId, StartAssessmentRequest request) => Task.FromResult<StartAssessmentResponse?>(null);
-        public Task<AssessmentQuestionsResponse?> GetQuestionsAsync(int userId, int assessmentId) => Task.FromResult<AssessmentQuestionsResponse?>(null);
-        public Task<SubmitAssessmentResponse?> SubmitAssessmentAsync(int userId, int assessmentId, SubmitAssessmentRequest request) => Task.FromResult<SubmitAssessmentResponse?>(null);
-        public Task<CreatedCompanyQuestionResponse?> CreateCompanyQuestionAsync(int userId, CreateCompanyQuestionRequest request) => Task.FromResult<CreatedCompanyQuestionResponse?>(null);
-        public Task<CreatedProviderQuestionResponse?> CreateProviderQuestionAsync(int userId, CreateProviderQuestionRequest request) => Task.FromResult<CreatedProviderQuestionResponse?>(null);
-        public Task<int> EnsureQuestionsForSkillAsync(int skillId, CancellationToken ct = default) => Task.FromResult(0);
-        public Task<ParseSkillsResult> ParseAndCreateAssessmentsAsync(int userId, string resumeText, CancellationToken ct = default) => Task.FromResult(new ParseSkillsResult(new List<ParsedSkillResult>()));
+        public Task<List<AssessmentResultResponse>> GetRecentResultsAsync(Guid userId) => Task.FromResult(new List<AssessmentResultResponse>());
+        public Task<AvailableAssessmentsResponse?> GetAvailableAssessmentsAsync(Guid userId) => Task.FromResult<AvailableAssessmentsResponse?>(null);
+        public Task<RecommendedAssessmentResponse?> GetRecommendedAsync(Guid userId) => Task.FromResult<RecommendedAssessmentResponse?>(null);
+        public Task<StartAssessmentResponse?> StartAssessmentAsync(Guid userId, StartAssessmentRequest request) => Task.FromResult<StartAssessmentResponse?>(null);
+        public Task<AssessmentQuestionsResponse?> GetQuestionsAsync(Guid userId, Guid assessmentId) => Task.FromResult<AssessmentQuestionsResponse?>(null);
+        public Task<SubmitAssessmentResponse?> SubmitAssessmentAsync(Guid userId, Guid assessmentId, SubmitAssessmentRequest request) => Task.FromResult<SubmitAssessmentResponse?>(null);
+        public Task<CreatedCompanyQuestionResponse?> CreateCompanyQuestionAsync(Guid userId, CreateCompanyQuestionRequest request) => Task.FromResult<CreatedCompanyQuestionResponse?>(null);
+        public Task<CreatedProviderQuestionResponse?> CreateProviderQuestionAsync(Guid userId, CreateProviderQuestionRequest request) => Task.FromResult<CreatedProviderQuestionResponse?>(null);
+        public Task<int> EnsureQuestionsForSkillAsync(Guid skillId, CancellationToken ct = default) => Task.FromResult(0);
+        public Task<ParseSkillsResult> ParseAndCreateAssessmentsAsync(Guid userId, string resumeText, CancellationToken ct = default) => Task.FromResult(new ParseSkillsResult(new List<ParsedSkillResult>()));
     }
 
     [Fact]
@@ -63,10 +66,10 @@ public class AuthAssessmentsSecurityRegressionTests
         var controller = new AuthController(new FakeEntityService<AppUser>(), new FakeAuthService(), NullLogger<AuthController>.Instance);
 
         Assert.IsType<NotFoundResult>((await controller.GetAll()).Result);
-        Assert.IsType<NotFoundResult>((await controller.GetById(999)).Result);
+        Assert.IsType<NotFoundResult>((await controller.GetById(Guid.NewGuid())).Result);
         Assert.IsType<NotFoundResult>((await controller.Create(new AppUser { FirstName = "Hacker", LastName = "X", EmailAddress = "h@x.com", PasswordHash = "h", Role = "Admin" })).Result);
-        Assert.IsType<NotFoundResult>((await controller.Update(1, new AppUser())).Result);
-        Assert.IsType<NotFoundResult>(await controller.Delete(1));
+        Assert.IsType<NotFoundResult>((await controller.Update(Guid.NewGuid(), new AppUser())).Result);
+        Assert.IsType<NotFoundResult>(await controller.Delete(Guid.NewGuid()));
     }
 
     [Fact]
@@ -74,8 +77,9 @@ public class AuthAssessmentsSecurityRegressionTests
     {
         var controller = new AuthController(new FakeEntityService<AppUser>(), new FakeAuthService(), NullLogger<AuthController>.Instance);
         var method = typeof(AuthController).GetMethod("GetId", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
-        var id = (int)method.Invoke(controller, new object[] { new AppUser { UserId = 42 } })!;
-        Assert.Equal(42, id);
+        var expected = Guid.NewGuid();
+        var id = (Guid)method.Invoke(controller, new object[] { new AppUser { UserId = expected } })!;
+        Assert.Equal(expected, id);
     }
 
     [Fact]
@@ -83,18 +87,19 @@ public class AuthAssessmentsSecurityRegressionTests
     {
         var controller = new AssessmentsController(new FakeEntityService<LearnerAssessment>(), new FakeJobseekerAgent(), NullLogger<AssessmentsController>.Instance);
         var method = typeof(AssessmentsController).GetMethod("GetId", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
-        var id = (int)method.Invoke(controller, new object[] { new LearnerAssessment { LearnerAssessmentId = 77 } })!;
-        Assert.Equal(77, id);
+        var expected = Guid.NewGuid();
+        var id = (Guid)method.Invoke(controller, new object[] { new LearnerAssessment { LearnerAssessmentId = expected } })!;
+        Assert.Equal(expected, id);
     }
 
     [Fact]
     public void AssessmentsController_LogIntegrityEvent_ReturnsOk_WithRecordedTrue()
     {
         var controller = new AssessmentsController(new FakeEntityService<LearnerAssessment>(), new FakeJobseekerAgent(), NullLogger<AssessmentsController>.Instance);
-        var claims = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier, "123") }));
+        var claims = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier, Guid.NewGuid().ToString()) }));
         controller.ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext { User = claims } };
 
-        var result = controller.LogIntegrityEvent(5, new LogIntegrityEventRequest("visibilitychange", "hidden"));
+        var result = controller.LogIntegrityEvent(Guid.NewGuid(), new LogIntegrityEventRequest("visibilitychange", "hidden"));
         var ok = Assert.IsType<OkObjectResult>(result);
         var json = System.Text.Json.JsonSerializer.Serialize(ok.Value);
         Assert.Contains("recorded", json);
@@ -105,8 +110,8 @@ public class AuthAssessmentsSecurityRegressionTests
     public void AssessmentsController_LogIntegrityEvent_WithNullDetail_StillOk()
     {
         var controller = new AssessmentsController(new FakeEntityService<LearnerAssessment>(), new FakeJobseekerAgent(), NullLogger<AssessmentsController>.Instance);
-        controller.ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier, "1") })) } };
-        var result = controller.LogIntegrityEvent(1, new LogIntegrityEventRequest("blur", null));
+        controller.ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier, Guid.NewGuid().ToString()) })) } };
+        var result = controller.LogIntegrityEvent(Guid.NewGuid(), new LogIntegrityEventRequest("blur", null));
         Assert.IsType<OkObjectResult>(result);
     }
 
@@ -114,8 +119,8 @@ public class AuthAssessmentsSecurityRegressionTests
     public async Task AssessmentsController_CreateProviderQuestion_WhenAgentReturnsNull_ReturnsBadRequest()
     {
         var controller = new AssessmentsController(new FakeEntityService<LearnerAssessment>(), new FakeJobseekerAgent(), NullLogger<AssessmentsController>.Instance);
-        controller.ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier, "7") })) } };
-        var result = await controller.CreateProviderQuestion(new CreateProviderQuestionRequest(1, "Q?", "A", "B", "C", "D", 0));
+        controller.ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier, Guid.NewGuid().ToString()) })) } };
+        var result = await controller.CreateProviderQuestion(new CreateProviderQuestionRequest(Guid.NewGuid(), "Q?", "A", "B", "C", "D", 0));
         var bad = Assert.IsType<BadRequestObjectResult>(result.Result);
         Assert.Equal(400, bad.StatusCode);
     }

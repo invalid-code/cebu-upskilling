@@ -3,9 +3,11 @@ import { useParams, Link } from 'react-router-dom';
 import Panel from '../components/ui/Panel';
 import Tag from '../components/ui/Tag';
 import EmptyState from '../components/shared/EmptyState';
+import ErrorState from '../components/ui/ErrorState';
 import CompanyAvatar from '../components/shared/CompanyAvatar';
 import Skeleton, { SkeletonStatus, SkeletonText } from '../components/ui/Skeleton';
 import { api } from '../api/client';
+import { metaTextFlush } from '../styles/shared';
 
 const styles = {
   page: {
@@ -14,7 +16,7 @@ const styles = {
   },
   topbar: {
     background: 'var(--teal)',
-    color: 'rgba(245, 250, 248, 0.96)',
+    color: 'var(--on-accent)',
     padding: '14px clamp(20px, 4vw, 56px)',
     display: 'flex',
     alignItems: 'center',
@@ -27,18 +29,18 @@ const styles = {
     background: 'var(--coral)',
     display: 'grid',
     placeItems: 'center',
-    fontFamily: "'Space Grotesk', sans-serif",
+    fontFamily: 'var(--font-display)',
     fontWeight: 700,
     fontSize: 15,
   },
   brandName: {
-    fontFamily: "'Space Grotesk', sans-serif",
+    fontFamily: 'var(--font-display)',
     fontWeight: 700,
     fontSize: 14,
     marginRight: 'auto',
   },
   topLink: {
-    color: 'rgba(225, 240, 235, 0.92)',
+    color: 'var(--on-accent)',
     fontSize: 13,
     textDecoration: 'none',
     fontWeight: 700,
@@ -64,7 +66,7 @@ const styles = {
     flexWrap: 'wrap',
   },
   h1: {
-    fontFamily: "'Space Grotesk', sans-serif",
+    fontFamily: 'var(--font-display)',
     fontSize: 'clamp(1.8rem, 3.5vw, 2.6rem)',
     margin: '0 0 6px',
   },
@@ -80,7 +82,7 @@ const styles = {
     marginTop: 12,
   },
   sectionTitle: {
-    fontFamily: "'Space Grotesk', sans-serif",
+    fontFamily: 'var(--font-display)',
     fontSize: 17,
     margin: '0 0 12px',
   },
@@ -114,17 +116,7 @@ const styles = {
     fontWeight: 700,
     margin: '0 0 4px',
   },
-  jobMeta: {
-    fontSize: 12,
-    color: 'var(--muted)',
-    margin: 0,
-  },
-  loading: {
-    textAlign: 'center',
-    padding: 45,
-    color: 'var(--muted)',
-    fontSize: 13,
-  },
+  jobMeta: { ...metaTextFlush },
 };
 
 function formatSalary(salaryRange) {
@@ -137,20 +129,34 @@ export default function CompanyProfilePage() {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
+    let cancelled = false;
+    // Clear any previous company so a failed load never shows another company's data.
+    setCompany(null);
+    setPosts([]);
+    setError('');
     setLoading(true);
     Promise.all([
       api.get(`/companies/${companyId}`),
       api.get(`/companies/${companyId}/posts`),
     ])
       .then(([companyData, postsData]) => {
+        if (cancelled) return;
         setCompany(companyData);
         setPosts(postsData?.items || []);
       })
-      .catch((err) => setError(err.message || 'Could not load company profile'))
-      .finally(() => setLoading(false));
-  }, [companyId]);
+      .catch((err) => {
+        if (!cancelled) setError(err.message || 'Could not load company profile');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [companyId, attempt]);
 
   const metaParts = [
     company?.industry,
@@ -202,9 +208,23 @@ export default function CompanyProfilePage() {
               ))}
             </Panel>
           </SkeletonStatus>
-        ) : error || !company ? (
+        ) : error ? (
           <Panel>
-            <EmptyState title="Company unavailable" description={error || 'This company could not be found.'} />
+            <ErrorState title="Company unavailable" error={error} onRetry={() => setAttempt((n) => n + 1)} />
+            <Link to="/" style={{ color: 'var(--teal)', fontWeight: 700, display: 'inline-block', marginTop: 8 }}>
+              Back to CebuUpskilling home
+            </Link>
+          </Panel>
+        ) : !company ? (
+          <Panel>
+            <EmptyState
+              title="Company unavailable"
+              description="This company could not be found."
+            >
+              <Link to="/" style={{ color: 'var(--teal)', fontWeight: 700, marginTop: 8 }}>
+                Back to CebuUpskilling home
+              </Link>
+            </EmptyState>
           </Panel>
         ) : (
           <>
@@ -270,8 +290,8 @@ export default function CompanyProfilePage() {
             {posts.length === 0 ? (
               <Panel>
                 <EmptyState
-                  title="No open roles right now"
-                  description={`${company.name} has no active postings at the moment. Check back soon.`}
+                  title="No job posts available"
+                  description={`${company.name} has no job posts currently available. Check back soon.`}
                 />
               </Panel>
             ) : (

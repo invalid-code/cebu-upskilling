@@ -1,7 +1,8 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from '../context/AuthContext';
+import { useRateLimitStore } from '../stores/rateLimitStore';
 import LoginPage from './LoginPage';
 
 vi.mock('../api/client', () => ({
@@ -251,5 +252,82 @@ describe('LoginPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Show password' }));
     expect(input).toHaveAttribute('type', 'text');
     expect(input).toHaveValue('mySecret');
+  });
+
+  describe('form errors', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+      useRateLimitStore.getState()._reset();
+    });
+
+    function fill(email, password) {
+      fireEvent.change(screen.getByPlaceholderText('Email address'), { target: { value: email } });
+      fireEvent.change(screen.getByPlaceholderText('Password'), { target: { value: password } });
+    }
+
+    it('shows the error beneath the field, focuses it and keeps the other value', async () => {
+      renderLogin();
+      fill('bad', 'secret123');
+      fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+
+      const emailInput = screen.getByPlaceholderText('Email address');
+      const error = await screen.findByText('Please enter a valid email address');
+      expect(emailInput).toHaveAttribute('aria-invalid', 'true');
+      expect(emailInput.getAttribute('aria-describedby')).toBe(error.id);
+      expect(emailInput).toHaveFocus();
+      expect(screen.getByPlaceholderText('Password')).toHaveValue('secret123');
+    });
+
+    it('focuses the first affected field when the API returns field errors', async () => {
+      api.post.mockRejectedValue(Object.assign(new Error('Invalid'), {
+        status: 400,
+        fieldErrors: { password: 'Wrong password', email: 'Unknown email' },
+      }));
+      renderLogin();
+      fill('jose@example.com', 'secret123');
+      fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+
+      expect(await screen.findByText('Unknown email')).toBeInTheDocument();
+      expect(screen.getByText('Wrong password')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('Email address')).toHaveFocus();
+      expect(screen.getByPlaceholderText('Password')).toHaveValue('secret123');
+    });
+
+    it('puts a server 400 error in the summary, keeps values and re-enables submit', async () => {
+      api.post.mockRejectedValue(Object.assign(new Error('Account is locked'), { status: 400 }));
+      renderLogin();
+      fill('jose@example.com', 'secret123');
+      fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+
+      expect(await screen.findByText('Account is locked')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('Email address')).toHaveValue('jose@example.com');
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Sign in' })).toBeEnabled());
+    });
+
+    it('shows a generic message when a 400 has no usable error string', async () => {
+      api.post.mockRejectedValue(Object.assign(new Error('HTTP 400'), { status: 400 }));
+      renderLogin();
+      fill('jose@example.com', 'secret123');
+      fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+
+      expect(await screen.findByText(/couldn't process that request/i)).toBeInTheDocument();
+    });
+
+    it('shows the 429 message and disables submit for 10 seconds', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      api.post.mockRejectedValue(Object.assign(new Error('Too many requests'), { status: 429 }));
+      renderLogin();
+      fill('jose@example.com', 'secret123');
+      fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+
+      expect(await screen.findByText('Too many attempts, try again in a minute')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Sign in' })).toBeDisabled();
+      expect(screen.getByPlaceholderText('Password')).toHaveValue('secret123');
+
+      act(() => { vi.advanceTimersByTime(9000); });
+      expect(screen.getByRole('button', { name: 'Sign in' })).toBeDisabled();
+      act(() => { vi.advanceTimersByTime(1500); });
+      expect(screen.getByRole('button', { name: 'Sign in' })).toBeEnabled();
+    });
   });
 });

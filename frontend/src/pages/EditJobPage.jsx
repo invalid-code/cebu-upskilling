@@ -2,35 +2,12 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Panel from '../components/ui/Panel';
 import EmptyState from '../components/shared/EmptyState';
+import ErrorState from '../components/ui/ErrorState';
 import JobPostForm from '../components/jobs/JobPostForm';
 import { useToast } from '../context/ToastContext';
 import Skeleton, { SkeletonStatus } from '../components/ui/Skeleton';
 import { api } from '../api/client';
-
-const styles = {
-  heading: {
-    marginBottom: 22,
-  },
-  eyebrow: {
-    fontSize: 11,
-    textTransform: 'uppercase',
-    letterSpacing: '0.12em',
-    fontWeight: 700,
-    color: 'var(--coral)',
-    marginBottom: 12,
-  },
-  h1: {
-    fontFamily: "'Space Grotesk', sans-serif",
-    fontSize: 'clamp(1.8rem, 3.5vw, 2.8rem)',
-    margin: 0,
-  },
-  loading: {
-    textAlign: 'center',
-    padding: 45,
-    color: 'var(--muted)',
-    fontSize: 13,
-  },
-};
+import styles from './JobFormPage.module.css';
 
 export default function EditJobPage() {
   const { postId } = useParams();
@@ -39,29 +16,20 @@ export default function EditJobPage() {
   const [initial, setInitial] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
+    setLoading(true);
+    setError('');
     api.get(`/posts/${postId}`)
       .then(setInitial)
       .catch((err) => setError(err?.message || 'Could not load this job posting'))
       .finally(() => setLoading(false));
-  }, [postId]);
+  }, [postId, attempt]);
 
   const handleSubmit = async (payload) => {
-    setSubmitting(true);
-    setError('');
-    try {
-      await api.put(`/posts/${postId}`, payload);
-      showToast('Job posting updated successfully', 'success');
-      navigate('/business-dashboard');
-    } catch (err) {
-      const msg = err?.message || 'Could not update the job posting';
-      setError(msg);
-      showToast(msg, 'error');
-    } finally {
-      setSubmitting(false);
-    }
+    await api.put(`/posts/${postId}`, payload);
+    showToast('Job posting updated successfully', 'success');
   };
 
   if (loading) {
@@ -80,23 +48,35 @@ export default function EditJobPage() {
       </SkeletonStatus>
     );
   }
-  if (error || !initial) {
+  if (error) {
+    return (
+      <ErrorState
+        title="Job posting unavailable"
+        error={error}
+        onRetry={() => setAttempt((n) => n + 1)}
+      />
+    );
+  }
+  if (!initial) {
     return (
       <Panel>
-        <EmptyState title="Job posting unavailable" description={error || 'This posting could not be found.'} />
+        <EmptyState title="Job posting unavailable" description="This posting could not be found." />
       </Panel>
     );
   }
 
   return (
     <div className="view-enter">
-      <div style={styles.heading}>
-        <div style={styles.eyebrow}>Hire the right fit</div>
-        <h1 style={styles.h1}>Edit job posting</h1>
+      <div className={styles.heading}>
+        <p className={styles.eyebrow}>Hire the right fit</p>
+        <h1 className={styles.title}>Edit job posting</h1>
       </div>
-      <Panel>
-        <JobPostForm initial={initial} onSubmit={handleSubmit} submitting={submitting} error={error} submitLabel="Save changes" />
-      </Panel>
+      <JobPostForm
+        initial={initial}
+        onSubmit={handleSubmit}
+        onSaved={() => navigate('/business-dashboard')}
+        submitLabel="Save changes"
+      />
     </div>
   );
 }

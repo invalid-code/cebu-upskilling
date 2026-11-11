@@ -23,7 +23,7 @@ public class PostRepository : EntityRepository<Post>, IPostRepository
                 .ThenInclude(ps => ps.Skill)
             .ToListAsync();
 
-    public override async Task<Post?> GetByIdAsync(int id)
+    public override async Task<Post?> GetByIdAsync(Guid id)
         => await _dbSet
             .Include(p => p.Company)
             .Include(p => p.PostSkills)

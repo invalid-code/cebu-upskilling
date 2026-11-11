@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Play, CheckCircle, Circle, Clock, ChevronDown } from 'lucide-react';
+import { chipTeal } from '../../styles/shared';
 
 const styles = {
   container: {
@@ -62,10 +63,7 @@ const styles = {
     textAlign: 'left',
     cursor: 'pointer',
   },
-  dropdownItemSelected: {
-    background: 'var(--teal-soft)',
-    color: 'var(--teal)',
-  },
+  dropdownItemSelected: { ...chipTeal },
   progressCard: {
     margin: 12,
     padding: '14px 16px',
@@ -80,7 +78,7 @@ const styles = {
     height: 36,
     borderRadius: 10,
     background: 'var(--teal)',
-    color: 'var(--surface)',
+    color: 'var(--on-accent)',
     display: 'grid',
     placeItems: 'center',
     flexShrink: 0,
@@ -112,7 +110,7 @@ const styles = {
   },
   lessonItemCurrent: {
     background: 'var(--teal)',
-    color: 'var(--surface)',
+    color: 'var(--on-accent)',
   },
   lessonItemCompleted: {
     background: 'var(--teal-soft)',
@@ -127,14 +125,15 @@ const styles = {
   },
   lessonIconCompleted: {
     background: 'var(--teal)',
-    color: 'var(--surface)',
+    color: 'var(--on-accent)',
   },
   lessonIconCurrent: {
     background: 'var(--coral)',
-    color: 'var(--surface)',
+    color: 'var(--on-accent)',
   },
   lessonIconPending: {
-    background: 'var(--line)',
+    background: 'var(--surface2)',
+    border: '1px solid var(--line)',
     color: 'var(--muted)',
   },
   lessonInfo: {
@@ -147,6 +146,17 @@ const styles = {
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
+  },
+  srOnly: {
+    position: 'absolute',
+    width: 1,
+    height: 1,
+    margin: -1,
+    padding: 0,
+    overflow: 'hidden',
+    clip: 'rect(0, 0, 0, 0)',
+    whiteSpace: 'nowrap',
+    border: 0,
   },
   lessonDuration: {
     fontSize: 11,
@@ -349,6 +359,9 @@ export default function ModuleOutline({ modules, currentLessonId, onLessonClick 
                   }}
                 >
                   {lesson.name}
+                  <span style={styles.srOnly}>
+                    {isCompleted ? ' (completed)' : isCurrent ? ' (current lesson)' : ' (not started)'}
+                  </span>
                 </div>
                 <div
                   style={{

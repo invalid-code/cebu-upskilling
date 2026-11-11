@@ -24,9 +24,11 @@ public class PostsController : ControllerBase
         _logger = logger;
     }
 
-    private int UserId => int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+    private Guid UserId => User.TryGetUserId(out var id)
+        ? id
+        : throw new UnauthorizedAccessException("Invalid user identity");
 
-    private async Task<int?> GetUserCompanyIdAsync()
+    private async Task<Guid?> GetUserCompanyIdAsync()
         => (await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.UserId == UserId))?.CompanyId;
 
     [HttpGet]
@@ -55,7 +57,7 @@ public class PostsController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    public async Task<ActionResult<PostResponse>> GetById(int id)
+    public async Task<ActionResult<PostResponse>> GetById(Guid id)
     {
         _logger.LogInformation("HTTP GET /api/posts/{Id} called", id);
         var entity = await _service.GetByIdAsync(id);
@@ -84,7 +86,7 @@ public class PostsController : ControllerBase
 
     [HttpPut("{id}")]
     [Authorize(Roles = "Recruiter")]
-    public async Task<ActionResult<PostResponse>> Update(int id, PostRequest request)
+    public async Task<ActionResult<PostResponse>> Update(Guid id, PostRequest request)
     {
         var companyId = await GetUserCompanyIdAsync();
         if (companyId == null)
@@ -112,7 +114,7 @@ public class PostsController : ControllerBase
 
     [HttpDelete("{id}")]
     [Authorize(Roles = "Recruiter")]
-    public async Task<IActionResult> Delete(int id)
+    public async Task<IActionResult> Delete(Guid id)
     {
         var companyId = await GetUserCompanyIdAsync();
         if (companyId == null)

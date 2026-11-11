@@ -23,7 +23,7 @@ public class CoursesPageController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<CoursesPageResponse>> GetCoursesPage([FromQuery] string? category = null)
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        if (!User.TryGetUserId(out var userId)) return Unauthorized(new { error = "Unauthorized" });
         _logger.LogInformation("HTTP GET /api/coursespage called by user {UserId}", userId);
 
         var result = await _coursesPageService.GetCoursesPageAsync(userId, category);

@@ -57,9 +57,9 @@ function envelope(items, total = items.length) {
   return { items, total, page: 1, pageSize: 9 };
 }
 
-function renderJobs() {
+function renderJobs(initialEntry = '/jobs') {
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[initialEntry]}>
       <AuthProvider>
         <ApplicationsProvider>
           <ToastProvider>
@@ -86,9 +86,9 @@ describe('JobsPage', () => {
 
   it('renders tab options', async () => {
     renderJobs();
-    expect(await screen.findByRole('button', { name: 'All roles' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Corporate & Full-Time' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Side Hustles & Local SME' })).toBeInTheDocument();
+    expect(await screen.findByRole('tab', { name: 'All roles' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Corporate & Full-Time' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Side Hustles & Local SME' })).toBeInTheDocument();
   });
 
   it('renders search and filter inputs', async () => {
@@ -135,7 +135,7 @@ describe('JobsPage', () => {
     renderJobs();
     await screen.findByText('Senior Frontend Developer');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Side Hustles & Local SME' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Side Hustles & Local SME' }));
 
     await waitFor(() => {
       expect(api.get).toHaveBeenCalledWith(expect.stringContaining('jobType=Part-time'), expect.anything());
@@ -162,6 +162,7 @@ describe('JobsPage', () => {
 
     expect(screen.getByText('Loading jobs...')).toBeInTheDocument();
 
+    await waitFor(() => expect(resolveFn).toBeTypeOf('function'));
     resolveFn(envelope(mockPosts));
     await waitFor(() => expect(screen.queryByText('Loading jobs...')).not.toBeInTheDocument());
   });
@@ -178,5 +179,30 @@ describe('JobsPage', () => {
   it('shows save alert button', async () => {
     renderJobs();
     expect(await screen.findByRole('button', { name: 'Save alert' })).toBeInTheDocument();
+  });
+  it('applies valid URL filters and ignores invalid ones', async () => {
+    renderJobs('/jobs?location=Mandaue&jobType=Bogus&unknown=1&page=abc&isRemote=true');
+    await screen.findByText('Senior Frontend Developer');
+    const url = api.get.mock.calls[0][0];
+    expect(url).toContain('location=Mandaue');
+    expect(url).toContain('isRemote=true');
+    expect(url).not.toContain('jobType');
+    expect(url).toContain('page=1');
+    expect(screen.getByLabelText('Location')).toHaveValue('Mandaue');
+  });
+
+  it('clears all filters from the empty state', async () => {
+    api.get.mockResolvedValue(envelope([]));
+    renderJobs('/jobs?location=Mandaue');
+    fireEvent.click(await screen.findByRole('button', { name: 'Clear all filters' }));
+    await waitFor(() => expect(screen.getByLabelText('Location')).toHaveValue(''));
+  });
+
+  it('shows the match percentage as a whole number or a dash', async () => {
+    api.get.mockResolvedValue(envelope([{ ...mockPosts[0], matchPercent: 72.4 }, mockPosts[1]]));
+    renderJobs();
+    await screen.findByText('Senior Frontend Developer');
+    expect(screen.getByText('72%')).toBeInTheDocument();
+    expect(screen.getByText('\u2014')).toBeInTheDocument();
   });
 });

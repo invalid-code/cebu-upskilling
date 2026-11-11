@@ -12,12 +12,6 @@ const styles = {
     lineHeight: 1.5,
     marginBottom: 14,
   },
-  loading: {
-    textAlign: 'center',
-    padding: 24,
-    color: 'var(--muted)',
-    fontSize: 14,
-  },
   empty: {
     textAlign: 'center',
     padding: 28,
@@ -34,7 +28,7 @@ const styles = {
     paddingRight: 2,
   },
   post: {
-    background: 'var(--bg, #fafafa)',
+    background: 'var(--bg)',
     border: '1px solid var(--line)',
     borderRadius: 12,
     padding: '12px 14px',
@@ -91,7 +85,6 @@ const styles = {
     color: 'var(--ink)',
     resize: 'vertical',
     minHeight: 90,
-    maxLength: 4000,
     fontFamily: 'inherit',
   },
   actions: {
@@ -106,7 +99,7 @@ const styles = {
     gap: 6,
     padding: '10px 18px',
     background: 'var(--teal)',
-    color: 'var(--surface)',
+    color: 'var(--on-accent)',
     border: 0,
     borderRadius: 10,
     fontSize: 13,
@@ -119,7 +112,7 @@ const styles = {
   },
   errorText: {
     fontSize: 12,
-    color: '#dc2626',
+    color: 'var(--danger)',
   },
 };
 

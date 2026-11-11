@@ -12,7 +12,7 @@ const styles = {
     marginBottom: 4,
   },
   lessonTitle: {
-    fontFamily: "'Space Grotesk', sans-serif",
+    fontFamily: 'var(--font-display)',
     fontSize: 24,
     fontWeight: 700,
     color: 'var(--ink)',
@@ -35,7 +35,7 @@ const styles = {
     overflowWrap: 'break-word',
   },
   heading: {
-    fontFamily: "'Space Grotesk', sans-serif",
+    fontFamily: 'var(--font-display)',
     fontSize: 18,
     fontWeight: 700,
     color: 'var(--ink)',
@@ -43,7 +43,7 @@ const styles = {
     marginBottom: 12,
   },
   codeBlock: {
-    background: '#1a2e27',
+    background: 'var(--ink)',
     borderRadius: 12,
     overflow: 'hidden',
     marginBottom: 20,
@@ -66,7 +66,7 @@ const styles = {
     fontSize: 13,
     lineHeight: 1.6,
     fontFamily: 'monospace',
-    color: '#e8f0ee',
+    color: 'var(--bg)',
     overflowX: 'auto',
   },
 
@@ -120,6 +120,8 @@ export default function LessonContent({ lesson, moduleNumber, lessonNumber }) {
     }
   };
 
+  const blocks = Array.isArray(lesson.contentBlocks) ? lesson.contentBlocks : [];
+
   return (
     <div style={styles.container}>
       {moduleNumber != null && lessonNumber != null && (
@@ -129,11 +131,11 @@ export default function LessonContent({ lesson, moduleNumber, lessonNumber }) {
       )}
       <h2 style={styles.lessonTitle}>{lesson.name}</h2>
 
-      {lesson.contentBlocks.map((block, index) =>
+      {blocks.map((block, index) =>
         renderContentBlock(block, index)
       )}
 
-      {lesson.contentBlocks.length === 0 && lesson.description && (
+      {blocks.length === 0 && lesson.description && (
         <div style={styles.paragraph}>{lesson.description}</div>
       )}
     </div>

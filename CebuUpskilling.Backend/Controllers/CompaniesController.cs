@@ -30,8 +30,8 @@ public class CompaniesController : ControllerBase
         return Ok(companies);
     }
 
-    [HttpGet("{companyId:int}")]
-    public async Task<IActionResult> GetById(int companyId)
+    [HttpGet("{companyId:guid}")]
+    public async Task<IActionResult> GetById(Guid companyId)
     {
         _logger.LogInformation("HTTP GET /api/companies/{CompanyId} requested", companyId);
         var company = await _companyService.GetByIdAsync(companyId);
@@ -43,8 +43,8 @@ public class CompaniesController : ControllerBase
         return Ok(company);
     }
 
-    [HttpGet("{companyId:int}/posts")]
-    public async Task<IActionResult> GetPosts(int companyId)
+    [HttpGet("{companyId:guid}/posts")]
+    public async Task<IActionResult> GetPosts(Guid companyId)
     {
         _logger.LogInformation("HTTP GET /api/companies/{CompanyId}/posts requested", companyId);
         var company = await _companyService.GetByIdAsync(companyId);
@@ -124,6 +124,6 @@ public class CompaniesController : ControllerBase
         return Accepted(new { message = "Cover upload queued and will appear shortly." });
     }
 
-    private int? GetCurrentUserId()
-        => int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var id) ? id : null;
+    private Guid? GetCurrentUserId()
+        => Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var id) ? id : null;
 }

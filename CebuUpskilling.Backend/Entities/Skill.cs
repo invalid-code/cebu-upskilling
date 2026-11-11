@@ -5,7 +5,7 @@ namespace CebuUpskilling.Backend.Entities;
 public class Skill
 {
     [Key]
-    public int SkillId { get; set; }
+    public Guid SkillId { get; set; }
 
     [Required, MaxLength(100)]
     public string Name { get; set; } = string.Empty;

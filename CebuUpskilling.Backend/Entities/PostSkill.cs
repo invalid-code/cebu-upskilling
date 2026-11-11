@@ -2,9 +2,9 @@ namespace CebuUpskilling.Backend.Entities;
 
 public class PostSkill
 {
-    public int PostId { get; set; }
+    public Guid PostId { get; set; }
 
-    public int SkillId { get; set; }
+    public Guid SkillId { get; set; }
 
     public int RequiredLevel { get; set; }
 

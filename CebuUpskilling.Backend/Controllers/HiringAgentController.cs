@@ -33,10 +33,10 @@ public class HiringAgentController : ControllerBase
 
     // Same safe claim-parsing pattern as CompaniesController: a missing or
     // malformed NameIdentifier claim must yield 401, never a 500.
-    private int? GetCurrentUserId()
-        => int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var id) ? id : null;
+    private Guid? GetCurrentUserId()
+        => Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var id) ? id : null;
 
-    private async Task<int?> GetUserCompanyIdAsync(int userId)
+    private async Task<Guid?> GetUserCompanyIdAsync(Guid userId)
         => (await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.UserId == userId))?.CompanyId;
 
     /// <summary>
@@ -46,11 +46,11 @@ public class HiringAgentController : ControllerBase
     /// company, matching <see cref="PostsController"/> so responses cannot be
     /// used to enumerate which post IDs exist (audit detail is logged instead).
     /// </summary>
-    private async Task<ActionResult?> ValidatePostOwnershipAsync(int postId, int companyId)
+    private async Task<ActionResult?> ValidatePostOwnershipAsync(Guid postId, Guid companyId)
     {
         var postCompanyId = await _context.Posts.AsNoTracking()
             .Where(p => p.PostId == postId)
-            .Select(p => (int?)p.CompanyId)
+            .Select(p => (Guid?)p.CompanyId)
             .FirstOrDefaultAsync();
 
         if (postCompanyId == null)
@@ -68,7 +68,7 @@ public class HiringAgentController : ControllerBase
     }
 
     [HttpGet("posts/{postId}/rank-applicants")]
-    public async Task<ActionResult<RankCandidatesResponse>> RankApplicants(int postId)
+    public async Task<ActionResult<RankCandidatesResponse>> RankApplicants(Guid postId)
     {
         var userId = GetCurrentUserId();
         if (userId == null)
@@ -136,7 +136,7 @@ public class HiringAgentController : ControllerBase
 
     [HttpPost("posts/{postId}/screening-questions")]
     public async Task<ActionResult<ScreeningQuestionsResponse>> GenerateScreeningQuestions(
-        int postId, [FromQuery] int perSkill = 3)
+        Guid postId, [FromQuery] int perSkill = 3)
     {
         var userId = GetCurrentUserId();
         if (userId == null)

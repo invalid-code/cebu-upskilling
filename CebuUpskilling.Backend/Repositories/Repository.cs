@@ -21,6 +21,8 @@ public abstract class Repository<T> : IRepository<T> where T : class
 
     public void Remove(T entity) => _dbSet.Remove(entity);
 
+    public void Detach(T entity) => _context.Entry(entity).State = EntityState.Detached;
+
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         => await _context.SaveChangesAsync(cancellationToken);
 }

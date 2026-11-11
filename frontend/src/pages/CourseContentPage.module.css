@@ -1,0 +1,331 @@
+.page {
+  display: block;
+}
+
+/* ---- Breadcrumb ---- */
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+  font-size: var(--text-13);
+  color: var(--muted);
+}
+
+.crumb {
+  min-height: 24px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--teal);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.crumb:focus-visible,
+.iconButton:focus-visible,
+.control:focus-visible,
+.sheetClose:focus-visible,
+.retryNote:focus-visible {
+  outline: var(--focus-ring-width) solid var(--teal);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.crumbSep {
+  color: var(--muted);
+}
+
+/* ---- Header ---- */
+.header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+
+.iconButton {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.headerInfo {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.courseName {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-13);
+  color: var(--muted);
+}
+
+.lessonName {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-24);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.progress {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex: 0 1 260px;
+  min-width: 180px;
+}
+
+.progressText {
+  font-size: var(--text-13);
+  font-weight: 700;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.meter {
+  flex: 1;
+  min-width: 100px;
+}
+
+/* ---- Save status ---- */
+.statusRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  min-height: 36px;
+  margin-bottom: var(--space-3);
+}
+
+.saved,
+.saving,
+.failed {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius);
+  font-size: var(--text-13);
+  font-weight: 700;
+}
+
+.saved { background: var(--good-soft); color: var(--good); }
+.saving { background: var(--surface2); color: var(--muted); }
+.failed { background: var(--danger-soft); color: var(--danger); }
+
+.retryNote {
+  min-height: 32px;
+  padding: 0 var(--space-3);
+  border: 1px solid currentColor;
+  border-radius: var(--radius);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* ---- Controls row (outline / notes openers) ---- */
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.control {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-13);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.control:disabled {
+  opacity: 0.62;
+  cursor: not-allowed;
+}
+
+.complete {
+  margin-left: auto;
+}
+
+/* ---- Panes ---- */
+.layout {
+  display: grid;
+  gap: var(--space-5);
+  align-items: start;
+}
+
+/* >= 1024px: outline, lesson and notes/discussion side by side in one row. */
+.layout[data-mode='wide'] {
+  grid-template-columns: 280px minmax(0, 1fr) 300px;
+  grid-auto-flow: column;
+}
+
+/* 640-1023px: outline and lesson in a row; notes/discussion is a bottom sheet. */
+.layout[data-mode='medium'] {
+  grid-template-columns: 240px minmax(0, 1fr);
+}
+
+/* < 640px: lesson only; outline is a drawer. */
+.layout[data-mode='narrow'] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.outlinePane,
+.lessonPane,
+.notesPane {
+  min-width: 0;
+}
+
+.lessonPane {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* ---- Overlays: drawer and bottom sheet ---- */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  background: rgba(10, 29, 38, 0.46);
+  backdrop-filter: blur(4px);
+}
+
+.backdropDrawer {
+  justify-content: flex-start;
+}
+
+.backdropSheet {
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.overlay {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  box-shadow: var(--shadow);
+  outline: none;
+}
+
+.drawer {
+  width: min(88vw, 340px);
+  height: 100%;
+  border-radius: 0 var(--radius-xl) var(--radius-xl) 0;
+  animation: drawerIn var(--dur-standard) var(--ease-tide);
+}
+
+.sheet {
+  width: 100%;
+  max-height: 80vh;
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  animation: sheetIn var(--dur-standard) var(--ease-tide);
+}
+
+.overlayHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--line);
+}
+
+.overlayTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-17);
+}
+
+.sheetClose {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.overlayBody {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-4);
+}
+
+@keyframes drawerIn {
+  from { transform: translateX(-24px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+@keyframes sheetIn {
+  from { transform: translateY(24px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drawer,
+  .sheet {
+    animation-duration: 10ms;
+  }
+}
+
+/* ---- Skeleton ---- */
+.skeletonLayout {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr) 300px;
+  gap: var(--space-5);
+}
+
+.skeletonStack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+}
+
+@media (max-width: 1023px) {
+  .skeletonLayout {
+    grid-template-columns: 240px minmax(0, 1fr);
+  }
+  .skeletonNotes {
+    display: none;
+  }
+}
+
+@media (max-width: 639px) {
+  .skeletonLayout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .skeletonOutline {
+    display: none;
+  }
+}

@@ -4,5 +4,5 @@ namespace CebuUpskilling.Backend.Services;
 
 public interface ISkillParsingService
 {
-    Task<ParseSkillsResult> ParseAndCreateAssessmentsAsync(int userId, string resumeText, CancellationToken ct = default);
+    Task<ParseSkillsResult> ParseAndCreateAssessmentsAsync(Guid userId, string resumeText, CancellationToken ct = default);
 }

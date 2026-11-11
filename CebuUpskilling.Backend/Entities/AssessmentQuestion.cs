@@ -6,9 +6,9 @@ namespace CebuUpskilling.Backend.Entities;
 public class AssessmentQuestion
 {
     [Key]
-    public int AssessmentQuestionId { get; set; }
+    public Guid AssessmentQuestionId { get; set; }
 
-    public int SkillId { get; set; }
+    public Guid SkillId { get; set; }
 
     [Required]
     public string Text { get; set; } = string.Empty;
@@ -29,7 +29,7 @@ public class AssessmentQuestion
 
     public AssessmentSource Source { get; set; } = AssessmentSource.AI;
 
-    public int? CompanyId { get; set; }
+    public Guid? CompanyId { get; set; }
 
     [NotMapped]
     public List<string> Options => new() { OptionA, OptionB, OptionC, OptionD };

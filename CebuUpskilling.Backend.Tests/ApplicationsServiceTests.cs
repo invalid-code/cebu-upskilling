@@ -21,7 +21,7 @@ public class ApplicationsServiceTests
         NullLogger<ApplicationsService>.Instance
     );
 
-    private static async Task<(ApplicationDbContext context, int userId, int postId)> SeedAsync()
+    private static async Task<(ApplicationDbContext context, Guid userId, Guid postId)> SeedAsync()
     {
         var context = TestDbContextFactory.Create();
 
@@ -111,7 +111,7 @@ public class ApplicationsServiceTests
         var (context, userId, _) = await SeedAsync();
         var service = CreateService(context);
 
-        var outcome = await service.ApplyAsync(userId, 999, TestResumeUrl);
+        var outcome = await service.ApplyAsync(userId, Guid.NewGuid(), TestResumeUrl);
 
         Assert.False(outcome.Success);
         Assert.Equal(ApplyFailure.PostNotFound, outcome.Failure);
@@ -123,7 +123,7 @@ public class ApplicationsServiceTests
         var context = TestDbContextFactory.Create();
         var service = CreateService(context);
 
-        var outcome = await service.ApplyAsync(12345, 1, TestResumeUrl);
+        var outcome = await service.ApplyAsync(Guid.NewGuid(), Guid.NewGuid(), TestResumeUrl);
 
         Assert.False(outcome.Success);
         Assert.Equal(ApplyFailure.NoLearnerProfile, outcome.Failure);
@@ -223,7 +223,7 @@ public class ApplicationsServiceTests
         var context = TestDbContextFactory.Create();
         var service = CreateService(context);
 
-        var apps = await service.GetMyApplicationsAsync(999);
+        var apps = await service.GetMyApplicationsAsync(Guid.NewGuid());
 
         Assert.Empty(apps);
     }

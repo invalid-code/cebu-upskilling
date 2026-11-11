@@ -1,9 +1,12 @@
 using CebuUpskilling.Backend.Data;
 using CebuUpskilling.Backend.Entities;
+using CebuUpskilling.Backend.Options;
 using CebuUpskilling.Backend.Repositories;
 using CebuUpskilling.Backend.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 
 namespace CebuUpskilling.Backend.Tests;
 
@@ -17,6 +20,9 @@ public class CoursesPageServiceTests
         new RoleSkillRepository(context),
         new LearnerSkillRepository(context),
         new ApplicationRepository(context),
+        new CertificateService(context, NullLogger<CertificateService>.Instance),
+        new MemoryCache(new MemoryCacheOptions()),
+        Microsoft.Extensions.Options.Options.Create(new ServiceCacheOptions()),
         NullLogger<CoursesPageService>.Instance
     );
 
@@ -107,7 +113,7 @@ public class CoursesPageServiceTests
     {
         var context = TestDbContextFactory.Create();
 
-        var result = await CreateService(context).GetCoursesPageAsync(999);
+        var result = await CreateService(context).GetCoursesPageAsync(Guid.NewGuid());
 
         Assert.Null(result);
     }
@@ -144,7 +150,7 @@ public class CoursesPageServiceTests
     }
 
     [Fact]
-    public async Task GetCoursesPageAsync_CountsCompletedCoursesAsCertificatesEarned()
+    public async Task GetCoursesPageAsync_CountsIssuedCertificatesAndReturnsCertificateId()
     {
         var context = TestDbContextFactory.Create();
         var (user, learner) = await CreateLearnerAsync(context);
@@ -158,6 +164,17 @@ public class CoursesPageServiceTests
             Started = DateTime.UtcNow.AddDays(-2),
             LastTotalProgressPercent = 100,
         });
+        var certificate = new CourseCertificate
+        {
+            CourseId = course.CourseId,
+            LearnerId = learner.LearnerId,
+            SerialNumber = "CU-2026-ABC1234567",
+            RecipientName = "Jose Rizal",
+            CourseName = course.Name,
+            ProviderName = "Test Provider",
+            IssuedAt = DateTime.UtcNow,
+        };
+        context.CourseCertificates.Add(certificate);
         await context.SaveChangesAsync();
 
         var result = await CreateService(context).GetCoursesPageAsync(user.UserId);
@@ -165,6 +182,7 @@ public class CoursesPageServiceTests
         Assert.NotNull(result);
         Assert.Equal(0, result!.CoursesInProgress);
         Assert.Equal(1, result.CertificatesEarned);
+        Assert.Equal(certificate.CertificateId, result.EnrolledCourses.Single().CertificateId);
     }
 
     [Fact]
@@ -353,10 +371,10 @@ public class CoursesPageServiceTests
     {
         var context = TestDbContextFactory.Create();
 
-        Assert.Null(await CreateService(context).GetCourseDetailAsync(999, 1));
+        Assert.Null(await CreateService(context).GetCourseDetailAsync(Guid.NewGuid(), Guid.NewGuid()));
 
         var (user, _) = await CreateLearnerAsync(context);
-        Assert.Null(await CreateService(context).GetCourseDetailAsync(user.UserId, 999));
+        Assert.Null(await CreateService(context).GetCourseDetailAsync(user.UserId, Guid.NewGuid()));
     }
 
     [Fact]

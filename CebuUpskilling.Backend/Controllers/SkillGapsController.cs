@@ -23,7 +23,7 @@ public class SkillGapsController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<List<SkillGapResponse>>> GetMySkillGaps()
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        if (!User.TryGetUserId(out var userId)) return Unauthorized(new { error = "Unauthorized" });
         _logger.LogInformation("HTTP GET /api/skillgaps called by user {UserId}", userId);
 
         var gaps = await _skillGapService.GetSkillGapsAsync(userId);
@@ -33,7 +33,7 @@ public class SkillGapsController : ControllerBase
     [HttpGet("groups")]
     public async Task<ActionResult<List<SkillGapGroupDto>>> GetMySkillGapGroups()
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        if (!User.TryGetUserId(out var userId)) return Unauthorized(new { error = "Unauthorized" });
         _logger.LogInformation("HTTP GET /api/skillgaps/groups called by user {UserId}", userId);
 
         var groups = await _skillGapService.GetSkillGapGroupsAsync(userId);

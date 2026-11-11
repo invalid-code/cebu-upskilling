@@ -2,14 +2,16 @@ using System.Security.Claims;
 using CebuUpskilling.Backend.Controllers;
 using CebuUpskilling.Backend.DTOs;
 using CebuUpskilling.Backend.Entities;
+using CebuUpskilling.Backend.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace CebuUpskilling.Backend.Tests;
 
 public class CourseManagementProviderTests
 {
-    private static CourseManagementController CreateController(Backend.Data.ApplicationDbContext db, int userId, string role, int? companyId = null)
+    private static CourseManagementController CreateController(Backend.Data.ApplicationDbContext db, Guid userId, string role, Guid? companyId = null)
     {
         var claims = new List<Claim>
         {
@@ -19,7 +21,7 @@ public class CourseManagementProviderTests
         // IsInRole checks role claim type; need both ClaimTypes.Role and the role value
         var identity = new ClaimsIdentity(claims, "test");
         var principal = new ClaimsPrincipal(identity);
-        var controller = new CourseManagementController(db)
+        var controller = new CourseManagementController(db, new CertificateService(db, NullLogger<CertificateService>.Instance))
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext { User = principal } }
         };
@@ -48,7 +50,7 @@ public class CourseManagementProviderTests
         TechnicalLevel = 2,
         Mode = "Online",
         Price = 100,
-        GenreId = 1,
+        GenreId = Guid.NewGuid(),
         Modules = new List<SaveModuleRequest>
         {
             new() { Name = "M1", Order = 1, Lessons = new List<SaveLessonRequest> { new() { Name = "L1", Order = 1 } } }
@@ -59,8 +61,8 @@ public class CourseManagementProviderTests
     public async Task List_Recruiter_ReturnsOnlyCompanyCourses()
     {
         var (db, recruiter, provider, company) = await SeedAsync();
-        db.Courses.Add(new Course { Name = "CompanyCourse", CompanyId = company.CompanyId, GenreId = 1, Status = "Draft", CreatedBy = recruiter.UserId.ToString() });
-        db.Courses.Add(new Course { Name = "ProviderCourse", CompanyId = null, GenreId = 1, Status = "Draft", CreatedBy = provider.UserId.ToString() });
+        db.Courses.Add(new Course { Name = "CompanyCourse", CompanyId = company.CompanyId, GenreId = Guid.NewGuid(), Status = "Draft", CreatedBy = recruiter.UserId.ToString() });
+        db.Courses.Add(new Course { Name = "ProviderCourse", CompanyId = null, GenreId = Guid.NewGuid(), Status = "Draft", CreatedBy = provider.UserId.ToString() });
         await db.SaveChangesAsync();
 
         var ctrl = CreateController(db, recruiter.UserId, "Recruiter");
@@ -75,8 +77,8 @@ public class CourseManagementProviderTests
     public async Task List_Provider_ReturnsOnlyCreatedByCourses()
     {
         var (db, recruiter, provider, company) = await SeedAsync();
-        db.Courses.Add(new Course { Name = "CompanyCourse", CompanyId = company.CompanyId, GenreId = 1, Status = "Draft", CreatedBy = recruiter.UserId.ToString() });
-        db.Courses.Add(new Course { Name = "ProviderCourse", CompanyId = null, GenreId = 1, Status = "Draft", CreatedBy = provider.UserId.ToString() });
+        db.Courses.Add(new Course { Name = "CompanyCourse", CompanyId = company.CompanyId, GenreId = Guid.NewGuid(), Status = "Draft", CreatedBy = recruiter.UserId.ToString() });
+        db.Courses.Add(new Course { Name = "ProviderCourse", CompanyId = null, GenreId = Guid.NewGuid(), Status = "Draft", CreatedBy = provider.UserId.ToString() });
         await db.SaveChangesAsync();
 
         var ctrl = CreateController(db, provider.UserId, "CourseProvider");
@@ -92,7 +94,7 @@ public class CourseManagementProviderTests
     {
         var (db, _, provider, _) = await SeedAsync();
         var otherProvider = db.Users.Single(u => u.EmailAddress == "prov2@example.com");
-        db.Courses.Add(new Course { Name = "Other", CompanyId = null, GenreId = 1, Status = "Draft", CreatedBy = otherProvider.UserId.ToString() });
+        db.Courses.Add(new Course { Name = "Other", CompanyId = null, GenreId = Guid.NewGuid(), Status = "Draft", CreatedBy = otherProvider.UserId.ToString() });
         await db.SaveChangesAsync();
 
         var ctrl = CreateController(db, provider.UserId, "CourseProvider");
@@ -106,7 +108,7 @@ public class CourseManagementProviderTests
     public async Task Get_Provider_NotFoundForOtherOwnersCourse()
     {
         var (db, recruiter, provider, company) = await SeedAsync();
-        var c = new Course { Name = "Comp", CompanyId = company.CompanyId, GenreId = 1, Status = "Draft", CreatedBy = recruiter.UserId.ToString() };
+        var c = new Course { Name = "Comp", CompanyId = company.CompanyId, GenreId = Guid.NewGuid(), Status = "Draft", CreatedBy = recruiter.UserId.ToString() };
         db.Courses.Add(c); await db.SaveChangesAsync();
 
         var ctrl = CreateController(db, provider.UserId, "CourseProvider");
@@ -118,7 +120,7 @@ public class CourseManagementProviderTests
     public async Task Get_Provider_OwnCourse_ReturnsOk()
     {
         var (db, _, provider, _) = await SeedAsync();
-        var c = new Course { Name = "Prov", CompanyId = null, GenreId = 1, Status = "Draft", CreatedBy = provider.UserId.ToString() };
+        var c = new Course { Name = "Prov", CompanyId = null, GenreId = Guid.NewGuid(), Status = "Draft", CreatedBy = provider.UserId.ToString() };
         db.Courses.Add(c); await db.SaveChangesAsync();
 
         var ctrl = CreateController(db, provider.UserId, "CourseProvider");
@@ -132,7 +134,7 @@ public class CourseManagementProviderTests
     public async Task Get_Recruiter_NotFoundForProviderCourse()
     {
         var (db, recruiter, provider, _) = await SeedAsync();
-        var c = new Course { Name = "Prov", CompanyId = null, GenreId = 1, Status = "Draft", CreatedBy = provider.UserId.ToString() };
+        var c = new Course { Name = "Prov", CompanyId = null, GenreId = Guid.NewGuid(), Status = "Draft", CreatedBy = provider.UserId.ToString() };
         db.Courses.Add(c); await db.SaveChangesAsync();
 
         var ctrl = CreateController(db, recruiter.UserId, "Recruiter");
@@ -156,6 +158,68 @@ public class CourseManagementProviderTests
     }
 
     [Fact]
+    public async Task Create_Provider_WithCertificateSetting_PersistsOptIn()
+    {
+        var (db, _, provider, _) = await SeedAsync();
+        var ctrl = CreateController(db, provider.UserId, "CourseProvider");
+        var request = ValidRequest();
+        request.IssuesCertificate = true;
+
+        var result = await ctrl.Create(request);
+
+        var created = Assert.IsType<CreatedAtActionResult>(result.Result);
+        var dto = Assert.IsType<CourseManagementDto>(created.Value);
+        Assert.True(dto.IssuesCertificate);
+        Assert.True(db.Courses.Single(c => c.CourseId == dto.CourseId).IssuesCertificate);
+    }
+
+    [Fact]
+    public async Task Update_Provider_EnablingCertificates_BackfillsCompletedLearners()
+    {
+        var (db, _, provider, _) = await SeedAsync();
+        var course = new Course
+        {
+            Name = "Provider Course",
+            GenreId = Guid.NewGuid(),
+            Status = "Published",
+            CreatedBy = provider.UserId.ToString(),
+            UpdatedBy = provider.UserId.ToString(),
+        };
+        db.Courses.Add(course);
+
+        var learnerUser = new AppUser
+        {
+            FirstName = "Completed",
+            LastName = "Learner",
+            EmailAddress = "completed@example.com",
+            Role = "Learner",
+        };
+        db.Users.Add(learnerUser);
+        await db.SaveChangesAsync();
+        var learner = new Learner { UserId = learnerUser.UserId };
+        db.Learners.Add(learner);
+        db.LearnerStudyCourses.Add(new LearnerStudyCourse
+        {
+            LearnerId = learner.LearnerId,
+            CourseId = course.CourseId,
+            LastTotalProgressPercent = 100,
+        });
+        await db.SaveChangesAsync();
+
+        var ctrl = CreateController(db, provider.UserId, "CourseProvider");
+        var request = ValidRequest();
+        request.IssuesCertificate = true;
+
+        var result = await ctrl.Update(course.CourseId, request);
+
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        var dto = Assert.IsType<CourseManagementDto>(ok.Value);
+        Assert.True(dto.IssuesCertificate);
+        Assert.Equal(1, dto.CertificatesIssued);
+        Assert.Single(db.CourseCertificates.Where(c => c.CourseId == course.CourseId));
+    }
+
+    [Fact]
     public async Task Create_Recruiter_SetsCompanyIdAndDraft()
     {
         var (db, recruiter, _, company) = await SeedAsync();
@@ -174,7 +238,7 @@ public class CourseManagementProviderTests
         Description = "desc",
         TechnicalLevel = 2,
         Mode = "Online",
-        GenreId = 1,
+        GenreId = Guid.NewGuid(),
         Modules = new List<SaveModuleRequest>
         {
             new() { Name = "M1", Order = 1, Lessons = new List<SaveLessonRequest>
@@ -259,7 +323,7 @@ public class CourseManagementProviderTests
     public async Task Get_ReturnsLessonMedia()
     {
         var (db, recruiter, _, company) = await SeedAsync();
-        var c = new Course { Name = "Media Course", CompanyId = company.CompanyId, GenreId = 1, Status = "Draft" };
+        var c = new Course { Name = "Media Course", CompanyId = company.CompanyId, GenreId = Guid.NewGuid(), Status = "Draft" };
         db.Courses.Add(c); await db.SaveChangesAsync();
         var module = new CourseModule { CourseId = c.CourseId, Name = "M1", Order = 1 };
         db.CourseModules.Add(module); await db.SaveChangesAsync();
@@ -282,7 +346,7 @@ public class CourseManagementProviderTests
     public async Task Update_Provider_NotFound_ForOthersCourse()
     {
         var (db, recruiter, provider, company) = await SeedAsync();
-        var c = new Course { Name = "Comp", CompanyId = company.CompanyId, GenreId = 1, Status = "Draft", CreatedBy = recruiter.UserId.ToString() };
+        var c = new Course { Name = "Comp", CompanyId = company.CompanyId, GenreId = Guid.NewGuid(), Status = "Draft", CreatedBy = recruiter.UserId.ToString() };
         db.Courses.Add(c); await db.SaveChangesAsync();
         var ctrl = CreateController(db, provider.UserId, "CourseProvider");
         var result = await ctrl.Update(c.CourseId, ValidRequest());
@@ -293,7 +357,7 @@ public class CourseManagementProviderTests
     public async Task Update_PreservesAttachedLessonMedia()
     {
         var (db, recruiter, _, company) = await SeedAsync();
-        var c = new Course { Name = "Media Course", CompanyId = company.CompanyId, GenreId = 1, Status = "Draft" };
+        var c = new Course { Name = "Media Course", CompanyId = company.CompanyId, GenreId = Guid.NewGuid(), Status = "Draft" };
         db.Courses.Add(c); await db.SaveChangesAsync();
         var module = new CourseModule { CourseId = c.CourseId, Name = "M1", Order = 1 };
         db.CourseModules.Add(module); await db.SaveChangesAsync();
@@ -316,7 +380,7 @@ public class CourseManagementProviderTests
     public async Task Update_ReorderedLessons_KeepsMediaOnSameLesson()
     {
         var (db, recruiter, _, company) = await SeedAsync();
-        var c = new Course { Name = "Reorder Course", CompanyId = company.CompanyId, GenreId = 1, Status = "Draft" };
+        var c = new Course { Name = "Reorder Course", CompanyId = company.CompanyId, GenreId = Guid.NewGuid(), Status = "Draft" };
         db.Courses.Add(c); await db.SaveChangesAsync();
         var module = new CourseModule { CourseId = c.CourseId, Name = "M1", Order = 1 };
         db.CourseModules.Add(module); await db.SaveChangesAsync();
@@ -348,10 +412,64 @@ public class CourseManagementProviderTests
     }
 
     [Fact]
+    public async Task Update_EchoingIds_PreservesLearnerNotesAndDiscussionPosts()
+    {
+        var (db, recruiter, _, company) = await SeedAsync();
+        var c = new Course { Name = "Noted", CompanyId = company.CompanyId, GenreId = Guid.NewGuid(), Status = "Draft" };
+        db.Courses.Add(c); await db.SaveChangesAsync();
+        var module = new CourseModule { CourseId = c.CourseId, Name = "M1", Order = 1 };
+        db.CourseModules.Add(module); await db.SaveChangesAsync();
+        var lesson = new Lesson { CourseId = c.CourseId, ModuleId = module.ModuleId, Name = "L1", Order = 0 };
+        db.Lessons.Add(lesson); await db.SaveChangesAsync();
+        db.LearnerNotes.Add(new LearnerNote { LearnerId = Guid.NewGuid(), LessonId = lesson.LessonId, Content = "keep me", UpdatedAt = DateTime.UtcNow });
+        db.DiscussionPosts.Add(new DiscussionPost { LessonId = lesson.LessonId, LearnerId = Guid.NewGuid(), AuthorName = "A", Content = "and me", CreatedAt = DateTime.UtcNow });
+        await db.SaveChangesAsync();
+
+        var req = ValidRequest();
+        req.Modules[0].ModuleId = module.ModuleId;
+        req.Modules[0].Lessons[0].LessonId = lesson.LessonId;
+        var ctrl = CreateController(db, recruiter.UserId, "Recruiter");
+        var ok = Assert.IsType<OkObjectResult>((await ctrl.Update(c.CourseId, req)).Result);
+        var dto = Assert.IsType<CourseManagementDto>(ok.Value);
+
+        Assert.Equal(lesson.LessonId, dto.Modules.Single().Lessons.Single().LessonId);
+        Assert.Equal("keep me", Assert.Single(db.LearnerNotes.ToList()).Content);
+        Assert.Equal("and me", Assert.Single(db.DiscussionPosts.ToList()).Content);
+        Assert.Equal(1, db.CourseModules.Count());
+        Assert.Equal(1, db.Lessons.Count());
+    }
+
+    [Fact]
+    public async Task Update_DroppingLesson_RemovesItAndItsDependents()
+    {
+        var (db, recruiter, _, company) = await SeedAsync();
+        var c = new Course { Name = "Trimmed", CompanyId = company.CompanyId, GenreId = Guid.NewGuid(), Status = "Draft" };
+        db.Courses.Add(c); await db.SaveChangesAsync();
+        var module = new CourseModule { CourseId = c.CourseId, Name = "M1", Order = 1 };
+        db.CourseModules.Add(module); await db.SaveChangesAsync();
+        var keep = new Lesson { CourseId = c.CourseId, ModuleId = module.ModuleId, Name = "Keep", Order = 0 };
+        var drop = new Lesson { CourseId = c.CourseId, ModuleId = module.ModuleId, Name = "Drop", Order = 1 };
+        db.Lessons.AddRange(keep, drop); await db.SaveChangesAsync();
+        db.LearnerNotes.Add(new LearnerNote { LearnerId = Guid.NewGuid(), LessonId = drop.LessonId, Content = "orphan", UpdatedAt = DateTime.UtcNow });
+        await db.SaveChangesAsync();
+
+        var req = ValidRequest();
+        req.Modules[0].ModuleId = module.ModuleId;
+        req.Modules[0].Lessons = new List<SaveLessonRequest> { new() { LessonId = keep.LessonId, Name = "Keep", Order = 0 } };
+        var ctrl = CreateController(db, recruiter.UserId, "Recruiter");
+        var ok = Assert.IsType<OkObjectResult>((await ctrl.Update(c.CourseId, req)).Result);
+        var dto = Assert.IsType<CourseManagementDto>(ok.Value);
+
+        Assert.Equal(keep.LessonId, Assert.Single(dto.Modules.Single().Lessons).LessonId);
+        Assert.Equal(keep.LessonId, Assert.Single(db.Lessons.ToList()).LessonId);
+        Assert.Empty(db.LearnerNotes.ToList());
+    }
+
+    [Fact]
     public async Task Update_Provider_SucceedsForOwnCourse()
     {
         var (db, _, provider, _) = await SeedAsync();
-        var c = new Course { Name = "Old", CompanyId = null, GenreId = 1, Status = "Draft", CreatedBy = provider.UserId.ToString(), UpdatedBy = provider.UserId.ToString() };
+        var c = new Course { Name = "Old", CompanyId = null, GenreId = Guid.NewGuid(), Status = "Draft", CreatedBy = provider.UserId.ToString(), UpdatedBy = provider.UserId.ToString() };
         db.Courses.Add(c); await db.SaveChangesAsync();
         var ctrl = CreateController(db, provider.UserId, "CourseProvider");
         var req = ValidRequest(); req.Name = "New Name";
@@ -366,7 +484,7 @@ public class CourseManagementProviderTests
     public async Task Publish_Provider_UpdatesOwnCourse()
     {
         var (db, _, provider, _) = await SeedAsync();
-        var c = new Course { Name = "C", CompanyId = null, GenreId = 1, Status = "Draft", CreatedBy = provider.UserId.ToString() };
+        var c = new Course { Name = "C", CompanyId = null, GenreId = Guid.NewGuid(), Status = "Draft", CreatedBy = provider.UserId.ToString() };
         db.Courses.Add(c); await db.SaveChangesAsync();
         var ctrl = CreateController(db, provider.UserId, "CourseProvider");
         var res = await ctrl.Publish(c.CourseId, published: true);
@@ -378,7 +496,7 @@ public class CourseManagementProviderTests
     public async Task Publish_Provider_NotFound_ForOther()
     {
         var (db, recruiter, provider, company) = await SeedAsync();
-        var c = new Course { Name = "C", CompanyId = company.CompanyId, GenreId = 1, Status = "Draft", CreatedBy = recruiter.UserId.ToString() };
+        var c = new Course { Name = "C", CompanyId = company.CompanyId, GenreId = Guid.NewGuid(), Status = "Draft", CreatedBy = recruiter.UserId.ToString() };
         db.Courses.Add(c); await db.SaveChangesAsync();
         var ctrl = CreateController(db, provider.UserId, "CourseProvider");
         var res = await ctrl.Publish(c.CourseId, published: true);
@@ -389,7 +507,7 @@ public class CourseManagementProviderTests
     public async Task Delete_Provider_RemovesOwnCourse()
     {
         var (db, _, provider, _) = await SeedAsync();
-        var c = new Course { Name = "C", CompanyId = null, GenreId = 1, Status = "Draft", CreatedBy = provider.UserId.ToString() };
+        var c = new Course { Name = "C", CompanyId = null, GenreId = Guid.NewGuid(), Status = "Draft", CreatedBy = provider.UserId.ToString() };
         db.Courses.Add(c); await db.SaveChangesAsync();
         var ctrl = CreateController(db, provider.UserId, "CourseProvider");
         var res = await ctrl.Delete(c.CourseId);
@@ -401,7 +519,7 @@ public class CourseManagementProviderTests
     public async Task Delete_Provider_NotFound_ForOther()
     {
         var (db, recruiter, provider, company) = await SeedAsync();
-        var c = new Course { Name = "C", CompanyId = company.CompanyId, GenreId = 1, Status = "Draft", CreatedBy = recruiter.UserId.ToString() };
+        var c = new Course { Name = "C", CompanyId = company.CompanyId, GenreId = Guid.NewGuid(), Status = "Draft", CreatedBy = recruiter.UserId.ToString() };
         db.Courses.Add(c); await db.SaveChangesAsync();
         var ctrl = CreateController(db, provider.UserId, "CourseProvider");
         var res = await ctrl.Delete(c.CourseId);
@@ -416,7 +534,7 @@ public class CourseManagementProviderTests
         var db = TestDbContextFactory.Create();
         var lonely = new AppUser { FirstName = "Lonely", LastName = "Rec", EmailAddress = "lonely@example.com", Role = "Recruiter", CompanyId = null };
         db.Users.Add(lonely); await db.SaveChangesAsync();
-        var c = new Course { Name = "X", CompanyId = 999, GenreId = 1, Status = "Draft", CreatedBy = lonely.UserId.ToString() };
+        var c = new Course { Name = "X", CompanyId = Guid.NewGuid(), GenreId = Guid.NewGuid(), Status = "Draft", CreatedBy = lonely.UserId.ToString() };
         db.Courses.Add(c); await db.SaveChangesAsync();
         var ctrl = CreateController(db, lonely.UserId, "Recruiter");
         var res = await ctrl.Delete(c.CourseId);

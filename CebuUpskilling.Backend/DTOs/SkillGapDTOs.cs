@@ -1,7 +1,7 @@
 namespace CebuUpskilling.Backend.DTOs;
 
 public record SkillGapResponse(
-    int SkillId,
+    Guid SkillId,
     string SkillName,
     string? Category,
     int RequiredLevel,
@@ -13,7 +13,7 @@ public record SkillGapResponse(
 public record SkillGapGroupDto(
     string Role,
     string? CompanyName,
-    int? PostId,
+    Guid? PostId,
     int MatchPercent,
     List<SkillGapResponse> Gaps
 );

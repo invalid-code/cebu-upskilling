@@ -6,8 +6,8 @@ namespace CebuUpskilling.Backend.Services;
 
 public interface IDiscussionService
 {
-    Task<LessonDiscussionResponse?> GetLessonDiscussionAsync(int userId, int lessonId, CancellationToken cancellationToken = default);
-    Task<DiscussionPostDto?> CreatePostAsync(int userId, int lessonId, string content, CancellationToken cancellationToken = default);
+    Task<LessonDiscussionResponse?> GetLessonDiscussionAsync(Guid userId, Guid lessonId, CancellationToken cancellationToken = default);
+    Task<DiscussionPostDto?> CreatePostAsync(Guid userId, Guid lessonId, string content, CancellationToken cancellationToken = default);
 }
 
 public class DiscussionService : IDiscussionService
@@ -32,7 +32,7 @@ public class DiscussionService : IDiscussionService
         _logger = logger;
     }
 
-    public async Task<LessonDiscussionResponse?> GetLessonDiscussionAsync(int userId, int lessonId, CancellationToken cancellationToken = default)
+    public async Task<LessonDiscussionResponse?> GetLessonDiscussionAsync(Guid userId, Guid lessonId, CancellationToken cancellationToken = default)
     {
         _logger.LogDebug("Getting discussion for user {UserId}, lesson {LessonId}", userId, lessonId);
 
@@ -64,7 +64,7 @@ public class DiscussionService : IDiscussionService
         );
     }
 
-    public async Task<DiscussionPostDto?> CreatePostAsync(int userId, int lessonId, string content, CancellationToken cancellationToken = default)
+    public async Task<DiscussionPostDto?> CreatePostAsync(Guid userId, Guid lessonId, string content, CancellationToken cancellationToken = default)
     {
         _logger.LogDebug("Creating discussion post for user {UserId}, lesson {LessonId}", userId, lessonId);
 
@@ -105,7 +105,7 @@ public class DiscussionService : IDiscussionService
         return MapToDto(post, learner.LearnerId);
     }
 
-    private static DiscussionPostDto MapToDto(DiscussionPost post, int currentLearnerId)
+    private static DiscussionPostDto MapToDto(DiscussionPost post, Guid currentLearnerId)
         => new(
             PostId: post.DiscussionPostId,
             AuthorName: post.AuthorName,

@@ -1,13 +1,13 @@
 namespace CebuUpskilling.Backend.DTOs;
 
 public record LearnerSummaryDto(
-    int LearnerId,
+    Guid LearnerId,
     bool IsPremium,
     LearnerUserSummaryDto User
 );
 
 public record LearnerUserSummaryDto(
-    int UserId,
+    Guid UserId,
     string FirstName,
     string LastName,
     string? MiddleName,

@@ -7,7 +7,7 @@ const baseStyle = {
   overflow: 'hidden',
   flexShrink: 0,
   fontWeight: 700,
-  fontFamily: "'Space Grotesk', sans-serif",
+  fontFamily: 'var(--font-display)',
 };
 
 function initialsFor(name) {
@@ -35,8 +35,8 @@ export default function CompanyAvatar({ name = '', src = '', size = 44 }) {
           ...baseStyle,
           width: size,
           height: size,
-          background: 'var(--sand, #e8dfd1)',
-          color: 'var(--teal, #1a6b5a)',
+          background: 'var(--sand)',
+          color: 'var(--teal)',
           fontSize: Math.max(11, Math.round(size * 0.34)),
         }}
         aria-hidden="true"

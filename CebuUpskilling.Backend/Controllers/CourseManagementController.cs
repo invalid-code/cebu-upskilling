@@ -2,6 +2,7 @@ using System.Security.Claims;
 using CebuUpskilling.Backend.Data;
 using CebuUpskilling.Backend.DTOs;
 using CebuUpskilling.Backend.Entities;
+using CebuUpskilling.Backend.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -11,15 +12,15 @@ namespace CebuUpskilling.Backend.Controllers;
 [ApiController]
 [Route("api/company/courses")]
 [Authorize(Roles = "Recruiter,CourseProvider")]
-public class CourseManagementController(ApplicationDbContext db) : ControllerBase
+public class CourseManagementController(ApplicationDbContext db, ICertificateService certificates) : ControllerBase
 {
-    private async Task<int?> CompanyId() {
+    private async Task<Guid?> CompanyId() {
         var raw = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (!int.TryParse(raw, out var userId)) return null;
+        if (!Guid.TryParse(raw, out var userId)) return null;
         return await db.Users.Where(u => u.UserId == userId).Select(u => u.CompanyId).SingleOrDefaultAsync();
     }
 
-    private int UserId() => int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : 0;
+    private Guid UserId() => Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : Guid.Empty;
 
     private bool IsCourseProvider() => User.IsInRole("CourseProvider");
 
@@ -32,27 +33,29 @@ public class CourseManagementController(ApplicationDbContext db) : ControllerBas
             var providerCourses = await db.Courses.AsNoTracking()
                 .Where(c => c.CreatedBy == uid)
                 .OrderByDescending(c => c.UpdatedAt)
-                .Select(c => new CourseManagementListDto(c.CourseId, c.Name, c.Description, c.Status, c.TechnicalLevel, c.Mode, c.Modules.Count, c.Lessons.Count, c.UpdatedAt)).ToListAsync();
+                .Select(c => new CourseManagementListDto(c.CourseId, c.Name, c.Description, c.Status, c.TechnicalLevel, c.Mode, c.Modules.Count, c.Lessons.Count, c.UpdatedAt, c.IssuesCertificate, c.Certificates.Count)).ToListAsync();
             return Ok(providerCourses);
         }
         var companyId = await CompanyId();
         if (companyId is null) return Forbid();
         var courses = await db.Courses.AsNoTracking().Where(c => c.CompanyId == companyId).OrderByDescending(c => c.UpdatedAt)
-            .Select(c => new CourseManagementListDto(c.CourseId, c.Name, c.Description, c.Status, c.TechnicalLevel, c.Mode, c.Modules.Count, c.Lessons.Count, c.UpdatedAt)).ToListAsync();
+            .Select(c => new CourseManagementListDto(c.CourseId, c.Name, c.Description, c.Status, c.TechnicalLevel, c.Mode, c.Modules.Count, c.Lessons.Count, c.UpdatedAt, c.IssuesCertificate, c.Certificates.Count)).ToListAsync();
         return Ok(courses);
     }
 
-    [HttpGet("{id:int}")]
-    public async Task<ActionResult<CourseManagementDto>> Get(int id) {
+    [HttpGet("{id:guid}")]
+    public async Task<ActionResult<CourseManagementDto>> Get(Guid id) {
         if (IsCourseProvider()) {
             var uid = UserId().ToString();
-            var pc = await db.Courses.AsNoTracking().AsSplitQuery().Include(x => x.Modules.OrderBy(m => m.Order)).ThenInclude(m => m.Lessons.OrderBy(l => l.LessonId)).ThenInclude(l => l.LessonContents).Include(x => x.Modules.OrderBy(m => m.Order)).ThenInclude(m => m.Lessons.OrderBy(l => l.LessonId)).ThenInclude(l => l.Media).SingleOrDefaultAsync(x => x.CourseId == id && x.CreatedBy == uid);
-            return pc is null ? NotFound() : Ok(ToDto(pc));
+            var pc = await db.Courses.AsNoTracking().AsSplitQuery().Include(x => x.Modules.OrderBy(m => m.Order)).ThenInclude(m => m.Lessons.OrderBy(l => l.Order).ThenBy(l => l.LessonId)).ThenInclude(l => l.LessonContents).Include(x => x.Modules.OrderBy(m => m.Order)).ThenInclude(m => m.Lessons.OrderBy(l => l.Order).ThenBy(l => l.LessonId)).ThenInclude(l => l.Media).SingleOrDefaultAsync(x => x.CourseId == id && x.CreatedBy == uid);
+            if (pc is null) return NotFound();
+            return Ok(ToDto(pc, await db.CourseCertificates.CountAsync(x => x.CourseId == id)));
         }
         var companyId = await CompanyId();
         if (companyId is null) return Forbid();
-        var c = await db.Courses.AsNoTracking().AsSplitQuery().Include(x => x.Modules.OrderBy(m => m.Order)).ThenInclude(m => m.Lessons.OrderBy(l => l.LessonId)).ThenInclude(l => l.LessonContents).Include(x => x.Modules.OrderBy(m => m.Order)).ThenInclude(m => m.Lessons.OrderBy(l => l.LessonId)).ThenInclude(l => l.Media).SingleOrDefaultAsync(x => x.CourseId == id && x.CompanyId == companyId);
-        return c is null ? NotFound() : Ok(ToDto(c));
+        var c = await db.Courses.AsNoTracking().AsSplitQuery().Include(x => x.Modules.OrderBy(m => m.Order)).ThenInclude(m => m.Lessons.OrderBy(l => l.Order).ThenBy(l => l.LessonId)).ThenInclude(l => l.LessonContents).Include(x => x.Modules.OrderBy(m => m.Order)).ThenInclude(m => m.Lessons.OrderBy(l => l.Order).ThenBy(l => l.LessonId)).ThenInclude(l => l.Media).SingleOrDefaultAsync(x => x.CourseId == id && x.CompanyId == companyId);
+        if (c is null) return NotFound();
+        return Ok(ToDto(c, await db.CourseCertificates.CountAsync(x => x.CourseId == id)));
     }
 
     [HttpPost]
@@ -60,42 +63,52 @@ public class CourseManagementController(ApplicationDbContext db) : ControllerBas
         var genreId = await ResolveGenreIdAsync(request.GenreId);
         if (IsCourseProvider()) {
             var uid = UserId().ToString();
-            var providerCourse = new Course { CompanyId = null, Name = request.Name.Trim(), Description = request.Description, TechnicalLevel = request.TechnicalLevel, Mode = request.Mode, Price = request.Price, GenreId = genreId, Status = "Draft", CreatedBy = uid, UpdatedBy = uid, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
-            ApplyModules(providerCourse, request.Modules);
+            var providerCourse = new Course { CompanyId = null, Name = request.Name.Trim(), Description = request.Description, TechnicalLevel = request.TechnicalLevel, Mode = request.Mode, Price = request.Price, GenreId = genreId, Status = "Draft", IssuesCertificate = request.IssuesCertificate, CreatedBy = uid, UpdatedBy = uid, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
+            SaveTree(providerCourse, request.Modules);
             db.Courses.Add(providerCourse); await db.SaveChangesAsync();
-            return CreatedAtAction(nameof(Get), new { id = providerCourse.CourseId }, ToDto(providerCourse));
+            return CreatedAtAction(nameof(Get), new { id = providerCourse.CourseId }, ToDto(providerCourse, 0));
         }
         var companyId = await CompanyId();
         if (companyId is null) return Forbid();
-        var course = new Course { CompanyId = companyId, Name = request.Name.Trim(), Description = request.Description, TechnicalLevel = request.TechnicalLevel, Mode = request.Mode, Price = request.Price, GenreId = genreId, Status = "Draft" };
-        ApplyModules(course, request.Modules);
+        var course = new Course { CompanyId = companyId, Name = request.Name.Trim(), Description = request.Description, TechnicalLevel = request.TechnicalLevel, Mode = request.Mode, Price = request.Price, GenreId = genreId, Status = "Draft", IssuesCertificate = request.IssuesCertificate };
+        SaveTree(course, request.Modules);
         db.Courses.Add(course); await db.SaveChangesAsync();
-        return CreatedAtAction(nameof(Get), new { id = course.CourseId }, ToDto(course));
+        return CreatedAtAction(nameof(Get), new { id = course.CourseId }, ToDto(course, 0));
     }
 
-    [HttpPut("{id:int}")]
-    public async Task<ActionResult<CourseManagementDto>> Update(int id, SaveCourseRequest request) {
+    [HttpPut("{id:guid}")]
+    public async Task<ActionResult<CourseManagementDto>> Update(Guid id, SaveCourseRequest request) {
         if (IsCourseProvider()) {
             var uid = UserId().ToString();
-            var pc = await db.Courses.Include(c => c.Modules).ThenInclude(m => m.Lessons).ThenInclude(l => l.Media).SingleOrDefaultAsync(c => c.CourseId == id && c.CreatedBy == uid);
+            var pc = await db.Courses
+                .Include(c => c.Modules).ThenInclude(m => m.Lessons).ThenInclude(l => l.Media)
+                .Include(c => c.Modules).ThenInclude(m => m.Lessons).ThenInclude(l => l.LessonContents)
+                .AsSplitQuery()
+                .SingleOrDefaultAsync(c => c.CourseId == id && c.CreatedBy == uid);
             if (pc is null) return NotFound();
-            pc.Name = request.Name.Trim(); pc.Description = request.Description; pc.TechnicalLevel = request.TechnicalLevel; pc.Mode = request.Mode; pc.Price = request.Price; pc.GenreId = await ResolveGenreIdForUpdateAsync(request.GenreId, pc.GenreId); pc.UpdatedBy = uid; pc.UpdatedAt = DateTime.UtcNow;
-            var preserved = SnapshotMedia(pc);
-            db.Lessons.RemoveRange(pc.Modules.SelectMany(m => m.Lessons)); db.CourseModules.RemoveRange(pc.Modules); pc.Modules = new List<CourseModule>(); var idMap = ApplyModules(pc, request.Modules); ReattachMedia(pc, preserved, idMap);
-            await db.SaveChangesAsync(); return Ok(ToDto(pc));
+            pc.Name = request.Name.Trim(); pc.Description = request.Description; pc.TechnicalLevel = request.TechnicalLevel; pc.Mode = request.Mode; pc.Price = request.Price; pc.GenreId = await ResolveGenreIdForUpdateAsync(request.GenreId, pc.GenreId); pc.IssuesCertificate = request.IssuesCertificate; pc.UpdatedBy = uid; pc.UpdatedAt = DateTime.UtcNow;
+            SaveTree(pc, request.Modules);
+            await db.SaveChangesAsync();
+            if (request.IssuesCertificate) await certificates.IssueForCompletedLearnersAsync(pc.CourseId);
+            return Ok(ToDto(pc, await db.CourseCertificates.CountAsync(x => x.CourseId == pc.CourseId)));
         }
         var companyId = await CompanyId();
         if (companyId is null) return Forbid();
-        var course = await db.Courses.Include(c => c.Modules).ThenInclude(m => m.Lessons).ThenInclude(l => l.Media).SingleOrDefaultAsync(c => c.CourseId == id && c.CompanyId == companyId);
+        var course = await db.Courses
+            .Include(c => c.Modules).ThenInclude(m => m.Lessons).ThenInclude(l => l.Media)
+            .Include(c => c.Modules).ThenInclude(m => m.Lessons).ThenInclude(l => l.LessonContents)
+            .AsSplitQuery()
+            .SingleOrDefaultAsync(c => c.CourseId == id && c.CompanyId == companyId);
         if (course is null) return NotFound();
-        course.Name = request.Name.Trim(); course.Description = request.Description; course.TechnicalLevel = request.TechnicalLevel; course.Mode = request.Mode; course.Price = request.Price; course.GenreId = await ResolveGenreIdForUpdateAsync(request.GenreId, course.GenreId);
-        var preservedCompany = SnapshotMedia(course);
-        db.Lessons.RemoveRange(course.Modules.SelectMany(m => m.Lessons)); db.CourseModules.RemoveRange(course.Modules); course.Modules = new List<CourseModule>(); var companyIdMap = ApplyModules(course, request.Modules); ReattachMedia(course, preservedCompany, companyIdMap);
-        await db.SaveChangesAsync(); return Ok(ToDto(course));
+        course.Name = request.Name.Trim(); course.Description = request.Description; course.TechnicalLevel = request.TechnicalLevel; course.Mode = request.Mode; course.Price = request.Price; course.GenreId = await ResolveGenreIdForUpdateAsync(request.GenreId, course.GenreId); course.IssuesCertificate = request.IssuesCertificate; course.UpdatedBy = UserId().ToString(); course.UpdatedAt = DateTime.UtcNow;
+        SaveTree(course, request.Modules);
+        await db.SaveChangesAsync();
+        if (request.IssuesCertificate) await certificates.IssueForCompletedLearnersAsync(course.CourseId);
+        return Ok(ToDto(course, await db.CourseCertificates.CountAsync(x => x.CourseId == course.CourseId)));
     }
 
-    [HttpPost("{id:int}/publish")]
-    public async Task<IActionResult> Publish(int id, [FromQuery] bool published = true) {
+    [HttpPost("{id:guid}/publish")]
+    public async Task<IActionResult> Publish(Guid id, [FromQuery] bool published = true) {
         if (IsCourseProvider()) {
             var uid = UserId().ToString();
             var pc = await db.Courses.SingleOrDefaultAsync(c => c.CourseId == id && c.CreatedBy == uid); if (pc is null) return NotFound();
@@ -106,77 +119,170 @@ public class CourseManagementController(ApplicationDbContext db) : ControllerBas
         course.Status = published ? "Published" : "Draft"; await db.SaveChangesAsync(); return NoContent();
     }
 
-    [HttpDelete("{id:int}")]
-    public async Task<IActionResult> Delete(int id) {
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id) {
+        // Deleting cascades to modules, lessons, notes, discussions and
+        // enrollments: refuse while learners are enrolled so progress is never
+        // destroyed. Unpublish (Draft) instead, or wait until unenrolled.
         if (IsCourseProvider()) {
             var uid = UserId().ToString();
             var pc = await db.Courses.SingleOrDefaultAsync(c => c.CourseId == id && c.CreatedBy == uid); if (pc is null) return NotFound();
+            if (await db.LearnerStudyCourses.AnyAsync(lsc => lsc.CourseId == id))
+                return Conflict(new { error = "Cannot delete a course with enrolled learners. Unpublish it instead." });
             db.Courses.Remove(pc); await db.SaveChangesAsync(); return NoContent();
         }
         var companyId = await CompanyId(); if (companyId is null) return Forbid();
         var course = await db.Courses.SingleOrDefaultAsync(c => c.CourseId == id && c.CompanyId == companyId); if (course is null) return NotFound();
+        if (await db.LearnerStudyCourses.AnyAsync(lsc => lsc.CourseId == id))
+            return Conflict(new { error = "Cannot delete a course with enrolled learners. Unpublish it instead." });
         db.Courses.Remove(course); await db.SaveChangesAsync(); return NoContent();
     }
 
-    private async Task<int> ResolveGenreIdAsync(int? requested)
+    private async Task<Guid> ResolveGenreIdAsync(Guid? requested)
     {
-        if (requested is > 0)
+        if (requested is not null && requested.Value != Guid.Empty)
         {
             var exists = await db.Genres.AnyAsync(g => g.GenreId == requested.Value);
             if (exists) return requested.Value;
             var fallback = await db.Genres.OrderBy(g => g.GenreId).Select(g => g.GenreId).FirstOrDefaultAsync();
-            if (fallback != 0) return fallback;
+            if (fallback != Guid.Empty) return fallback;
             if (db.Database.ProviderName == "Microsoft.EntityFrameworkCore.InMemory") return requested.Value;
             throw new InvalidOperationException("No genres are configured; cannot create course.");
         }
         var first = await db.Genres.OrderBy(g => g.GenreId).Select(g => g.GenreId).FirstOrDefaultAsync();
-        if (first != 0) return first;
-        if (db.Database.ProviderName == "Microsoft.EntityFrameworkCore.InMemory") return 1;
+        if (first != Guid.Empty) return first;
+        if (db.Database.ProviderName == "Microsoft.EntityFrameworkCore.InMemory") return Guid.NewGuid();
         throw new InvalidOperationException("No genres are configured; cannot create course.");
     }
 
-    private async Task<int> ResolveGenreIdForUpdateAsync(int? requested, int current)
+    private async Task<Guid> ResolveGenreIdForUpdateAsync(Guid? requested, Guid current)
     {
         if (requested is null) return current;
-        if (requested is > 0)
+        if (requested is not null && requested.Value != Guid.Empty)
         {
             var exists = await db.Genres.AnyAsync(g => g.GenreId == requested.Value);
             if (exists) return requested.Value;
             var fallback = await db.Genres.OrderBy(g => g.GenreId).Select(g => g.GenreId).FirstOrDefaultAsync();
-            if (fallback != 0) return fallback;
+            if (fallback != Guid.Empty) return fallback;
         }
         return current;
     }
 
-    private static Dictionary<int, Lesson> ApplyModules(Course course, IEnumerable<SaveModuleRequest> modules) { var byRequestId = new Dictionary<int, Lesson>(); foreach (var m in modules.OrderBy(x => x.Order)) { var module = new CourseModule { Course = course, Name = m.Name.Trim(), Description = m.Description, Order = m.Order }; foreach (var l in m.Lessons.OrderBy(x => x.Order)) { var lesson = new Lesson { Course = course, Module = module, Name = l.Name.Trim(), Description = l.Description }; foreach (var c in NormalizeContents(l.Contents)) lesson.LessonContents.Add(c); module.Lessons.Add(lesson); if (l.LessonId is > 0) byRequestId[l.LessonId.Value] = lesson; } course.Modules.Add(module); } return byRequestId; }
+    // Reconciles the module/lesson tree with the request in place: modules are matched
+    // by ModuleId and lessons by LessonId when the client echoes them, so surviving
+    // lessons keep their identity — and with it the LearnerNotes and DiscussionPosts
+    // that cascade off LessonId. Only rows the client genuinely dropped are deleted.
+    private ModuleSyncResult SyncModules(Course course, IEnumerable<SaveModuleRequest> modules)
+    {
+        var liveModules = new List<CourseModule>();
+        var oldModules = course.Modules.OrderBy(m => m.Order).ToList();
+        var oldLessons = oldModules.SelectMany(m => m.Lessons).Where(l => l.LessonId != Guid.Empty).ToList();
+        var oldLessonsById = oldLessons.ToDictionary(l => l.LessonId);
+        var reusedModules = new HashSet<CourseModule>();
+        var reusedLessonIds = new HashSet<Guid>();
 
-    // Update replaces the whole module/lesson tree (old lessons are deleted,
-    // which cascade-deletes their Media rows). Snapshot attached media beforehand
-    // and re-link copies onto the rebuilt tree: by request LessonId when the
-    // client echoes it (stable across reorders/renames), falling back to
-    // positional matching for brand-new lessons.
-    private sealed record MediaSnapshot(int LessonId, int ModuleIndex, int LessonIndex, string PathFile, string Type, double MbSize);
+        foreach (var m in modules.OrderBy(x => x.Order))
+        {
+            CourseModule? module = null;
+            if (m.ModuleId is not null && m.ModuleId.Value != Guid.Empty)
+            {
+                var candidate = oldModules.FirstOrDefault(x => x.ModuleId == m.ModuleId.Value);
+                if (candidate is not null && reusedModules.Add(candidate))
+                    module = candidate;
+            }
+
+            if (module is null)
+            {
+                module = new CourseModule { Course = course };
+                course.Modules.Add(module);
+            }
+            liveModules.Add(module);
+
+            module.Name = m.Name.Trim();
+            module.Description = m.Description;
+            module.Order = m.Order;
+
+            foreach (var l in m.Lessons.OrderBy(x => x.Order))
+            {
+                Lesson? lesson = null;
+                if (l.LessonId is not null && l.LessonId.Value != Guid.Empty
+                    && oldLessonsById.TryGetValue(l.LessonId.Value, out var existing)
+                    && reusedLessonIds.Add(l.LessonId.Value))
+                {
+                    lesson = existing;
+                }
+
+                if (lesson is null)
+                {
+                    lesson = new Lesson { Course = course, Module = module };
+                    module.Lessons.Add(lesson);
+                }
+                else if (!ReferenceEquals(lesson.Module, module))
+                {
+                    lesson.Module = module;
+                }
+
+                lesson.Name = l.Name.Trim();
+                lesson.Description = l.Description;
+                lesson.Order = l.Order;
+                lesson.LessonContents.Clear();
+                foreach (var c in NormalizeContents(l.Contents))
+                    lesson.LessonContents.Add(c);
+
+            }
+        }
+
+        var removedLessonIds = new HashSet<Guid>();
+        foreach (var lesson in oldLessons)
+        {
+            if (reusedLessonIds.Contains(lesson.LessonId)) continue;
+            removedLessonIds.Add(lesson.LessonId);
+            db.Lessons.Remove(lesson);
+        }
+
+        foreach (var module in oldModules)
+        {
+            if (reusedModules.Contains(module)) continue;
+            db.CourseModules.Remove(module);
+        }
+
+        return new ModuleSyncResult(liveModules, removedLessonIds);
+    }
+
+    private sealed record ModuleSyncResult(List<CourseModule> Modules, HashSet<Guid> RemovedLessonIds);
+
+    private void SaveTree(Course course, IEnumerable<SaveModuleRequest> modules)
+    {
+        var preserved = SnapshotMedia(course);
+        ReattachMedia(preserved, SyncModules(course, modules));
+    }
+
+    private sealed record MediaSnapshot(Guid LessonId, int ModuleIndex, int LessonIndex, string PathFile, string Type, double MbSize);
 
     private static List<MediaSnapshot> SnapshotMedia(Course course)
         => course.Modules.OrderBy(m => m.Order)
-            .SelectMany((m, mi) => m.Lessons.OrderBy(l => l.LessonId)
+            .SelectMany((m, mi) => m.Lessons.OrderBy(l => l.Order).ThenBy(l => l.LessonId)
                 .SelectMany((l, li) => l.Media.Select(md => new MediaSnapshot(l.LessonId, mi, li, md.PathFile, md.Type, md.MbSize))))
             .ToList();
 
-    private static void ReattachMedia(Course course, List<MediaSnapshot> preserved, Dictionary<int, Lesson> byRequestId)
+    // Media on surviving lessons is left alone (its lesson row was never removed).
+    // Only media whose lesson the client deleted has to be re-homed, by position
+    // on the old tree, so uploads are not silently lost on every save.
+    private static void ReattachMedia(List<MediaSnapshot> preserved, ModuleSyncResult sync)
     {
-        if (preserved.Count == 0) return;
-        var newModules = course.Modules.OrderBy(m => m.Order).ToList();
-        foreach (var group in preserved.GroupBy(p => (p.LessonId, p.ModuleIndex, p.LessonIndex)))
+        var lost = preserved.Where(p => sync.RemovedLessonIds.Contains(p.LessonId)).ToList();
+        if (lost.Count == 0) return;
+
+        // course.Modules still contains the modules marked for deletion until
+        // SaveChanges detaches them, so index into the surviving tree instead.
+        var newModules = sync.Modules;
+        foreach (var group in lost.GroupBy(p => (p.ModuleIndex, p.LessonIndex)))
         {
-            Lesson? target = null;
-            if (!byRequestId.TryGetValue(group.Key.LessonId, out target))
-            {
-                if (group.Key.ModuleIndex >= newModules.Count) continue;
-                var candidates = newModules[group.Key.ModuleIndex].Lessons.ToList();
-                if (group.Key.LessonIndex >= candidates.Count) continue;
-                target = candidates[group.Key.LessonIndex];
-            }
+            if (group.Key.ModuleIndex >= newModules.Count) continue;
+            var candidates = newModules[group.Key.ModuleIndex]
+                .Lessons.Where(l => !sync.RemovedLessonIds.Contains(l.LessonId)).ToList();
+            if (group.Key.LessonIndex >= candidates.Count) continue;
+            var target = candidates[group.Key.LessonIndex];
             foreach (var snap in group)
                 target.Media.Add(new Media
                 {
@@ -209,5 +315,5 @@ public class CourseManagementController(ApplicationDbContext db) : ControllerBas
         return result;
     }
 
-    private static CourseManagementDto ToDto(Course c) => new(c.CourseId, c.Name, c.Description, c.Status, c.TechnicalLevel, c.Mode, c.Price, c.GenreId, c.Modules.OrderBy(m => m.Order).Select(m => new CourseManagementModuleDto(m.ModuleId, m.Name, m.Description, m.Order, m.Lessons.OrderBy(l => l.LessonId).Select((l, i) => new CourseManagementLessonDto(l.LessonId, l.Name, l.Description, i, l.LessonContents.OrderBy(lc => lc.LessonOrder).Select(lc => new CourseManagementContentDto(lc.ContentId, lc.BlockType, lc.Content, lc.LessonOrder)).ToList(), l.Media.Select(m => new MediaDto(m.MediaId, m.PathFile, m.Type, m.MbSize)).ToList())).ToList())).ToList());
+    private static CourseManagementDto ToDto(Course c, int certificatesIssued) => new(c.CourseId, c.Name, c.Description, c.Status, c.TechnicalLevel, c.Mode, c.Price, c.GenreId, c.IssuesCertificate, certificatesIssued, c.Modules.OrderBy(m => m.Order).Select(m => new CourseManagementModuleDto(m.ModuleId, m.Name, m.Description, m.Order, m.Lessons.OrderBy(l => l.Order).ThenBy(l => l.LessonId).Select((l, i) => new CourseManagementLessonDto(l.LessonId, l.Name, l.Description, i, l.LessonContents.OrderBy(lc => lc.LessonOrder).Select(lc => new CourseManagementContentDto(lc.ContentId, lc.BlockType, lc.Content, lc.LessonOrder)).ToList(), l.Media.Select(m => new MediaDto(m.MediaId, m.PathFile, m.Type, m.MbSize)).ToList())).ToList())).ToList());
 }

@@ -1,8 +1,11 @@
 using CebuUpskilling.Backend.Data;
 using CebuUpskilling.Backend.DTOs;
 using CebuUpskilling.Backend.Entities;
+using CebuUpskilling.Backend.Options;
 using CebuUpskilling.Backend.Repositories;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Options;
 
 namespace CebuUpskilling.Backend.Services;
 
@@ -21,7 +24,7 @@ public interface ILearningPathwayAgent
     /// Builds the pathway for the learner behind <paramref name="userId"/>,
     /// or null when there is no learner profile or no target role to plan for.
     /// </summary>
-    Task<LearningPathwayResponse?> GenerateAsync(int userId, CancellationToken ct = default);
+    Task<LearningPathwayResponse?> GenerateAsync(Guid userId, CancellationToken ct = default);
 }
 
 public class LearningPathwayAgent : ILearningPathwayAgent
@@ -36,6 +39,8 @@ public class LearningPathwayAgent : ILearningPathwayAgent
     private readonly IApplicationRepository _applications;
     private readonly ICourseRepository _courses;
     private readonly ILearnerStudyCourseRepository _enrollments;
+    private readonly IMemoryCache _cache;
+    private readonly ServiceCacheOptions _cacheOptions;
     private readonly ILogger<LearningPathwayAgent> _logger;
 
     public LearningPathwayAgent(
@@ -47,6 +52,8 @@ public class LearningPathwayAgent : ILearningPathwayAgent
         IApplicationRepository applications,
         ICourseRepository courses,
         ILearnerStudyCourseRepository enrollments,
+        IMemoryCache cache,
+        IOptions<ServiceCacheOptions> cacheOptions,
         ILogger<LearningPathwayAgent> logger)
     {
         _db = db;
@@ -57,10 +64,32 @@ public class LearningPathwayAgent : ILearningPathwayAgent
         _applications = applications;
         _courses = courses;
         _enrollments = enrollments;
+        _cache = cache;
+        _cacheOptions = cacheOptions.Value;
         _logger = logger;
     }
 
-    public async Task<LearningPathwayResponse?> GenerateAsync(int userId, CancellationToken ct = default)
+    public async Task<LearningPathwayResponse?> GenerateAsync(Guid userId, CancellationToken ct = default)
+    {
+        if (!_cacheOptions.Enabled)
+            return await LoadPathwayAsync(userId, ct);
+
+        var key = ServiceCacheKeys.LearningPathway(userId);
+        if (_cache.TryGetValue<LearningPathwayResponse>(key, out var cached) && cached is not null)
+        {
+            _logger.LogDebug("Learning pathway cache HIT for user {UserId}", userId);
+            return cached;
+        }
+
+        // Null (no learner / no target role) is not cached: either may appear
+        // immediately after this call.
+        var pathway = await LoadPathwayAsync(userId, ct);
+        if (pathway is not null)
+            _cache.Set(key, pathway, TimeSpan.FromMinutes(Math.Max(1, _cacheOptions.UserComputedMinutes)));
+        return pathway;
+    }
+
+    private async Task<LearningPathwayResponse?> LoadPathwayAsync(Guid userId, CancellationToken ct = default)
     {
         var learner = await _learners.GetByUserIdAsync(userId);
         if (learner == null)
@@ -106,7 +135,7 @@ public class LearningPathwayAgent : ILearningPathwayAgent
             .ToList();
 
         var demandBySkill = gaps.Count == 0
-            ? new Dictionary<int, int>()
+            ? new Dictionary<Guid, int>()
             : await _db.SkillMarketTrends
                 .Where(t => gaps.Select(g => g.Skill.SkillId).Contains(t.SkillId))
                 .ToDictionaryAsync(t => t.SkillId, t => t.ActivePostings, ct);
@@ -202,7 +231,7 @@ public class LearningPathwayAgent : ILearningPathwayAgent
             : $"Enroll in {first.Name}";
     }
 
-    private async Task<string?> ResolveTargetRoleAsync(int userId, int learnerId)
+    private async Task<string?> ResolveTargetRoleAsync(Guid userId, Guid learnerId)
     {
         var profileRole = (await _users.GetByIdAsync(userId))?.TargetRole?.Trim();
         if (!string.IsNullOrWhiteSpace(profileRole))

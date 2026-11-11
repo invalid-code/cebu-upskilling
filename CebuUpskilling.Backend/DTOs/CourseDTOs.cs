@@ -1,7 +1,7 @@
 namespace CebuUpskilling.Backend.DTOs;
 
 public record CourseDto(
-    int CourseId,
+    Guid CourseId,
     string Name,
     string Provider,
     string? Description,
@@ -14,17 +14,18 @@ public record CourseDto(
 );
 
 public record EnrollmentDto(
-    int CourseId,
+    Guid CourseId,
     string CourseName,
     DateTime? Started,
     int ProgressPercent,
     string? CurrentModule,
     int TotalModules,
-    int TechnicalLevel
+    int TechnicalLevel,
+    Guid? CertificateId
 );
 
 public record RecommendedCourseDto(
-    int CourseId,
+    Guid CourseId,
     string Name,
     string Provider,
     string? Description,
@@ -58,7 +59,7 @@ public record CourseRecommendationRequest(
 );
 
 public record LessonSummaryDto(
-    int LessonId,
+    Guid LessonId,
     string Name,
     string? Description
 );
@@ -72,7 +73,7 @@ public record ModuleSummaryDto(
 );
 
 public record CourseDetailDto(
-    int CourseId,
+    Guid CourseId,
     string Name,
     string Provider,
     string? Description,

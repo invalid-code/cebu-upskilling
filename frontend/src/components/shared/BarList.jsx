@@ -1,6 +1,6 @@
 const styles = {
   title: {
-    fontFamily: "'Space Grotesk', sans-serif",
+    fontFamily: 'var(--font-display)',
     fontSize: 19,
     margin: '0 0 18px',
   },
@@ -26,7 +26,7 @@ export default function BarList({ title, items = [] }) {
           {items.map((item) => (
             <div key={item.label} style={styles.row}>
               <span style={styles.label} title={item.label}>{item.label}</span>
-              <div style={styles.track} aria-label={`${item.label}: ${item.value}`}>
+              <div style={styles.track} role="img" aria-label={`${item.label}: ${item.value}`}>
                 <div style={{ ...styles.fill, width: `${(item.value / max) * 100}%`, background: item.color || 'var(--teal)' }} />
               </div>
               <span style={styles.value}>{item.value}</span>

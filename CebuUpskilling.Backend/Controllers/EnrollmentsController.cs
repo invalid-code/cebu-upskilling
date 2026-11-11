@@ -19,13 +19,13 @@ public class EnrollmentsController : BaseEntityController<LearnerStudyCourse>
         _enrollmentsService = enrollmentsService;
     }
 
-    protected override int GetId(LearnerStudyCourse entity) => entity.CourseId;
+    protected override Guid GetId(LearnerStudyCourse entity) => entity.CourseId;
 
     [HttpGet]
     [Authorize(Roles = "Learner")]
     public override async Task<ActionResult<List<LearnerStudyCourse>>> GetAll()
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        if (!User.TryGetUserId(out var userId)) return Unauthorized(new { error = "Unauthorized" });
         _logger.LogInformation("HTTP GET /api/enrollments called by user {UserId}", userId);
 
         var enrollments = await _enrollmentsService.GetMyEnrollmentsAsync(userId);
@@ -39,7 +39,7 @@ public class EnrollmentsController : BaseEntityController<LearnerStudyCourse>
     [Authorize(Roles = "Learner")]
     public override async Task<ActionResult<LearnerStudyCourse>> Create(LearnerStudyCourse entity)
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        if (!User.TryGetUserId(out var userId)) return Unauthorized(new { error = "Unauthorized" });
         _logger.LogInformation("HTTP POST /api/enrollments called by user {UserId} for course {CourseId}", userId, entity.CourseId);
 
         var outcome = await _enrollmentsService.EnrollAsync(userId, entity.CourseId);
@@ -64,4 +64,20 @@ public class EnrollmentsController : BaseEntityController<LearnerStudyCourse>
 
         return StatusCode(201, new { outcome.CourseId, outcome.Started });
     }
+
+    // LearnerStudyCourse has a composite key (LearnerId, CourseId) and the inherited
+    // GetByIdAsync resolves by CourseId only, so the inherited read/update/delete
+    // would act on an arbitrary learner's row (IDOR between learners). Enrollment
+    // state is only exposed through GetAll (claim-scoped) and Create above.
+    [HttpGet("{id}")]
+    public override Task<ActionResult<LearnerStudyCourse>> GetById(Guid id) =>
+        Task.FromResult<ActionResult<LearnerStudyCourse>>(NotFound());
+
+    [HttpPut("{id}")]
+    public override Task<ActionResult<LearnerStudyCourse>> Update(Guid id, LearnerStudyCourse entity) =>
+        Task.FromResult<ActionResult<LearnerStudyCourse>>(NotFound());
+
+    [HttpDelete("{id}")]
+    public override Task<IActionResult> Delete(Guid id) =>
+        Task.FromResult<IActionResult>(NotFound());
 }

@@ -1,0 +1,402 @@
+.page {
+  display: block;
+}
+
+.heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: var(--space-5);
+  margin-bottom: var(--space-6);
+  flex-wrap: wrap;
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--text-12);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  color: var(--coral-ink);
+  margin: 0 0 var(--space-2);
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 3.5vw, 2.75rem);
+  margin: 0;
+}
+
+.subtitle {
+  color: var(--muted);
+  margin: var(--space-2) 0 0;
+  max-width: 560px;
+}
+
+/* Asymmetric layout: DOM order is Next move, This week, Pathway. */
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  grid-template-areas:
+    'next week'
+    'pathway week';
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.next { grid-area: next; }
+.week { grid-area: week; }
+.pathway { grid-area: pathway; }
+
+@media (max-width: 1023px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'next'
+      'week'
+      'pathway';
+  }
+}
+
+.region {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.regionBody {
+  padding: var(--space-5);
+}
+
+.regionTitle {
+  font-family: var(--font-display);
+  font-size: var(--text-20);
+  margin: 0 0 var(--space-4);
+}
+
+/* ---- Next move hero ---- */
+.hero {
+  position: relative;
+  color: #fff;
+  min-height: 260px;
+  padding: var(--space-6) var(--space-6) 88px;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.heroWater {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+}
+
+.heroEyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--text-12);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  margin: 0 0 var(--space-3);
+  color: #fff;
+}
+
+.heroHeadline {
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 3vw, 2.25rem);
+  line-height: 1.15;
+  margin: 0;
+  max-width: 560px;
+}
+
+.heroProgress {
+  margin: var(--space-3) 0 0;
+  font-variant-numeric: tabular-nums;
+  max-width: 560px;
+}
+
+.heroHint {
+  margin: var(--space-2) 0 var(--space-4);
+  max-width: 560px;
+}
+
+.heroBase {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 64px;
+}
+
+/* ---- Pathway ---- */
+.pathwayHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.subTitle {
+  font-family: var(--font-display);
+  font-size: var(--text-17);
+  margin: 0;
+}
+
+.badge {
+  background: var(--teal-soft);
+  color: var(--teal);
+  font-family: var(--font-mono);
+  font-size: var(--text-12);
+  font-weight: 700;
+  padding: var(--space-1) var(--space-3);
+  border-radius: 999px;
+}
+
+.steps {
+  list-style: none;
+  margin: 0 0 var(--space-6);
+  padding: 0;
+}
+
+.step {
+  display: flex;
+  gap: var(--space-3);
+  padding-bottom: var(--space-4);
+}
+
+.stepMark {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  font-size: var(--text-13);
+  font-weight: 700;
+  background: var(--surface2);
+  color: var(--muted);
+  border: 1px solid var(--line);
+}
+
+.stepDone .stepMark {
+  background: var(--teal);
+  border-color: var(--teal);
+  color: var(--on-accent);
+}
+
+.stepCurrent .stepMark {
+  background: var(--coral);
+  border-color: var(--coral);
+  color: var(--on-accent);
+}
+
+.stepTitle {
+  font-size: var(--text-15);
+  font-weight: 700;
+  line-height: 28px;
+  margin: 0;
+  color: var(--muted);
+}
+
+.stepDone .stepTitle,
+.stepCurrent .stepTitle {
+  color: var(--ink);
+}
+
+.stepDesc {
+  font-size: var(--text-13);
+  color: var(--muted);
+  margin: 0;
+}
+
+.skillList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.skillRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(96px, 160px) auto;
+  gap: var(--space-4);
+  align-items: center;
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--line);
+}
+
+.skillName {
+  font-size: var(--text-15);
+  margin: 0 0 var(--space-1);
+}
+
+.skillMeta {
+  font-size: var(--text-12);
+  color: var(--muted);
+}
+
+@media (max-width: 639px) {
+  .skillRow {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .skillMeter {
+    grid-column: 1 / -1;
+    order: 3;
+  }
+}
+
+.gapTag {
+  display: inline-block;
+  font-size: var(--text-12);
+  font-weight: 700;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius);
+  background: var(--coral-soft);
+  color: var(--coral-ink);
+  white-space: nowrap;
+}
+
+.gapTagReady {
+  background: var(--good-soft);
+  color: var(--good);
+}
+
+.matchBlock {
+  display: flex;
+  gap: var(--space-5);
+  align-items: center;
+  margin-bottom: var(--space-6);
+  flex-wrap: wrap;
+}
+
+.matchText {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.matchStatus {
+  font-family: var(--font-display);
+  font-size: var(--text-20);
+  font-weight: 700;
+  margin: 0 0 var(--space-1);
+}
+
+.matchDesc {
+  font-size: var(--text-13);
+  color: var(--muted);
+  margin: 0;
+}
+
+.sectionGap {
+  margin-top: var(--space-6);
+}
+
+.courseGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-4);
+}
+
+.linkRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.linkButton {
+  background: none;
+  border: 0;
+  padding: var(--space-2) 0;
+  min-height: 44px;
+  color: var(--teal);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+/* ---- This week ---- */
+.statList {
+  margin-bottom: var(--space-4);
+}
+
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 var(--space-4);
+  border-left: 2px solid var(--line);
+}
+
+.timelineItem {
+  position: relative;
+  padding: 0 0 var(--space-4) var(--space-3);
+}
+
+.timelineItem::before {
+  content: '';
+  position: absolute;
+  left: calc(-1 * var(--space-4) - 6px);
+  top: 6px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--teal);
+  border: 2px solid var(--surface);
+}
+
+.timelineTitle {
+  font-weight: 700;
+  font-size: var(--text-15);
+  margin: 0;
+}
+
+.timelineMeta {
+  font-size: var(--text-12);
+  color: var(--muted);
+  margin: var(--space-1) 0 0;
+}
+
+.timelineStatus {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.muted {
+  color: var(--muted);
+  font-size: var(--text-13);
+  margin: 0;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---- Loading skeleton ---- */
+.skeletonStack {
+  display: grid;
+  gap: var(--space-4);
+}
+
+/*
+ * Skeleton regions reserve the measured height of the loaded regions (Next move 346, This week 426,
+ * Pathway 963 at >= 640px; 369 / 426 / 1020 on phones) so the footer below does not shift (CLS) when
+ * the data arrives. Update these if the loaded layout changes.
+ */
+.skelNext { min-height: 346px; }
+.skelWeek { min-height: 426px; }
+.skelPathway { min-height: 963px; }
+
+@media (max-width: 639px) {
+  .skelNext { min-height: 369px; }
+  .skelPathway { min-height: 1020px; }
+}

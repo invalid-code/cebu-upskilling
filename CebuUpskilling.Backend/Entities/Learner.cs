@@ -5,9 +5,9 @@ namespace CebuUpskilling.Backend.Entities;
 public class Learner
 {
     [Key]
-    public int LearnerId { get; set; }
+    public Guid LearnerId { get; set; }
 
-    public int UserId { get; set; }
+    public Guid UserId { get; set; }
 
     public bool IsPremium { get; set; }
 
@@ -17,4 +17,5 @@ public class Learner
     public ICollection<LearnerAssessment> LearnerAssessments { get; set; } = new List<LearnerAssessment>();
     public ICollection<LearnerNote> LearnerNotes { get; set; } = new List<LearnerNote>();
     public ICollection<DiscussionPost> DiscussionPosts { get; set; } = new List<DiscussionPost>();
+    public ICollection<CourseCertificate> Certificates { get; set; } = new List<CourseCertificate>();
 }

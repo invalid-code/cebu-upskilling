@@ -12,7 +12,7 @@ public class LearnerFlowApiTests : ProductionApiTestBase
 {
     public LearnerFlowApiTests(ProductionApiFactory factory) : base(factory) { }
 
-    private async Task<(int UserId, int LearnerId)> GetLearnerIdsAsync(string email)
+    private async Task<(Guid UserId, Guid LearnerId)> GetLearnerIdsAsync(string email)
     {
         using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -122,9 +122,9 @@ public class LearnerFlowApiTests : ProductionApiTestBase
         registerResponse.EnsureSuccessStatusCode();
         var registerBody = await ReadJsonAsync(registerResponse);
         var recruiterToken = registerBody.GetProperty("token").GetString()!;
-        var companyId = registerBody.GetProperty("companyId").GetInt32();
+        var companyId = registerBody.GetProperty("companyId").GetGuid();
 
-        int postId;
+        Guid postId;
         using (var scope = Factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -154,7 +154,7 @@ public class LearnerFlowApiTests : ProductionApiTestBase
         var group = Assert.Single(groups);
         Assert.Equal("Backend Developer", group.GetProperty("role").GetString());
         Assert.Equal("Groups Corp", group.GetProperty("companyName").GetString());
-        Assert.Equal(postId, group.GetProperty("postId").GetInt32());
+        Assert.Equal(postId, group.GetProperty("postId").GetGuid());
         Assert.Equal(0, group.GetProperty("matchPercent").GetInt32());
         Assert.Equal(6, group.GetProperty("gaps").EnumerateArray().ToList().Count);
     }
@@ -210,12 +210,15 @@ public class LearnerFlowApiTests : ProductionApiTestBase
         using (var scope = Factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var jsSkill = await db.Skills.SingleAsync(s => s.Name == "JavaScript");
+            var reactSkill = await db.Skills.SingleAsync(s => s.Name == "React");
+            var tsSkill = await db.Skills.SingleAsync(s => s.Name == "TypeScript");
 
             db.LearnerAssessments.AddRange(
                 new LearnerAssessment
                 {
                     LearnerId = learnerId,
-                    SkillId = 1,
+                    SkillId = jsSkill.SkillId,
                     ScoredLevel = 4,
                     Verified = true,
                     CompletedAt = new DateTime(2026, 1, 15, 10, 0, 0, DateTimeKind.Utc),
@@ -223,7 +226,7 @@ public class LearnerFlowApiTests : ProductionApiTestBase
                 new LearnerAssessment
                 {
                     LearnerId = learnerId,
-                    SkillId = 3,
+                    SkillId = reactSkill.SkillId,
                     ScoredLevel = 3,
                     Verified = true,
                     CompletedAt = new DateTime(2026, 2, 20, 14, 30, 0, DateTimeKind.Utc),
@@ -231,7 +234,7 @@ public class LearnerFlowApiTests : ProductionApiTestBase
                 new LearnerAssessment
                 {
                     LearnerId = learnerId,
-                    SkillId = 2,
+                    SkillId = tsSkill.SkillId,
                     ScoredLevel = 2,
                     Verified = false,
                     CompletedAt = new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc),
@@ -278,7 +281,7 @@ public class LearnerFlowApiTests : ProductionApiTestBase
         listResponse.EnsureSuccessStatusCode();
         var enrollments = (await ReadJsonAsync(listResponse)).EnumerateArray().ToList();
         Assert.Single(enrollments);
-        Assert.Equal(courseId, enrollments[0].GetProperty("courseId").GetInt32());
+        Assert.Equal(courseId, enrollments[0].GetProperty("courseId").GetGuid());
         Assert.Equal("Modern Web Development", enrollments[0].GetProperty("courseName").GetString());
 
         var reEnrollResponse = await authorized.PostAsJsonAsync("/api/enrollments", new { courseId });
@@ -292,7 +295,7 @@ public class LearnerFlowApiTests : ProductionApiTestBase
     {
         var token = await RegisterLearnerAsync("flow.enrollmissing@example.com");
 
-        var response = await AuthorizedClient(token).PostAsJsonAsync("/api/enrollments", new { courseId = 9999 });
+        var response = await AuthorizedClient(token).PostAsJsonAsync("/api/enrollments", new { courseId = Guid.NewGuid() });
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -312,7 +315,7 @@ public class LearnerFlowApiTests : ProductionApiTestBase
         var registerBody = await ReadJsonAsync(registerResponse);
         var token = registerBody.GetProperty("token").GetString()!;
         var authorized = AuthorizedClient(token);
-        var companyId = registerBody.GetProperty("companyId").GetInt32();
+        var companyId = registerBody.GetProperty("companyId").GetGuid();
         using (var scope = Factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -349,7 +352,7 @@ public class LearnerFlowApiTests : ProductionApiTestBase
         return body.GetProperty("token").GetString()!;
     }
 
-    private async Task SetAllRoleSkillsToRequiredAsync(int learnerId)
+    private async Task SetAllRoleSkillsToRequiredAsync(Guid learnerId)
     {
         using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();

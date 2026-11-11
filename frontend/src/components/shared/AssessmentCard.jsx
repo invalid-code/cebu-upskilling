@@ -2,6 +2,7 @@ import Tag from '../ui/Tag';
 import ProgressBar from '../ui/ProgressBar';
 import Button from '../ui/Button';
 import { ArrowUpRight, FileText, Clock, RotateCcw } from 'lucide-react';
+import { metaText } from '../../styles/shared';
 
 const styles = {
   card: {
@@ -24,7 +25,7 @@ const styles = {
     flexWrap: 'wrap',
   },
   title: {
-    fontFamily: "'Space Grotesk', sans-serif",
+    fontFamily: 'var(--font-display)',
     fontSize: 18,
     fontWeight: 700,
     color: 'var(--ink)',
@@ -51,10 +52,7 @@ const styles = {
     alignItems: 'center',
     marginBottom: 8,
   },
-  levelLabel: {
-    fontSize: 12,
-    color: 'var(--muted)',
-  },
+  levelLabel: { ...metaText },
   levelValue: {
     fontSize: 12,
     fontWeight: 700,

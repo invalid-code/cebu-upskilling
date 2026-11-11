@@ -22,7 +22,7 @@ public class DiscussionApiTests : ProductionApiTestBase
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await ReadJsonAsync(response);
-        Assert.Equal(lessonId, body.GetProperty("lessonId").GetInt32());
+        Assert.Equal(lessonId, body.GetProperty("lessonId").GetGuid());
         Assert.Empty(body.GetProperty("posts").EnumerateArray());
     }
 
@@ -82,7 +82,7 @@ public class DiscussionApiTests : ProductionApiTestBase
         var token = await RegisterLearnerAsync("discussion.missinglesson@example.com");
 
         var response = await AuthorizedClient(token).PostAsJsonAsync(
-            "/api/discussions/lessons/9999/posts",
+            $"/api/discussions/lessons/{Guid.NewGuid()}/posts",
             new { content = "hi" });
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
@@ -136,12 +136,12 @@ public class DiscussionApiTests : ProductionApiTestBase
         registerResponse.EnsureSuccessStatusCode();
         var token = (await ReadJsonAsync(registerResponse)).GetProperty("token").GetString()!;
 
-        var response = await AuthorizedClient(token).GetAsync("/api/discussions/lessons/1");
+        var response = await AuthorizedClient(token).GetAsync($"/api/discussions/lessons/{Guid.NewGuid()}");
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
-    private async Task<(int CourseId, int LessonId)> CreateCourseWithLessonAsync(string token)
+    private async Task<(Guid CourseId, Guid LessonId)> CreateCourseWithLessonAsync(string token)
     {
         var courseId = await CreateCourseAsync(token);
 
@@ -170,7 +170,7 @@ public class DiscussionApiTests : ProductionApiTestBase
         return (courseId, lesson.LessonId);
     }
 
-    private async Task EnrollAsync(string token, int courseId)
+    private async Task EnrollAsync(string token, Guid courseId)
     {
         var response = await AuthorizedClient(token).PostAsJsonAsync("/api/enrollments", new { courseId });
         response.EnsureSuccessStatusCode();

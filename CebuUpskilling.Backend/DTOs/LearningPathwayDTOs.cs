@@ -1,7 +1,7 @@
 namespace CebuUpskilling.Backend.DTOs;
 
 public record PathwayCourseDto(
-    int CourseId,
+    Guid CourseId,
     string Name,
     string Provider,
     string Mode,
@@ -12,7 +12,7 @@ public record PathwayCourseDto(
 
 public record PathwayStepDto(
     int StepNumber,
-    int SkillId,
+    Guid SkillId,
     string SkillName,
     string? Category,
     int CurrentLevel,

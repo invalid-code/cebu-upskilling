@@ -1,14 +1,17 @@
 using CebuUpskilling.Backend.Data;
 using CebuUpskilling.Backend.DTOs;
 using CebuUpskilling.Backend.Entities;
+using CebuUpskilling.Backend.Options;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Options;
 
 namespace CebuUpskilling.Backend.Services;
 
 public interface IJobMarketTrendService
 {
     /// <summary>Recomputes skill demand rows for the given skills from current job posts.</summary>
-    Task RefreshSkillsAsync(IEnumerable<int> skillIds, CancellationToken cancellationToken = default);
+    Task RefreshSkillsAsync(IEnumerable<Guid> skillIds, CancellationToken cancellationToken = default);
 
     /// <summary>Recomputes role demand rows for the given target roles from current job posts.</summary>
     Task RefreshRolesAsync(IEnumerable<string> targetRoles, CancellationToken cancellationToken = default);
@@ -23,17 +26,25 @@ public interface IJobMarketTrendService
 public class JobMarketTrendService : IJobMarketTrendService
 {
     private readonly ApplicationDbContext _db;
+    private readonly IMemoryCache _cache;
+    private readonly ServiceCacheOptions _cacheOptions;
     private readonly ILogger<JobMarketTrendService> _logger;
 
-    public JobMarketTrendService(ApplicationDbContext db, ILogger<JobMarketTrendService> logger)
+    public JobMarketTrendService(
+        ApplicationDbContext db,
+        IMemoryCache cache,
+        IOptions<ServiceCacheOptions> cacheOptions,
+        ILogger<JobMarketTrendService> logger)
     {
         _db = db;
+        _cache = cache;
+        _cacheOptions = cacheOptions.Value;
         _logger = logger;
     }
 
-    public async Task RefreshSkillsAsync(IEnumerable<int> skillIds, CancellationToken cancellationToken = default)
+    public async Task RefreshSkillsAsync(IEnumerable<Guid> skillIds, CancellationToken cancellationToken = default)
     {
-        var ids = skillIds.Where(id => id > 0).Distinct().ToList();
+        var ids = skillIds.Where(id => id != Guid.Empty).Distinct().ToList();
         if (ids.Count == 0) return;
 
         var aggregates = await _db.PostSkills
@@ -53,7 +64,7 @@ public class JobMarketTrendService : IJobMarketTrendService
             .Where(t => ids.Contains(t.SkillId))
             .ToDictionaryAsync(t => t.SkillId, cancellationToken);
 
-        var found = new HashSet<int>();
+        var found = new HashSet<Guid>();
         foreach (var agg in aggregates)
         {
             found.Add(agg.SkillId);
@@ -85,6 +96,7 @@ public class JobMarketTrendService : IJobMarketTrendService
         }
 
         await _db.SaveChangesAsync(cancellationToken);
+        BumpTrendsGeneration();
         _logger.LogInformation("Refreshed skill market trends for {Count} skills", ids.Count);
     }
 
@@ -134,6 +146,7 @@ public class JobMarketTrendService : IJobMarketTrendService
         }
 
         await _db.SaveChangesAsync(cancellationToken);
+        BumpTrendsGeneration();
         _logger.LogInformation("Refreshed role market trends for {Count} roles", roles.Count);
     }
 
@@ -168,6 +181,45 @@ public class JobMarketTrendService : IJobMarketTrendService
     }
 
     public async Task<MarketTrendsResponse> GetTrendsAsync(int top, CancellationToken cancellationToken = default)
+    {
+        top = Math.Clamp(top, 1, 500);
+        if (!_cacheOptions.Enabled)
+            return await LoadTrendsAsync(top, cancellationToken);
+
+        var generation = _cache.GetOrCreate(
+            ServiceCacheKeys.MarketTrendsGeneration,
+            entry =>
+            {
+                entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(Math.Max(1, _cacheOptions.ReferenceDataMinutes / 60));
+                return 0;
+            });
+        var key = ServiceCacheKeys.MarketTrends(generation, top);
+        if (_cache.TryGetValue<MarketTrendsResponse>(key, out var cached) && cached is not null)
+        {
+            _logger.LogDebug("Market trends cache HIT (top {Top})", top);
+            return cached;
+        }
+
+        var trends = await LoadTrendsAsync(top, cancellationToken);
+        _cache.Set(key, trends, TimeSpan.FromMinutes(Math.Max(1, _cacheOptions.ReferenceDataMinutes)));
+        return trends;
+    }
+
+    /// <summary>
+    /// Advances the trends generation so previously cached snapshots stop
+    /// matching and expire naturally (no prefix scan needed).
+    /// </summary>
+    private void BumpTrendsGeneration()
+    {
+        if (!_cacheOptions.Enabled) return;
+        var current = _cache.TryGetValue<int>(ServiceCacheKeys.MarketTrendsGeneration, out var gen) ? gen : 0;
+        _cache.Set(
+            ServiceCacheKeys.MarketTrendsGeneration,
+            current + 1,
+            TimeSpan.FromHours(Math.Max(1, _cacheOptions.ReferenceDataMinutes / 60)));
+    }
+
+    private async Task<MarketTrendsResponse> LoadTrendsAsync(int top, CancellationToken cancellationToken = default)
     {
         top = Math.Clamp(top, 1, 500);
 

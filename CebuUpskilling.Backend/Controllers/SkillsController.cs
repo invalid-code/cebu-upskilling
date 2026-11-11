@@ -36,7 +36,7 @@ public class SkillsController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<IEnumerable<LearnerSkillDto>>> GetMySkills()
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        if (!User.TryGetUserId(out var userId)) return Unauthorized(new { error = "Unauthorized" });
         _logger.LogInformation("HTTP GET /api/skills called by user {UserId}", userId);
 
         var learner = await _learners.GetByUserIdAsync(userId);
@@ -59,7 +59,7 @@ public class SkillsController : ControllerBase
         [FromBody] ParseSkillsRequest request,
         CancellationToken ct)
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        if (!User.TryGetUserId(out var userId)) return Unauthorized(new { error = "Unauthorized" });
         _logger.LogInformation("HTTP POST /api/skills/parse called by user {UserId}", userId);
 
         if (string.IsNullOrWhiteSpace(request?.ResumeText))
@@ -90,4 +90,4 @@ public class SkillsController : ControllerBase
 
 public record ParseSkillsRequest(string? ResumeText);
 
-public record LearnerSkillDto(int SkillId, string Name, string? Category, int CurrentLevel, bool Verified);
+public record LearnerSkillDto(Guid SkillId, string Name, string? Category, int CurrentLevel, bool Verified);

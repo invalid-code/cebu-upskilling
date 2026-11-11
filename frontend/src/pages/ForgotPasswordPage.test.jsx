@@ -68,6 +68,23 @@ describe('ForgotPasswordPage', () => {
     expect(api.post).toHaveBeenCalledWith('/auth/forgot-password', { email: 'ada@example.com' });
   });
 
+  it('shows identical confirmation markup whether or not the email exists', async () => {
+    api.post.mockResolvedValueOnce({});
+    const first = renderPage();
+    fireEvent.change(screen.getByPlaceholderText('Email address'), { target: { value: 'ada@example.com' } });
+    fireEvent.submit(screen.getByText('Send reset link').closest('form'));
+    const known = (await screen.findByRole('status')).outerHTML;
+    first.unmount();
+
+    api.post.mockRejectedValueOnce(Object.assign(new Error('Not found'), { status: 404 }));
+    renderPage();
+    fireEvent.change(screen.getByPlaceholderText('Email address'), { target: { value: 'nobody@example.com' } });
+    fireEvent.submit(screen.getByText('Send reset link').closest('form'));
+    const unknown = (await screen.findByRole('status')).outerHTML;
+
+    expect(unknown).toBe(known);
+  });
+
   it('shows an error when the request fails', async () => {
     api.post.mockRejectedValue(new Error('Something went wrong. Please try again.'));
 

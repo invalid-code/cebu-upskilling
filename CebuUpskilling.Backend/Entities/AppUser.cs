@@ -6,7 +6,7 @@ namespace CebuUpskilling.Backend.Entities;
 public class AppUser : AuditableEntity
 {
     [Key]
-    public int UserId { get; set; }
+    public Guid UserId { get; set; }
 
     [Required, MaxLength(255)]
     public string FirstName { get; set; } = string.Empty;
@@ -65,7 +65,7 @@ public class AppUser : AuditableEntity
 
     public DateTime? PasswordResetTokenExpiry { get; set; }
 
-    public int? CompanyId { get; set; }
+    public Guid? CompanyId { get; set; }
 
     [MaxLength(1000)]
     public string? ResumeUrl { get; set; }

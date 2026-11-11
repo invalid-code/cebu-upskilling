@@ -1,13 +1,16 @@
 using CebuUpskilling.Backend.DTOs;
 using CebuUpskilling.Backend.Entities;
+using CebuUpskilling.Backend.Options;
 using CebuUpskilling.Backend.Repositories;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Options;
 
 namespace CebuUpskilling.Backend.Services;
 
 public interface ISkillGapService
 {
-    Task<List<SkillGapGroupDto>> GetSkillGapsAsync(int userId);
-    Task<List<SkillGapGroupDto>> GetSkillGapGroupsAsync(int userId);
+    Task<List<SkillGapGroupDto>> GetSkillGapsAsync(Guid userId);
+    Task<List<SkillGapGroupDto>> GetSkillGapGroupsAsync(Guid userId);
 }
 
 public class SkillGapService : ISkillGapService
@@ -17,6 +20,8 @@ public class SkillGapService : ISkillGapService
     private readonly ILearnerRepository _learners;
     private readonly ILearnerSkillRepository _learnerSkills;
     private readonly IApplicationRepository _applications;
+    private readonly IMemoryCache _cache;
+    private readonly ServiceCacheOptions _cacheOptions;
     private readonly ILogger<SkillGapService> _logger;
 
     public SkillGapService(
@@ -25,6 +30,8 @@ public class SkillGapService : ISkillGapService
         ILearnerRepository learners,
         ILearnerSkillRepository learnerSkills,
         IApplicationRepository applications,
+        IMemoryCache cache,
+        IOptions<ServiceCacheOptions> cacheOptions,
         ILogger<SkillGapService> logger)
     {
         _users = users;
@@ -32,20 +39,39 @@ public class SkillGapService : ISkillGapService
         _learners = learners;
         _learnerSkills = learnerSkills;
         _applications = applications;
+        _cache = cache;
+        _cacheOptions = cacheOptions.Value;
         _logger = logger;
     }
 
-    public Task<List<SkillGapGroupDto>> GetSkillGapsAsync(int userId)
+    public Task<List<SkillGapGroupDto>> GetSkillGapsAsync(Guid userId)
         => GetSkillGapGroupsAsync(userId);
 
-    public async Task<List<SkillGapGroupDto>> GetSkillGapGroupsAsync(int userId)
+    public async Task<List<SkillGapGroupDto>> GetSkillGapGroupsAsync(Guid userId)
+    {
+        if (!_cacheOptions.Enabled)
+            return await LoadSkillGapGroupsAsync(userId);
+
+        var key = ServiceCacheKeys.SkillGaps(userId);
+        if (_cache.TryGetValue<List<SkillGapGroupDto>>(key, out var cached) && cached is not null)
+        {
+            _logger.LogDebug("Skill gaps cache HIT for user {UserId}", userId);
+            return cached;
+        }
+
+        var groups = await LoadSkillGapGroupsAsync(userId);
+        _cache.Set(key, groups, TimeSpan.FromMinutes(Math.Max(1, _cacheOptions.UserComputedMinutes)));
+        return groups;
+    }
+
+    private async Task<List<SkillGapGroupDto>> LoadSkillGapGroupsAsync(Guid userId)
     {
         var user = await _users.GetByIdAsync(userId);
 
         var learner = await _learners.GetByUserIdAsync(userId);
         var learnerSkillMap = learner != null
             ? (await _learnerSkills.GetByLearnerIdWithSkillAsync(learner.LearnerId)).ToDictionary(ls => ls.SkillId)
-            : new Dictionary<int, LearnerSkill>();
+            : new Dictionary<Guid, LearnerSkill>();
 
         var applications = learner != null
             ? await _applications.GetByLearnerIdAsync(learner.LearnerId)
@@ -102,7 +128,7 @@ public class SkillGapService : ISkillGapService
 
     private async Task<List<SkillGapResponse>> ComputeGapsForRoleAsync(
         string targetRole,
-        Dictionary<int, LearnerSkill> learnerSkillMap)
+        Dictionary<Guid, LearnerSkill> learnerSkillMap)
     {
         _logger.LogDebug("Computing skill gaps for role {TargetRole}", targetRole);
 

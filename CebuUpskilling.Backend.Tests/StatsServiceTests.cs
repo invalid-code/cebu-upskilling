@@ -1,9 +1,12 @@
 using CebuUpskilling.Backend.Data;
 using CebuUpskilling.Backend.Entities;
+using CebuUpskilling.Backend.Options;
 using CebuUpskilling.Backend.Repositories;
 using CebuUpskilling.Backend.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 
 namespace CebuUpskilling.Backend.Tests;
 
@@ -13,6 +16,8 @@ public class StatsServiceTests
         new LearnerRepository(context),
         new LearnerStudyCourseRepository(context),
         new PostRepository(context),
+        new MemoryCache(new MemoryCacheOptions()),
+        Microsoft.Extensions.Options.Options.Create(new ServiceCacheOptions()),
         NullLogger<StatsService>.Instance
     );
 
@@ -34,7 +39,7 @@ public class StatsServiceTests
         return (user, learner);
     }
 
-    private static async Task<int> CreateCourseAsync(ApplicationDbContext context, string name)
+    private static async Task<Guid> CreateCourseAsync(ApplicationDbContext context, string name)
     {
         var course = new Course { Name = name };
         context.Courses.Add(course);
@@ -42,7 +47,7 @@ public class StatsServiceTests
         return course.CourseId;
     }
 
-    private static async Task<int> CreatePostAsync(ApplicationDbContext context)
+    private static async Task<Guid> CreatePostAsync(ApplicationDbContext context)
     {
         var company = new Company { Name = "Acme Corp" };
         context.Companies.Add(company);
@@ -73,7 +78,7 @@ public class StatsServiceTests
     {
         var context = TestDbContextFactory.Create();
 
-        var stats = await CreateService(context).GetWeeklyStatsAsync(999);
+        var stats = await CreateService(context).GetWeeklyStatsAsync(Guid.NewGuid());
 
         Assert.Equal(0, stats.LearningTimeHours);
         Assert.Equal(0, stats.CoursesActive);

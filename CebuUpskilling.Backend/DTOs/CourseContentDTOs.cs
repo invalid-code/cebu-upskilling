@@ -1,7 +1,7 @@
 namespace CebuUpskilling.Backend.DTOs;
 
 public record LessonContentBlockDto(
-    int ContentId,
+    Guid ContentId,
     string BlockType,
     string? Content,
     int LessonOrder,
@@ -9,7 +9,7 @@ public record LessonContentBlockDto(
 );
 
 public record MediaDto(
-    int MediaId,
+    Guid MediaId,
     string PathFile,
     string Type,
     double MbSize
@@ -22,7 +22,7 @@ public record DocumentUploadDto(
 );
 
 public record ExerciseDto(
-    int ExerciseId,
+    Guid ExerciseId,
     string Type,
     string? AnswerKey,
     string? Content,
@@ -30,7 +30,7 @@ public record ExerciseDto(
 );
 
 public record LessonDetailDto(
-    int LessonId,
+    Guid LessonId,
     string Name,
     string? Description,
     int LessonOrder,
@@ -49,7 +49,7 @@ public record CourseModuleDto(
 );
 
 public record LessonOutlineDto(
-    int LessonId,
+    Guid LessonId,
     string Name,
     int DurationMinutes,
     bool IsCompleted,
@@ -57,7 +57,7 @@ public record LessonOutlineDto(
 );
 
 public record CourseContentResponse(
-    int CourseId,
+    Guid CourseId,
     string CourseName,
     string? Description,
     int TotalLessons,
@@ -68,12 +68,13 @@ public record CourseContentResponse(
 );
 
 public record LessonProgressDto(
-    int LessonId,
+    Guid LessonId,
     bool IsCompleted,
-    int ProgressPercent
+    int ProgressPercent,
+    Guid? CertificateId = null
 );
 
 public record UpdateLessonProgressRequest(
-    int LessonId,
+    Guid LessonId,
     int ProgressPercent
 );

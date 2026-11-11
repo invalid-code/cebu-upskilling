@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from '../context/AuthContext';
 import { ToastProvider } from '../context/ToastContext';
 import { EnrollmentsProvider } from '../context/EnrollmentsContext';
@@ -287,6 +287,83 @@ describe('AssessmentsPage', () => {
     renderAssessments();
 
     expect(await screen.findByText(/Couldn.t load assessments/)).toBeInTheDocument();
-    expect(await screen.findByRole('button', { name: 'Try again' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Retry' })).toBeInTheDocument();
+  });
+
+  describe('camera flow', () => {
+    let getUserMedia;
+
+    function renderWithRoutes() {
+      localStorage.setItem('user', JSON.stringify({ firstName: 'Test', role: 'Learner', targetRole: 'Frontend Developer' }));
+      localStorage.setItem('token', 'abc');
+      return render(
+        <MemoryRouter initialEntries={['/assessments']}>
+          <AuthProvider>
+            <EnrollmentsProvider>
+              <ApplicationsProvider>
+                <ToastProvider>
+                  <Routes>
+                    <Route path="/assessments" element={<AssessmentsPage />} />
+                    <Route path="/dashboard" element={<p>Dashboard route</p>} />
+                  </Routes>
+                </ToastProvider>
+              </ApplicationsProvider>
+            </EnrollmentsProvider>
+          </AuthProvider>
+        </MemoryRouter>,
+      );
+    }
+
+    beforeEach(() => {
+      getUserMedia = vi.fn();
+      Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia } });
+    });
+
+    async function openPreflight() {
+      await screen.findByText('TypeScript');
+      await userEvent.click(screen.getByText('Start'));
+      await screen.findByText('Before the timer starts');
+    }
+
+    it('does not request the camera until the learner continues', async () => {
+      getUserMedia.mockResolvedValue({ getTracks: () => [{ stop: vi.fn() }] });
+      renderWithRoutes();
+      await openPreflight();
+      expect(getUserMedia).not.toHaveBeenCalled();
+
+      await userEvent.click(screen.getByRole('button', { name: 'Continue to camera check' }));
+      expect(getUserMedia).toHaveBeenCalledTimes(1);
+      expect(await screen.findByText('Camera ready')).toBeInTheDocument();
+    });
+
+    it('explains a denied camera and prompts again on retry', async () => {
+      const denied = Object.assign(new Error('denied'), { name: 'NotAllowedError' });
+      getUserMedia.mockRejectedValueOnce(denied);
+      renderWithRoutes();
+      await openPreflight();
+      await userEvent.click(screen.getByRole('button', { name: 'Continue to camera check' }));
+
+      expect(await screen.findByText('Camera access needed')).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /How to turn the camera back on/ })).toHaveAttribute('href');
+      expect(api.post).not.toHaveBeenCalled();
+
+      getUserMedia.mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] });
+      await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
+      expect(getUserMedia).toHaveBeenCalledTimes(2);
+      expect(await screen.findByText('Camera ready')).toBeInTheDocument();
+    });
+
+    it('leaves the attempt unstarted when the learner leaves after a denial', async () => {
+      getUserMedia.mockRejectedValue(Object.assign(new Error('denied'), { name: 'NotAllowedError' }));
+      renderWithRoutes();
+      await openPreflight();
+      await userEvent.click(screen.getByRole('button', { name: 'Continue to camera check' }));
+      await screen.findByText('Camera access needed');
+
+      await userEvent.click(screen.getByRole('button', { name: 'Leave' }));
+
+      expect(await screen.findByText('Dashboard route')).toBeInTheDocument();
+      expect(api.post).not.toHaveBeenCalled();
+    });
   });
 });

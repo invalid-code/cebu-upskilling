@@ -47,7 +47,7 @@ public record GoogleAuthRequest(
 );
 
 public record AuthResponse(
-    int UserId,
+    Guid UserId,
     string FirstName,
     string LastName,
     string EmailAddress,
@@ -63,20 +63,22 @@ public record AuthResponse(
     string Token,
     int ParsedSkillCount = 0,
     int AssessmentCount = 0,
-    int? CompanyId = null,
+    Guid? CompanyId = null,
     string? CompanyName = null,
-    string? ResumeUrl = null
+    string? ResumeUrl = null,
+    string? RefreshToken = null
 );
 
 public record CompanyRegisterResponse(
-    int UserId,
+    Guid UserId,
     string FirstName,
     string LastName,
     string EmailAddress,
     string Role,
-    int CompanyId,
+    Guid CompanyId,
     string CompanyName,
-    string Token
+    string Token,
+    string? RefreshToken = null
 );
 
 public record EmailRequest(
@@ -92,4 +94,12 @@ public record ResetPasswordRequest(
     [Required] string Email,
     [Required] string Token,
     [Required, MinLength(6)] string NewPassword
+);
+
+public record RefreshRequest(
+    [Required] string RefreshToken
+);
+
+public record LogoutRequest(
+    string? RefreshToken = null
 );

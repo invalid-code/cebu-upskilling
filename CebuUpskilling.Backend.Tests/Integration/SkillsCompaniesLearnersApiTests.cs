@@ -38,8 +38,8 @@ public class SkillsCompaniesLearnersApiTests : ProductionApiTestBase
             skills.Select(s => s.GetProperty("skillName").GetString()).OrderBy(n => n).ToArray());
         Assert.All(skills, s =>
         {
-            Assert.True(s.GetProperty("skillId").GetInt32() > 0);
-            Assert.True(s.GetProperty("assessmentId").GetInt32() > 0);
+            Assert.NotEqual(Guid.Empty, s.GetProperty("skillId").GetGuid());
+            Assert.NotEqual(Guid.Empty, s.GetProperty("assessmentId").GetGuid());
         });
 
         using var scope = Factory.Services.CreateScope();
@@ -92,7 +92,7 @@ public class SkillsCompaniesLearnersApiTests : ProductionApiTestBase
         var skills = (await ReadJsonAsync(response)).GetProperty("skills").EnumerateArray().ToList();
         Assert.Single(skills);
         Assert.Equal("Git", skills[0].GetProperty("skillName").GetString());
-        Assert.True(skills[0].GetProperty("skillId").GetInt32() > 0);
+        Assert.NotEqual(Guid.Empty, skills[0].GetProperty("skillId").GetGuid());
         Assert.Equal(JsonValueKind.Null, skills[0].GetProperty("assessmentId").ValueKind);
     }
 
@@ -169,7 +169,7 @@ public class SkillsCompaniesLearnersApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var companies = (await ReadJsonAsync(response)).EnumerateArray().ToList();
         Assert.Single(companies);
-        Assert.Equal(companyId, companies[0].GetProperty("companyId").GetInt32());
+        Assert.Equal(companyId, companies[0].GetProperty("companyId").GetGuid());
         Assert.Equal("Acme Corp", companies[0].GetProperty("name").GetString());
     }
 
@@ -182,9 +182,9 @@ public class SkillsCompaniesLearnersApiTests : ProductionApiTestBase
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var body = await ReadJsonAsync(response);
-        Assert.True(body.GetProperty("companyId").GetInt32() > 0);
+        Assert.NotEqual(Guid.Empty, body.GetProperty("companyId").GetGuid());
         Assert.Equal("Second Corp", body.GetProperty("name").GetString());
-        Assert.Equal("/api/companies/" + body.GetProperty("companyId").GetInt32(), response.Headers.Location?.AbsolutePath);
+        Assert.Equal("/api/companies/" + body.GetProperty("companyId").GetGuid(), response.Headers.Location?.AbsolutePath);
     }
 
     [Fact]
@@ -201,7 +201,7 @@ public class SkillsCompaniesLearnersApiTests : ProductionApiTestBase
     // Helpers
     // ------------------------------------------------------------------ //
 
-    private async Task<(string token, int companyId)> RegisterRecruiterAsync(string email, string companyName)
+    private async Task<(string token, Guid companyId)> RegisterRecruiterAsync(string email, string companyName)
     {
         using var registration = await RegisterCompanyAsync(new
         {
@@ -214,6 +214,6 @@ public class SkillsCompaniesLearnersApiTests : ProductionApiTestBase
         registration.EnsureSuccessStatusCode();
         var body = await ReadJsonAsync(registration);
 
-        return (body.GetProperty("token").GetString()!, body.GetProperty("companyId").GetInt32());
+        return (body.GetProperty("token").GetString()!, body.GetProperty("companyId").GetGuid());
     }
 }

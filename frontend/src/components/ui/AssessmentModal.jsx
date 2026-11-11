@@ -4,12 +4,22 @@ import Button from './Button';
 import { api } from '../../api/client';
 import { useToast } from '../../context/ToastContext';
 import { createProctor } from '../../lib/proctoring';
+import useDialogFocus from '../../lib/useDialogFocus';
+import LiquidMeter from '../water/LiquidMeter';
+import moduleStyles from './AssessmentModal.module.css';
+
+const INTEGRITY_MESSAGES = {
+  LookingAway: 'Integrity warning: you looked away from the screen. Keep your eyes on the assessment.',
+  MultipleFaces: 'Integrity warning: more than one person is in view. Only the learner may be on camera.',
+  NoFace: 'Integrity warning: your face is not visible. Stay in front of the camera.',
+  PhoneDetected: 'Integrity warning: a phone or book is in view. Put it out of sight.',
+};
 
 const styles = {
   backdrop: {
     position: 'fixed',
     inset: 0,
-    background: 'rgba(20, 30, 25, 0.46)',
+    background: 'rgba(14, 25, 40, 0.46)',
     zIndex: 20,
     display: 'flex',
     alignItems: 'center',
@@ -42,7 +52,7 @@ const styles = {
     marginBottom: 4,
   },
   skillTitle: {
-    fontFamily: "'Space Grotesk', sans-serif",
+    fontFamily: 'var(--font-display)',
     fontSize: 18,
     fontWeight: 700,
     color: 'var(--ink)',
@@ -73,7 +83,7 @@ const styles = {
     padding: '22px',
   },
   questionText: {
-    fontFamily: "'Space Grotesk', sans-serif",
+    fontFamily: 'var(--font-display)',
     fontSize: 20,
     fontWeight: 600,
     color: 'var(--ink)',
@@ -112,7 +122,7 @@ const styles = {
   },
   optionLetterSelected: {
     background: 'var(--teal)',
-    color: 'var(--surface)',
+    color: 'var(--on-accent)',
   },
   optionText: {
     fontSize: 14,
@@ -181,7 +191,7 @@ const styles = {
     marginBottom: 16,
   },
   scoreText: {
-    fontFamily: "'Space Grotesk', sans-serif",
+    fontFamily: 'var(--font-display)',
     fontSize: 28,
     fontWeight: 700,
     color: 'var(--ink)',
@@ -221,7 +231,7 @@ const styles = {
   warnOverlay: {
     position: 'fixed',
     inset: 0,
-    background: 'rgba(20, 30, 25, 0.55)',
+    background: 'rgba(14, 25, 40, 0.55)',
     zIndex: 30,
     display: 'flex',
     alignItems: 'center',
@@ -245,11 +255,11 @@ const styles = {
     height: 56,
     borderRadius: '50%',
     background: 'var(--coral-soft)',
-    color: 'var(--coral)',
+    color: 'var(--coral-ink)',
     marginBottom: 14,
   },
   warnTitle: {
-    fontFamily: "'Space Grotesk', sans-serif",
+    fontFamily: 'var(--font-display)',
     fontSize: 18,
     fontWeight: 700,
     color: 'var(--ink)',
@@ -267,7 +277,7 @@ const styles = {
     gap: 12,
     padding: '10px 16px',
     borderBottom: '1px solid var(--line)',
-    background: 'var(--surface2, #f6f8f7)',
+    background: 'var(--surface2)',
   },
   proctorVideoWrap: {
     position: 'relative',
@@ -294,11 +304,11 @@ const styles = {
     height: 10,
     borderRadius: '50%',
     border: '2px solid #fff',
-    background: '#9aa5a0',
+    background: 'var(--status-idle)',
   },
-  proctorDotActive: { background: '#14b87a' },
-  proctorDotInit: { background: '#e8a317' },
-  proctorDotIdle: { background: '#9aa5a0' },
+  proctorDotActive: { background: 'var(--status-live)' },
+  proctorDotInit: { background: 'var(--status-wait)' },
+  proctorDotIdle: { background: 'var(--status-idle)' },
   proctorInfo: { flex: 1, minWidth: 0 },
   proctorTitle: {
     fontSize: 12,
@@ -335,6 +345,8 @@ const LETTERS = ['A', 'B', 'C', 'D'];
 
 export default function AssessmentModal({ open, onClose, assessmentId, skillName: initialSkillName, proctored = false }) {
   const { showToast } = useToast();
+  const modalRef = useRef(null);
+  useDialogFocus(open, onClose, modalRef);
   const [questions, setQuestions] = useState([]);
   const [skillName, setSkillName] = useState(initialSkillName || 'Assessment');
   const [source, setSource] = useState('');
@@ -356,6 +368,7 @@ export default function AssessmentModal({ open, onClose, assessmentId, skillName
   const proctorLastEmitRef = useRef({});
   const [proctorStatus, setProctorStatus] = useState('idle');
   const [proctorFlagCount, setProctorFlagCount] = useState(0);
+  const [integrityWarning, setIntegrityWarning] = useState('');
   const question = questions[current];
 
   useEffect(() => {
@@ -413,6 +426,7 @@ export default function AssessmentModal({ open, onClose, assessmentId, skillName
   useEffect(() => {
     if (!open || !assessmentId) return;
     setProctorFlagCount(0);
+    setIntegrityWarning('');
     proctorLastEmitRef.current = {};
     setProctorStatus('idle');
   }, [open, assessmentId]);
@@ -449,6 +463,7 @@ export default function AssessmentModal({ open, onClose, assessmentId, skillName
             if (now - last < 12000) return;
             proctorLastEmitRef.current[eventType] = now;
             setProctorFlagCount((c) => c + 1);
+            setIntegrityWarning(INTEGRITY_MESSAGES[eventType] || `Integrity warning: ${detail}`);
             Promise.resolve(
               api.post(`/assessments/${assessmentId}/integrity-event`, { eventType, detail }),
             ).catch(() => {});
@@ -493,7 +508,7 @@ export default function AssessmentModal({ open, onClose, assessmentId, skillName
     setSubmitting(true);
     try {
       const answerList = Object.entries(answers).map(([questionId, selectedOption]) => ({
-        questionId: parseInt(questionId),
+        questionId,
         selectedOption,
       }));
 
@@ -548,7 +563,15 @@ export default function AssessmentModal({ open, onClose, assessmentId, skillName
   return (
     <>
       <div style={styles.backdrop} onClick={onClose}>
-        <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+        <div
+          ref={modalRef}
+          tabIndex={-1}
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${skillName} assessment`}
+          style={styles.modal}
+          onClick={(e) => e.stopPropagation()}
+        >
           {loading ? (
           <div style={styles.loading}>
             <div style={styles.loadingSpinner}><Loader2 size={24} /></div>
@@ -628,6 +651,13 @@ export default function AssessmentModal({ open, onClose, assessmentId, skillName
               </div>
             )}
 
+            {integrityWarning && (
+              <div className={moduleStyles.integrityWarning} role="alert" data-testid="integrity-warning">
+                <AlertTriangle size={18} className={moduleStyles.integrityIcon} aria-hidden="true" />
+                <span>{integrityWarning}</span>
+              </div>
+            )}
+
             <div style={styles.body}>
               {question && (
                 <>
@@ -704,6 +734,12 @@ export default function AssessmentModal({ open, onClose, assessmentId, skillName
                 <Award size={32} />
               </div>
               <div style={styles.scoreText}>{result?.scorePercent || 0}% score</div>
+              <LiquidMeter
+                className={moduleStyles.scoreMeter}
+                value={result?.scorePercent ?? 0}
+                label="Assessment score"
+                tone="good"
+              />
               <div style={styles.scoreSubtext}>
                 You answered {result?.correctAnswers || 0} of {result?.totalQuestions || questions.length} correctly.
               </div>

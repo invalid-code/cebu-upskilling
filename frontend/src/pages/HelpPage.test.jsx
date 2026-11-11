@@ -54,6 +54,30 @@ describe('HelpPage', () => {
     expect(screen.getByRole('button', { name: 'Contact support' })).toBeInTheDocument();
   });
 
+  it('filters entries by question or answer, case-insensitively', () => {
+    renderHelp();
+    const input = screen.getByRole('searchbox', { name: /search help/i });
+    fireEvent.change(input, { target: { value: 'PROCTORING' } });
+    expect(screen.getByText('Assessment privacy')).toBeInTheDocument();
+    expect(screen.queryByText('Connection dropped?')).not.toBeInTheDocument();
+    fireEvent.change(input, { target: { value: 'dropped' } });
+    expect(screen.getByText('Connection dropped?')).toBeInTheDocument();
+    expect(screen.queryByText('Assessment privacy')).not.toBeInTheDocument();
+  });
+
+  it('shows a no-results message keeping the query, and clearing restores all entries', () => {
+    renderHelp();
+    const input = screen.getByRole('searchbox', { name: /search help/i });
+    fireEvent.change(input, { target: { value: 'zzz-nothing' } });
+    expect(screen.getByText(/No help entries match/)).toHaveTextContent('zzz-nothing');
+    expect(input).toHaveValue('zzz-nothing');
+    fireEvent.click(screen.getByRole('button', { name: 'Clear search' }));
+    expect(input).toHaveValue('');
+    expect(screen.getByText('Connection dropped?')).toBeInTheDocument();
+    expect(screen.getByText('Assessment privacy')).toBeInTheDocument();
+    expect(screen.getByText('Still need help?')).toBeInTheDocument();
+  });
+
   it('shows toast when Contact support button is clicked', () => {
     renderHelp();
     fireEvent.click(screen.getByRole('button', { name: 'Contact support' }));

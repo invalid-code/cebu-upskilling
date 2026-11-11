@@ -111,6 +111,40 @@ describe('ResetPasswordPage', () => {
     expect(await screen.findByText('This reset link is invalid or has expired.')).toBeInTheDocument();
   });
 
+  it('shows exactly one strength label and updates it on each keystroke', () => {
+    renderPage();
+    const input = screen.getByPlaceholderText('New password');
+    const labels = ['Weak', 'Fair', 'Good', 'Strong'];
+    const visible = () => labels.filter((l) => screen.queryByText(l));
+
+    expect(visible()).toEqual([]);
+
+    fireEvent.change(input, { target: { value: 'abc' } });
+    expect(visible()).toEqual(['Weak']);
+
+    fireEvent.change(input, { target: { value: 'abcdefgh1' } });
+    expect(visible()).toEqual(['Fair']);
+
+    fireEvent.change(input, { target: { value: 'Abcdefgh1' } });
+    expect(visible()).toEqual(['Good']);
+
+    fireEvent.change(input, { target: { value: 'Abcdefgh1!xyz' } });
+    expect(visible()).toEqual(['Strong']);
+  });
+
+  it('shows a server 400 error in the summary and keeps the entered values', async () => {
+    api.post.mockRejectedValue(Object.assign(new Error('Token already used'), { status: 400 }));
+    renderPage();
+
+    fireEvent.change(screen.getByPlaceholderText('New password'), { target: { value: 'NewPass1' } });
+    fireEvent.change(screen.getByPlaceholderText('Confirm new password'), { target: { value: 'NewPass1' } });
+    fireEvent.submit(screen.getByPlaceholderText('New password').closest('form'));
+
+    expect(await screen.findByText('Token already used')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('New password')).toHaveValue('NewPass1');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Reset password' })).toBeEnabled());
+  });
+
   it('renders show password toggles for both fields', () => {
     renderPage();
     const toggles = screen.getAllByRole('button', { name: 'Show password' });

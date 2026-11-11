@@ -1,13 +1,16 @@
 using CebuUpskilling.Backend.DTOs;
 using CebuUpskilling.Backend.Entities;
+using CebuUpskilling.Backend.Options;
 using CebuUpskilling.Backend.Repositories;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Options;
 
 namespace CebuUpskilling.Backend.Services;
 
 public interface ICoursesPageService
 {
-    Task<CoursesPageResponse?> GetCoursesPageAsync(int userId, string? category = null);
-    Task<CourseDetailDto?> GetCourseDetailAsync(int userId, int courseId);
+    Task<CoursesPageResponse?> GetCoursesPageAsync(Guid userId, string? category = null);
+    Task<CourseDetailDto?> GetCourseDetailAsync(Guid userId, Guid courseId);
 }
 
 public class CoursesPageService : ICoursesPageService
@@ -19,6 +22,9 @@ public class CoursesPageService : ICoursesPageService
     private readonly IRoleSkillRepository _roleSkills;
     private readonly ILearnerSkillRepository _learnerSkills;
     private readonly IApplicationRepository _applications;
+    private readonly ICertificateService _certificates;
+    private readonly IMemoryCache _cache;
+    private readonly ServiceCacheOptions _cacheOptions;
     private readonly ILogger<CoursesPageService> _logger;
 
     public CoursesPageService(
@@ -29,6 +35,9 @@ public class CoursesPageService : ICoursesPageService
         IRoleSkillRepository roleSkills,
         ILearnerSkillRepository learnerSkills,
         IApplicationRepository applications,
+        ICertificateService certificates,
+        IMemoryCache cache,
+        IOptions<ServiceCacheOptions> cacheOptions,
         ILogger<CoursesPageService> logger)
     {
         _users = users;
@@ -38,10 +47,33 @@ public class CoursesPageService : ICoursesPageService
         _roleSkills = roleSkills;
         _learnerSkills = learnerSkills;
         _applications = applications;
+        _certificates = certificates;
+        _cache = cache;
+        _cacheOptions = cacheOptions.Value;
         _logger = logger;
     }
 
-    public async Task<CoursesPageResponse?> GetCoursesPageAsync(int userId, string? category = null)
+    public async Task<CoursesPageResponse?> GetCoursesPageAsync(Guid userId, string? category = null)
+    {
+        if (!_cacheOptions.Enabled)
+            return await LoadCoursesPageAsync(userId, category);
+
+        var key = ServiceCacheKeys.CoursesPage(userId, category);
+        if (_cache.TryGetValue<CoursesPageResponse>(key, out var cached) && cached is not null)
+        {
+            _logger.LogDebug("Courses page cache HIT for user {UserId}", userId);
+            return cached;
+        }
+
+        // Missing learner profiles (null) are not cached: the profile may be
+        // created immediately after this call.
+        var page = await LoadCoursesPageAsync(userId, category);
+        if (page is not null)
+            _cache.Set(key, page, TimeSpan.FromMinutes(Math.Max(1, _cacheOptions.UserComputedMinutes)));
+        return page;
+    }
+
+    private async Task<CoursesPageResponse?> LoadCoursesPageAsync(Guid userId, string? category = null)
     {
         _logger.LogDebug("Getting courses page for user {UserId}, category {Category}", userId, category);
 
@@ -55,6 +87,10 @@ public class CoursesPageService : ICoursesPageService
         var user = await _users.GetByIdAsync(userId);
 
         var enrollments = await _learnerStudyCourses.GetByLearnerIdWithCourseAsync(learner.LearnerId);
+        var certificates = await _certificates.GetForUserAsync(userId);
+        var certificateByCourse = certificates
+            .GroupBy(c => c.CourseId)
+            .ToDictionary(g => g.Key, g => g.First().CertificateId);
 
         var enrolledCourses = enrollments.Select(e => new EnrollmentDto(
             CourseId: e.CourseId,
@@ -63,11 +99,12 @@ public class CoursesPageService : ICoursesPageService
             ProgressPercent: e.LastTotalProgressPercent,
             CurrentModule: GetCurrentModule(e.Course.Modules.Count, e.LastTotalProgressPercent),
             TotalModules: e.Course.Modules.Count,
-            TechnicalLevel: e.Course.TechnicalLevel
+            TechnicalLevel: e.Course.TechnicalLevel,
+            CertificateId: certificateByCourse.GetValueOrDefault(e.CourseId)
         )).ToList();
 
         var coursesInProgress = enrolledCourses.Count(e => e.ProgressPercent < 100);
-        var certificatesEarned = enrolledCourses.Count(e => e.ProgressPercent >= 100);
+        var certificatesEarned = certificates.Count;
         var dayStreak = CalculateDayStreak(enrollments);
 
         var allCourses = await _courses.GetAllWithLessonsAsync();
@@ -131,7 +168,7 @@ public class CoursesPageService : ICoursesPageService
         );
     }
 
-    private async Task<List<string>> ResolveTargetRolesAsync(AppUser? user, int learnerId)
+    private async Task<List<string>> ResolveTargetRolesAsync(AppUser? user, Guid learnerId)
     {
         var profileRole = user?.TargetRole?.Trim();
         if (!string.IsNullOrWhiteSpace(profileRole))
@@ -174,11 +211,11 @@ public class CoursesPageService : ICoursesPageService
     /// Skill gaps for the resolved target role(s): required level minus the
     /// learner's current level, keeping only skills that still need work.
     /// </summary>
-    private static HashSet<int> ResolveGapSkillIds(
+    private static HashSet<Guid> ResolveGapSkillIds(
         List<RoleSkill> roleSkills,
         List<LearnerSkill> learnerSkills)
     {
-        if (roleSkills.Count == 0) return new HashSet<int>();
+        if (roleSkills.Count == 0) return new HashSet<Guid>();
 
         var currentBySkill = learnerSkills
             .GroupBy(ls => ls.SkillId)
@@ -191,7 +228,7 @@ public class CoursesPageService : ICoursesPageService
             .ToHashSet();
     }
 
-    private static int CountGapCoverage(Entities.Course course, HashSet<int> gapSkillIds)
+    private static int CountGapCoverage(Entities.Course course, HashSet<Guid> gapSkillIds)
     {
         if (gapSkillIds.Count == 0 || course.CourseSkills.Count == 0) return 0;
         return course.CourseSkills.Count(cs => gapSkillIds.Contains(cs.SkillId));
@@ -202,7 +239,7 @@ public class CoursesPageService : ICoursesPageService
         HashSet<string> learnerSkillNames,
         List<string> effectiveRoles,
         List<RoleSkill> roleSkills,
-        HashSet<int> gapSkillIds)
+        HashSet<Guid> gapSkillIds)
     {
         string? skillCategory = null;
         string? reason = null;
@@ -298,7 +335,7 @@ public class CoursesPageService : ICoursesPageService
             .FirstOrDefault(s => haystack.Any(h => h.Contains(s.ToLowerInvariant())));
     }
 
-    public async Task<CourseDetailDto?> GetCourseDetailAsync(int userId, int courseId)
+    public async Task<CourseDetailDto?> GetCourseDetailAsync(Guid userId, Guid courseId)
     {
         _logger.LogDebug("Getting course detail for user {UserId}, course {CourseId}", userId, courseId);
 
@@ -332,7 +369,7 @@ public class CoursesPageService : ICoursesPageService
                 Description: module.Description,
                 LessonCount: module.Lessons.Count,
                 Lessons: module.Lessons
-                    .OrderBy(l => l.LessonId)
+                    .OrderBy(l => l.Order).ThenBy(l => l.LessonId)
                     .Select(l => new LessonSummaryDto(l.LessonId, l.Name, l.Description))
                     .ToList()
             ))

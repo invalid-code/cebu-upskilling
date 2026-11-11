@@ -101,7 +101,7 @@ public class PostServiceRegressionTests
     {
         var ctx = TestDbContextFactory.Create();
         var svc = Create(ctx);
-        Assert.Null(await svc.GetByIdAsync(999));
+        Assert.Null(await svc.GetByIdAsync(Guid.NewGuid()));
     }
 
     [Fact]
@@ -124,7 +124,7 @@ public class PostServiceRegressionTests
     {
         var ctx = TestDbContextFactory.Create();
         var svc = Create(ctx);
-        var res = await svc.UpdateAsync(999, Req(title: "X"));
+        var res = await svc.UpdateAsync(Guid.NewGuid(), Req(title: "X"));
         Assert.Null(res);
     }
 
@@ -160,7 +160,7 @@ public class PostServiceRegressionTests
     {
         var ctx = TestDbContextFactory.Create();
         var svc = Create(ctx);
-        Assert.False(await svc.DeleteAsync(999));
+        Assert.False(await svc.DeleteAsync(Guid.NewGuid()));
     }
 
     [Fact]

@@ -22,10 +22,12 @@ public class DiscussionsController : ControllerBase
         _logger = logger;
     }
 
-    private int UserId => int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+    private Guid UserId => User.TryGetUserId(out var id)
+        ? id
+        : throw new UnauthorizedAccessException("Invalid user identity");
 
     [HttpGet("lessons/{lessonId}")]
-    public async Task<ActionResult<LessonDiscussionResponse>> GetLessonDiscussion(int lessonId)
+    public async Task<ActionResult<LessonDiscussionResponse>> GetLessonDiscussion(Guid lessonId)
     {
         _logger.LogInformation("HTTP GET /api/discussions/lessons/{LessonId} called by user {UserId}", lessonId, UserId);
 
@@ -37,7 +39,7 @@ public class DiscussionsController : ControllerBase
     }
 
     [HttpPost("lessons/{lessonId}/posts")]
-    public async Task<ActionResult<DiscussionPostDto>> CreatePost(int lessonId, [FromBody] CreateDiscussionPostRequest request)
+    public async Task<ActionResult<DiscussionPostDto>> CreatePost(Guid lessonId, [FromBody] CreateDiscussionPostRequest request)
     {
         _logger.LogInformation("HTTP POST /api/discussions/lessons/{LessonId}/posts called by user {UserId}", lessonId, UserId);
 

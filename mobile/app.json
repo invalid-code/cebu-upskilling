@@ -8,13 +8,24 @@
     "scheme": "cebuupskilling",
     "plugins": [
       "expo-secure-store",
-      "expo-font"
+      "expo-font",
+      "@sentry/react-native",
+      "expo-updates"
     ],
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "android": {
       "package": "com.cebuupskilling.mobile"
     },
     "ios": {
       "bundleIdentifier": "com.cebuupskilling.mobile"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "699787b4-ba87-49d7-9e89-cff5bd6b2511"
+      }
+    },
+    "owner": "invalid-code"
   }
 }

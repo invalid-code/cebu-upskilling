@@ -24,10 +24,10 @@ public class CourseContentController : ControllerBase
 
     [HttpGet("courses/{courseId}/content")]
     public async Task<ActionResult<CourseContentResponse>> GetCourseContent(
-        int courseId,
-        [FromQuery] int? lessonId = null)
+        Guid courseId,
+        [FromQuery] Guid? lessonId = null)
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        if (!User.TryGetUserId(out var userId)) return Unauthorized(new { error = "Unauthorized" });
         _logger.LogInformation("HTTP GET /api/coursecontent/courses/{CourseId}/content called by user {UserId}", courseId, userId);
 
         var result = await _courseContentService.GetCourseContentAsync(userId, courseId, lessonId);
@@ -38,9 +38,9 @@ public class CourseContentController : ControllerBase
     }
 
     [HttpGet("lessons/{lessonId}")]
-    public async Task<ActionResult<LessonDetailDto>> GetLessonDetail(int lessonId)
+    public async Task<ActionResult<LessonDetailDto>> GetLessonDetail(Guid lessonId)
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        if (!User.TryGetUserId(out var userId)) return Unauthorized(new { error = "Unauthorized" });
         _logger.LogInformation("HTTP GET /api/coursecontent/lessons/{LessonId} called by user {UserId}", lessonId, userId);
 
         var result = await _courseContentService.GetLessonDetailAsync(userId, lessonId);
@@ -52,10 +52,10 @@ public class CourseContentController : ControllerBase
 
     [HttpPut("lessons/{lessonId}/progress")]
     public async Task<ActionResult<LessonProgressDto>> UpdateLessonProgress(
-        int lessonId,
+        Guid lessonId,
         [FromBody] UpdateLessonProgressRequest request)
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        if (!User.TryGetUserId(out var userId)) return Unauthorized(new { error = "Unauthorized" });
         _logger.LogInformation("HTTP PUT /api/coursecontent/lessons/{LessonId}/progress called by user {UserId}", lessonId, userId);
 
         var result = await _courseContentService.UpdateLessonProgressAsync(userId, lessonId, request.ProgressPercent);

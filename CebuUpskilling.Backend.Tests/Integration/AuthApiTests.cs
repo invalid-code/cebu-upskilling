@@ -24,7 +24,7 @@ public class AuthApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         var body = await ReadJsonAsync(response);
-        Assert.True(body.GetProperty("userId").GetInt32() > 0);
+        Assert.NotEqual(Guid.Empty, body.GetProperty("userId").GetGuid());
         Assert.Equal("Jose", body.GetProperty("firstName").GetString());
         Assert.Equal("Rizal", body.GetProperty("lastName").GetString());
         Assert.Equal("auth.register@example.com", body.GetProperty("emailAddress").GetString());

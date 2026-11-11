@@ -24,7 +24,7 @@ public class JwtTokenServiceTests
 
     private static AppUser CreateUser() => new()
     {
-        UserId = 42,
+        UserId = Guid.NewGuid(),
         FirstName = "Jose",
         LastName = "Rizal",
         EmailAddress = "jose@example.com",
@@ -43,11 +43,12 @@ public class JwtTokenServiceTests
     [Fact]
     public void GenerateToken_ContainsExpectedClaims()
     {
-        var token = CreateTokenService().GenerateToken(CreateUser());
+        var user = CreateUser();
+        var token = CreateTokenService().GenerateToken(user);
         var handler = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler();
         var jwt = handler.ReadJwtToken(token);
 
-        Assert.Equal("42", jwt.Claims.First(c => c.Type == ClaimTypes.NameIdentifier).Value);
+        Assert.Equal(user.UserId.ToString(), jwt.Claims.First(c => c.Type == ClaimTypes.NameIdentifier).Value);
         Assert.Equal("jose@example.com", jwt.Claims.First(c => c.Type == ClaimTypes.Email).Value);
         Assert.Equal("Jose Rizal", jwt.Claims.First(c => c.Type == ClaimTypes.Name).Value);
         Assert.Equal("Learner", jwt.Claims.First(c => c.Type == ClaimTypes.Role).Value);
@@ -65,15 +66,29 @@ public class JwtTokenServiceTests
     }
 
     [Fact]
-    public void GenerateToken_ExpiresSevenDaysOut()
+    public void GenerateToken_ExpiresPerConfiguredAccessMinutes()
     {
         var token = CreateTokenService().GenerateToken(CreateUser());
         var handler = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler();
         var jwt = handler.ReadJwtToken(token);
 
-        var expected = DateTime.UtcNow.AddDays(7);
-        Assert.True(jwt.ValidTo > DateTime.UtcNow.AddDays(6.9));
+        var expected = DateTime.UtcNow.AddMinutes(15);
+        Assert.True(jwt.ValidTo > DateTime.UtcNow.AddMinutes(14));
         Assert.True(jwt.ValidTo <= expected.AddSeconds(30));
         Assert.True(jwt.ValidFrom <= DateTime.UtcNow);
+    }
+
+    [Fact]
+    public void GenerateRefreshToken_ReturnsOpaqueToken()
+    {
+        var service = CreateTokenService();
+
+        var first = service.GenerateRefreshToken();
+        var second = service.GenerateRefreshToken();
+
+        Assert.False(string.IsNullOrWhiteSpace(first));
+        Assert.NotEqual(first, second);
+        Assert.Equal(TimeSpan.FromMinutes(15), service.AccessLifetime);
+        Assert.Equal(TimeSpan.FromDays(30), service.RefreshLifetime);
     }
 }

@@ -40,10 +40,16 @@ public class ResendEmailService : IEmailService
         };
 
         var json = JsonSerializer.Serialize(payload);
-        using var content = new StringContent(json, Encoding.UTF8, "application/json");
-        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _options.ApiKey);
+        // Authorization goes on the request, not HttpClient.DefaultRequestHeaders:
+        // the client is shared from IHttpClientFactory, so writing to its defaults
+        // races with every other send in flight.
+        using var request = new HttpRequestMessage(HttpMethod.Post, "emails")
+        {
+            Content = new StringContent(json, Encoding.UTF8, "application/json"),
+        };
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _options.ApiKey);
 
-        var response = await _httpClient.PostAsync("emails", content, cancellationToken);
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
         if (!response.IsSuccessStatusCode)
         {
             var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);

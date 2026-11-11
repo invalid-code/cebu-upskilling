@@ -1,124 +1,37 @@
 import { Link } from 'react-router-dom';
+import { Check } from 'lucide-react';
 import Panel from '../components/ui/Panel';
-import Button from '../components/ui/Button';
 import EmptyState from '../components/shared/EmptyState';
+import ErrorState from '../components/ui/ErrorState';
+import Skeleton, { SkeletonStatus } from '../components/ui/Skeleton';
 import { useApplications } from '../context/ApplicationsContext';
+import { useAuth } from '../context/AuthContext';
+import styles from './ApplicationsPage.module.css';
 
-const statusConfig = {
-  applied: {
-    label: 'Applied',
-    background: 'rgba(20, 184, 166, 0.1)',
-    color: 'var(--teal)',
-  },
-  interview: {
-    label: 'Interview',
-    background: 'var(--coral-soft)',
-    color: 'var(--coral)',
-  },
-  review: {
-    label: 'Under review',
-    background: 'rgba(234, 179, 8, 0.15)',
-    color: '#b45309',
-  },
-  saved: {
-    label: 'Saved',
-    background: 'var(--teal-soft)',
-    color: 'var(--teal)',
-  },
-  rejected: {
-    label: 'Rejected',
-    background: 'rgba(239, 68, 68, 0.1)',
-    color: '#dc2626',
-  },
-  hired: {
-    label: 'Hired',
-    background: 'rgba(20, 184, 166, 0.15)',
-    color: 'var(--good, #0f766e)',
-  },
+// The text label always names the current status; colour is only a secondary cue.
+const STATUS_LABELS = {
+  applied: 'Applied',
+  interview: 'Interview',
+  review: 'Under review',
+  saved: 'Saved',
+  rejected: 'Rejected',
+  hired: 'Hired',
 };
 
-const styles = {
-  heading: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'end',
-    gap: 22,
-    marginBottom: 28,
-  },
-  eyebrow: {
-    fontSize: 11,
-    textTransform: 'uppercase',
-    letterSpacing: '0.12em',
-    fontWeight: 700,
-    color: 'var(--coral)',
-    marginBottom: 12,
-  },
-  h1: {
-    fontFamily: "'Space Grotesk', sans-serif",
-    fontSize: 'clamp(2rem, 4vw, 3.3rem)',
-  },
-  subtitle: {
-    color: 'var(--muted)',
-    margin: '8px 0 0',
-    maxWidth: 450,
-  },
-  list: {
-    display: 'flex',
-    flexDirection: 'column',
-  },
-  item: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '18px 0',
-    borderBottom: '1px solid var(--line)',
-  },
-  itemLast: {
-    borderBottom: 'none',
-  },
-  info: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 4,
-  },
-  title: {
-    fontSize: 15,
-    fontWeight: 700,
-    margin: 0,
-    color: 'var(--text, #1a2e28)',
-  },
-  meta: {
-    fontSize: 12,
-    color: 'var(--muted)',
-    margin: 0,
-  },
-  actions: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-  },
-  badge: (status) => {
-    const config = statusConfig[status] || statusConfig.applied;
-    return {
-      fontSize: 11,
-      fontWeight: 600,
-      color: config.color,
-      background: config.background,
-      padding: '5px 12px',
-      borderRadius: 20,
-      whiteSpace: 'nowrap',
-    };
-  },
-  openButton: {
-    padding: '6px 16px',
-    minHeight: 32,
-    fontSize: 12,
-    background: 'transparent',
-    color: 'var(--teal)',
-    border: '1px solid var(--teal)',
-    borderRadius: 8,
-  },
+const STATUS_TONE = {
+  applied: styles.toneInfo,
+  interview: styles.toneAccent,
+  review: styles.toneWarn,
+  saved: styles.toneInfo,
+  rejected: styles.toneDanger,
+  hired: styles.toneGood,
 };
+
+// Timeline stage names are distinct from status labels so each status is named once, in the label.
+const TIMELINE = ['Submitted', 'Reviewing', 'Interviewing', 'Decision'];
+
+/** Index of the current timeline stage for a status; -1 means no stage reached yet (saved). */
+const STAGE_OF = { saved: -1, applied: 0, review: 1, interview: 2, hired: 3, rejected: 3 };
 
 function formatDate(isoString) {
   if (!isoString) return '';
@@ -127,58 +40,115 @@ function formatDate(isoString) {
   return `${months[date.getMonth()]} ${date.getDate()}`;
 }
 
+function StatusTimeline({ status }) {
+  const current = STAGE_OF[status] ?? 0;
+  return (
+    <ol className={styles.timeline} aria-label="Application progress">
+      {TIMELINE.map((stage, index) => {
+        const state = index < current ? 'completed' : index === current ? 'current' : 'upcoming';
+        const decision = index === 3 && (status === 'hired' || status === 'rejected');
+        return (
+          <li
+            key={stage}
+            className={`${styles.stage} ${styles[`stage_${state}`]}`}
+            aria-current={state === 'current' ? 'step' : undefined}
+          >
+            <span className={styles.marker} aria-hidden="true">
+              {state === 'completed' ? <Check size={12} strokeWidth={3} /> : null}
+            </span>
+            <span className={styles.stageName}>{stage}</span>
+            <span className={styles.srOnly}>
+              {state === 'completed' ? ' (completed)' : state === 'current' ? ' (current)' : ' (not reached)'}
+              {decision ? `: ${STATUS_LABELS[status]}` : ''}
+            </span>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+function ApplicationsSkeleton() {
+  return (
+    <>
+      {Array.from({ length: 3 }, (_, i) => (
+        <div key={i} className={styles.skeletonItem}>
+          <Skeleton height={16} width="45%" />
+          <Skeleton height={12} width="30%" style={{ marginTop: 8 }} />
+          <Skeleton height={20} width="100%" style={{ marginTop: 16 }} />
+        </div>
+      ))}
+    </>
+  );
+}
+
 export default function ApplicationsPage() {
-  const { applications } = useApplications();
+  const { applications, loading, error, fetchApplications } = useApplications();
+  const { user } = useAuth();
+  const retry = () => fetchApplications?.(undefined, user, { force: true });
+
+  const list = (
+    <ul className={styles.list}>
+      {applications.map((job) => {
+        const status = job.status || 'applied';
+        const statusLabel = STATUS_LABELS[status] || STATUS_LABELS.applied;
+        const dateLabel = job.savedAt ? `Saved ${formatDate(job.savedAt)}` : `Applied ${formatDate(job.appliedAt)}`;
+        return (
+          <li key={job.id} className={styles.item}>
+            <div className={styles.top}>
+              <div className={styles.info}>
+                <h2 className={styles.jobTitle}>{job.title}</h2>
+                <p className={styles.meta}>{job.company} · {dateLabel}</p>
+              </div>
+              <div className={styles.actions}>
+                <span className={styles.statusWrap}>
+                  <span className={styles.statusCaption}>Status</span>
+                  <span className={`${styles.badge} ${STATUS_TONE[status] || styles.toneInfo}`}>{statusLabel}</span>
+                </span>
+                <Link to={`/jobs/${job.id}`} className={styles.open}>Open</Link>
+              </div>
+            </div>
+            <StatusTimeline status={status} />
+          </li>
+        );
+      })}
+    </ul>
+  );
+
+  let body;
+  if (loading) {
+    body = (
+      <SkeletonStatus label="Loading applications...">
+        <ApplicationsSkeleton />
+      </SkeletonStatus>
+    );
+  } else if (error) {
+    body = (
+      <ErrorState error={error} onRetry={retry} title="We couldn’t load your applications">
+        {applications.length > 0 ? list : null}
+      </ErrorState>
+    );
+  } else if (applications.length === 0) {
+    body = (
+      <EmptyState
+        title="No applications yet"
+        description="Jobs you apply to will show up here with their status."
+      />
+    );
+  } else {
+    body = list;
+  }
 
   return (
-    <div className="view-enter">
-      <div style={styles.heading}>
+    <div className={`view-enter ${styles.page}`}>
+      <div className={styles.heading}>
         <div>
-          <div style={styles.eyebrow}>Keep the loop closed</div>
-          <h1 style={styles.h1}>Applications</h1>
-          <p style={styles.subtitle}>
-            See what needs your attention, not just what happened.
-          </p>
+          <p className={styles.eyebrow}>Keep the loop closed</p>
+          <h1 className={styles.title}>Applications</h1>
+          <p className={styles.subtitle}>See what needs your attention, not just what happened.</p>
         </div>
       </div>
-
-      <Panel>
-        {applications.length === 0 ? (
-          <EmptyState
-            title="No applications yet"
-            description="Jobs you apply to will show up here with their status."
-          />
-        ) : (
-          <div style={styles.list}>
-            {applications.map((job, index) => {
-              const isLast = index === applications.length - 1;
-              const status = job.status || 'applied';
-              const statusLabel = statusConfig[status]?.label || 'Applied';
-              const dateLabel = job.savedAt ? `Saved ${formatDate(job.savedAt)}` : `Applied ${formatDate(job.appliedAt)}`;
-
-              return (
-                <div
-                  key={job.id}
-                  style={isLast ? { ...styles.item, ...styles.itemLast } : styles.item}
-                >
-                  <div style={styles.info}>
-                    <h4 style={styles.title}>{job.title}</h4>
-                    <p style={styles.meta}>{job.company} · {dateLabel}</p>
-                  </div>
-                  <div style={styles.actions}>
-                    <span style={styles.badge(status)}>{statusLabel}</span>
-                    <Link to={`/jobs/${job.id}`} style={{ textDecoration: 'none' }}>
-                      <Button variant="ghost" style={styles.openButton}>
-                        Open
-                      </Button>
-                    </Link>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </Panel>
+      <Panel>{body}</Panel>
     </div>
   );
 }

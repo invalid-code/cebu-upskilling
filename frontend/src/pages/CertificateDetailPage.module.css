@@ -1,0 +1,178 @@
+.page {
+  display: block;
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  margin-bottom: var(--space-4);
+  font-weight: 700;
+  font-size: var(--text-13);
+}
+
+.heading {
+  margin-bottom: var(--space-6);
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--text-12);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  color: var(--coral-ink);
+  margin: 0 0 var(--space-2);
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 3.5vw, 2.75rem);
+  margin: 0 0 var(--space-2);
+}
+
+.subtitle {
+  color: var(--muted);
+  margin: 0;
+}
+
+.sheet {
+  border: 2px solid var(--teal);
+  border-radius: var(--radius-lg);
+  padding: clamp(28px, 5vw, 56px);
+  text-align: center;
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.seal {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--teal-soft);
+  color: var(--teal);
+  display: grid;
+  place-items: center;
+  margin: 0 auto var(--space-4);
+}
+
+.kicker {
+  font-family: var(--font-mono);
+  font-size: var(--text-12);
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-weight: 700;
+  color: var(--muted);
+  margin: 0 0 var(--space-3);
+}
+
+.course {
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 3vw, 2.25rem);
+  line-height: 1.15;
+  margin: 0 auto var(--space-4);
+  max-width: 620px;
+  overflow-wrap: anywhere;
+}
+
+.certifies {
+  font-size: var(--text-15);
+  color: var(--muted);
+  margin: 0 0 var(--space-2);
+}
+
+.name {
+  font-family: var(--font-display);
+  font-size: clamp(1.4rem, 2.6vw, 2rem);
+  margin: 0 0 var(--space-4);
+}
+
+.copy {
+  color: var(--muted);
+  max-width: 560px;
+  margin: 0 auto var(--space-6);
+}
+
+.meta {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  font-size: var(--text-13);
+  color: var(--muted);
+  margin-bottom: var(--space-4);
+}
+
+.metaItem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.serial {
+  font-family: var(--font-mono);
+  font-size: var(--text-13);
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.provider {
+  font-size: var(--text-13);
+  font-weight: 700;
+  color: var(--teal);
+  margin-top: var(--space-3);
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: var(--space-5);
+}
+
+.skeletonSheet {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: clamp(28px, 5vw, 56px);
+  background: var(--surface);
+  min-height: 420px;
+}
+
+/* Print: only the certificate sheet is printed. Scoped with :has() so this never affects printing other pages. */
+@media print {
+  body:has(.sheet) * {
+    visibility: hidden;
+  }
+
+  body:has(.sheet) :global(.skip-link),
+  body:has(.sheet) nav,
+  body:has(.sheet) aside,
+  body:has(.sheet) header,
+  body:has(.sheet) footer,
+  .back,
+  .heading,
+  .actions {
+    display: none !important;
+  }
+
+  .sheet,
+  .sheet * {
+    visibility: visible;
+  }
+
+  .sheet {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    box-sizing: border-box;
+    background: #fff;
+    color: #000;
+    box-shadow: none;
+    break-inside: avoid;
+  }
+}

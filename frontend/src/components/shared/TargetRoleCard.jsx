@@ -1,18 +1,12 @@
+import { eyebrow } from '../../styles/shared';
 const styles = {
   card: {
     background: 'var(--surface)',
     borderRadius: 16,
   },
-  eyebrow: {
-    fontSize: 11,
-    textTransform: 'uppercase',
-    letterSpacing: '0.12em',
-    fontWeight: 700,
-    color: 'var(--coral)',
-    marginBottom: 12,
-  },
+  eyebrow: { ...eyebrow },
   roleName: {
-    fontFamily: "'Space Grotesk', sans-serif",
+    fontFamily: 'var(--font-display)',
     fontSize: 28,
     fontWeight: 700,
     color: 'var(--ink)',

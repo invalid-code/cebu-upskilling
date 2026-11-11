@@ -14,8 +14,8 @@ namespace CebuUpskilling.Backend.Services;
 /// </summary>
 public interface ICourseGenerationAgent
 {
-    Task<CourseGenerationDraftEnvelope> GenerateAsync(int userId, CourseGenerationRequest request, CancellationToken ct = default);
-    Task<CommitCourseGenerationResponse?> CommitAsync(int userId, CommitCourseGenerationRequest request, CancellationToken ct = default);
+    Task<CourseGenerationDraftEnvelope> GenerateAsync(Guid userId, CourseGenerationRequest request, CancellationToken ct = default);
+    Task<CommitCourseGenerationResponse?> CommitAsync(Guid userId, CommitCourseGenerationRequest request, CancellationToken ct = default);
 }
 
 public class CourseGenerationDraftEnvelope
@@ -46,7 +46,7 @@ public class CourseGenerationAgent : ICourseGenerationAgent
         _logger = logger;
     }
 
-    public async Task<CourseGenerationDraftEnvelope> GenerateAsync(int userId, CourseGenerationRequest request, CancellationToken ct = default)
+    public async Task<CourseGenerationDraftEnvelope> GenerateAsync(Guid userId, CourseGenerationRequest request, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(request.Brief))
         {
@@ -98,7 +98,7 @@ public class CourseGenerationAgent : ICourseGenerationAgent
         };
     }
 
-    public async Task<CommitCourseGenerationResponse?> CommitAsync(int userId, CommitCourseGenerationRequest request, CancellationToken ct = default)
+    public async Task<CommitCourseGenerationResponse?> CommitAsync(Guid userId, CommitCourseGenerationRequest request, CancellationToken ct = default)
     {
         if (request?.Draft is null)
         {
@@ -159,6 +159,7 @@ public class CourseGenerationAgent : ICourseGenerationAgent
                     Module = module,
                     Name = lessonDraft.Name.Trim(),
                     Description = string.IsNullOrWhiteSpace(lessonDraft.Description) ? null : lessonDraft.Description.Trim(),
+                    Order = li,
                 });
             }
 
@@ -172,10 +173,10 @@ public class CourseGenerationAgent : ICourseGenerationAgent
         }
 
         var skillIds = draft.MatchedSkills?
-            .Where(s => s.SkillId > 0)
+            .Where(s => s.SkillId != Guid.Empty)
             .Select(s => s.SkillId)
             .Distinct()
-            .ToList() ?? new List<int>();
+            .ToList() ?? new List<Guid>();
 
         if (skillIds.Count > 0)
         {
@@ -183,7 +184,7 @@ public class CourseGenerationAgent : ICourseGenerationAgent
                 .Where(s => skillIds.Contains(s.SkillId))
                 .Select(s => s.SkillId)
                 .ToListAsync(ct);
-            var existingSet = new HashSet<int>(existing);
+            var existingSet = new HashSet<Guid>(existing);
             foreach (var skillId in skillIds.Where(existingSet.Contains))
             {
                 course.CourseSkills.Add(new CourseSkill { SkillId = skillId });
@@ -199,15 +200,15 @@ public class CourseGenerationAgent : ICourseGenerationAgent
         return new CommitCourseGenerationResponse(course.CourseId, course.Name, course.Status);
     }
 
-    private async Task<int> ResolveGenreIdAsync(int? requestedGenreId, CancellationToken ct)
+    private async Task<Guid> ResolveGenreIdAsync(Guid? requestedGenreId, CancellationToken ct)
     {
-        if (requestedGenreId is > 0)
+        if (requestedGenreId is not null && requestedGenreId.Value != Guid.Empty)
         {
             var exists = await _db.Genres.AnyAsync(g => g.GenreId == requestedGenreId.Value, ct);
             if (exists) return requestedGenreId.Value;
 
             var fallback = await _db.Genres.OrderBy(g => g.GenreId).Select(g => g.GenreId).FirstOrDefaultAsync(ct);
-            if (fallback != 0)
+            if (fallback != Guid.Empty)
             {
                 _logger.LogWarning("Requested GenreId {Requested} not found; falling back to {Fallback}", requestedGenreId, fallback);
                 return fallback;
@@ -223,11 +224,11 @@ public class CourseGenerationAgent : ICourseGenerationAgent
         }
 
         var firstGenreId = await _db.Genres.OrderBy(g => g.GenreId).Select(g => g.GenreId).FirstOrDefaultAsync(ct);
-        if (firstGenreId != 0) return firstGenreId;
+        if (firstGenreId != Guid.Empty) return firstGenreId;
 
         if (_db.Database.ProviderName == "Microsoft.EntityFrameworkCore.InMemory")
         {
-            return 1;
+            return Guid.NewGuid();
         }
 
         throw new InvalidOperationException("No genres are configured; cannot create course.");

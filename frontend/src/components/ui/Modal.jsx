@@ -1,11 +1,12 @@
-import { useEffect } from 'react';
+import { useId, useRef } from 'react';
 import { X } from 'lucide-react';
+import useDialogFocus from '../../lib/useDialogFocus';
 
 const styles = {
   backdrop: {
     position: 'fixed',
     inset: 0,
-    background: 'rgba(20, 30, 25, 0.46)',
+    background: 'rgba(14, 25, 40, 0.46)',
     zIndex: 10,
     display: 'flex',
     alignItems: 'center',
@@ -14,7 +15,7 @@ const styles = {
   },
   modal: {
     background: 'var(--surface)',
-    borderRadius: 18,
+    borderRadius: 'var(--radius-xl)',
     maxWidth: 520,
     width: '100%',
     padding: 24,
@@ -29,8 +30,7 @@ const styles = {
   closeBtn: {
     width: 40,
     height: 40,
-    borderRadius: 10,
-    background: 'transparent',
+    borderRadius: 'var(--radius)',
     color: 'var(--muted)',
     display: 'grid',
     placeItems: 'center',
@@ -47,30 +47,28 @@ const styles = {
 };
 
 export default function Modal({ open, onClose, eyebrow, title, children, footer }) {
-  useEffect(() => {
-    if (!open) return undefined;
-    const onKeyDown = (event) => {
-      if (event.key === 'Escape') onClose?.();
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [open, onClose]);
+  const titleId = useId();
+  const dialogRef = useRef(null);
+  useDialogFocus(open, onClose, dialogRef);
 
   if (!open) return null;
 
   return (
     <div className="modal-backdrop open" style={styles.backdrop} onClick={onClose}>
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         className="modal"
         style={styles.modal}
         role="dialog"
         aria-modal="true"
+        aria-labelledby={titleId}
         onClick={(e) => e.stopPropagation()}
       >
         <div style={styles.head}>
           <div>
             {eyebrow && <div className="eyebrow">{eyebrow}</div>}
-            <h3>{title}</h3>
+            <h3 id={titleId}>{title}</h3>
           </div>
           <button style={styles.closeBtn} onClick={onClose} aria-label="Close">
             <X size={18} />

@@ -11,6 +11,6 @@ public class MediaRepository : EntityRepository<Media>, IMediaRepository
     public override async Task<List<Media>> GetAllAsync()
         => await _dbSet.ToListAsync();
 
-    public override async Task<Media?> GetByIdAsync(int id)
+    public override async Task<Media?> GetByIdAsync(Guid id)
         => await _dbSet.FirstOrDefaultAsync(m => m.MediaId == id);
 }

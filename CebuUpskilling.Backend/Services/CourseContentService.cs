@@ -5,9 +5,9 @@ namespace CebuUpskilling.Backend.Services;
 
 public interface ICourseContentService
 {
-    Task<CourseContentResponse?> GetCourseContentAsync(int userId, int courseId, int? lessonId = null);
-    Task<LessonDetailDto?> GetLessonDetailAsync(int userId, int lessonId);
-    Task<LessonProgressDto?> UpdateLessonProgressAsync(int userId, int lessonId, int progressPercent);
+    Task<CourseContentResponse?> GetCourseContentAsync(Guid userId, Guid courseId, Guid? lessonId = null);
+    Task<LessonDetailDto?> GetLessonDetailAsync(Guid userId, Guid lessonId);
+    Task<LessonProgressDto?> UpdateLessonProgressAsync(Guid userId, Guid lessonId, int progressPercent);
 }
 
 public class CourseContentService : ICourseContentService
@@ -16,6 +16,7 @@ public class CourseContentService : ICourseContentService
     private readonly ICourseRepository _courses;
     private readonly ILessonRepository _lessons;
     private readonly ILearnerStudyCourseRepository _learnerStudyCourses;
+    private readonly ICertificateService _certificates;
     private readonly ILogger<CourseContentService> _logger;
 
     public CourseContentService(
@@ -23,16 +24,18 @@ public class CourseContentService : ICourseContentService
         ICourseRepository courses,
         ILessonRepository lessons,
         ILearnerStudyCourseRepository learnerStudyCourses,
+        ICertificateService certificates,
         ILogger<CourseContentService> logger)
     {
         _learners = learners;
         _courses = courses;
         _lessons = lessons;
         _learnerStudyCourses = learnerStudyCourses;
+        _certificates = certificates;
         _logger = logger;
     }
 
-    public async Task<CourseContentResponse?> GetCourseContentAsync(int userId, int courseId, int? lessonId = null)
+    public async Task<CourseContentResponse?> GetCourseContentAsync(Guid userId, Guid courseId, Guid? lessonId = null)
     {
         _logger.LogDebug("Getting course content for user {UserId}, course {CourseId}", userId, courseId);
 
@@ -67,7 +70,7 @@ public class CourseContentService : ICourseContentService
         var progressPercent = enrollment.LastTotalProgressPercent;
         var completedLessons = (int)Math.Ceiling(progressPercent / 100.0 * lessons.Count);
 
-        int currentLessonId;
+        Guid currentLessonId;
         if (lessonId.HasValue)
         {
             currentLessonId = lessonId.Value;
@@ -77,7 +80,7 @@ public class CourseContentService : ICourseContentService
             // When starting/resuming without a specific lesson, go to first unfinished lesson
             var firstUnfinishedIndex = completedLessons < lessons.Count ? completedLessons : 0;
             // Ensure lessons are ordered to find first not done deterministically
-            var orderedLessons = lessons.OrderBy(l => l.LessonId).ToList();
+            var orderedLessons = lessons.OrderBy(l => l.Order).ThenBy(l => l.LessonId).ToList();
             var firstUnfinished = orderedLessons.ElementAtOrDefault(firstUnfinishedIndex);
             currentLessonId = firstUnfinished?.LessonId ?? lessons.First().LessonId;
         }
@@ -99,7 +102,7 @@ public class CourseContentService : ICourseContentService
         );
     }
 
-    public async Task<LessonDetailDto?> GetLessonDetailAsync(int userId, int lessonId)
+    public async Task<LessonDetailDto?> GetLessonDetailAsync(Guid userId, Guid lessonId)
     {
         _logger.LogDebug("Getting lesson detail for user {UserId}, lesson {LessonId}", userId, lessonId);
 
@@ -127,7 +130,7 @@ public class CourseContentService : ICourseContentService
         return MapToLessonDetailDto(lesson);
     }
 
-    public async Task<LessonProgressDto?> UpdateLessonProgressAsync(int userId, int lessonId, int progressPercent)
+    public async Task<LessonProgressDto?> UpdateLessonProgressAsync(Guid userId, Guid lessonId, int progressPercent)
     {
         _logger.LogDebug("Updating lesson progress for user {UserId}, lesson {LessonId} to {ProgressPercent}%", userId, lessonId, progressPercent);
 
@@ -172,12 +175,21 @@ public class CourseContentService : ICourseContentService
 
         await _learnerStudyCourses.SaveChangesAsync();
 
+        // Course providers opt in per course. Issue (or return) the credential
+        // as soon as the learner reaches 100%; the service is idempotent.
+        Guid? certificateId = null;
+        if (newOverallProgress >= 100)
+        {
+            certificateId = (await _certificates.IssueIfEligibleAsync(learner.LearnerId, lesson.CourseId))?.CertificateId;
+        }
+
         _logger.LogInformation("Updated progress for user {UserId}, lesson {LessonId}: overall {ProgressPercent}%", userId, lessonId, newOverallProgress);
 
         return new LessonProgressDto(
             LessonId: lessonId,
             IsCompleted: lessonProgress >= 100,
-            ProgressPercent: lessonProgress
+            ProgressPercent: lessonProgress,
+            CertificateId: certificateId
         );
     }
 
@@ -185,7 +197,7 @@ public class CourseContentService : ICourseContentService
         ICollection<Entities.CourseModule> modules,
         List<Entities.Lesson> lessons,
         int completedLessons,
-        int currentLessonId)
+        Guid currentLessonId)
     {
         var lessonIndexByLessonId = lessons
             .Select((lesson, index) => (lesson.LessonId, Index: index))
@@ -197,7 +209,7 @@ public class CourseContentService : ICourseContentService
             {
                 var moduleLessons = lessons
                     .Where(l => l.ModuleId == module.ModuleId)
-                    .OrderBy(l => l.LessonId)
+                    .OrderBy(l => l.Order).ThenBy(l => l.LessonId)
                     .Select(l => new LessonOutlineDto(
                         LessonId: l.LessonId,
                         Name: l.Name,
@@ -256,7 +268,7 @@ public class CourseContentService : ICourseContentService
             LessonId: lesson.LessonId,
             Name: lesson.Name,
             Description: lesson.Description,
-            LessonOrder: lesson.LessonId,
+            LessonOrder: lesson.Order,
             ContentBlocks: contentBlocks,
             Media: media,
             Exercises: exercises

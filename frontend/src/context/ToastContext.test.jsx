@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react';
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { ToastProvider, useToast } from './ToastContext';
 
 function ToastProbe() {
@@ -7,7 +7,9 @@ function ToastProbe() {
   return (
     <div>
       <button onClick={() => showToast('Hello toast')}>Show</button>
-      <span data-testid="toast">{toast || ''}</span>
+      <button onClick={() => showToast('Saved failed', 'error')}>Show error</button>
+      <span data-testid="toast">{toast?.message || ''}</span>
+      <span data-testid="variant">{toast?.variant || ''}</span>
     </div>
   );
 }
@@ -16,6 +18,10 @@ describe('ToastContext', () => {
   afterEach(() => {
     vi.useRealTimers();
     cleanup();
+  });
+
+  beforeEach(() => {
+    localStorage.removeItem('notifications');
   });
 
   it('renders children and exposes a toast message', () => {
@@ -39,6 +45,32 @@ describe('ToastContext', () => {
     fireEvent.click(screen.getByText('Show'));
 
     expect(screen.getByTestId('toast')).toHaveTextContent('Hello toast');
+    expect(screen.getByTestId('variant')).toHaveTextContent('info');
+  });
+
+  it('keeps the variant so the notification feed can style it', () => {
+    render(
+      <ToastProvider>
+        <ToastProbe />
+      </ToastProvider>,
+    );
+
+    fireEvent.click(screen.getByText('Show error'));
+
+    expect(screen.getByTestId('toast')).toHaveTextContent('Saved failed');
+    expect(screen.getByTestId('variant')).toHaveTextContent('error');
+  });
+
+  it('is announced politely via a status live region', () => {
+    render(
+      <ToastProvider>
+        <ToastProbe />
+      </ToastProvider>,
+    );
+
+    const region = document.querySelector('.toast');
+    expect(region).toHaveAttribute('role', 'status');
+    expect(region).toHaveAttribute('aria-live', 'polite');
   });
 
   it('clears the toast automatically after the timeout', () => {
@@ -48,11 +80,12 @@ describe('ToastContext', () => {
         <ToastProbe />
       </ToastProvider>,
     );
-
     fireEvent.click(screen.getByText('Show'));
     expect(screen.getByTestId('toast')).toHaveTextContent('Hello toast');
 
-    act(() => vi.advanceTimersByTime(2400));
+    act(() => vi.advanceTimersByTime(4900));
+    expect(screen.getByTestId('toast')).toHaveTextContent('Hello toast');
+    act(() => vi.advanceTimersByTime(200));
     expect(screen.getByTestId('toast')).toHaveTextContent('');
   });
 });

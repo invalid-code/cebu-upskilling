@@ -50,8 +50,8 @@ public class CourseGenerationAgentTests
             },
             MatchedSkills: matched ?? new List<CourseGenerationSkillMatch>
             {
-                new(1, "Communication", "Soft"),
-                new(999, "Ghost Skill", null),
+                new(Guid.NewGuid(), "Communication", "Soft"),
+                new(Guid.NewGuid(), "Ghost Skill", null),
             });
 
     private static async Task<(ApplicationDbContext Context, AppUser Recruiter, Company Company, Skill Skill)> CreateRecruiterAsync()
@@ -162,7 +162,7 @@ public class CourseGenerationAgentTests
     public async Task CommitAsync_IgnoresUnknownSkillIds()
     {
         var (context, recruiter, _, _) = await CreateRecruiterAsync();
-        var draft = SampleDraft(new List<CourseGenerationSkillMatch> { new(9999, "Ghost", null) });
+        var draft = SampleDraft(new List<CourseGenerationSkillMatch> { new(Guid.NewGuid(), "Ghost", null) });
         var agent = CreateAgent(context, new FakeGoogleAiService { CourseResult = draft });
 
         var result = await agent.CommitAsync(recruiter.UserId, new CommitCourseGenerationRequest(Draft: draft, GenreId: null, Price: null));

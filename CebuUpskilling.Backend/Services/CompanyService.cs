@@ -8,15 +8,15 @@ namespace CebuUpskilling.Backend.Services;
 public interface ICompanyService
 {
     Task<List<CompanyResponse>> GetAllAsync();
-    Task<CompanyResponse?> GetByIdAsync(int companyId);
-    Task<PagedPostsResponse> GetPostsAsync(int companyId);
+    Task<CompanyResponse?> GetByIdAsync(Guid companyId);
+    Task<PagedPostsResponse> GetPostsAsync(Guid companyId);
     Task<CompanyResponse> CreateAsync(CreateCompanyRequest request);
-    Task<CompanyResponse> UpdateForUserAsync(int userId, UpdateCompanyRequest request);
-    Task<string> UploadLogoAsync(int userId, IFormFile file);
-    Task<string> UploadCoverAsync(int userId, IFormFile file);
+    Task<CompanyResponse> UpdateForUserAsync(Guid userId, UpdateCompanyRequest request);
+    Task<string> UploadLogoAsync(Guid userId, IFormFile file);
+    Task<string> UploadCoverAsync(Guid userId, IFormFile file);
     void ValidateImage(IFormFile file);
-    Task<string> UploadLogoBytesAsync(int userId, byte[] content, string fileName, CancellationToken ct = default);
-    Task<string> UploadCoverBytesAsync(int userId, byte[] content, string fileName, CancellationToken ct = default);
+    Task<string> UploadLogoBytesAsync(Guid userId, byte[] content, string fileName, CancellationToken ct = default);
+    Task<string> UploadCoverBytesAsync(Guid userId, byte[] content, string fileName, CancellationToken ct = default);
 }
 
 public class CompanyService : ICompanyService
@@ -50,7 +50,7 @@ public class CompanyService : ICompanyService
         return companies.Select(ToResponse).ToList();
     }
 
-    public async Task<CompanyResponse?> GetByIdAsync(int companyId)
+    public async Task<CompanyResponse?> GetByIdAsync(Guid companyId)
     {
         var company = await _context.Companies
             .AsNoTracking()
@@ -58,7 +58,7 @@ public class CompanyService : ICompanyService
         return company == null ? null : ToResponse(company);
     }
 
-    public Task<PagedPostsResponse> GetPostsAsync(int companyId)
+    public Task<PagedPostsResponse> GetPostsAsync(Guid companyId)
         => _postService.SearchAsync(new PostQueryParams { CompanyId = companyId, IsActive = true, SortBy = "newest" });
 
     public async Task<CompanyResponse> CreateAsync(CreateCompanyRequest request)
@@ -103,7 +103,7 @@ public class CompanyService : ICompanyService
         return ToResponse(company);
     }
 
-    public async Task<CompanyResponse> UpdateForUserAsync(int userId, UpdateCompanyRequest request)
+    public async Task<CompanyResponse> UpdateForUserAsync(Guid userId, UpdateCompanyRequest request)
     {
         var user = await _context.Users.Include(u => u.Company).FirstOrDefaultAsync(u => u.UserId == userId);
         if (user?.CompanyId == null || user.Company == null)
@@ -143,16 +143,16 @@ public class CompanyService : ICompanyService
         return ToResponse(company);
     }
 
-    public Task<string> UploadLogoAsync(int userId, IFormFile file)
+    public Task<string> UploadLogoAsync(Guid userId, IFormFile file)
         => UploadImageAsync(userId, file, "company-logos", static c => c.LogoUrl, static (c, url) => c.LogoUrl = url);
 
-    public Task<string> UploadCoverAsync(int userId, IFormFile file)
+    public Task<string> UploadCoverAsync(Guid userId, IFormFile file)
         => UploadImageAsync(userId, file, "company-covers", static c => c.CoverImageUrl, static (c, url) => c.CoverImageUrl = url);
 
-    public Task<string> UploadLogoBytesAsync(int userId, byte[] content, string fileName, CancellationToken ct = default)
+    public Task<string> UploadLogoBytesAsync(Guid userId, byte[] content, string fileName, CancellationToken ct = default)
         => UploadImageBytesAsync(userId, content, fileName, "company-logos", static c => c.LogoUrl, static (c, url) => c.LogoUrl = url, ct);
 
-    public Task<string> UploadCoverBytesAsync(int userId, byte[] content, string fileName, CancellationToken ct = default)
+    public Task<string> UploadCoverBytesAsync(Guid userId, byte[] content, string fileName, CancellationToken ct = default)
         => UploadImageBytesAsync(userId, content, fileName, "company-covers", static c => c.CoverImageUrl, static (c, url) => c.CoverImageUrl = url, ct);
 
     /// <summary>
@@ -183,7 +183,7 @@ public class CompanyService : ICompanyService
     }
 
     private async Task<string> UploadImageAsync(
-        int userId,
+        Guid userId,
         IFormFile file,
         string folder,
         Func<Company, string?> existingUrlSelector,
@@ -198,7 +198,7 @@ public class CompanyService : ICompanyService
     }
 
     private async Task<string> UploadImageBytesAsync(
-        int userId,
+        Guid userId,
         byte[] content,
         string fileName,
         string folder,

@@ -1,14 +1,17 @@
+import { useRef } from 'react';
 import { X, Star, Clock, BookOpen, CheckCircle, Circle, Play, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import useDialogFocus from '../../lib/useDialogFocus';
 import { api } from '../../api/client';
 import Button from '../ui/Button';
 import Tag from '../ui/Tag';
+import { metaText } from '../../styles/shared';
 
 const styles = {
   backdrop: {
     position: 'fixed',
     inset: 0,
-    background: 'rgba(20, 30, 25, 0.46)',
+    background: 'rgba(14, 25, 40, 0.46)',
     zIndex: 100,
     display: 'flex',
     justifyContent: 'flex-end',
@@ -18,7 +21,7 @@ const styles = {
     maxWidth: 420,
     height: '100%',
     background: 'var(--surface)',
-    boxShadow: '-8px 0 30px rgba(30, 50, 40, 0.12)',
+    boxShadow: '-8px 0 30px rgba(14, 25, 40, 0.12)',
     display: 'flex',
     flexDirection: 'column',
     animation: 'slideInRight 0.3s var(--ease)',
@@ -53,7 +56,7 @@ const styles = {
     flexShrink: 0,
   },
   title: {
-    fontFamily: "'Space Grotesk', sans-serif",
+    fontFamily: 'var(--font-display)',
     fontSize: 22,
     fontWeight: 700,
     color: 'var(--ink)',
@@ -81,7 +84,7 @@ const styles = {
     borderRadius: 12,
   },
   statValue: {
-    fontFamily: "'Space Grotesk', sans-serif",
+    fontFamily: 'var(--font-display)',
     fontSize: 20,
     fontWeight: 700,
     color: 'var(--ink)',
@@ -119,7 +122,7 @@ const styles = {
     height: 32,
     borderRadius: 8,
     background: 'var(--teal)',
-    color: 'var(--surface)',
+    color: 'var(--on-accent)',
     display: 'grid',
     placeItems: 'center',
     flexShrink: 0,
@@ -130,7 +133,7 @@ const styles = {
     color: 'var(--teal)',
   },
   syllabusTitle: {
-    fontFamily: "'Space Grotesk', sans-serif",
+    fontFamily: 'var(--font-display)',
     fontSize: 16,
     fontWeight: 700,
     color: 'var(--ink)',
@@ -164,14 +167,15 @@ const styles = {
   },
   moduleIconCompleted: {
     background: 'var(--teal)',
-    color: 'var(--surface)',
+    color: 'var(--on-accent)',
   },
   moduleIconCurrent: {
     background: 'var(--coral)',
-    color: 'var(--surface)',
+    color: 'var(--on-accent)',
   },
   moduleIconPending: {
-    background: 'var(--line)',
+    background: 'var(--surface2)',
+    border: '1px solid var(--line)',
     color: 'var(--muted)',
   },
   moduleInfo: {
@@ -184,10 +188,7 @@ const styles = {
     color: 'var(--ink)',
     marginBottom: 2,
   },
-  moduleLessons: {
-    fontSize: 12,
-    color: 'var(--muted)',
-  },
+  moduleLessons: { ...metaText },
   footer: {
     padding: '16px 24px',
     borderTop: '1px solid var(--line)',
@@ -195,7 +196,7 @@ const styles = {
   resumeButton: {
     width: '100%',
     background: 'var(--teal)',
-    color: 'var(--surface)',
+    color: 'var(--on-accent)',
   },
 };
 
@@ -207,6 +208,9 @@ export default function CourseDetailPanel({ course, onClose, onResume, onModuleC
   } catch {
     navigate = () => {};
   }
+
+  const panelRef = useRef(null);
+  useDialogFocus(!!course, onClose, panelRef);
 
   if (!course) return null;
 
@@ -256,7 +260,15 @@ export default function CourseDetailPanel({ course, onClose, onResume, onModuleC
 
   return (
     <div style={styles.backdrop} onClick={onClose}>
-      <div style={styles.panel} onClick={(e) => e.stopPropagation()}>
+      <div
+        ref={panelRef}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        aria-label={course.name}
+        style={styles.panel}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div style={styles.header}>
           <div style={styles.topRow}>
             <div style={styles.tags}>

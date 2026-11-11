@@ -12,7 +12,7 @@ public class JobPostingApiTests : ProductionApiTestBase
 {
     public JobPostingApiTests(ProductionApiFactory factory) : base(factory) { }
 
-    private async Task<(string token, int userId, int companyId)> RegisterRecruiterAsync(string email, string? companyName = null)
+    private async Task<(string token, Guid userId, Guid companyId)> RegisterRecruiterAsync(string email, string? companyName = null)
     {
         var response = await RegisterCompanyAsync(new
         {
@@ -25,18 +25,18 @@ public class JobPostingApiTests : ProductionApiTestBase
         response.EnsureSuccessStatusCode();
         var body = await ReadJsonAsync(response);
         var token = body.GetProperty("token").GetString()!;
-        var userId = body.GetProperty("userId").GetInt32();
-        var companyId = body.GetProperty("companyId").GetInt32();
+        var userId = body.GetProperty("userId").GetGuid();
+        var companyId = body.GetProperty("companyId").GetGuid();
 
         return (token, userId, companyId);
     }
 
-    private async Task<int> CreatePostAsync(string token, object body)
+    private async Task<Guid> CreatePostAsync(string token, object body)
     {
         var response = await AuthorizedClient(token).PostAsJsonAsync("/api/posts", body);
         response.EnsureSuccessStatusCode();
         var created = await ReadJsonAsync(response);
-        return created.GetProperty("postId").GetInt32();
+        return created.GetProperty("postId").GetGuid();
     }
 
     [Fact]
@@ -140,12 +140,12 @@ public class JobPostingApiTests : ProductionApiTestBase
         Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
         var list = (await ReadJsonAsync(listResponse)).EnumerateArray().ToList();
         Assert.Single(list);
-        Assert.Equal(postId, list[0].GetProperty("postId").GetInt32());
+        Assert.Equal(postId, list[0].GetProperty("postId").GetGuid());
         Assert.Equal("Jose Rizal", list[0].GetProperty("learnerName").GetString());
         Assert.Equal("job.employer.learner@example.com", list[0].GetProperty("learnerEmail").GetString());
         Assert.Equal("applied", list[0].GetProperty("status").GetString());
 
-        var applicationId = list[0].GetProperty("applicationId").GetInt32();
+        var applicationId = list[0].GetProperty("applicationId").GetGuid();
 
         var hireResponse = await employer.PatchAsJsonAsync(
             $"/api/applications/employer/{applicationId}", new { status = "hired" });
@@ -310,11 +310,11 @@ public class JobPostingApiTests : ProductionApiTestBase
         {
             title = "Nope",
         })).StatusCode);
-        Assert.Equal(HttpStatusCode.Forbidden, (await authorized.PutAsJsonAsync("/api/posts/1", new
+        Assert.Equal(HttpStatusCode.Forbidden, (await authorized.PutAsJsonAsync($"/api/posts/{Guid.NewGuid()}", new
         {
             title = "Nope",
         })).StatusCode);
-        Assert.Equal(HttpStatusCode.Forbidden, (await authorized.DeleteAsync("/api/posts/1")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await authorized.DeleteAsync($"/api/posts/{Guid.NewGuid()}")).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await authorized.GetAsync("/api/applications/employer")).StatusCode);
     }
 }

@@ -1,0 +1,252 @@
+/* Shared layout for the auth pages (login, forgot, reset, confirm). */
+
+.page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: var(--space-5);
+  background: var(--bg);
+}
+
+.card {
+  width: 100%;
+  max-width: 400px;
+  padding: var(--space-8);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+}
+
+.cardWide {
+  max-width: 440px;
+}
+
+.centered {
+  text-align: center;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-6);
+}
+
+.mark {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius);
+  background: var(--coral);
+  color: var(--surface);
+  font-family: var(--font-display);
+  font-size: var(--text-17);
+  font-weight: 700;
+}
+
+.brandName {
+  font-family: var(--font-display);
+  font-size: var(--text-13);
+}
+
+.title {
+  margin: 0 0 var(--space-1);
+  font-family: var(--font-display);
+  font-size: var(--text-20);
+  text-align: center;
+}
+
+.subtitle {
+  margin: 0 0 var(--space-6);
+  color: var(--muted);
+  font-size: var(--text-13);
+  line-height: 1.5;
+  text-align: center;
+}
+
+.form {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.input {
+  width: 100%;
+  min-height: 44px;
+  padding: 9px var(--space-3);
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  font: inherit;
+  font-size: var(--text-15);
+}
+
+.input:focus-visible {
+  outline: var(--focus-ring-width) solid var(--teal);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.input[aria-invalid='true'] {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.submit {
+  width: 100%;
+  margin-top: var(--space-2);
+}
+
+.summary {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  padding: var(--space-3);
+  background: var(--danger-soft);
+  color: var(--ink);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius);
+  font-size: var(--text-13);
+  line-height: 1.45;
+}
+
+.summary:focus-visible {
+  outline: var(--focus-ring-width) solid var(--teal);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.summaryIcon {
+  flex: none;
+  margin-top: 1px;
+  color: var(--danger);
+}
+
+.success {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--teal-soft);
+  color: var(--ink);
+  border: 1px solid var(--teal);
+  border-radius: var(--radius);
+  font-size: var(--text-13);
+  font-weight: 600;
+}
+
+.successCentered {
+  justify-content: center;
+}
+
+.successIcon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--teal);
+  color: var(--surface);
+}
+
+.note {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface2);
+  border-radius: var(--radius);
+  color: var(--ink);
+  font-size: var(--text-13);
+}
+
+.links {
+  margin: var(--space-4) 0 0;
+  color: var(--muted);
+  font-size: var(--text-13);
+  text-align: center;
+}
+
+.links a {
+  color: var(--teal);
+  font-weight: 600;
+}
+
+.stack {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.state {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: center;
+}
+
+.spinner {
+  color: var(--muted);
+  animation: authSpin 0.9s linear infinite;
+}
+
+.alertIcon {
+  color: var(--danger);
+}
+
+@keyframes authSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Password strength meter */
+.strength {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.strengthBars {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-1);
+}
+
+.strengthBar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--surface2);
+  border: 1px solid var(--line);
+}
+
+.strengthBarOn[data-level='1'] {
+  background: var(--danger);
+  border-color: var(--danger);
+}
+
+.strengthBarOn[data-level='2'] {
+  background: var(--amber-ink);
+  border-color: var(--amber-ink);
+}
+
+.strengthBarOn[data-level='3'] {
+  background: var(--teal);
+  border-color: var(--teal);
+}
+
+.strengthBarOn[data-level='4'] {
+  background: var(--good);
+  border-color: var(--good);
+}
+
+.strengthText {
+  display: flex;
+  gap: var(--space-1);
+  color: var(--muted);
+  font-size: var(--text-13);
+}
+
+.strengthLabel {
+  color: var(--ink);
+  font-weight: 700;
+}

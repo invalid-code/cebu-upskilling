@@ -13,11 +13,32 @@
 #                       Render service has Auto-Deploy enabled on the
 #                       Docker Hub repo, this is not required (the push
 #                       alone triggers the redeploy).
+#   EXPO_TOKEN          Expo access token (expo.dev > Account > Access
+#                       Tokens) used by the `mobile-build` job to run
+#                       EAS builds non-interactively.
+#   PROD_API_URL        Public production backend URL, e.g.
+#                       https://cebu-upskilling.onrender.com/api — baked
+#                       into the mobile bundle as EXPO_PUBLIC_API_URL
+#                       (App.js falls back to http://localhost:5000/api).
+#   SENTRY_DSN_MOBILE   Sentry DSN of the mobile project — baked into the
+#                       mobile bundle as EXPO_PUBLIC_SENTRY_DSN. Empty is
+#                       allowed (error tracking stays disabled in the bundle).
+#   POSTHOG_KEY_MOBILE  PostHog project API key (phc_…) — baked into the
+#                       mobile bundle as EXPO_PUBLIC_POSTHOG_KEY. Empty is
+#                       allowed (analytics stays opted-out in the bundle).
+#   POSTHOG_HOST_MOBILE PostHog host, e.g. https://us.i.posthog.com.
+#                       Defaults to the US host when empty.
+# One-time EAS setup (not done by CI — run locally once):
+#   1. `npx eas-cli@latest init` inside mobile/ to link app.json to the
+#      Expo project (writes extra.eas.projectId).
+#   2. For iOS: connect an Apple Developer account in the Expo dashboard
+#      (Credentials) so cloud builds can sign the .ipa.
 # Note: the frontend is deployed by Vercel's own Git auto-deploy on
 #       push, so the CI pipeline only builds/tests the backend and
 #       runs the frontend test suite. Set VITE_API_URL in the Vercel
 #       project's env so the frontend calls the correct backend URL
-#       in production.
+#       in production. Mobile production binaries (.aab/.ipa) are built
+#       by the `mobile-build` job via EAS cloud build.
 
 name: CI/CD
 
@@ -88,8 +109,8 @@ jobs:
           path: frontend/coverage/
           if-no-files-found: ignore
 
-  frontend-e2e:
-    name: Frontend E2E
+  frontend-ship-gate:
+    name: Frontend ship gate
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -108,8 +129,10 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      - name: Run E2E tests
-        run: npm run test:e2e
+      # Runs unit tests, lint, build, bundle-size/chunk checks and the Playwright
+      # suite; fails the job and names each failing check (Reqs 25.6, 25.7).
+      - name: Ship gate
+        run: npm run ship-gate
 
       - name: Upload Playwright report
         if: always()
@@ -127,9 +150,59 @@ jobs:
           path: frontend/test-results/
           if-no-files-found: ignore
 
+  mobile-build:
+    name: Mobile production build (EAS)
+    needs: [backend, frontend, frontend-ship-gate]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    concurrency:
+      group: mobile-build-${{ github.ref }}
+      cancel-in-progress: false
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      EXPO_PUBLIC_API_URL: ${{ secrets.PROD_API_URL }}
+      EXPO_PUBLIC_SENTRY_DSN: ${{ secrets.SENTRY_DSN_MOBILE }}
+      EXPO_PUBLIC_POSTHOG_KEY: ${{ secrets.POSTHOG_KEY_MOBILE }}
+      EXPO_PUBLIC_POSTHOG_HOST: ${{ secrets.POSTHOG_HOST_MOBILE }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - run: npm ci
+
+      - name: Install EAS CLI
+        run: npm install -g eas-cli@24
+
+      # Fail fast: without PROD_API_URL the bundle would silently bake in
+      # the localhost fallback from App.js and every API call would fail.
+      - name: Check production API URL is set
+        run: '[ -n "$EXPO_PUBLIC_API_URL" ] || (echo "PROD_API_URL secret is not set" && exit 1)'
+
+      # Sentry/PostHog keys are optional: the bundle degrades gracefully
+      # (tracking stays disabled) when they are empty. Warn so a missing
+      # secret is noticed rather than shipping blind silently.
+      - name: Check observability keys are set
+        run: |
+          [ -n "$EXPO_PUBLIC_SENTRY_DSN" ] || echo "::warning::SENTRY_DSN_MOBILE secret is not set — mobile build will ship without error tracking."
+          [ -n "$EXPO_PUBLIC_POSTHOG_KEY" ] || echo "::warning::POSTHOG_KEY_MOBILE secret is not set — mobile build will ship without analytics."
+
+      # Queues a production cloud build for Android (.aab) and iOS (.ipa)
+      # using mobile/eas.json. Waits for completion so a failed build fails
+      # the job (add --no-wait to queue-and-exit instead).
+      - name: Production build (Android + iOS)
+        run: eas build --platform all --profile production --non-interactive
+
   deploy:
     name: Deploy (migrate + backend)
-    needs: [backend, frontend, frontend-e2e]
+    needs: [backend, frontend, frontend-ship-gate]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:

@@ -1,16 +1,11 @@
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth, isRecruiter } from '../context/AuthContext';
+import { useAuth, getDashboardPath } from '../context/AuthContext';
 import Button from '../components/ui/Button';
 import { Compass } from 'lucide-react';
+import { centeredPage } from '../styles/shared';
 
 const styles = {
-  container: {
-    minHeight: '100vh',
-    display: 'grid',
-    placeItems: 'center',
-    background: 'var(--bg)',
-    padding: 20,
-  },
+  container: { ...centeredPage },
   card: {
     background: 'var(--surface)',
     border: '1px solid var(--line)',
@@ -26,20 +21,20 @@ const styles = {
     height: 64,
     borderRadius: 18,
     background: 'var(--coral-soft)',
-    color: 'var(--coral)',
+    color: 'var(--coral-ink)',
     display: 'grid',
     placeItems: 'center',
     margin: '0 auto 24px',
   },
   code: {
     fontSize: 56,
-    fontFamily: "'Space Grotesk', sans-serif",
+    fontFamily: 'var(--font-display)',
     letterSpacing: '-0.04em',
     lineHeight: 1,
   },
   title: {
     fontSize: 22,
-    fontFamily: "'Space Grotesk', sans-serif",
+    fontFamily: 'var(--font-display)',
     marginBottom: 8,
   },
   subtitle: {
@@ -69,7 +64,7 @@ export default function NotFoundPage() {
         </Button>
         <p style={{ marginTop: 16, fontSize: 13, color: 'var(--muted)' }}>
           Or return to your{' '}
-          <Link to={user ? (isRecruiter(user) ? '/business-dashboard' : '/') : '/login'}>dashboard</Link>.
+          <Link to={user ? getDashboardPath(user) : '/'}>{user ? 'dashboard' : 'home page'}</Link>.
         </p>
       </div>
     </div>

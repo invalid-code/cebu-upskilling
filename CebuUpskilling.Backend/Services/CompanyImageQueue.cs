@@ -14,7 +14,7 @@ public enum CompanyImageKind
     Cover,
 }
 
-public record CompanyImageJob(int UserId, CompanyImageKind Kind, byte[] FileBytes, string FileName);
+public record CompanyImageJob(Guid UserId, CompanyImageKind Kind, byte[] FileBytes, string FileName);
 
 public interface ICompanyImageQueue
 {

@@ -44,7 +44,7 @@ public class CompanyIdentityApiTests : ProductionApiTestBase
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await ReadJsonAsync(response);
-        Assert.Equal(companyId, body.GetProperty("companyId").GetInt32());
+        Assert.Equal(companyId, body.GetProperty("companyId").GetGuid());
         Assert.Equal("Island Bites", body.GetProperty("name").GetString());
         Assert.Equal(JsonValueKind.Null, body.GetProperty("logoUrl").ValueKind);
     }
@@ -52,7 +52,7 @@ public class CompanyIdentityApiTests : ProductionApiTestBase
     [Fact]
     public async Task Companies_GetById_UnknownCompany_ReturnsNotFound()
     {
-        var response = await Client.GetAsync("/api/companies/99999");
+        var response = await Client.GetAsync($"/api/companies/{Guid.NewGuid()}");
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
@@ -167,7 +167,7 @@ public class CompanyIdentityApiTests : ProductionApiTestBase
 
         // Company-level logo takes precedence over a legacy per-post value.
         Assert.Equal(logoUrl, postBody.GetProperty("companyLogoUrl").GetString());
-        Assert.Equal(companyId, postBody.GetProperty("companyId").GetInt32());
+        Assert.Equal(companyId, postBody.GetProperty("companyId").GetGuid());
     }
 
     [Fact]
@@ -227,7 +227,7 @@ public class CompanyIdentityApiTests : ProductionApiTestBase
             companyDescription = "Bike courier collective serving metro Cebu.",
         });
         registration.EnsureSuccessStatusCode();
-        var companyId = (await ReadJsonAsync(registration)).GetProperty("companyId").GetInt32();
+        var companyId = (await ReadJsonAsync(registration)).GetProperty("companyId").GetGuid();
 
         var profile = await Client.GetAsync($"/api/companies/{companyId}");
         profile.EnsureSuccessStatusCode();
@@ -270,7 +270,7 @@ public class CompanyIdentityApiTests : ProductionApiTestBase
     // Helpers
     // ------------------------------------------------------------------ //
 
-    private async Task<(string token, int companyId)> RegisterRecruiterAsync(string email, string companyName)
+    private async Task<(string token, Guid companyId)> RegisterRecruiterAsync(string email, string companyName)
     {
         using var registration = await RegisterCompanyAsync(new
         {
@@ -282,7 +282,7 @@ public class CompanyIdentityApiTests : ProductionApiTestBase
         });
         registration.EnsureSuccessStatusCode();
         var body = await ReadJsonAsync(registration);
-        return (body.GetProperty("token").GetString()!, body.GetProperty("companyId").GetInt32());
+        return (body.GetProperty("token").GetString()!, body.GetProperty("companyId").GetGuid());
     }
 
     private static readonly byte[] TinyPngBytes = Convert.FromBase64String(

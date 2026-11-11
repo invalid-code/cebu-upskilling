@@ -1,0 +1,19 @@
+.root {
+  position: relative;
+  overflow: hidden;
+  display: block;
+  /* Dimensions come from props/inline style and are identical for canvas and fallback. */
+  contain: layout paint;
+}
+
+.fill {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.interactive {
+  touch-action: pan-y;
+}

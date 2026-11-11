@@ -1,7 +1,7 @@
 namespace CebuUpskilling.Backend.DTOs;
 
 public record ApplicationSummary(
-    int PostId,
+    Guid PostId,
     string Title,
     string Company,
     string? TargetRole,
@@ -13,17 +13,17 @@ public record ApplicationSummary(
     string Schedule = "Full-time"
 );
 
-public record ApplyRequest(int PostId, string? ResumeUrl = null, string? CoverLetterUrl = null);
+public record ApplyRequest(Guid PostId, string? ResumeUrl = null, string? CoverLetterUrl = null);
 
 public record UpdateApplicationStatusRequest(string Status);
 
 public record EmployerUpdateApplicationStatusRequest(string Status);
 
 public record ApplicationEmployerSummary(
-    int ApplicationId,
-    int PostId,
+    Guid ApplicationId,
+    Guid PostId,
     string PostTitle,
-    int LearnerId,
+    Guid LearnerId,
     string LearnerName,
     string? LearnerEmail,
     string Status,
@@ -35,10 +35,10 @@ public record ApplicationEmployerSummary(
 public record ApplicantSkillDto(string Name, int CurrentLevel, bool Verified);
 
 public record ApplicationEmployerDetailDto(
-    int ApplicationId,
-    int PostId,
+    Guid ApplicationId,
+    Guid PostId,
     string PostTitle,
-    int LearnerId,
+    Guid LearnerId,
     string LearnerName,
     string? LearnerEmail,
     string? TargetRole,

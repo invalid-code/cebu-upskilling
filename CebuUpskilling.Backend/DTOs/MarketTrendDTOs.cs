@@ -1,7 +1,7 @@
 namespace CebuUpskilling.Backend.DTOs;
 
 public record SkillTrendDto(
-    int SkillId,
+    Guid SkillId,
     string SkillName,
     string? Category,
     int ActivePostings,

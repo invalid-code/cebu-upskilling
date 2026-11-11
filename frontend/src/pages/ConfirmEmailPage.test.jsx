@@ -68,6 +68,36 @@ describe('ConfirmEmailPage', () => {
     expect(screen.queryByRole('button', { name: 'Resend confirmation email' })).not.toBeInTheDocument();
   });
 
+  it('shows a failure message when resending fails and re-enables the action', async () => {
+    api.post.mockRejectedValueOnce(new Error('Invalid')).mockRejectedValueOnce(new Error('Mail server down'));
+
+    renderPage('/confirm-email?email=a@b.com&token=bad');
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Resend confirmation email' }));
+
+    expect(await screen.findByText('Mail server down')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Resend confirmation email' })).toBeEnabled();
+  });
+
+  it('shows a sent message after a successful resend', async () => {
+    api.post.mockRejectedValueOnce(new Error('Invalid')).mockResolvedValueOnce({});
+
+    renderPage('/confirm-email?email=a@b.com&token=bad');
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Resend confirmation email' }));
+
+    expect(await screen.findByText(/new confirmation email was sent/i)).toBeInTheDocument();
+  });
+
+  it('links to /login from the success state', async () => {
+    api.post.mockResolvedValue({});
+
+    renderPage('/confirm-email?email=a@b.com&token=abc');
+
+    await screen.findByText('Email confirmed');
+    expect(screen.getByRole('link', { name: 'Back to sign in' })).toHaveAttribute('href', '/login');
+  });
+
   it('resends the confirmation email from the error state', async () => {
     api.post.mockRejectedValueOnce(new Error('Invalid')).mockResolvedValueOnce({});
 

@@ -7,5 +7,5 @@ public abstract class EntityRepository<T> : Repository<T>, IEntityRepository<T> 
     protected EntityRepository(ApplicationDbContext context) : base(context) { }
 
     public abstract Task<List<T>> GetAllAsync();
-    public abstract Task<T?> GetByIdAsync(int id);
+    public abstract Task<T?> GetByIdAsync(Guid id);
 }

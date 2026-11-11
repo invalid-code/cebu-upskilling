@@ -11,10 +11,10 @@ namespace CebuUpskilling.Backend.Services;
 /// </summary>
 public interface IEmployerHiringAgent
 {
-    Task<RankCandidatesResponse> RankApplicantsAsync(int userId, int postId, int companyId, CancellationToken ct = default);
-    Task<DraftJobPostResponse?> DraftJobPostAsync(int userId, DraftJobPostRequest request, CancellationToken ct = default);
-    Task<ScreeningQuestionsResponse> GenerateScreeningQuestionsAsync(int userId, int postId, int companyId, int perSkill = 3, CancellationToken ct = default);
-    Task<CreateJobPostFromRoleResponse?> CreateJobPostFromTargetRoleAsync(int userId, int companyId, CreateJobPostFromRoleRequest? request, CancellationToken ct = default);
+    Task<RankCandidatesResponse> RankApplicantsAsync(Guid userId, Guid postId, Guid companyId, CancellationToken ct = default);
+    Task<DraftJobPostResponse?> DraftJobPostAsync(Guid userId, DraftJobPostRequest request, CancellationToken ct = default);
+    Task<ScreeningQuestionsResponse> GenerateScreeningQuestionsAsync(Guid userId, Guid postId, Guid companyId, int perSkill = 3, CancellationToken ct = default);
+    Task<CreateJobPostFromRoleResponse?> CreateJobPostFromTargetRoleAsync(Guid userId, Guid companyId, CreateJobPostFromRoleRequest? request, CancellationToken ct = default);
 }
 
 public class EmployerHiringAgent : IEmployerHiringAgent
@@ -45,7 +45,7 @@ public class EmployerHiringAgent : IEmployerHiringAgent
         _logger = logger;
     }
 
-    public async Task<RankCandidatesResponse> RankApplicantsAsync(int userId, int postId, int companyId, CancellationToken ct = default)
+    public async Task<RankCandidatesResponse> RankApplicantsAsync(Guid userId, Guid postId, Guid companyId, CancellationToken ct = default)
     {
         var post = await _posts.GetByIdAsync(postId);
         // Defense in depth: the controller already validates ownership; repeat the
@@ -80,7 +80,7 @@ public class EmployerHiringAgent : IEmployerHiringAgent
         return new RankCandidatesResponse(postId, AiRanked: rankings.Count > 0, Candidates: candidates);
     }
 
-    public async Task<DraftJobPostResponse?> DraftJobPostAsync(int userId, DraftJobPostRequest request, CancellationToken ct = default)
+    public async Task<DraftJobPostResponse?> DraftJobPostAsync(Guid userId, DraftJobPostRequest request, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(request.Title) || string.IsNullOrWhiteSpace(request.TargetRole))
         {
@@ -96,7 +96,7 @@ public class EmployerHiringAgent : IEmployerHiringAgent
     }
 
     public async Task<ScreeningQuestionsResponse> GenerateScreeningQuestionsAsync(
-        int userId, int postId, int companyId, int perSkill = 3, CancellationToken ct = default)
+        Guid userId, Guid postId, Guid companyId, int perSkill = 3, CancellationToken ct = default)
     {
         perSkill = Math.Clamp(perSkill, 1, 5);
         var post = await _posts.GetByIdAsync(postId);
@@ -162,7 +162,7 @@ public class EmployerHiringAgent : IEmployerHiringAgent
     /// manually created ones.
     /// </summary>
     public async Task<CreateJobPostFromRoleResponse?> CreateJobPostFromTargetRoleAsync(
-        int userId, int companyId, CreateJobPostFromRoleRequest? request, CancellationToken ct = default)
+        Guid userId, Guid companyId, CreateJobPostFromRoleRequest? request, CancellationToken ct = default)
     {
         if (request is null || string.IsNullOrWhiteSpace(request.TargetRole))
         {
@@ -227,7 +227,7 @@ public class EmployerHiringAgent : IEmployerHiringAgent
     }
 
     private static RankedCandidateDto BuildRankedCandidate(
-        Application application, Dictionary<int, CandidateRanking> rankingMap)
+        Application application, Dictionary<Guid, CandidateRanking> rankingMap)
     {
         var learnerName = $"{application.Learner.User?.FirstName} {application.Learner.User?.LastName}".Trim();
         if (string.IsNullOrWhiteSpace(learnerName))

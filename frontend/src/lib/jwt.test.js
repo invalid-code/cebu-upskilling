@@ -82,4 +82,13 @@ describe('hasValidSession', () => {
     expect(localStorage.getItem('token')).toBeNull();
     expect(localStorage.getItem('user')).toBeNull();
   });
+
+  it('keeps an expired access token when a refresh token exists', () => {
+    localStorage.setItem('token', makeToken({ exp: past }));
+    localStorage.setItem('refreshToken', 'rt-1');
+    localStorage.setItem('user', '{}');
+    expect(hasValidSession()).toBe(true);
+    expect(localStorage.getItem('token')).not.toBeNull();
+    expect(localStorage.getItem('user')).not.toBeNull();
+  });
 });

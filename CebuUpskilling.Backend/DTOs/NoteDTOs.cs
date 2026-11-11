@@ -1,13 +1,13 @@
 namespace CebuUpskilling.Backend.DTOs;
 
 public record LearnerNoteDto(
-    int LessonId,
+    Guid LessonId,
     string? Content,
     DateTime? UpdatedAt
 );
 
 public record CourseNotesResponse(
-    int CourseId,
+    Guid CourseId,
     List<LearnerNoteDto> Notes
 );
 

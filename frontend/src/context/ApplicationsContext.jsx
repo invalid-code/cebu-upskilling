@@ -6,7 +6,7 @@ import { useAuth } from './AuthContext';
 const ApplicationsContext = createContext(null);
 
 export function ApplicationsProvider({ children }) {
-  const { applications, loading, fetchApplications, applyToJob, isApplied, updateStatus } = useApplicationsStore();
+  const { applications, loading, error, fetchApplications, applyToJob, isApplied, updateStatus } = useApplicationsStore();
   const { user } = useAuth();
   const userId = user?.UserId ?? user?.userId ?? null;
 
@@ -16,7 +16,7 @@ export function ApplicationsProvider({ children }) {
     return () => controller.abort();
   }, [userId, user, fetchApplications]);
 
-  const value = { applications, applyToJob, isApplied, updateStatus, loading, fetchApplications };
+  const value = { applications, applyToJob, isApplied, updateStatus, loading, error, fetchApplications };
 
   return (
     <ApplicationsContext.Provider value={value}>

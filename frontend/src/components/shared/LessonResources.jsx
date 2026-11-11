@@ -4,11 +4,12 @@ import { api } from '../../api/client';
 import { useToast } from '../../context/ToastContext';
 import DiscussionModal from './DiscussionModal';
 import { SkeletonText, SkeletonStatus } from '../ui/Skeleton';
+import { chipCoral, chipTeal } from '../../styles/shared';
 
 const styles = {
   container: {
-    width: 280,
-    flexShrink: 0,
+    width: '100%',
+    minWidth: 0,
     display: 'flex',
     flexDirection: 'column',
     gap: 16,
@@ -58,14 +59,8 @@ const styles = {
     placeItems: 'center',
     flexShrink: 0,
   },
-  resourceIconPdf: {
-    background: 'var(--coral-soft)',
-    color: 'var(--coral)',
-  },
-  resourceIconZip: {
-    background: 'var(--teal-soft)',
-    color: 'var(--teal)',
-  },
+  resourceIconPdf: { ...chipCoral },
+  resourceIconZip: { ...chipTeal },
   resourceInfo: {
     flex: 1,
     minWidth: 0,
@@ -124,7 +119,7 @@ const styles = {
     width: '100%',
     padding: '10px 16px',
     background: 'var(--teal)',
-    color: 'var(--surface)',
+    color: 'var(--on-accent)',
     border: 0,
     borderRadius: 8,
     fontSize: 13,
@@ -137,7 +132,7 @@ const styles = {
   },
   errorText: {
     fontSize: 12,
-    color: '#dc2626',
+    color: 'var(--danger)',
     marginBottom: 8,
   },
   helpContent: {

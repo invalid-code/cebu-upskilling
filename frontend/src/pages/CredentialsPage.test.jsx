@@ -1,9 +1,17 @@
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { AuthProvider } from '../context/AuthContext';
 import { ToastProvider } from '../context/ToastContext';
 import CredentialsPage from './CredentialsPage';
+
+vi.mock('../api/client', () => ({
+  api: {
+    get: vi.fn(),
+  },
+}));
+
+import { api } from '../api/client';
 
 function renderCredentials() {
   return render(
@@ -18,24 +26,67 @@ function renderCredentials() {
 }
 
 describe('CredentialsPage', () => {
-  it('renders the credentials page heading', () => {
-    renderCredentials();
-    expect(screen.getByRole('heading', { name: 'Credentials' })).toBeInTheDocument();
+  beforeEach(() => {
+    api.get.mockReset();
+    api.get.mockResolvedValue([]);
   });
 
-  it('renders the subtitle', () => {
+  it('renders the credentials page heading', async () => {
+    renderCredentials();
+    expect(screen.getByRole('heading', { name: 'Credentials' })).toBeInTheDocument();
+    expect(await screen.findByText('No credentials yet')).toBeInTheDocument();
+  });
+
+  it('renders the subtitle', async () => {
     renderCredentials();
     expect(screen.getByText('A long-term record of the skills you can show, not just claim.')).toBeInTheDocument();
   });
 
-  it('renders the empty state with title and description', () => {
+  it('renders the empty state with guidance', async () => {
     renderCredentials();
-    expect(screen.getByText('No credentials yet')).toBeInTheDocument();
-    expect(screen.getByText('Skills you verify through proctored assessments will be stored here as portable credentials.')).toBeInTheDocument();
+    expect(await screen.findByText('No credentials yet')).toBeInTheDocument();
+    expect(screen.getByText('Complete a course from a provider that offers certificates and it will appear here.')).toBeInTheDocument();
+    expect(api.get).toHaveBeenCalledWith('/certificates');
   });
 
-  it('renders within a Panel component', () => {
+  it('lists issued certificates with a link to the certificate', async () => {
+    api.get.mockResolvedValue([
+      {
+        certificateId: 'cert-1',
+        courseId: 'course-1',
+        serialNumber: 'CU-2026-AB12CD34EF',
+        recipientName: 'Maria Santos',
+        courseName: 'Customer Support Essentials',
+        providerName: 'Cebu Skills Academy',
+        issuedAt: '2026-11-03T12:00:00Z',
+      },
+    ]);
+
     renderCredentials();
-    expect(screen.getByText('No credentials yet').closest('div')).toBeInTheDocument();
+
+    expect(await screen.findByText('Customer Support Essentials')).toBeInTheDocument();
+    expect(screen.getByText(/Cebu Skills Academy/)).toBeInTheDocument();
+    expect(screen.getByText(/CU-2026-AB12CD34EF/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /View certificate/ })).toHaveAttribute('href', '/credentials/cert-1');
+  });
+
+  it('renders a grid of certificates, each with a verify link to /verify/:serialNumber', async () => {
+    api.get.mockResolvedValue([
+      { certificateId: 'c1', serialNumber: 'CU-1', courseName: 'Course One', providerName: 'P', issuedAt: '2026-11-03T12:00:00Z' },
+      { certificateId: 'c2', serialNumber: 'CU-2', courseName: 'Course Two', providerName: 'P', issuedAt: '2026-11-04T12:00:00Z' },
+    ]);
+    renderCredentials();
+
+    expect(await screen.findByText('Course One')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Verify Course One certificate' })).toHaveAttribute('href', '/verify/CU-1');
+    expect(screen.getByRole('link', { name: 'Verify Course Two certificate' })).toHaveAttribute('href', '/verify/CU-2');
+    expect(screen.queryByText('No credentials yet')).not.toBeInTheDocument();
+  });
+
+  it('shows an error when credentials cannot be loaded', async () => {
+    api.get.mockRejectedValue(new Error('Server unavailable'));
+    renderCredentials();
+    expect(await screen.findByText('Could not load credentials')).toBeInTheDocument();
+    expect(screen.getByText('Server unavailable')).toBeInTheDocument();
   });
 });

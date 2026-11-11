@@ -38,9 +38,9 @@ public class MediaController : ControllerBase
 
     [HttpPost("lessons/{lessonId}/video")]
     [RequestSizeLimit(524_288_000)]
-    public async Task<ActionResult<MediaDto>> UploadLessonVideo(int lessonId, IFormFile file)
+    public async Task<ActionResult<MediaDto>> UploadLessonVideo(Guid lessonId, IFormFile file)
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        if (!User.TryGetUserId(out var userId)) return Unauthorized(new { error = "Unauthorized" });
         _logger.LogInformation("HTTP POST /api/media/lessons/{LessonId}/video called by user {UserId}", lessonId, userId);
 
         if (!await CanUploadToLessonAsync(userId, lessonId))
@@ -61,9 +61,9 @@ public class MediaController : ControllerBase
             return BadRequest(new { error = "Only video files are allowed" });
         }
 
-        _logger.LogInformation("Uploading video for lesson {LessonId}: {FileName} ({FileSize} bytes)", lessonId, file.Name, file.Length);
+        _logger.LogInformation("Uploading video for lesson {LessonId}: {FileName} ({FileSize} bytes)", lessonId, file.FileName, file.Length);
 
-        var result = await _mediaService.UploadLessonVideoAsync(lessonId, file);
+        var result = await _mediaService.UploadLessonVideoAsync(lessonId, file, HttpContext.RequestAborted);
         _logger.LogInformation("Video upload completed for lesson {LessonId}: {MediaId}", lessonId, result.MediaId);
 
         return CreatedAtAction(nameof(UploadLessonVideo), new { lessonId }, result);
@@ -73,7 +73,7 @@ public class MediaController : ControllerBase
     [RequestSizeLimit(10_485_760)]
     public async Task<ActionResult<DocumentUploadDto>> UploadDocument(IFormFile file)
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        if (!User.TryGetUserId(out var userId)) return Unauthorized(new { error = "Unauthorized" });
         _logger.LogInformation("POST /api/media/documents called by user {UserId}", userId);
 
         if (file is null || file.Length == 0)
@@ -84,7 +84,7 @@ public class MediaController : ControllerBase
 
         try
         {
-            var result = await _mediaService.UploadDocumentAsync(file);
+            var result = await _mediaService.UploadDocumentAsync(file, HttpContext.RequestAborted);
             _logger.LogInformation("Document upload completed for user {UserId}: {FileName}", userId, result.FileName);
             return StatusCode(201, result);
         }
@@ -103,9 +103,9 @@ public class MediaController : ControllerBase
     /// </summary>
     [HttpPost("lessons/{lessonId}/documents")]
     [RequestSizeLimit(10_485_760)]
-    public async Task<ActionResult<MediaDto>> UploadLessonDocument(int lessonId, IFormFile file)
+    public async Task<ActionResult<MediaDto>> UploadLessonDocument(Guid lessonId, IFormFile file)
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        if (!User.TryGetUserId(out var userId)) return Unauthorized(new { error = "Unauthorized" });
         _logger.LogInformation("HTTP POST /api/media/lessons/{LessonId}/documents called by user {UserId}", lessonId, userId);
 
         if (!await CanUploadToLessonAsync(userId, lessonId))
@@ -122,7 +122,7 @@ public class MediaController : ControllerBase
 
         try
         {
-            var result = await _mediaService.UploadLessonDocumentAsync(lessonId, file);
+            var result = await _mediaService.UploadLessonDocumentAsync(lessonId, file, HttpContext.RequestAborted);
             _logger.LogInformation("Document upload completed for lesson {LessonId}: {MediaId}", lessonId, result.MediaId);
             return CreatedAtAction(nameof(UploadLessonDocument), new { lessonId }, result);
         }
@@ -137,7 +137,7 @@ public class MediaController : ControllerBase
         }
     }
 
-    public async Task<bool> CanEnrolledLearnerAccessLessonAsync(int userId, int lessonId)
+    public async Task<bool> CanEnrolledLearnerAccessLessonAsync(Guid userId, Guid lessonId)
     {
         var learner = await _learners.GetByUserIdAsync(userId);
         if (learner == null)
@@ -157,7 +157,7 @@ public class MediaController : ControllerBase
     /// created the course. Owners were previously locked out of attaching
     /// lesson content entirely.
     /// </summary>
-    public async Task<bool> CanUploadToLessonAsync(int userId, int lessonId)
+    public async Task<bool> CanUploadToLessonAsync(Guid userId, Guid lessonId)
     {
         if (await CanEnrolledLearnerAccessLessonAsync(userId, lessonId))
             return true;

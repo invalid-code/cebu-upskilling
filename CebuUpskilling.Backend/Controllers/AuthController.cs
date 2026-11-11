@@ -19,7 +19,7 @@ public class AuthController : BaseEntityController<AppUser>
         _authService = authService;
     }
 
-    protected override int GetId(AppUser entity) => entity.UserId;
+    protected override Guid GetId(AppUser entity) => entity.UserId;
 
     // User accounts are sensitive (email, address, token hashes). The generic CRUD
     // surface inherited from BaseEntityController<AppUser> would expose every user
@@ -29,7 +29,7 @@ public class AuthController : BaseEntityController<AppUser>
         Task.FromResult<ActionResult<List<AppUser>>>(NotFound());
 
     [HttpGet("{id}")]
-    public override Task<ActionResult<AppUser>> GetById(int id) =>
+    public override Task<ActionResult<AppUser>> GetById(Guid id) =>
         Task.FromResult<ActionResult<AppUser>>(NotFound());
 
     // Account write operations go exclusively through AuthService (register, login,
@@ -41,11 +41,11 @@ public class AuthController : BaseEntityController<AppUser>
         Task.FromResult<ActionResult<AppUser>>(NotFound());
 
     [HttpPut("{id}")]
-    public override Task<ActionResult<AppUser>> Update(int id, AppUser entity) =>
+    public override Task<ActionResult<AppUser>> Update(Guid id, AppUser entity) =>
         Task.FromResult<ActionResult<AppUser>>(NotFound());
 
     [HttpDelete("{id}")]
-    public override Task<IActionResult> Delete(int id) =>
+    public override Task<IActionResult> Delete(Guid id) =>
         Task.FromResult<IActionResult>(NotFound());
 
     [AllowAnonymous]
@@ -56,12 +56,23 @@ public class AuthController : BaseEntityController<AppUser>
     {
         var email = form.EmailAddress ?? string.Empty;
         _logger.LogInformation("HTTP POST /api/auth/register (multipart) called for {Email}", email);
+        // The form path has no FluentValidator (unlike the JSON path), so
+        // enforce the essentials here instead of letting empty values through
+        // to service-level checks.
+        if (string.IsNullOrWhiteSpace(form.EmailAddress) || string.IsNullOrWhiteSpace(form.Password))
+        {
+            _logger.LogWarning("Registration rejected: email and password are required");
+            return BadRequest(new { error = "Email address and password are required" });
+        }
         if (string.Equals(form.Role, "Recruiter", StringComparison.OrdinalIgnoreCase))
         {
             _logger.LogWarning("Registration rejected for {Email}: self-service Recruiter role is not allowed", email);
             return BadRequest(new { error = "Recruiter accounts must register together with a company via /api/auth/register-company" });
         }
-        var resumeFile = form.ResumeFile ?? form.Resume ?? form.File ?? Request.Form.Files.FirstOrDefault();
+        // Only accept explicitly named file fields: falling back to
+        // Request.Form.Files.FirstOrDefault() could mistake an unrelated
+        // uploaded file for the resume.
+        var resumeFile = form.ResumeFile ?? form.Resume ?? form.File;
         var request = new RegisterRequest(
             form.FirstName ?? string.Empty,
             form.LastName ?? string.Empty,
@@ -199,7 +210,7 @@ public class AuthController : BaseEntityController<AppUser>
     public async Task<ActionResult<AuthResponse>> GetProfile()
     {
         var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (userIdClaim == null || !int.TryParse(userIdClaim, out var userId))
+        if (userIdClaim == null || !Guid.TryParse(userIdClaim, out var userId))
             return Unauthorized(new { error = "Unauthorized" });
         var profile = await _authService.GetProfileAsync(userId);
         if (profile == null) return NotFound(new { error = "User not found" });
@@ -209,7 +220,7 @@ public class AuthController : BaseEntityController<AppUser>
     [HttpPatch("profile")]
     public async Task<ActionResult<AuthResponse>> UpdateProfile(UpdateProfileRequest request)
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        if (!User.TryGetUserId(out var userId)) return Unauthorized(new { error = "Unauthorized" });
         _logger.LogInformation("HTTP PATCH /api/auth/profile called by user {UserId}", userId);
         try
         {
@@ -225,16 +236,35 @@ public class AuthController : BaseEntityController<AppUser>
     }
 
     [HttpPost("logout")]
-    public async Task<IActionResult> Logout()
+    public async Task<IActionResult> Logout([FromBody] LogoutRequest? request)
     {
         var jti = User.FindFirst(JwtRegisteredClaimNames.Jti)?.Value
                   ?? User.FindFirst("jti")?.Value;
-        await _authService.LogoutAsync(jti);
+        await _authService.LogoutAsync(jti, request?.RefreshToken);
         _logger.LogInformation("User logged out (JTI revoked)");
         return Ok(new { message = "Logged out successfully" });
     }
 
     [AllowAnonymous]
+    [EnableRateLimiting("auth")]
+    [HttpPost("refresh")]
+    public async Task<ActionResult<AuthResponse>> Refresh(RefreshRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request?.RefreshToken))
+            return Unauthorized(new { error = "Invalid refresh token" });
+        try
+        {
+            var result = await _authService.RefreshAsync(request.RefreshToken);
+            return Ok(result);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Unauthorized(new { error = "Invalid refresh token" });
+        }
+    }
+
+    [AllowAnonymous]
+    [EnableRateLimiting("auth")]
     [HttpPost("confirm-email")]
     public async Task<IActionResult> ConfirmEmail([FromBody] ConfirmEmailRequest request)
     {
@@ -248,6 +278,7 @@ public class AuthController : BaseEntityController<AppUser>
     }
 
     [AllowAnonymous]
+    [EnableRateLimiting("auth")]
     [HttpPost("resend-confirmation")]
     public async Task<IActionResult> ResendConfirmation([FromBody] EmailRequest request)
     {
@@ -256,6 +287,7 @@ public class AuthController : BaseEntityController<AppUser>
     }
 
     [AllowAnonymous]
+    [EnableRateLimiting("auth")]
     [HttpPost("forgot-password")]
     public async Task<IActionResult> ForgotPassword([FromBody] EmailRequest request)
     {
@@ -264,6 +296,7 @@ public class AuthController : BaseEntityController<AppUser>
     }
 
     [AllowAnonymous]
+    [EnableRateLimiting("auth")]
     [HttpPost("reset-password")]
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
     {

@@ -2,10 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import { Play, Pause, SkipForward, SkipBack, Maximize, Volume2, VolumeX, CheckCircle2 } from 'lucide-react';
 import { api } from '../../api/client';
 import { useToast } from '../../context/ToastContext';
+import { resolveFileUrl } from '../../utils/fileUrl';
 
 const styles = {
   container: {
-    background: '#1a2e27',
+    background: 'var(--ink)',
     borderRadius: 'var(--radius-lg)',
     overflow: 'hidden',
     marginBottom: 20,
@@ -45,7 +46,7 @@ const styles = {
     marginBottom: 4,
   },
   lessonTitle: {
-    fontFamily: "'Space Grotesk', sans-serif",
+    fontFamily: 'var(--font-display)',
     fontSize: 22,
     fontWeight: 700,
     marginBottom: 4,
@@ -76,7 +77,7 @@ const styles = {
     width: 36,
     height: 36,
     background: 'var(--teal)',
-    color: 'var(--surface)',
+    color: 'var(--on-accent)',
   },
   timeDisplay: {
     fontSize: 12,
@@ -123,7 +124,7 @@ const formatTime = (seconds) => {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
 
-export default function VideoPlayer({ media = [], lessonName, currentIndex = 0, totalLessons = 0, lessonId, onProgress }) {
+export default function VideoPlayer({ media = [], lessonName, currentIndex = 0, totalLessons = 0, lessonId, onProgress, onLessonEnded }) {
   const videoRef = useRef(null);
   const containerRef = useRef(null);
   const { showToast } = useToast();
@@ -133,7 +134,8 @@ export default function VideoPlayer({ media = [], lessonName, currentIndex = 0, 
   const [muted, setMuted] = useState(false);
   const [completed, setCompleted] = useState(false);
 
-  const videoMedia = media.find((m) => (m.type || '').toLowerCase().startsWith('video'));
+  const mediaList = Array.isArray(media) ? media : [];
+  const videoMedia = mediaList.find((m) => (m.type || '').toLowerCase().startsWith('video'));
 
   useEffect(() => {
     setIsPlaying(false);
@@ -198,13 +200,20 @@ export default function VideoPlayer({ media = [], lessonName, currentIndex = 0, 
         <video
           ref={videoRef}
           style={styles.video}
-          src={videoMedia.pathFile}
+          src={resolveFileUrl(videoMedia.pathFile)}
           onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
           onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
           onPlay={() => setIsPlaying(true)}
           onPause={() => setIsPlaying(false)}
           onEnded={async () => {
             setIsPlaying(false);
+            if (onLessonEnded && !completed) {
+              // The page owns saving so it can show the saved/failed indication and update the meter.
+              setCompleted(true);
+              const saved = await onLessonEnded(lessonId);
+              if (saved === false) setCompleted(false);
+              return;
+            }
             if (lessonId && !completed) {
               setCompleted(true);
               try {
@@ -264,7 +273,7 @@ export default function VideoPlayer({ media = [], lessonName, currentIndex = 0, 
           </button>
         </div>
       </div>
-      {completed && (
+      {completed && !onLessonEnded && (
         <div
           role="status"
           aria-live="polite"

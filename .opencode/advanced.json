@@ -1,0 +1,62 @@
+{
+  "version": "0.2.0",
+  "setupDate": "2026-10-24",
+  "languages": [
+    "node",
+    "csharp",
+    "docker",
+    "markdown"
+  ],
+  "framework": "fastapi",
+  "packageManager": "uv",
+  "agents": [
+    "backend-developer",
+    "frontend-developer",
+    "fullstack-developer",
+    "typescript-pro",
+    "javascript-pro",
+    "csharp-developer",
+    "react-specialist",
+    "deployment-engineer",
+    "devops-engineer",
+    "docker-expert",
+    "platform-engineer",
+    "sre-engineer",
+    "code-reviewer",
+    "build-engineer",
+    "dependency-manager",
+    "docs-writer",
+    "git-workflow-manager",
+    "test-writer",
+    "technical-writer"
+  ],
+  "skills": [
+    "git-release",
+    "pr-review",
+    "migration",
+    "test-patterns",
+    "deploy",
+    "dependency-audit",
+    "incident-postmortem",
+    "docker-optimize",
+    "adr-write",
+    "api-contract",
+    "changelog-generate",
+    "ci-pipeline",
+    "env-setup",
+    "error-triage",
+    "performance-profile"
+  ],
+  "modelStrategy": null,
+  "mcp": [
+    "context7",
+    "gh-grep",
+    "memory",
+    "fetch",
+    "git",
+    "sentry",
+    "postgres",
+    "vercel",
+    "figma"
+  ]
+}

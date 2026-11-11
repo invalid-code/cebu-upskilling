@@ -1,96 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, Loader2, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { summarizeError } from '../lib/formErrors';
 import Button from '../components/ui/Button';
+import AuthCard from '../components/auth/AuthCard';
+import styles from '../components/auth/Auth.module.css';
 
-const styles = {
-  container: {
-    minHeight: '100vh',
-    display: 'grid',
-    placeItems: 'center',
-    background: 'var(--bg)',
-    padding: 20,
-  },
-  card: {
-    background: 'var(--surface)',
-    border: '1px solid var(--line)',
-    borderRadius: 18,
-    padding: 32,
-    width: '100%',
-    maxWidth: 440,
-    boxShadow: 'var(--shadow)',
-    textAlign: 'center',
-  },
-  brand: {
-    display: 'flex',
-    gap: 10,
-    alignItems: 'center',
-    marginBottom: 20,
-    justifyContent: 'center',
-  },
-  mark: {
-    width: 40,
-    height: 40,
-    borderRadius: 11,
-    background: 'var(--coral)',
-    display: 'grid',
-    placeItems: 'center',
-    color: 'var(--surface)',
-    fontFamily: "'Space Grotesk', sans-serif",
-    fontWeight: 700,
-    fontSize: 18,
-  },
-  title: {
-    fontSize: 22,
-    fontFamily: "'Space Grotesk', sans-serif",
-    marginBottom: 6,
-  },
-  subtitle: {
-    fontSize: 13,
-    color: 'var(--muted)',
-    marginBottom: 24,
-    lineHeight: 1.5,
-  },
-  error: {
-    background: 'var(--coral-soft)',
-    color: 'rgb(110, 65, 45)',
-    padding: '10px 12px',
-    borderRadius: 10,
-    fontSize: 12,
-    marginBottom: 16,
-  },
-  success: {
-    background: 'var(--teal-soft)',
-    color: 'var(--teal)',
-    padding: '14px 14px',
-    borderRadius: 12,
-    fontSize: 13,
-    fontWeight: 600,
-    marginBottom: 16,
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    justifyContent: 'center',
-    border: '1px solid rgba(26,107,90,0.14)',
-  },
-  successIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: '50%',
-    background: 'var(--teal)',
-    color: 'var(--surface)',
-    display: 'grid',
-    placeItems: 'center',
-    flexShrink: 0,
-  },
-  link: {
-    marginTop: 18,
-    fontSize: 13,
-    color: 'var(--muted)',
-  },
-};
+// Statuses where the link itself is the problem (invalid or expired), so a resend helps.
+function isLinkProblem(err) {
+  return err?.status === undefined || err.status === 400 || err.status === 404 || err.status === 410;
+}
 
 export default function ConfirmEmailPage() {
   const [params] = useSearchParams();
@@ -100,108 +21,120 @@ export default function ConfirmEmailPage() {
   const email = params.get('email') || '';
   const token = params.get('token') || '';
 
-  const [status, setStatus] = useState('loading'); // loading | success | error
+  // loading | success | expired (link invalid/expired) | error (request failed, retryable)
+  const [status, setStatus] = useState('loading');
   const [message, setMessage] = useState('');
+  const [attempt, setAttempt] = useState(0);
   const [resendSent, setResendSent] = useState(false);
+  const [resendError, setResendError] = useState('');
   const [resending, setResending] = useState(false);
 
   useEffect(() => {
     let active = true;
     if (!email || !token) {
-      setStatus('error');
+      setStatus('expired');
       setMessage('Missing email or token. The confirmation link may be incomplete.');
-      return;
+      return undefined;
     }
+    setStatus('loading');
     confirmEmail(email, token)
       .then(() => {
-        if (active) {
-          setStatus('success');
-          setMessage('Your email has been confirmed. You can now sign in.');
-          showToast('Email confirmed — you can now sign in', 'success');
-        }
+        if (!active) return;
+        setStatus('success');
+        setMessage('Your email has been confirmed. You can now sign in.');
+        showToast('Email confirmed — you can now sign in', 'success');
       })
       .catch((err) => {
-        if (active) {
-          const msg = err.message || 'This confirmation link is invalid or has expired.';
-          setStatus('error');
-          setMessage(msg);
-          showToast(msg, 'error');
-        }
+        if (!active) return;
+        setStatus(isLinkProblem(err) ? 'expired' : 'error');
+        setMessage(summarizeError(err, 'This confirmation link is invalid or has expired.'));
       });
     return () => {
       active = false;
     };
     // oxlint-disable-next-line react-hooks/exhaustive-deps
-  }, [email, token, confirmEmail]);
+  }, [email, token, confirmEmail, attempt]);
 
   const handleResend = async () => {
-    if (!email) return;
+    if (!email || resending) return;
     setResending(true);
+    setResendError('');
     try {
       await resendConfirmation(email);
       setResendSent(true);
-      showToast('Confirmation email sent', 'success');
     } catch (err) {
-      showToast(err?.message || 'Could not resend email', 'error');
+      setResendError(summarizeError(err, 'We could not send a new confirmation email. Please try again.'));
     } finally {
       setResending(false);
     }
   };
 
-  return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        <div style={styles.brand}>
-          <div style={styles.mark}>CU</div>
-          <div>
-            <strong style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 14 }}>Cebu Upskilling</strong>
-          </div>
+  if (status === 'loading') {
+    return (
+      <AuthCard title="Confirming your email" centered>
+        <div className={styles.state} role="status" aria-live="polite">
+          <Loader2 size={24} className={styles.spinner} aria-hidden="true" />
+          <p className={styles.subtitle}>Please wait a moment…</p>
         </div>
+      </AuthCard>
+    );
+  }
 
-        {status === 'loading' && (
-          <>
-            <h2 style={styles.title}>Confirming your email</h2>
-            <p style={styles.subtitle}>Please wait a moment…</p>
-          </>
-        )}
+  if (status === 'success') {
+    return (
+      <AuthCard title="Email confirmed" wide centered>
+        <div className={styles.state}>
+          <span className={styles.successIcon} aria-hidden="true"><CheckCircle2 size={18} /></span>
+          <p className={styles.subtitle}>{message}</p>
+          <Button variant="primary" className={styles.submit} onClick={() => navigate('/login')}>
+            Continue to sign in
+          </Button>
+        </div>
+        <p className={styles.links}>
+          <Link to="/login">Back to sign in</Link>
+        </p>
+      </AuthCard>
+    );
+  }
 
-        {status === 'success' && (
+  return (
+    <AuthCard title="Couldn't confirm email" wide centered>
+      <div className={styles.state}>
+        <AlertTriangle size={24} className={styles.alertIcon} aria-hidden="true" />
+        <p className={styles.subtitle}>{message}</p>
+
+        {status === 'expired' && email && (
           <>
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }} aria-hidden="true">
-              <span style={styles.successIcon}><CheckCircle2 size={18} /></span>
-            </div>
-            <h2 style={styles.title}>Email confirmed</h2>
-            <p style={styles.subtitle}>{message}</p>
             <Button
               variant="primary"
-              style={{ width: '100%' }}
-              onClick={() => navigate('/login')}
+              className={styles.submit}
+              disabled={resending || resendSent}
+              onClick={handleResend}
             >
-              Continue to sign in
+              {resendSent ? 'Confirmation email sent' : resending ? 'Sending…' : 'Resend confirmation email'}
             </Button>
+            {resendSent && (
+              <p className={styles.note} role="status">
+                A new confirmation email was sent. Check your inbox.
+              </p>
+            )}
+            {resendError && (
+              <p className={styles.summary} role="alert">
+                {resendError}
+              </p>
+            )}
           </>
         )}
 
         {status === 'error' && (
-          <>
-            <h2 style={styles.title}>Couldn't confirm email</h2>
-            <p style={styles.subtitle}>{message}</p>
-            {email && (
-              <Button
-                variant="primary"
-                style={{ width: '100%' }}
-                disabled={resending || resendSent}
-                onClick={handleResend}
-              >
-                {resendSent ? 'Confirmation email sent' : resending ? 'Sending…' : 'Resend confirmation email'}
-              </Button>
-            )}
-            <p style={styles.link}>
-              <Link to="/login">Back to sign in</Link>
-            </p>
-          </>
+          <Button variant="primary" className={styles.submit} onClick={() => setAttempt((n) => n + 1)}>
+            Try again
+          </Button>
         )}
       </div>
-    </div>
+      <p className={styles.links}>
+        <Link to="/login">Back to sign in</Link>
+      </p>
+    </AuthCard>
   );
 }

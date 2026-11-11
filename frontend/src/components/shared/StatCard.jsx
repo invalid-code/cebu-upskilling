@@ -1,3 +1,4 @@
+import { metaText } from '../../styles/shared';
 const styles = {
   stat: {
     display: 'flex',
@@ -8,17 +9,14 @@ const styles = {
     marginBottom: 17,
   },
   value: {
-    fontFamily: "'Space Grotesk', sans-serif",
+    fontFamily: 'var(--font-display)',
     fontWeight: 700,
     fontSize: 30,
     fontVariantNumeric: 'tabular-nums',
     color: 'var(--teal)',
     display: 'block',
   },
-  label: {
-    fontSize: 12,
-    color: 'var(--muted)',
-  },
+  label: { ...metaText },
 };
 
 export default function StatCard({ value, label, icon: Icon }) {

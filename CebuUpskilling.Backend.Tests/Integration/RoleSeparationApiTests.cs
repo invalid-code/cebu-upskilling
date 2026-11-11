@@ -125,7 +125,7 @@ public class RoleSeparationApiTests : ProductionApiTestBase
         Assert.Equal("Senior Backend Developer", posts[0].GetProperty("title").GetString());
     }
 
-    private async Task<(string token, int companyId)> RegisterRecruiterAsync(string email, string companyName)
+    private async Task<(string token, Guid companyId)> RegisterRecruiterAsync(string email, string companyName)
     {
         using var registration = await RegisterCompanyAsync(new
         {
@@ -138,6 +138,6 @@ public class RoleSeparationApiTests : ProductionApiTestBase
         registration.EnsureSuccessStatusCode();
         var body = await ReadJsonAsync(registration);
 
-        return (body.GetProperty("token").GetString()!, body.GetProperty("companyId").GetInt32());
+        return (body.GetProperty("token").GetString()!, body.GetProperty("companyId").GetGuid());
     }
 }

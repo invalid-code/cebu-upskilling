@@ -5,9 +5,9 @@ namespace CebuUpskilling.Backend.Entities;
 public class Media
 {
     [Key]
-    public int MediaId { get; set; }
+    public Guid MediaId { get; set; }
 
-    public int LessonId { get; set; }
+    public Guid LessonId { get; set; }
 
     [Required, MaxLength(500)]
     public string PathFile { get; set; } = string.Empty;

@@ -10,7 +10,7 @@ namespace CebuUpskilling.Backend.Services;
 /// processes jobs in the background with its own scope: slow or failing
 /// uploads/parses can never block registration.
 /// </summary>
-public record ResumeParseJob(int UserId, string ResumeText, byte[]? FileBytes, string? FileName);
+public record ResumeParseJob(Guid UserId, string ResumeText, byte[]? FileBytes, string? FileName);
 
 public interface IResumeParseQueue
 {

@@ -1,10 +1,10 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { AuthProvider } from '../context/AuthContext';
 import { ToastProvider } from '../context/ToastContext';
-import BusinessDashboardPage from './BusinessDashboardPage';
+import BusinessDashboardPage, { DEMAND_TIMEOUT_MS } from './BusinessDashboardPage';
 
 vi.mock('../api/client', () => ({ api: { get: vi.fn(), delete: vi.fn() } }));
 import { api } from '../api/client';
@@ -44,6 +44,57 @@ describe('BusinessDashboardPage', () => {
     renderPage();
     expect(await screen.findByText('Business dashboard unavailable')).toBeInTheDocument();
     expect((await screen.findAllByText('Network error')).length).toBeGreaterThan(0);
+  });
+
+  it('plots one bar per demand point scaled to the maximum', async () => {
+    api.get.mockResolvedValue({
+      ...response,
+      skillDemand: [
+        { skillName: 'JavaScript', requiredForRoles: 5, learnerCount: 1, avgLearnerLevel: 2 },
+        { skillName: 'Docker', requiredForRoles: 2, learnerCount: 0, avgLearnerLevel: null },
+        { skillName: 'Broken', requiredForRoles: 'x' },
+      ],
+    });
+    renderPage();
+    const chart = await screen.findByTestId('demand-chart');
+    expect(within(chart).getByLabelText('JavaScript: 5 roles')).toBeInTheDocument();
+    expect(within(chart).getByLabelText('Docker: 2 roles')).toBeInTheDocument();
+    expect(within(chart).queryByLabelText(/Broken/)).not.toBeInTheDocument();
+    expect(chart.querySelector('[aria-label="Docker: 2 roles"] > div').style.width).toBe('40%');
+  });
+
+  it('shows an empty state in the chart slot when there is no demand data', async () => {
+    api.get.mockResolvedValue({ ...response, skillDemand: [] });
+    renderPage();
+    expect(await screen.findByText('No skill demand yet')).toBeInTheDocument();
+    expect(screen.queryByTestId('demand-chart')).not.toBeInTheDocument();
+  });
+
+  it('retries after an error and then renders the chart', async () => {
+    const user = userEvent.setup();
+    api.get.mockRejectedValueOnce(new Error('Boom')).mockResolvedValueOnce(response);
+    renderPage();
+    expect(await screen.findByText('Business dashboard unavailable')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Retry/ }));
+    expect(await screen.findByTestId('demand-chart')).toBeInTheDocument();
+    expect(api.get).toHaveBeenCalledTimes(2);
+  });
+
+  it('shows a timeout error after 10s and ignores the late response', async () => {
+    vi.useFakeTimers();
+    try {
+      let resolve;
+      api.get.mockReturnValue(new Promise((r) => { resolve = r; }));
+      renderPage();
+      await act(async () => { await vi.advanceTimersByTimeAsync(DEMAND_TIMEOUT_MS); });
+      expect(screen.getByText('Business dashboard unavailable')).toBeInTheDocument();
+      expect(screen.getByText('The request timed out after 10 seconds.')).toBeInTheDocument();
+      await act(async () => { resolve(response); });
+      expect(screen.getByText('Business dashboard unavailable')).toBeInTheDocument();
+      expect(screen.queryByTestId('demand-chart')).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('deletes a posting via the base-relative path and refreshes without reload', async () => {

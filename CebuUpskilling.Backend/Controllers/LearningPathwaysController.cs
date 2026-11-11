@@ -27,7 +27,7 @@ public class LearningPathwaysController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<LearningPathwayResponse>> GetMyPathway()
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        if (!User.TryGetUserId(out var userId)) return Unauthorized(new { error = "Unauthorized" });
         _logger.LogInformation("HTTP GET /api/pathways called by user {UserId}", userId);
 
         var pathway = await _pathwayAgent.GenerateAsync(userId);

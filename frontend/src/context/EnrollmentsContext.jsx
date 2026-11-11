@@ -15,7 +15,9 @@ export function EnrollmentsProvider({ children }) {
     return () => controller.abort();
   }, [user, fetchEnrollments]);
 
-  const refreshEnrollments = (signal) => fetchEnrollments(signal, user);
+  // Explicit refresh (e.g. right after enrolling): always revalidate,
+  // bypassing the mount-time freshness window in the store.
+  const refreshEnrollments = (signal) => fetchEnrollments(signal, user, { force: true });
 
   const value = { enrollments, isEnrolled, refreshEnrollments, fetchEnrollments };
 

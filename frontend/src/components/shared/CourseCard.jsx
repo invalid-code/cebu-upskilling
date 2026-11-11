@@ -6,6 +6,7 @@ import { useToast } from '../../context/ToastContext';
 import { useEnrollments } from '../../context/EnrollmentsContext';
 import { api } from '../../api/client';
 import { Play, Check, Code, BookOpen, Users, Clock, Award } from 'lucide-react';
+import { chipCoral, chipTeal, metaText } from '../../styles/shared';
 
 const styles = {
   card: {
@@ -32,21 +33,15 @@ const styles = {
     fontSize: 20,
     fontWeight: 700,
   },
-  iconCode: {
-    background: 'var(--coral-soft)',
-    color: 'var(--coral)',
-  },
-  iconTeal: {
-    background: 'var(--teal-soft)',
-    color: 'var(--teal)',
-  },
+  iconCode: { ...chipCoral },
+  iconTeal: { ...chipTeal },
   iconGreen: {
-    background: 'rgb(210, 240, 220)',
+    background: 'var(--good-soft)',
     color: 'var(--good)',
   },
   iconPurple: {
-    background: '#e8dff0',
-    color: '#7c3aed',
+    background: 'var(--violet-soft)',
+    color: 'var(--violet)',
   },
   tags: {
     display: 'flex',
@@ -55,7 +50,7 @@ const styles = {
     marginBottom: 8,
   },
   title: {
-    fontFamily: "'Space Grotesk', sans-serif",
+    fontFamily: 'var(--font-display)',
     fontSize: 16,
     fontWeight: 700,
     color: 'var(--ink)',
@@ -99,10 +94,7 @@ const styles = {
     alignItems: 'center',
     marginBottom: 6,
   },
-  progressLabel: {
-    fontSize: 12,
-    color: 'var(--muted)',
-  },
+  progressLabel: { ...metaText },
   progressPercent: {
     fontSize: 12,
     fontWeight: 700,
@@ -121,6 +113,10 @@ const iconVariants = {
   purple: styles.iconPurple,
 };
 
+const ALREADY_ENROLLED = /already enrolled/i;
+const isAlreadyEnrolledResponse = (result) => ALREADY_ENROLLED.test(result?.message ?? '');
+const isAlreadyEnrolledError = (err) => err?.status === 409 || ALREADY_ENROLLED.test(err?.message ?? '');
+
 export default function CourseCard({
   course,
   _variant = 'recommended',
@@ -133,6 +129,7 @@ export default function CourseCard({
   rating = 4.5,
   studentCount = 1000,
   isCompleted = false,
+  certificateId = null,
   onStart,
   onResume,
   onViewCertificate,
@@ -140,6 +137,7 @@ export default function CourseCard({
   const { showToast } = useToast();
   const { refreshEnrollments } = useEnrollments();
   const [enrolling, setEnrolling] = useState(false);
+  const [alreadyEnrolled, setAlreadyEnrolled] = useState(false);
 
   const handleEnroll = async () => {
     if (!course.courseId) {
@@ -148,11 +146,20 @@ export default function CourseCard({
     }
     setEnrolling(true);
     try {
-      await api.post('/enrollments', { courseId: course.courseId });
+      const result = await api.post('/enrollments', { courseId: course.courseId });
+      if (isAlreadyEnrolledResponse(result)) {
+        // Idempotent: keep the existing enrollment and progress untouched, no error toast.
+        setAlreadyEnrolled(true);
+        return;
+      }
       refreshEnrollments();
       showToast(`Course added to your pathway — "${course.name}"`, 'success');
       if (onStart) onStart();
     } catch (err) {
+      if (isAlreadyEnrolledError(err)) {
+        setAlreadyEnrolled(true);
+        return;
+      }
       showToast(err.message || 'Enrollment failed', 'error');
     } finally {
       setEnrolling(false);
@@ -231,9 +238,15 @@ export default function CourseCard({
 
       <div style={styles.actionButton}>
         {isCompleted ? (
-          <Button variant="secondary" onClick={onViewCertificate} style={{ width: '100%' }}>
-            <Check size={16} /> View certificate
-          </Button>
+          certificateId ? (
+            <Button variant="secondary" onClick={onViewCertificate} style={{ width: '100%' }}>
+              <Check size={16} /> View certificate
+            </Button>
+          ) : (
+            <Button variant="secondary" disabled style={{ width: '100%' }}>
+              <Award size={16} /> Course completed
+            </Button>
+          )
         ) : isEnrolled && progressPercent > 0 ? (
           <Button variant="primary" onClick={onResume} style={{ width: '100%' }}>
             <Play size={16} /> Resume
@@ -241,6 +254,10 @@ export default function CourseCard({
         ) : isEnrolled ? (
           <Button variant="primary" onClick={onStart} style={{ width: '100%' }}>
             <Play size={16} /> Start
+          </Button>
+        ) : alreadyEnrolled ? (
+          <Button variant="secondary" disabled style={{ width: '100%' }}>
+            <Check size={16} /> Already enrolled
           </Button>
         ) : (
           <Button variant="primary" onClick={handleEnroll} disabled={enrolling} style={{ width: '100%' }}>

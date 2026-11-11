@@ -18,8 +18,10 @@ public class ApplicationDbContext : DbContext
     public DbSet<Exercise> Exercises => Set<Exercise>();
     public DbSet<ExerciseContent> ExerciseContents => Set<ExerciseContent>();
     public DbSet<AppUser> Users => Set<AppUser>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<Learner> Learners => Set<Learner>();
     public DbSet<LearnerStudyCourse> LearnerStudyCourses => Set<LearnerStudyCourse>();
+    public DbSet<CourseCertificate> CourseCertificates => Set<CourseCertificate>();
     public DbSet<Company> Companies => Set<Company>();
     public DbSet<Post> Posts => Set<Post>();
     public DbSet<PostCourseRequired> PostCourseRequireds => Set<PostCourseRequired>();
@@ -114,6 +116,26 @@ public class ApplicationDbContext : DbContext
             .WithMany(c => c.LearnerStudyCourses)
             .HasForeignKey(lsc => lsc.CourseId);
 
+        modelBuilder.Entity<CourseCertificate>()
+            .HasOne(cert => cert.Course)
+            .WithMany(c => c.Certificates)
+            .HasForeignKey(cert => cert.CourseId);
+
+        modelBuilder.Entity<CourseCertificate>()
+            .HasOne(cert => cert.Learner)
+            .WithMany(l => l.Certificates)
+            .HasForeignKey(cert => cert.LearnerId);
+
+        // One credential per learner per course, and serial numbers are the
+        // public verification handle so they must be globally unique.
+        modelBuilder.Entity<CourseCertificate>()
+            .HasIndex(cert => new { cert.LearnerId, cert.CourseId })
+            .IsUnique();
+
+        modelBuilder.Entity<CourseCertificate>()
+            .HasIndex(cert => cert.SerialNumber)
+            .IsUnique();
+
         modelBuilder.Entity<AppUser>()
             .HasOne(u => u.Company)
             .WithMany(c => c.Users)
@@ -154,6 +176,34 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<AppUser>()
             .HasIndex(u => u.EmailAddress)
             .IsUnique();
+
+        modelBuilder.Entity<RefreshToken>()
+            .HasOne(t => t.User)
+            .WithMany()
+            .HasForeignKey(t => t.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<RefreshToken>()
+            .HasIndex(t => t.TokenHash)
+            .IsUnique();
+
+        modelBuilder.Entity<RefreshToken>()
+            .HasIndex(t => new { t.UserId, t.ExpiresAt });
+
+        // Check-then-insert races (concurrent double-apply / double-register /
+        // concurrent skill parses) must fail at the database, not silently
+        // duplicate. Services catch DbUpdateException and return the idempotent
+        // outcome (AlreadyApplied / "Email already registered" / reuse winner).
+        modelBuilder.Entity<Application>()
+            .HasIndex(a => new { a.LearnerId, a.PostId })
+            .IsUnique();
+
+        modelBuilder.Entity<Skill>()
+            .HasIndex(s => s.Name)
+            .IsUnique();
+
+        modelBuilder.Entity<LearnerAssessment>()
+            .HasIndex(a => new { a.LearnerId, a.SkillId });
 
         modelBuilder.Entity<Company>()
             .HasIndex(c => c.Name)

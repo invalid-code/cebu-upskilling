@@ -13,7 +13,7 @@ const styles = {
     gap: 16,
   },
   brand: {
-    fontFamily: "'Space Grotesk', sans-serif",
+    fontFamily: 'var(--font-display)',
     fontWeight: 700,
     fontSize: 13,
   },
